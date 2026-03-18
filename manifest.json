@@ -1,0 +1,34 @@
+{
+  "skills": [
+    {
+      "name": "skill-management",
+      "path": "skills/skill-management/SKILL.md",
+      "description": "Browse, install, update, and contribute skills from the ouroboros-skills shared repository. This is the bootstrap skill that teaches agents how to manage their skill library.",
+      "tags": ["meta", "bootstrap", "registry"]
+    },
+    {
+      "name": "work-planner",
+      "path": "skills/work-planner/SKILL.md",
+      "description": "Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.",
+      "tags": ["workflow", "planning"]
+    },
+    {
+      "name": "work-doer",
+      "path": "skills/work-doer/SKILL.md",
+      "description": "Executes doing.md units sequentially with strict TDD. Reads the doing doc, works through each unit, commits after each. Use after planning is complete and doing.md exists.",
+      "tags": ["workflow", "execution", "tdd"]
+    },
+    {
+      "name": "work-merger",
+      "path": "skills/work-merger/SKILL.md",
+      "description": "Sync-and-merge agent. Runs after work-doer completes. Fetches origin/main, merges, resolves conflicts using task docs, creates PR via gh, waits for CI, merges to main, cleans up branch.",
+      "tags": ["workflow", "git", "merge"]
+    },
+    {
+      "name": "video-editing",
+      "path": "skills/video-editing/SKILL.md",
+      "description": "Build and edit videos using Remotion with kinetic typography, VO-synced timing, and motion design. Use this skill when the user asks to create, edit, or fix video content.",
+      "tags": ["video", "remotion", "creative"]
+    }
+  ]
+}
