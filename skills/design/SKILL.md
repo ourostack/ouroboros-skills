@@ -71,14 +71,17 @@ Lock down these decisions before writing implementation code. These are your des
 
 - **Pick two fonts maximum.** One display, one body. If you can get away with one family at different weights, even better.
 - **Establish a modular scale.** Use a ratio (1.25 major third, 1.333 perfect fourth, 1.5 perfect fifth) to generate your size steps. Don't pick arbitrary pixel values.
-- **Use `clamp()` for display text.** Fluid type on marketing/landing pages. Fixed rem scales for app UIs.
+- **Match type scale to content density.** A bold type scale (7rem+ headings) only works when you have the content density to justify it. If your hero is a short headline with a badge and two buttons, 5rem is plenty. Massive type on sparse content creates awkward empty space.
+- **Use breakpoint steps for display text.** `text-[2rem] sm:text-[3rem] md:text-[4.5rem]` gives you explicit control at each viewport. Reserve `clamp()` for body text that needs to scale smoothly.
 - **Weight creates hierarchy.** You need at least three distinct weight levels: bold (headings), regular (body), and light or medium (secondary text). If your font doesn't have enough weights, pick a different font.
+- **Leading depends on line count.** A single-line heading at 5rem can use `leading-none` (1.0). A 3-line heading at the same size needs more: `leading-tight` (1.1-1.15). Multi-line body text needs `leading-relaxed` (1.6-1.8). Never use one leading value everywhere.
 
 ### Spacing
 
 - **Choose a base unit.** 4px is the standard. Every spacing value should be a multiple: 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
-- **Sections need room to breathe.** Full-viewport heroes, generous padding between page sections. A page that feels cramped is a page that feels cheap.
+- **Spacing must match content density.** Generous section padding (py-28, py-36) works when sections have enough content to fill the viewport. If a section has a heading and three cards, py-20 md:py-28 is plenty. Empty space without purpose reads as broken, not luxurious.
 - **Tighter inside, looser outside.** Components have tight internal spacing. The gaps between components are larger. The gaps between sections are largest. This creates visual grouping without needing borders.
+- **Test at the target viewport.** A section that looks "spacious" in a 900px-tall screenshot can look "broken" on a 1080px or 1440px display. Always check at the actual viewport sizes your users have.
 
 ### Commit to the direction
 Write down your decisions: "This page uses [font] at [scale], [palette] colors, [unit] spacing, [tone] aesthetic." This is your reference for every decision that follows.
@@ -99,6 +102,12 @@ Write down your decisions: "This page uses [font] at [scale], [palette] colors, 
 4. **Polish**: Borders, shadows, radii, micro-interactions, transitions.
 
 Building in this order prevents the trap of making something "look nice" before it works spatially.
+
+### Composition is everything
+- **Full-viewport heroes must be truly centered.** If the hero uses `min-h-dvh` with `justify-center`, nothing else in the flex flow should compete for space. Scroll indicators should be `absolute bottom-*`, not flex children with `mt-auto`. Fixed navs are `position: fixed` and don't affect the section's box — you only need enough top padding to clear the nav visually, not structurally.
+- **Every element must justify its space.** If there's empty space on the page, it should be intentional negative space that creates breathing room between content — not leftover space because the content doesn't fill the viewport. When content is sparse, reduce the section height rather than padding it out.
+- **Check at real viewport sizes.** Screenshots at 900px tall don't represent your users. Most desktop users are on 1080p (1920x1080). Check there. The hero should fill one viewport — not leave a massive void below the content.
+- **Tighten element spacing within groups.** A headline, subline, badge, and two buttons are ONE compositional group. The gaps between them should be tight (mt-4, mt-6, mt-8) — not loose (mt-10, mt-14). Loose internal spacing makes a group feel scattered instead of unified.
 
 ### Responsive from the start
 - Design for your primary breakpoint first, but test narrow viewports as you go — not as a cleanup pass at the end.
