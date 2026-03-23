@@ -35,6 +35,12 @@
       "path": "skills/design/SKILL.md",
       "description": "Design and build production-grade frontend interfaces from scratch. Covers the full workflow from context gathering through visual direction, implementation, and polish.",
       "tags": ["design", "frontend", "creative", "ui"]
+    },
+    {
+      "name": "frontend-design",
+      "path": "skills/frontend-design/SKILL.md",
+      "description": "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics.",
+      "tags": ["design", "frontend", "creative", "aesthetics"]
     }
   ]
 }
