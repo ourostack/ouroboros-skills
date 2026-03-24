@@ -148,7 +148,7 @@ When the user doesn't have a recorded voiceover:
 - Avoid Standard Multilingual voices (older, less expressive).
 - Always generate test samples before committing. Let the user compare.
 
-**SSML controls**: `<prosody rate="+10%" pitch="+10%">` — rate and pitch are the main levers. Pitch max +50% but sounds unnatural past +20%. The real energy lever is **punctuation** — Dragon HD reads exclamation marks, questions, etc. Always output at **48kHz** (`Riff48Khz16BitMonoPcm`). 24kHz can sound garbled.
+If the user doesn't have a recorded VO, a ready-to-use Azure Speech generation script is bundled at `generate-vo.py` alongside this skill file. Copy it into the project's `media/vo/` directory, edit the SECTIONS dict with the script text, and run. See the docstring in that file for config notes (supported SSML, voice settings, gotchas).
 
 **Multi-video projects**: Use a master script + manifest pattern. All VO sections in one file, manifest maps sections to videos. Edit once, applies everywhere.
 
@@ -419,8 +419,10 @@ Rules for freezes:
 ### Ducking implementation
 
 Lower music when VO plays, bring it back during silent/demo sections:
-- Use whisper timestamps to know exactly when VO is active
+- **Duck to speech, not to file.** Whisper segment boundaries include silence/pauses. Use word-level timestamps to find where words are actually spoken, and duck only during those moments. Ducking to file boundaries creates weird pumping during pauses.
+- **Two-step process**: (1) sync VO to video first, (2) then build ducking from the placed VO. Never try to do both at once.
 - In Remotion, control audio volume per frame with `interpolate()` on the volume prop
+- For pre-mixed audio outside Remotion: detect speech from amplitude envelope or word-level timestamps mapped to final timeline positions.
 - **Every time you move, add, split, or remove a VO block, rebuild ALL voRanges.** Stale ranges = music ducked at wrong times.
 
 ### Demo footage rules
@@ -606,6 +608,10 @@ npx remotion render CompositionId out/filename.mp4
 - **Cutting before a ding**: Duck ramp kills the beat. Let it ring out, THEN cut.
 - **RMS for percussive detection**: Use peak analysis. RMS averages away short transients.
 - **Whisper word onset precision**: Back up startFrom by 200-400ms when splitting at word boundaries.
+- **Cutting VO at whisper segment boundaries, not sentence boundaries**: Whisper segments break on arbitrary line lengths, NOT sentence structure. "different types" and "of appointments" can end up in different segments. ALWAYS use word-level timestamps to find actual sentence ends (periods, exclamation marks, question marks). Never trust segment boundaries for VO splits.
+- **Syncing VO to breakdown timestamps, not FCPXML math**: If you have the actual video, extract frames and build a visual breakdown. Sync VO to what you SEE, not to reverse-engineered XML offsets. FCPXML offset math is error-prone (parent-relative coordinates, NDF timecode, nested clips) and the errors compound invisibly.
+- **Breakdown timestamps drift from reality**: A 1fps extraction gives frame numbers, not precise timestamps. frame_199.jpg does NOT mean the content appears at exactly 199.000s — it means the content was visible sometime during second 199. For sync-critical moments, ALWAYS verify with 10fps extraction before committing to a placement.
+- **Music must cover the full video**: Never assume the original edit's music coverage is correct for the new version. Always verify: does music play from start to finish? If the track is shorter than the video, make a bespoke extension (splice at energy-matched dip, preserve natural fadeout). Never let music just stop.
 
 ### Creative & workflow
 - **Timing math spirals**: Don't calculate in your head. Write code, run verification, check in studio.
