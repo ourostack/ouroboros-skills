@@ -118,6 +118,17 @@ fix and continue? (y/n)
 
 **DO NOT ASSIGN TIME ESTIMATES** — no hours, days, or duration predictions.
 
+**Scrutiny — Tinfoil Hat (before presenting for approval):**
+After drafting and refining the planning doc, run a "tinfoil hat" pass before presenting it. This pass asks: **"what am I not seeing?"**
+- Are there gaps in scope? Things that will obviously be needed but aren't listed?
+- Are the completion criteria actually verifiable, or are they hand-wavy?
+- Are there implicit assumptions that should be explicit decisions?
+- Does the scope accidentally include or exclude something it shouldn't?
+- Are there dependencies or ordering constraints that the plan ignores?
+- Actually read the code/files referenced — do they exist? Do the patterns described match reality?
+- If issues found: fix them, commit with `"docs(planning): tinfoil hat pass"`, then present for approval
+- If nothing found: commit with `"docs(planning): tinfoil hat pass - no issues found"`
+
 **STOP POINT:** When scope is clear, output:
 ```
 planning drafted. status: NEEDS_REVIEW
@@ -197,12 +208,30 @@ Run these passes — announce each. **ALL PASSES ARE MANDATORY (5 fixed passes +
 - **Every unit header starts with status emoji?** (`### ⬜ Unit X:`) — scan the doc and fix any missing ones before committing
 - Commit: `git commit -m "docs(doing): quality pass"` (or `"docs(doing): quality pass - no changes needed"` if nothing to fix)
 
-**Pass 6+ — Scrutiny (repeat until convergence):**
-- Put on your "aluminum cap" and critically evaluate the entire doing doc
-- For each pass, adopt a different lens: architecture, agent experience, edge cases, failure modes, dependency ordering, naming, scope creep, missing units
-- Check: would the doer hit a wall? Is anything under-specified? Over-engineered? In the wrong order? Missing error handling? Are there collisions between units?
-- Trace through the full user-facing flow end-to-end and look for gaps
-- If issues found: fix them, commit with `"docs(doing): scrutiny pass N"`, and do another pass
+**Pass 6+ — Scrutiny (two framings, repeat until convergence):**
+
+Use two distinct adversarial framings. They catch different classes of bugs.
+
+**Framing A — Tinfoil Hat: "what am I not seeing?"**
+Catches omissions: missing scope, underspecified semantics, implicit assumptions, gaps in the flow.
+- Are there tools, files, types, or paths that the units reference but don't exist?
+- Are there dependency ordering problems? Would a unit need something from a later unit?
+- Are there missing units? Trace the full flow end-to-end and look for holes.
+- Are edge cases handled? Empty inputs, error paths, fallback behavior?
+- Is anything over-engineered or out of scope?
+
+**Framing B — Stranger With Candy: "what here looks correct but is actually wrong?"**
+Catches deception: things that pass a normal review but break at execution time.
+- Are file paths, line numbers, or variable names plausible but actually pointing to the wrong location?
+- Are items listed under the wrong category or file? (e.g., a tool listed in `tools-base.ts` that's actually defined in `tools-bluebubbles.ts`)
+- Are there duplicate entries that look like they belong?
+- Would a silent behavior change slip through? (e.g., display format changing from `"value"` to `"key=value"`)
+- Are test files or imports that will break mentioned explicitly, or left for the doer to discover?
+
+**Process:**
+- Alternate framings across passes (A, then B, then A if needed, etc.)
+- Actually read the codebase to verify claims — don't trust the doing doc's assertions
+- If issues found: fix them, commit with `"docs(doing): scrutiny pass N — [framing] [what was found]"`, and do another pass
 - **Convergence**: stop when a pass finds nothing new. This is not a fixed count — keep going until clean.
 - Commit even if nothing found: `git commit -m "docs(doing): scrutiny pass N - converged, no issues found"`
 
