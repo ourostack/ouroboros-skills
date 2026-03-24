@@ -191,10 +191,42 @@ Always work in milliseconds internally. Convert to frames only at the final step
 
 ## 6. PHASE 4: MUSIC — Waveform Analysis, Beat Identification, Ding Anatomy
 
-### Track selection
+### Track selection and length matching
 - Music has a beginning and end — you can't chop it randomly or loop it blindly.
-- Prefer ambient/loop-friendly tracks for demo videos (no strong arc).
-- One track can work across multiple videos — cut to each video's length.
+- **Never blindly loop a track** to make it longer. Looping flattens dynamics at the join and sounds amateur.
+- One track can work across multiple videos — but each needs a bespoke cut to length.
+
+### Bespoke track cutting (the right way)
+
+The workflow: analyze first, edit video, THEN cut the music to fit.
+
+1. **Analyze the original track** at full resolution (5ms peak). Map structural sections, find dips/transitions.
+2. **Build the composition** and determine exact duration needed.
+3. **Make a surgical cut** that preserves the intro and natural fadeout:
+
+```
+Original:  [INTRO 0-9s] [PLATEAU A 9-42s] [DIP] [PLATEAU B 42-76s] [QUIET 77-101s] [PLATEAU C 103-117s] [FADEOUT 118-133s]
+
+Need 90s:  [INTRO 0-9s] [PLATEAU A 9-42s] [DIP] [PLATEAU B 42-60s] → splice to → [FADEOUT 118-133s]
+                                                            ^cut at energy dip^              ^natural ending^
+
+Need 200s: [INTRO 0-9s] [PLATEAU A 9-42s] [DIP] [PLATEAU B 42-76s] → loop back to → [PLATEAU A 9-42s] ... [FADEOUT 118-133s]
+                                                                ^splice at matching energy^
+```
+
+**Splice points** are structural dips where energy briefly drops — cuts there are inaudible because the listener expects a moment of breath. Find these in the waveform analysis (look for 1s windows where RMS drops 6-10dB below surrounding plateaus).
+
+Use ffmpeg to make the cuts:
+```bash
+# Extract segments and concatenate
+ffmpeg -i track.m4a -ss 0 -t 60 -c copy /tmp/part1.m4a
+ffmpeg -i track.m4a -ss 9 -t 42 -c copy /tmp/part2.m4a  # loop middle
+ffmpeg -i track.m4a -ss 118 -c copy /tmp/part3.m4a       # fadeout
+# Concatenate with crossfade at splice points
+ffmpeg -f concat -safe 0 -i list.txt -c:a aac output.m4a
+```
+
+Do this AFTER the video edit is locked — the music length depends on the final composition duration.
 
 ### Waveform analysis — full track at millisecond resolution
 
