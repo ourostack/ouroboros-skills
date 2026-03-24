@@ -161,7 +161,7 @@ User answers questions → agent updates doc → agent sets status to `NEEDS_REV
 
 **CRITICAL: Planning doc is KEPT. Conversion creates a NEW doing doc alongside it in `TASK_DIR`.**
 
-Run these passes — announce each. **ALL 5 PASSES ARE MANDATORY. You must run every pass, even if you think nothing changed. Each pass MUST have its own commit (use "no changes needed" in the commit message if the pass found nothing to fix). Do NOT skip or combine passes.**
+Run these passes — announce each. **ALL PASSES ARE MANDATORY (5 fixed passes + scrutiny passes until convergence). You must run every pass, even if you think nothing changed. Each pass MUST have its own commit (use "no changes needed" in the commit message if the pass found nothing to fix). Do NOT skip or combine passes.**
 
 **Pass 1 — First Draft:**
 - Create `YYYY-MM-DD-HHMM-doing-{short-desc}.md` (same timestamp and short-desc as planning)
@@ -197,7 +197,16 @@ Run these passes — announce each. **ALL 5 PASSES ARE MANDATORY. You must run e
 - **Every unit header starts with status emoji?** (`### ⬜ Unit X:`) — scan the doc and fix any missing ones before committing
 - Commit: `git commit -m "docs(doing): quality pass"` (or `"docs(doing): quality pass - no changes needed"` if nothing to fix)
 
-**STOP POINT:** After passes complete, output:
+**Pass 6+ — Scrutiny (repeat until convergence):**
+- Put on your "aluminum cap" and critically evaluate the entire doing doc
+- For each pass, adopt a different lens: architecture, agent experience, edge cases, failure modes, dependency ordering, naming, scope creep, missing units
+- Check: would the doer hit a wall? Is anything under-specified? Over-engineered? In the wrong order? Missing error handling? Are there collisions between units?
+- Trace through the full user-facing flow end-to-end and look for gaps
+- If issues found: fix them, commit with `"docs(doing): scrutiny pass N"`, and do another pass
+- **Convergence**: stop when a pass finds nothing new. This is not a fixed count — keep going until clean.
+- Commit even if nothing found: `git commit -m "docs(doing): scrutiny pass N - converged, no issues found"`
+
+**STOP POINT:** After passes converge, output:
 ```
 doing doc created. planning doc kept.
 status: READY_FOR_EXECUTION
