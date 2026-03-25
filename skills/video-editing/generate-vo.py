@@ -3,17 +3,22 @@ Azure Speech VO generator for video projects.
 Uses Dragon HD voice with rate adjustment and deterministic output.
 
 Usage:
-  1. Edit SECTIONS dict with your script sections
+  1. Edit SENTENCES list with your script — one entry per sentence
   2. Run: python3 generate-vo.py
-  3. WAV files output to ./vo/ directory
+  3. Individual WAV files output to ./vo/ directory
 
 Config notes:
   - Dragon HD does NOT support <prosody pitch>. It silently produces clicking artifacts.
-  - rate="+10%" works and produces audibly faster speech.
+  - rate="+10%" works and produces audibly faster speech. Do NOT add pitch.
   - temperature=0 on the voice element gives deterministic, consistent output.
     Higher values (up to 2.0) add expressiveness but also non-deterministic variation.
-  - Punctuation is the real energy lever: ! for energy, -- for dramatic pauses, ? for rising intonation.
+  - Punctuation is the real energy lever: ! for energy, — for dramatic pauses, ? for
+    rising intonation. Dragon HD's LLM backbone reads emotion from punctuation and text.
   - Always output 48kHz (Riff48Khz16BitMonoPcm). 24kHz can sound garbled.
+  - CRITICAL: Generate each sentence as a SEPARATE file. Long single-file generations
+    (25+ sentences) produce clicking/popping artifacts even without pitch. Short
+    individual sentences are consistently clean. This also gives you individual files
+    for precise timeline placement.
 """
 
 import azure.cognitiveservices.speech as speechsdk
@@ -30,11 +35,11 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "vo")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # --- SCRIPT ---
-# Edit this dict. Keys become filenames, values are the text to speak.
-# For a single full-video VO, use one key. For multi-section, use multiple.
-SECTIONS = {
-    "full-vo": """Your script here.""",
-}
+# One tuple per sentence: ("filename", "text to speak")
+# Use ! for energy, — for dramatic pauses, ? for rising intonation.
+SENTENCES = [
+    ("01-example", "Your script here!"),
+]
 
 
 def generate(name: str, text: str):
@@ -69,6 +74,6 @@ def generate(name: str, text: str):
 
 
 if __name__ == "__main__":
-    for name, text in SECTIONS.items():
+    for name, text in SENTENCES:
         generate(name, text)
     print("\nDone! Files in:", OUTPUT_DIR)
