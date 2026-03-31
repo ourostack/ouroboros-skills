@@ -41,6 +41,12 @@
       "path": "skills/frontend-design/SKILL.md",
       "description": "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics.",
       "tags": ["design", "frontend", "creative", "aesthetics"]
+    },
+    {
+      "name": "book-fetch",
+      "path": "skills/book-fetch/SKILL.md",
+      "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
+      "tags": ["books", "ebooks", "libgen", "e-reader"]
     }
   ]
 }
