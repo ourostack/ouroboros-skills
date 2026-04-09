@@ -17,7 +17,9 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 
 ## Backlog format
 
-Lives at `./{task-name}/discoveries.md` (next to the doing doc if one exists, in a dedicated inch-worm directory the user designates, or as the `audit-backlog.md` produced by `full-systems-audit`).
+Lives at `./{task-name}/discoveries.md` (next to the doing doc if one exists, in a dedicated inch-worm directory the user designates, or as the canonical `audit-backlog.md` produced by `full-systems-audit`).
+
+There should be one canonical backlog per active campaign. If you are in an audit-fed campaign, append new discoveries to that canonical backlog instead of spawning sibling files.
 
 Each entry is append-only unless you are updating `Status` after completing, superseding, or deferring an item. Format:
 
@@ -45,7 +47,7 @@ Each entry is append-only unless you are updating `Status` after completing, sup
 ID rules:
 
 - Audit-created items keep their original IDs (example: `A-001`).
-- New inch-worm discoveries get a stable local ID immediately (example: `D-001`, `D-002`, ...).
+- New inch-worm discoveries get the next stable local ID in that canonical backlog immediately (example: `D-001`, `D-002`, ...).
 - Never renumber existing backlog items.
 
 The severity scale:
@@ -91,6 +93,8 @@ If a discovery's fix shape grows beyond what you can do in a single commit-and-p
 
 If you are consuming `full-systems-audit` output, only take items already routed as `inch-worm-ready-after-reeval`. `planner-required` items go through `work-planner` first. After the large tranche lands, revalidate the small item before touching code — architecture changes often erase or reshape the original finding.
 
+If you find multiple competing backlog files for the same campaign, STOP and resolve which one is canonical before you keep working.
+
 ### 6b. Keep the ID alive
 
 Backlog item IDs are the continuity thread. Preserve them in:
@@ -111,7 +115,7 @@ When the user asks "what's on the list" — read the file verbatim to them. When
 
 ## Starting a new inch-worm session
 
-1. **Find or create the backlog**. If the user hasn't pointed you at one, ask where it should live (usually `./inch-worm/discoveries.md`, alongside an existing doing doc, or in the `audit-backlog.md` from `full-systems-audit`).
+1. **Find or create the backlog**. If the user hasn't pointed you at one, ask where it should live (usually `./inch-worm/discoveries.md`, alongside an existing doing doc, or in the canonical `audit-backlog.md` from `full-systems-audit`).
 2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Confirm before starting.
 3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR.
 4. **Hand off**. After the PR is open (or merged), report back with: (a) the fix, (b) the new discoveries added this iteration, (c) the proposed next seed.
@@ -135,8 +139,9 @@ You can pause and resume an inch-worm session across Claude Code sessions. To re
 1. Read the backlog from the top.
 2. Identify what's been fixed (look at recent git log against the backlog).
 3. Identify unresolved entries.
-4. Revalidate audit-seeded candidates at current `HEAD`.
-5. Ask the user which one to pick as the next seed, or propose the highest-value leaf.
+4. Make sure this is still the canonical backlog for the campaign.
+5. Revalidate audit-seeded candidates at current `HEAD`.
+6. Ask the user which one to pick as the next seed, or propose the highest-value leaf.
 
 Never silently "clean up" the log on resume — stale entries are the user's call, not yours.
 
