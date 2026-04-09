@@ -13,7 +13,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 3. **Log discoveries**: While working, every time you notice something else questionable — a v8 ignore that could be covered, a coverage gate gap, a dead branch, a comment that lies, a missing error case, a rebase-friction pattern, a duplicated helper, a TODO without a tracking issue, a flake, a console.warn that should be emitNervesEvent, etc. — append it to the discoveries log. Do NOT fix it now. Do NOT even think about fixing it now. Just log it.
 4. **Review**: When the seed fix is merged, read the discoveries log. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
-6. **Terminal condition**: You stop ONLY when the user says stop, the discoveries list is empty, or you're clearly burning budget without delivering value. Scope creep is NOT a terminal condition — that's the whole point of this skill.
+6. **Terminal condition**: You stop ONLY when the user says stop, the discoveries list is empty, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. When you hit that stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
 
 ## Discoveries log format
 
@@ -87,6 +87,10 @@ When the user asks "what's on the list" — read the file verbatim to them. When
 3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR.
 4. **Hand off**. After the PR is open (or merged), report back with: (a) the fix, (b) the new discoveries added this iteration, (c) the proposed next seed.
 5. **Wait for go/no-go** on the next seed. User may pick differently, add items, reshuffle.
+
+## Practical note
+
+If you install or update this skill mid-session, Codex may not show the refreshed skill in the active skill menu until the app/session is restarted. Treat the repo copy as source of truth, but do not assume the newly installed wording is live in the current session until after restart.
 
 ## What this skill is NOT
 
