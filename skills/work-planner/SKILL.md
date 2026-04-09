@@ -69,6 +69,9 @@ When resuming an existing planning doc:
 - Notes
 - Progress Log
 
+**Optional traceability section (when the task comes from an external backlog):**
+- Upstream Work Items (place after Goal)
+
 **If violations found:**
 ```
 found template violations:
@@ -115,6 +118,7 @@ fix and continue? (y/n)
 6. Refine based on answers — **commit after each significant change**
 7. Update Progress Log with git timestamp after each commit
 8. **After incorporating answers, re-present the updated planning doc and explicitly ask for approval. User answering questions ≠ user approving the plan.**
+9. If the user/caller provided upstream backlog item IDs (for example `A-001` from `full-systems-audit`), preserve them verbatim in both planning and doing docs.
 
 **DO NOT ASSIGN TIME ESTIMATES** — no hours, days, or duration predictions.
 
@@ -269,6 +273,9 @@ use work-doer to execute.
 ## Goal
 [1-2 sentences: what problem does this solve?]
 
+## Upstream Work Items
+- None
+
 **DO NOT include time estimates (hours/days) — planning should focus on scope and criteria, not duration.**
 
 ## Scope
@@ -333,6 +340,10 @@ use work-doer to execute.
 
 ## Objective
 [from planning Goal]
+
+## Upstream Work Items
+[copied from planning]
+- None
 
 ## Completion Criteria
 [copied from planning]
