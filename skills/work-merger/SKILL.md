@@ -237,6 +237,7 @@ git diff origin/main --stat
 Read the doing doc you are executing, plus any other explicitly provided task docs for this branch. The PR body should summarize every completed task on the branch, grouped logically when needed. Include:
 - A section per task (or group of related tasks) with a brief summary of what was implemented
 - A final "Files changed" summary (e.g., "164 files changed — new context kernel, codebase restructure, sync-and-merge system")
+- If the doing doc has an `Upstream Work Items` section, cite those backlog IDs verbatim in the PR body
 
 #### PR title and body contract (required)
 
@@ -264,7 +265,7 @@ Examples:
 5. `## Live agent validation`
 
 Each section must be concrete and outcome-oriented:
-- **What shipped**: capabilities delivered, key surfaces/files, and behavior changes
+- **What shipped**: capabilities delivered, key surfaces/files, behavior changes, and any linked backlog item IDs when present
 - **Why this matters**: user/operator value, risk reduction, and practical impact
 - **How to try it yourself**: reproducible steps/commands/prompts someone can run immediately
 - **Verification**: exact commands + high-signal results (tests, types, coverage, CI)
@@ -336,6 +337,7 @@ Before merging, verify the PR delivers what the planning/doing doc intended. Thi
    - All completion criteria from the doing doc are addressed
    - No unrelated changes slipped in
    - The PR title and body accurately describe what shipped
+   - Upstream backlog item IDs are cited when the doing doc provides them
 4. Post findings as a PR comment:
 
 ```bash
@@ -368,6 +370,16 @@ Use `--merge` (not `--squash` or `--rebase`). Merge commits preserve branch hist
 The `--delete-branch` flag handles remote branch cleanup. If it is not supported or fails, handle cleanup manually in **Post-Merge Cleanup**.
 
 If the merge fails due to merge conflicts (another agent merged to main while CI was running), proceed to **Race Condition Retry**.
+
+### Step 7: Update upstream backlog items when practical
+
+If the doing doc contains an `Upstream Work Items` section and the referenced backlog artifact is writable without violating project git discipline:
+
+1. Update each relevant backlog item to `fixed`, `superseded`, or `deferred`
+2. Add the PR URL and/or merge commit to `Linked work`
+3. Do not silently leave stale `open` items behind
+
+If updating the backlog artifact would require an extra repo PR or otherwise violate project workflow, do not fake it. Instead, call out the required status change explicitly in your final handoff so the trail is still visible.
 
 ---
 

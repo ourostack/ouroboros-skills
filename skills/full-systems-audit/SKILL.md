@@ -149,12 +149,20 @@ Backlog item format:
 **Suggested supporting skills**: (optional) comma-separated skill names
 **Verification**: How a future agent should revalidate this at current HEAD before changing code.
 **Status**: open | in-progress | fixed | superseded | deferred
+**Linked work**: (optional) planning doc path, doing doc path, PR URL, or commit
 **Notes**: (optional) context that will matter later
 
 ---
 ```
 
 If the repo has project-specific task doc conventions, place the artifacts where those conventions say they belong. Otherwise place them in the working directory or present them inline, but keep them durable.
+
+## Traceability contract
+
+- Every backlog item gets a stable ID at creation time and keeps it forever.
+- Downstream planning docs, doing docs, inch-worm seed announcements, and PRs must cite that ID verbatim.
+- When work begins, update the backlog item's `Status` and `Linked work` fields as soon as you have a real planning doc, doing doc, PR, or commit to point at.
+- When work lands or is invalidated, mark the item `fixed`, `superseded`, or `deferred`. Never silently drop a backlog item just because the terrain changed.
 
 ## Execution choreography
 

@@ -8,7 +8,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 
 ## The core loop
 
-1. **Seed**: The user gives you a starting issue, or points you at an audit backlog item already routed to you. One thing to fix. Concrete.
+1. **Seed**: The user gives you a starting issue, or points you at an audit backlog item already routed to you. One thing to fix. Concrete. Always preserve and cite the seed's stable backlog ID.
 2. **Execute**: Do the fix. Ship it as its own PR.
 3. **Log discoveries**: While working, every time you notice something else questionable — a v8 ignore that could be covered, a coverage gate gap, a dead branch, a comment that lies, a missing error case, a rebase-friction pattern, a duplicated helper, a TODO without a tracking issue, a flake, a console.warn that should be emitNervesEvent, etc. — append it to the backlog. Do NOT fix it now. Do NOT even think about fixing it now. Just log it.
 4. **Review**: When the seed fix is merged, read the backlog. Prioritize. Pick the next item.
@@ -22,7 +22,7 @@ Lives at `./{task-name}/discoveries.md` (next to the doing doc if one exists, in
 Each entry is append-only unless you are updating `Status` after completing, superseding, or deferring an item. Format:
 
 ```markdown
-## YYYY-MM-DD HH:MM — discovered while working on {current-seed}
+## [stable-id] — short title
 
 **Source**: audit | observed-during-seed
 **What**: One sentence describing what's off.
@@ -35,11 +35,18 @@ Each entry is append-only unless you are updating `Status` after completing, sup
 **Prerequisites**: (optional) other discoveries that should land first
 **Suggested supporting skills**: (optional) comma-separated skill names
 **Verification**: (required for audit items) how to revalidate this at current `HEAD`
-**Notes**: (optional) context that won't be obvious later
 **Status**: open | in-progress | fixed | superseded | deferred
+**Linked work**: (optional) planning doc path, doing doc path, PR URL, or commit
+**Notes**: (optional) context that won't be obvious later
 
 ---
 ```
+
+ID rules:
+
+- Audit-created items keep their original IDs (example: `A-001`).
+- New inch-worm discoveries get a stable local ID immediately (example: `D-001`, `D-002`, ...).
+- Never renumber existing backlog items.
 
 The severity scale:
 
@@ -66,6 +73,8 @@ Exception: if two discoveries are structurally the same pattern in the same file
 
 At the start of each loop iteration, state the current seed in one line so the human knows what you're about to work on. Example: "seed: cover `isFirstPushToRemote` branches via mocked execFileSync so the v8 ignore can be removed". If the human disagrees with the pick, they can interrupt.
 
+Always include the backlog item ID in that seed announcement.
+
 ### 4. Every discovery gets an entry BEFORE you keep working
 
 When you notice something, STOP what you're doing, append the entry, THEN continue. This is the inch-worm's heartbeat. If you defer logging until "later", you'll forget. A 30-second append is cheap; a forgotten observation is expensive.
@@ -81,6 +90,16 @@ If a discovery's fix shape grows beyond what you can do in a single commit-and-p
 ### 6a. Respect the audit handoff
 
 If you are consuming `full-systems-audit` output, only take items already routed as `inch-worm-ready-after-reeval`. `planner-required` items go through `work-planner` first. After the large tranche lands, revalidate the small item before touching code — architecture changes often erase or reshape the original finding.
+
+### 6b. Keep the ID alive
+
+Backlog item IDs are the continuity thread. Preserve them in:
+- seed announcements
+- planning docs when a small item unexpectedly balloons
+- PR bodies
+- backlog status updates
+
+When work begins, update `Status` to `in-progress` and add any real doc/PR refs to `Linked work`. When the work lands, mark the item `fixed`, `superseded`, or `deferred`. Never silently drop an item because you got busy.
 
 ### 7. Never delegate the logging
 
