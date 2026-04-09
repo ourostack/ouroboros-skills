@@ -1,9 +1,9 @@
 ---
 name: full-systems-audit
-description: Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces a doing doc with chained, PR-scoped fixes.
+description: Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces an audit report plus a routed backlog for work-planner, inch-worm, and companion skills.
 ---
 
-Audit a codebase end-to-end and produce a doing doc that chains every finding into well-scoped, independently mergeable units of work.
+Audit a codebase end-to-end and produce durable execution artifacts for the rest of the skill ecosystem. You are the mapper and router, not the one giant executor. Large structural items should flow into `work-planner` / `work-doer` / `work-merger`; only after those land should the surviving small items be re-evaluated and handed to `inch-worm`.
 
 ## When to use
 
@@ -12,9 +12,18 @@ Audit a codebase end-to-end and produce a doing doc that chains every finding in
 - When code quality or architecture concerns have accumulated
 - Periodically, to catch boundary drift and god-module growth
 
+## Primary contract
+
+Your default output is NOT a giant doing doc. Your default output is:
+
+1. `audit-report.md` — the human-readable map of the system, findings, evidence, and recommendations
+2. `audit-backlog.md` — a routed backlog that other skills can act on directly
+
+Only generate a doing doc when the user explicitly wants coordinated execution work and at least one routed item clearly requires it.
+
 ## Audit phases
 
-Run these sequentially. Take notes throughout — the notes feed the doing doc.
+Run these sequentially. Take notes throughout — they feed the audit artifacts.
 
 ### Phase 1: Manifest
 
@@ -69,53 +78,115 @@ Categorize everything into severity levels.
 Every finding needs:
 - **What**: The specific issue
 - **Why it matters**: Impact on maintainability, navigability, correctness
+- **Evidence**: File/path/flow proof that grounds the claim
 - **What to do**: Concrete fix
 
-### Phase 6: Doing doc generation
+### Phase 6: Routing and sequencing
 
-Convert findings into a doing doc with chained units.
+Route each finding into the correct execution lane.
 
-Each unit must be:
-- **PR-scoped**: One logical change, independently reviewable and mergeable
-- **Sequenced**: Dependencies respected (e.g., boundary fixes before restructuring)
-- **Testable**: Clear verification criteria (tests pass, imports updated, no regressions)
-- **Described**: What changes, why, which files
+Execution lanes:
 
-Group units into phases:
-1. **Boundary fixes** — Eliminate circular dependencies and layering violations (no functional changes)
-2. **God module splits** — Break oversized files into focused modules (no functional changes)
-3. **Directory restructuring** — Move misplaced code to correct locations
-4. **Semantic fixes** — Unify competing implementations, fix naming
-5. **Logic sharing** — Extract duplicated patterns into shared utilities
-6. **Quality** — Coverage improvements, lint rules, cleanup
-7. **Documentation** — Update docs to reflect all changes
+1. **planner-required**
+   Use when the fix is architectural, cross-cutting, dependency-shaped, risky, or too large for a single clean PR.
+   Default downstream flow: `work-planner` -> `work-doer` -> `work-merger`
+
+2. **inch-worm-ready-after-reeval**
+   Use when the fix is self-contained and should become a one-PR seed after the large items have landed.
+   Default downstream flow: `inch-worm`
+
+3. **defer**
+   Use when the issue is intentional, ambiguous, product-dependent, low-value, or not yet worth the churn.
+
+For each finding, also recommend supporting skills when helpful:
+- `frontend-design` for UX/front-end issues
+- `skill-creator` for skill-authoring issues
+- `openai-docs` for OpenAI-build questions needing current docs
+- other domain-specific skills as appropriate
+
+Do NOT try to become those skills. Route into them.
+
+### Phase 7: Review gate
+
+Stop after the audit artifacts are written and present them for review.
+
+Do NOT automatically start execution. Do NOT automatically convert the backlog into a doing doc. Wait for explicit approval on what should happen next.
+
+### Phase 8: Post-large-work re-evaluation
+
+When the user chooses to execute the large tranche first, re-audit the affected areas after those items merge. Reclassify surviving backlog items before handing them to `inch-worm`. Many "small" items disappear, merge together, or change priority after the structural work lands.
 
 ## Output format
 
-The audit produces a **doing doc** (markdown) following the project's task doc conventions. The doing doc should be placed in the owning agent's task directory if applicable, or presented inline if no agent bundle context exists.
+The audit produces two markdown artifacts by default:
 
-The doing doc contains:
-- A summary of findings (for human review)
-- Sequenced units of work (for autonomous execution)
-- Each unit specifies: files to change, what to do, verification steps
+1. **`audit-report.md`**
+   Contains:
+   - repo/system summary
+   - architecture notes
+   - control-deck assessment
+   - findings grouped by severity or subsystem
+   - evidence and rationale
+   - what appears healthy and should be preserved
+
+2. **`audit-backlog.md`**
+   Contains routed findings in a durable format that other skills can consume directly.
+   The format is intentionally compatible with `inch-worm` so the small-item lane can pick it up without translation.
+
+Backlog item format:
+
+```markdown
+## A-001 — short finding title
+
+**Source**: audit
+**What**: One-sentence description of the issue.
+**Why it matters**: Maintainability/correctness/AX impact.
+**Evidence**: `path/to/file.ts:line`, flow notes, or import/dependency evidence.
+**Severity**: critical | high | medium | low
+**Blast radius**: self-contained | affects one module | affects multiple modules | crosses trust boundaries
+**Dependencies**: (optional) item ids that should land first
+**Recommended lane**: planner-required | inch-worm-ready-after-reeval | defer
+**Suggested supporting skills**: (optional) comma-separated skill names
+**Verification**: How a future agent should revalidate this at current HEAD before changing code.
+**Status**: open | in-progress | fixed | superseded | deferred
+**Notes**: (optional) context that will matter later
+
+---
+```
+
+If the repo has project-specific task doc conventions, place the artifacts where those conventions say they belong. Otherwise place them in the working directory or present them inline, but keep them durable.
+
+## Execution choreography
+
+The default chained flow is:
+
+1. Audit the whole terrain.
+2. Route findings into `planner-required`, `inch-worm-ready-after-reeval`, and `defer`.
+3. Execute the `planner-required` tranche first through `work-planner` / `work-doer` / `work-merger`.
+4. Re-evaluate the backlog after those large items land.
+5. Hand the surviving small items to `inch-worm`.
+
+Do not skip the re-evaluation step. Small fixes picked too early create churn.
 
 ## Principles
 
 - Approach with care — if this is an agent's home, treat it like one
 - Every finding needs a "why it matters" and a "what to do"
 - Severity reflects impact on inhabitants, not just engineering aesthetics
-- The doing doc must be executable by an autonomous agent
+- The audit artifacts must be executable by the rest of the skill ecosystem
 - Prefer structural fixes over workarounds
 - Respect what's working well — acknowledge good architecture
-- Use parallel exploration agents for large codebases (heart, mind, senses, etc. simultaneously)
-- Read every file, not just the ones that look suspicious
+- For agent harnesses, prioritize AX and TTFA over aesthetic tidiness; prefer truth-bearing state, clean seams, and moves the inhabitant will actually enjoy living with
+- Use parallel exploration agents only when the runtime and permissions allow it
+- Inventory every file, but do not try to dump every file into context; use tooling for exhaustive scans and read deeply where the evidence points
+- Stop when another pass is unlikely to change prioritization or the remaining issues are intentional/ambiguous/product-dependent rather than actionable
 
 ## Learned pitfalls (from real audit execution)
 
 These are things that went wrong and how to avoid them:
 
 ### Persist findings immediately
-Never keep audit findings only in conversation context. Context compresses. Write findings to a durable planning doc as each phase completes.
+Never keep audit findings only in conversation context. Context compresses. Write findings to `audit-report.md` and `audit-backlog.md` as each phase completes.
 
 ### CI workflow files reference dist/ paths
 When moving source files, check `.github/workflows/*.yml` for hardcoded `require('./dist/...')` paths. These break silently after file moves.
