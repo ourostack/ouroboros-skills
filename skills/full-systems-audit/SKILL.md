@@ -21,6 +21,8 @@ Your default output is NOT a giant doing doc. Your default output is:
 
 Only generate a doing doc when the user explicitly wants coordinated execution work and at least one routed item clearly requires it.
 
+If a campaign already has `audit-report.md` and `audit-backlog.md`, resume and update those files in place. Do NOT spawn sibling audit files unless the user explicitly wants a fresh campaign.
+
 ## Audit phases
 
 Run these sequentially. Take notes throughout — they feed the audit artifacts.
@@ -157,6 +159,14 @@ Backlog item format:
 
 If the repo has project-specific task doc conventions, place the artifacts where those conventions say they belong. Otherwise place them in the working directory or present them inline, but keep them durable.
 
+## Campaign continuity
+
+- One dogfood/improvement campaign gets one canonical `audit-backlog.md`.
+- Re-audits update that same backlog in place rather than creating a new competing backlog file.
+- New audit findings get the next available `A-###` ID. Never renumber existing items.
+- If a finding splits or morphs, mark the old item `superseded` and create new IDs for the replacements.
+- `audit-report.md` may grow by appending new pass notes, but it should remain the canonical report for that campaign unless the user asks for a fresh start.
+
 ## Traceability contract
 
 - Every backlog item gets a stable ID at creation time and keeps it forever.
@@ -171,7 +181,7 @@ The default chained flow is:
 1. Audit the whole terrain.
 2. Route findings into `planner-required`, `inch-worm-ready-after-reeval`, and `defer`.
 3. Execute the `planner-required` tranche first through `work-planner` / `work-doer` / `work-merger`.
-4. Re-evaluate the backlog after those large items land.
+4. Re-evaluate the same canonical backlog after those large items land.
 5. Hand the surviving small items to `inch-worm`.
 
 Do not skip the re-evaluation step. Small fixes picked too early create churn.
