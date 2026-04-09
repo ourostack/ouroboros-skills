@@ -47,6 +47,12 @@
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
       "tags": ["books", "ebooks", "libgen", "e-reader"]
+    },
+    {
+      "name": "inch-worm",
+      "path": "skills/inch-worm/SKILL.md",
+      "description": "Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log any side observations to a running discoveries log, pick the next highest-value discovery, repeat. Each fix is its own PR. Terminal condition is user-controlled, not scope-controlled.",
+      "tags": ["workflow", "maintenance", "iterative"]
     }
   ]
 }
