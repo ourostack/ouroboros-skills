@@ -65,6 +65,12 @@
       "path": "skills/full-systems-audit/SKILL.md",
       "description": "Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces an audit report plus a routed backlog for work-planner, inch-worm, and companion skills.",
       "tags": ["audit", "architecture", "refactoring", "code-quality"]
+    },
+    {
+      "name": "word-docs",
+      "path": "skills/word-docs/SKILL.md",
+      "description": "Convert markdown drafts into shareable Word documents using a bundled helper script.",
+      "tags": ["documents", "word", "docx", "formatting"]
     }
   ]
 }
