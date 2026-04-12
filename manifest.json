@@ -9,7 +9,7 @@
     {
       "name": "work-ideator",
       "path": "skills/work-ideator/SKILL.md",
-      "description": "Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run skepticism passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.",
+      "description": "Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run Tinfoil Hat and Stranger With Candy scrutiny passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.",
       "tags": ["workflow", "ideation", "planning"]
     },
     {

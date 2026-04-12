@@ -1,6 +1,6 @@
 ---
 name: work-ideator
-description: Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run skepticism passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.
+description: Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run Tinfoil Hat and Stranger With Candy scrutiny passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.
 ---
 
 # Work Ideator
@@ -18,6 +18,7 @@ The goal is real exploration: understand the desired felt experience, inspect th
 - Name things according to what they are architecturally, not what is convenient product language.
 - Treat helpers, workers, and model calls as mechanisms. Do not personify them as agents unless they truly need autonomy, identity, persistence, and broad responsibility.
 - Preserve the user's live values and phrasing when they carry design truth.
+- Use named scrutiny stances. Language guides behavior: `Tinfoil Hat` looks for omissions, and `Stranger With Candy` looks for plausible-but-wrong traps.
 
 ## Workflow
 
@@ -30,18 +31,21 @@ The goal is real exploration: understand the desired felt experience, inspect th
 3. **Divergent Pass**
    Generate multiple plausible shapes. Include the boring version, the ambitious version, and the weird-but-possibly-right version.
 
-4. **Skepticism Pass A: Is This Fake?**
-   Assume each idea is prompt theater, naming confusion, or imported fashion. Ask:
+4. **Tinfoil Hat: What Am I Not Seeing?**
+   Assume each idea is missing a needed constraint, edge case, or behavioral proof. Ask:
+   - What gap in scope, state, or execution would make this fall apart?
+   - What hidden dependency or ordering constraint is being ignored?
    - What would make this merely cosmetic?
    - What existing primitive already covers this?
-   - What word is lying?
    - What behavior would prove this is real?
 
 5. **Synthesis Pass A**
    Keep only the parts that survive. Collapse overlapping objects. Prefer one clear primitive over several vibes.
 
-6. **Skepticism Pass B: Will This Fit The Harness?**
-   Assume the implementation will fight the current architecture. Ask:
+6. **Stranger With Candy: What Here Looks Correct But Is Actually Wrong?**
+   Assume the implementation has a plausible surface but the wrong ownership, vocabulary, or fit. Ask:
+   - What word is lying?
+   - What module, package, helper, or prior-art primitive looks right but belongs somewhere else?
    - Where would this actually run?
    - What blocks on what?
    - What state is canonical?
@@ -61,7 +65,7 @@ Use a compact report with these sections when preparing to invoke `work-planner`
 - **Spark:** the felt experience or problem being designed for.
 - **Observed Terrain:** source-grounded facts from code, docs, or prior art.
 - **Surviving Shape:** the recommended primitive and why it is not just theater.
-- **Skepticism Notes:** objections that changed the design.
+- **Scrutiny Notes:** Tinfoil Hat and Stranger With Candy objections that changed the design.
 - **Thin Slice:** the first buildable version.
 - **Non-Goals:** attractive things explicitly left out.
 - **Open Questions:** only questions that need human direction before planning.
