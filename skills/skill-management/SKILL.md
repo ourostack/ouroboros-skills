@@ -99,6 +99,30 @@ After install, confirm:
 
 The `_registry.json` file lives at the skills directory root and tracks all installed skills.
 
+### Bootstrap or Repair a Missing Registry
+
+If `_registry.json` is missing but the skills directory already contains installed skills, do not treat that as "no skills installed" and do not silently skip freshness checks. Bootstrap the registry first.
+
+Steps:
+
+1. Determine every active skills directory for the runtime. Some Codex installs may have split roots such as `~/.agents/skills/` for workflow skills and `~/.codex/skills/` for Codex-local skills; each root gets its own `_registry.json`.
+2. Fetch the shared manifest:
+   ```
+   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
+   ```
+3. For each local skill directory containing `SKILL.md`:
+   - If the skill name appears in the manifest, fetch the upstream `SKILL.md` and latest commit SHA for that skill path.
+   - If the local `SKILL.md` is byte-for-byte identical to upstream, add a normal shared-skill registry entry with `source`, `commit`, `installed`, and `selfAuthored: false`.
+   - If the local `SKILL.md` differs from upstream, preserve the local file and add a local/self-authored registry entry with `source: "local"`, `commit: ""`, `installed`, and `selfAuthored: true`. Report that it is a local adaptation instead of overwriting it.
+   - If the skill name is not in the manifest, add the same local/self-authored registry entry.
+4. Write `_registry.json` as formatted JSON at the root of that skills directory.
+5. Validate by parsing the written JSON and reporting:
+   - shared skills now tracked against upstream
+   - local/self-authored skills intentionally excluded from upstream freshness updates
+   - any manifest skills missing locally that the user may want to install
+
+Freshness checks must fail closed when `_registry.json` is missing. Print the exact skills directory and tell the agent to run this bootstrap/repair flow before comparing commits. A missing registry is repairable state, not a reason to proceed with ad-hoc freshness guesses.
+
 ### Schema
 
 ```json
