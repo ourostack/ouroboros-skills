@@ -123,7 +123,7 @@ When the user asks "what's on the list" — read the file verbatim to them. When
 
 ## Practical note
 
-If you install or update this skill mid-session, Codex may not show the refreshed skill in the active skill menu until the app/session is restarted. Treat the repo copy as source of truth, but do not assume the newly installed wording is live in the current session until after restart.
+If you install or update this skill mid-session, the host app may not show the refreshed skill in the active skill menu until the app/session is restarted. Treat the repo copy as source of truth, but do not assume the newly installed wording is live in the current session until after restart.
 
 ## What this skill is NOT
 
@@ -134,7 +134,7 @@ If you install or update this skill mid-session, Codex may not show the refreshe
 
 ## Resume semantics
 
-You can pause and resume an inch-worm session across Claude Code sessions. To resume:
+You can pause and resume an inch-worm session across agent sessions. To resume:
 
 1. Read the backlog from the top.
 2. Identify what's been fixed (look at recent git log against the backlog).

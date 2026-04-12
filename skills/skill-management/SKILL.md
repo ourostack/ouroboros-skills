@@ -17,19 +17,20 @@ This skill teaches agents how to discover, install, track, update, and contribut
 
 ### Runtime Directory Layouts
 
-| Runtime | Skills directory | Example installed skill path |
+| Layout | Skills directory | Example installed skill path |
 |---------|-----------------|------------------------------|
-| Claude Code | `~/.claude/skills/` | `~/.claude/skills/work-planner/SKILL.md` |
-| Codex-style | `~/.agents/skills/` | `~/.agents/skills/work-planner/SKILL.md` |
+| Host-managed skills root | `<host-home>/skills/` | `<host-home>/skills/work-planner/SKILL.md` |
+| Agent-managed skills root | `~/.agents/skills/` | `~/.agents/skills/work-planner/SKILL.md` |
 | Ouroboros bundle | `~/AgentBundles/<agent>.ouro/skills/` | `~/AgentBundles/myagent.ouro/skills/work-planner/SKILL.md` |
 
 Detect which runtime you are in:
-1. If `~/.claude/` exists and you are running as a Claude Code agent, use the Claude Code layout.
-2. If `~/.agents/` exists, use the Codex-style layout.
+1. Prefer the skills root exposed by the current host app.
+2. If `~/.agents/skills/` exists, use it as an agent-managed skills root.
 3. If the user specifies an Ouroboros bundle path, use that.
-4. If ambiguous, ask the user.
+4. If multiple roots are active, manage each root separately.
+5. If ambiguous, ask the user.
 
-The `_registry.json` file always lives at the root of the skills directory (e.g., `~/.claude/skills/_registry.json`).
+The `_registry.json` file always lives at the root of each skills directory.
 
 ---
 
@@ -105,7 +106,7 @@ If `_registry.json` is missing but the skills directory already contains install
 
 Steps:
 
-1. Determine every active skills directory for the runtime. Some Codex installs may have split roots such as `~/.agents/skills/` for workflow skills and `~/.codex/skills/` for Codex-local skills; each root gets its own `_registry.json`.
+1. Determine every active skills directory for the runtime. Some host apps expose split roots, such as an agent-managed root plus an app-managed root; each root gets its own `_registry.json`.
 2. Fetch the shared manifest:
    ```
    https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
