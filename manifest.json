@@ -7,6 +7,12 @@
       "tags": ["meta", "bootstrap", "registry"]
     },
     {
+      "name": "work-ideator",
+      "path": "skills/work-ideator/SKILL.md",
+      "description": "Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run skepticism passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.",
+      "tags": ["workflow", "ideation", "planning"]
+    },
+    {
       "name": "work-planner",
       "path": "skills/work-planner/SKILL.md",
       "description": "Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.",
