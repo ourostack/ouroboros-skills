@@ -13,6 +13,8 @@ The core workflow has eight phases: Discovery, Understand Footage, Voiceover, Mu
 
 **The single most important principle**: write everything down. Context windows compress. If timings, breakdowns, or sync maps exist only in conversation history, they will be lost. Every phase produces a file.
 
+**The second most important principle**: VO is narration, not background audio. Every VO sentence must match what's on screen at that exact moment. If the footage shows a website chat, the VO must describe the website chat — not something happening off-screen. If the footage cuts to a different perspective, the VO must go silent or describe the new perspective. Render a still at every VO placement frame and verify. No exceptions.
+
 ## 2. PROJECT STRUCTURE
 
 ```
@@ -83,7 +85,7 @@ mkdir -p frames/clip1 frames/clip2
 ffmpeg -v error -i "clip1.mp4" -vf "fps=1,scale=1920:-1" -q:v 2 "frames/clip1/frame_%03d.jpg"
 ```
 
-**1fps is the right interval for the initial pass.** 2fps produces too many near-identical frames. 1 frame every 2 seconds misses transitions. For a 100-second clip, 100 frames is very manageable.
+**1fps is the right interval for the initial overview, but 1fps timestamps are NEVER accurate enough for VO placement.** They tell you WHAT happens, not exactly WHEN. A 1fps frame showing "toggle ON" could mean the toggle happened anywhere during that second. Always refine at 10fps before using a timestamp for VO placement. 2fps produces too many near-identical frames. 1 frame every 2 seconds misses transitions. For a 100-second clip, 100 frames is very manageable for the overview.
 
 **Do NOT re-encode source footage** to shrink it. Remotion decodes the source and does its own final encode — any intermediate re-encode is generation loss for no benefit.
 
@@ -129,6 +131,19 @@ Group consecutive static frames. Note every transition, click, typed text, loadi
 
 For multiple clips, launch one agent per clip. Each reads its batch of frames and returns a detailed breakdown. 20-minute serial task becomes 5-minute parallel.
 
+### Map scene changes and cutaways
+
+Before placing ANY VO, identify every moment the footage changes perspective, scene, or context. These are the moments where VO timing goes wrong if you're not careful.
+
+Examples of scene changes to map:
+- Website view → Teams view (different application)
+- Split view appearing/disappearing
+- Brief cutaway to customer's perspective then back
+- Zoom transitions that change what's visible
+- Jump cuts that skip time
+
+Write these in the breakdown with exact timestamps. When placing VO later, check every sentence against this map: does the VO describe what's visible during this scene, or a different scene?
+
 ### What to watch for
 
 - **Static holds** — often intentional for legibility. Don't trim unless asked.
@@ -150,7 +165,51 @@ When the user doesn't have a recorded voiceover:
 
 If the user doesn't have a recorded VO, a ready-to-use Azure Speech generation script is bundled at `generate-vo.py` alongside this skill file. Copy it into the project's `media/vo/` directory, edit the SECTIONS dict with the script text, and run. See the docstring in that file for config notes (supported SSML, voice settings, gotchas).
 
+**Auth: Use Entra ID, not API keys.** Azure Cognitive Services resources should have local auth (API keys) disabled. Authenticate with `DefaultAzureCredential` from `azure-identity`:
+
+```python
+from azure.identity import DefaultAzureCredential
+import azure.cognitiveservices.speech as speechsdk
+
+token = DefaultAzureCredential().get_token("https://cognitiveservices.azure.com/.default").token
+config = speechsdk.SpeechConfig(endpoint="https://<custom-domain>.cognitiveservices.azure.com/")
+config.authorization_token = token  # raw token, no prefix
+```
+
+Requirements: `pip install azure-identity`, a custom domain on the Speech resource, and `Cognitive Services Speech User` role assigned to the calling identity. This is the preferred auth pattern for all Azure resources — never hardcode or commit API keys.
+
+**Generate per-sentence, not per-section.** Long single-file TTS generations produce clicking artifacts at sentence boundaries. Generate each sentence as its own WAV file (e.g., `setup--toggle.wav`, `setup--summary.wav`). Benefits: no clicking, precise per-sentence placement with `placeVO()`, easy to regenerate one sentence without re-recording the whole section, and word-onset alignment (see Phase 3 transcription) becomes trivially useful.
+
+### Pronunciation overrides
+
+Dragon HD auto-detects pronunciation from context, but it gets ambiguous words wrong (e.g., "Live Chat" as "lɪv" instead of "laɪv"). Fixes, in order of reliability:
+
+1. **`<sub alias="...">` (most reliable).** Forces the TTS to read a different word. Example: `<sub alias="lyve">Live</sub> Chat` — always produces "laɪv". Works inside `<prosody>` tags.
+2. **`<phoneme alphabet="ipa" ph="...">` (inconsistent).** Sometimes ignored depending on surrounding sentence context. Try `<sub>` first.
+3. **Respelling in text** (last resort). Changing "Live" to "Lyve" works but makes the script unreadable.
+
+**Pronunciation varies by sentence context.** The same word with the same SSML can be pronounced differently in different sentences. Always listen to EVERY generated segment — don't assume a fix in one segment carries to another. If a word is mispronounced in some segments but not others, add the override only where needed (the override itself can change the cadence, so don't apply it unnecessarily).
+
+### Punctuation and emotion gotchas
+
+Punctuation is Dragon HD's primary emotion lever, but it's unpredictable:
+
+- `!` adds energy but can also **shorten** delivery — Dragon HD rushes excited lines. "This is Lydia!!" (0.84s) was shorter than "This is Lydia!" (1.70s).
+- `<emphasis level="strong">` compressed a 1.7s line to 0.79s — worse than `!!`.
+- **Em-dash `—` adds a dramatic beat/pause** and generally increases duration. Useful for hero lines: "This — is Lydia!".
+- **Rate adjustment can paradoxically help.** `rate="+15%"` on a short phrase gave a more deliberate, energetic delivery than `+10%` with `!!`. Higher rate forces the model to make stronger prosodic choices.
+- **Always generate multiple variants for hero lines** (openers, closers, thesis statements). Vary punctuation, em-dashes, and rate. Let the human pick — Dragon HD's response to these levers is hard to predict.
+
 **Multi-video projects**: Use a master script + manifest pattern. All VO sections in one file, manifest maps sections to videos. Edit once, applies everywhere.
+
+### Script collaboration with the user
+
+VO script writing is iterative. Expect multiple rounds of feedback. Use a draft document (e.g., `master-v2-draft.md`) with:
+- **[NEW]** / **[CHANGED]** / **[KEPT]** annotations on each sentence
+- Footage descriptions between sentences (what's on screen when this plays)
+- Placement notes in composition time, not footage-relative
+
+This lets the user read the script as a story, see what changed, and understand what's on screen at each moment — without needing to cross-reference breakdowns or timecodes. Commit the draft and let the user edit it directly. Track their changes via file modification notifications.
 
 ### Transcription with whisper-cpp
 
@@ -181,7 +240,51 @@ ffprobe -v error -show_entries format=duration -of csv=p=0 vo/section.wav
 
 Use whisper timestamps for `startFrom`/`endAt` splits within a file. Use `ffprobe` duration for `durationInFrames` on the full VO Sequence.
 
-**Whisper word timestamps need buffer**: Whisper's `offsets.from` can be 50-100ms late relative to actual audio onset. When splitting VO at word boundaries, **back up startFrom by 200-400ms** to capture the breath/onset. A too-tight split cuts off word beginnings.
+**Whisper word timestamps need buffer**: Whisper's `offsets.from` can be 50-100ms late relative to actual audio onset. When splitting VO at word boundaries, **back up startFrom by 200-400ms** to capture the breath/onset. A too-tight split cuts off word beginnings. Note: this buffer applies ONLY to splitting a WAV at a word boundary. When using word onsets for placement offset calculations (see below), use the raw value — the slight lateness means VO arrives before the visual, which is correct ("VO leads, visuals follow").
+
+### Per-sentence word-onset alignment
+
+When you have per-sentence WAV files and need a specific word to land at a specific footage moment, use Whisper word onsets to calculate the sentence's start:
+
+```
+sentenceStart = clipStart + ms(footageTimestamp) - ms(wordOnset)
+```
+
+Example: `setup--toggle.wav` says "One toggle! Customer Connect Agent — on!" Whisper says "toggle" starts at 310ms. Footage shows toggle click at 4.2s.
+
+```ts
+// "toggle" at 310ms into sentence → hits at footage 4.2s
+setupVO1 = placeVO(clipStart + ms(4200 - 310), [
+  { file: "setup--toggle", durMs: 3288 },
+  ...
+])
+```
+
+This places the sentence so "One" starts at 3.89s (while the toggle is about to be clicked), and "toggle" lands exactly at 4.2s when the click happens. Far more precise than aligning sentence boundaries to footage.
+
+**WARNING**: This formula is only as accurate as its inputs. If the footage timestamp (4.2s) came from a 1fps breakdown, it could be off by up to 1 second. Always verify with 10fps extraction or a rendered still at the placement frame. The formula's mathematical precision can mask imprecise inputs — you get a confident wrong answer.
+
+**When to use this technique:**
+- Per-sentence WAV files (not splitting a single file)
+- The sentence has a key action word that should sync to a visual moment
+- The visual moment has sub-second precision from 10fps frame extraction
+
+**When NOT needed:**
+- Sequential sentences where the flow naturally carries (playground Q&A, doc eval narration)
+- Intro cards where timing is flexible (no footage sync point)
+
+### Generate first, measure, then place
+
+**NEVER estimate VO durations from word count.** Word-count heuristics (e.g., "2.75 words/sec") are routinely 30-40% off for Dragon HD at +10% rate. A 20-word sentence estimated at 7.3s may actually be 5.1s. This compounds across a timeline and leads to false "doesn't fit" conclusions that waste hours of restructuring.
+
+The correct workflow:
+1. Write the script
+2. Generate ALL audio files
+3. Measure EVERY duration with `ffprobe`
+4. THEN calculate placements using real numbers
+5. Verify with rendered stills
+
+Never calculate timing, check feasibility, or propose changes based on estimated durations. Generate the audio first. It takes seconds.
 
 ### Precision rule
 
@@ -344,6 +447,31 @@ This points Remotion at the shared `media/` directory. `staticFile("footage/clip
 - `staticFile()` for assets in publicDir
 - `npx remotion studio` for live preview (hot-reloads)
 
+### Composition time vs footage time
+
+In any composition with freezes, skips, or multiple clips, composition time ≠ footage time. A frame at composition second 50 might show footage second 45 (if there was a 5s skip earlier) or footage second 38 (if there were freeze frames).
+
+Build helper functions to convert between the two:
+
+```ts
+// Footage seconds → composition frame (accounting for skip at footage 59-64)
+const f = (footageSec: number) => {
+  const cr = footageSec >= SKIP_TO ? footageSec - SKIP_DUR : footageSec;
+  return clipStart + ms(cr * 1000);
+};
+
+// fToC for freezes
+const fToC = (footageSec: number) => {
+  let extra = 0;
+  for (const f of freezes) {
+    if (footageSec > f.footageSec) extra += s(f.durSec);
+  }
+  return s(footageSec) + extra;
+};
+```
+
+**Always present timings to the user in composition time (MM:SS from start of video).** Footage-relative seconds are meaningless to someone watching the composition. When debugging, show both.
+
 ### The ms()/s() double-conversion trap
 
 **CRITICAL**: If you define VO durations using `ms()` (which converts milliseconds to frames), those values are ALREADY IN FRAMES. Do NOT pass them to `s()` — that multiplies by FPS again (a 30x error).
@@ -365,15 +493,19 @@ Pick ONE unit convention. Recommended: define all durations with `ms()` at the t
 
 ### VO audio architecture
 
-The voiceover is a single file per section but should NOT play as one continuous track. Split into blocks:
+With per-sentence WAV files (recommended), each sentence is its own `<Audio>` element in its own `<Sequence>`. No `startFrom`/`endAt` splitting needed:
 
 ```tsx
-<Sequence from={videoFrame}>
-  <Audio src={staticFile(voFile)} startFrom={wavStartFrame} endAt={wavEndFrame} />
-</Sequence>
+{allPlacements.map((p, i) => (
+  <Sequence key={i} from={p.at} durationInFrames={p.dur}>
+    <Audio volume={3.5} src={staticFile(`vo/${p.file}.wav`)} />
+  </Sequence>
+))}
 ```
 
-Pauses between blocks let demo footage breathe silently. The VO introduces what the viewer is about to see, then goes quiet while they watch.
+Gaps between sentences let demo footage breathe silently. The VO introduces what the viewer is about to see, then goes quiet while they watch.
+
+If you're working with a legacy single-file-per-section VO, you can split with `startFrom`/`endAt` — but per-sentence files are strongly preferred (see Phase 3).
 
 ### Freeze pattern for "VO denser than footage"
 
@@ -401,12 +533,40 @@ Use Remotion's `<Freeze frame={0}>`:
 ```
 
 Rules for freezes:
-- **Max 3 seconds per freeze** — longer feels broken
-- **Use multiple freezes** (2-4) spread across the clip, not one long one
-- Freeze at moments worth reading (a response, a score, a result)
+- **Freeze at moments worth reading** (a response, a score, a summary, a reply). Long freezes are fine if the viewer is absorbing meaningful content — a 14s freeze on an AI summary while VO explains why it matters is powerful. Dead freeze on nothing is broken.
+- **Use multiple freezes** spread across the clip, not one massive one with no purpose
 - VO must be actively narrating during freezes — silence + freeze = dead air
 - **Never show a screenshot then cut to the same footage** — it looks like a glitch
+- **Freeze on clean frames only.** Extract 10fps around the freeze point and pick a frame where the cursor is settled and the UI is in a resting state. A frozen cursor mid-motion looks wrong.
 - Build a `fToC(footageSec)` helper that maps footage timestamps to composition frames accounting for all freeze offsets
+
+**CRITICAL — freeze duration changes cascade.** When you extend a freeze, every VO placed AFTER that freeze in composition time shifts later, but the footage events don't move. A sequential VO chain anchored to a previous VO's `endFrame` will silently drift away from the footage moments it's supposed to describe. After ANY freeze duration change: re-verify every subsequent VO placement against the footage. The safest pattern: anchor key VOs to footage moments using `f(footageSec)`, not to `previousVO.endFrame + gap`. Sequential chains are safe only within ~5s windows where drift doesn't matter.
+
+### VO placement workflow (the process that prevents timing bugs)
+
+This is the step-by-step process for placing VO over footage. Every shortcut here costs hours later.
+
+1. **Use the footage breakdown (Phase 2) to map footage time → composition time.** Account for freezes, skips, and clip boundaries. Identify scene changes, cutaways, and perspective shifts. Know what's on screen at every second of the composition. If the breakdown is stale or approximate, extract fresh frames from the raw footage at 10fps around critical moments to verify.
+
+2. **For each VO sentence, identify the footage moment it describes.** Find the composition time where that moment is on screen. This is the anchor.
+
+3. **Decide: anchored or sequential?** If the events a group of sentences describe happen within ~5 seconds of each other, sequential placeVO is fine. If events are spread across 10+ seconds, anchor each sentence individually. Never assume sequential placement will land sentences at the right footage moments — verify.
+
+4. **Generate all audio files and measure with ffprobe.** Real durations, not estimates.
+
+5. **Calculate placements** using real durations. Check every gap: no overlaps, and no VO playing during a scene change to a different perspective.
+
+6. **Render a still at every VO start frame.** Read the image. Confirm what's on screen matches what the VO says. This is not optional.
+
+7. **Present the full timeline to the user in composition time (MM:SS).** Footage-relative times are meaningless to someone watching the video. When the user gives feedback with timestamps, map their comp time to footage internally — never ask them to think in footage time.
+
+8. **Iterate.** The user will watch and give feedback. Placements will shift. This is normal. Re-verify after every change.
+
+9. **Characters must be introduced before being named.** First VO reference to any character must establish their role: "A prospective customer, Gus, visits the website!" not "Gus visits the website!" A name without context is confusing. The pattern: "Meet Maya! She runs Whisker Wonderland." establishes the character; subsequent "Maya" is fine.
+
+10. **Silent moments are intentional.** When footage shows a character's natural reaction (typing a response, reading something, acknowledging — "sure! take your time :)"), let it breathe with NO VO. These moments are pacing. VO should never compete with a character moment. If VO is playing over a cutaway, it must describe something OTHER than what the cutaway shows.
+
+11. **Intro sections need beats between ideas.** Different concepts (person → product → person) need ~1s silence between them. Build the beat INTO the card's visual duration so the card stays on screen during silence. `personaCard.dur = ms(voDuration + 1000)` — not a separate gap that shows black.
 
 ### VO placement strategies
 
@@ -414,7 +574,7 @@ Rules for freezes:
 
 **Sentence-level blocks**: Each VO sentence placed at the exact footage timestamp where the action happens. Best when footage has large gaps between described events. Example: "asks about discounts" at footage 0:53, "asks about gift packages" at footage 1:09.
 
-**Sequential after previous section**: Multiple VO sections over the same clip, each placed after the previous ends with ~0.5-2s gap. Verify footage at that moment matches what the VO describes.
+**Sequential after previous section**: Multiple VO sections over the same clip, each placed after the previous ends with ~0.5-2s gap. **WARNING**: This is the most dangerous strategy. It looks correct in code (placeVO handles the math cleanly) but silently places sentences at wrong footage moments when the events are spread across time. Only use when events happen within ~5 seconds of each other. For events spread across 10+ seconds, anchor each sentence individually. ALWAYS verify the footage at each sentence's actual start time — do not trust that sequential placement will land at the right moment.
 
 ### Ducking implementation
 
@@ -437,7 +597,11 @@ When adding audio to an existing video (e.g., rebranding an FCP/Premiere project
 5. **Map VO sentences to video** — for each sentence, READ THE ACTUAL FRAME at the candidate placement time. Do not guess from a breakdown or trust an agent's assessment. Read it yourself, confirm the visual matches the narration, then commit the placement. This is the step you will be tempted to skip. Do not skip it.
 6. **Build the VO track** — place each VO sentence file at its video position in a silent buffer matching the video duration. Verify no overlaps programmatically. Print every placement with start, end, and gap to next.
 7. **Build the music track** — extend if needed with bespoke splice (preserve intro + natural fadeout). Music must cover the ENTIRE video. The natural fadeout must END at the video's end, not begin there. Verify by checking amplitude in the last 5s.
-8. **Duck the music** — use amplitude detection on the placed VO track (RMS in 10ms windows > threshold). Do NOT map whisper timestamps through placement offsets — that's indirect and error-prone. Just detect where the audio is loud. Duck only during speech, not during silence between sentences.
+8. **Duck the music** — use amplitude detection on the placed VO track (RMS > threshold). Do NOT map whisper timestamps through placement offsets — that's indirect and error-prone. Just detect where the audio is loud. Duck only during speech, not during silence between sentences. **Critical parameters for pre-mixed ducking:**
+   - **RMS window: 50ms** (not 10ms). A 10ms window tracks individual syllables and the music volume oscillates rapidly — physically uncomfortable. 50ms smooths to phrase-level detection.
+   - **Hold time: 1-2s after speech ends.** Once speech is detected, keep music ducked for 1-2s after it stops. Without this, the duck envelope pumps between every word/pause within a sentence. The hold ensures music only comes back up during real gaps between VO segments.
+   - **Ramp: 500ms.** Smoother than 333ms, less noticeable transitions.
+   - Note: the Remotion workflow ducks per-voRange (whole sentences) and doesn't have this problem — hold time is only needed for amplitude-based detection in pre-mixed audio.
 9. **Run the MANDATORY VERIFICATION GATE** (see section below) before proceeding.
 10. **Mix and mux** — combine VO + ducked music, then mux into the video:
 
@@ -447,7 +611,7 @@ ffmpeg -y -i silent-video.mp4 -i premix-vo-music.wav \
   -map 0:v:0 -map 1:a:0 output.mp4
 ```
 
-**Freeze frames for VO overflow:** If VO is longer than the available visual (e.g., closing text slide needs to hold while VO finishes), use ffmpeg to freeze a frame:
+**Freeze frames for VO overflow:** If VO is longer than the available visual (e.g., closing text slide needs to hold while VO finishes), the best option is to **have the human extend the clip in their NLE (FCP/Premiere) and re-export** — zero quality loss. If that's not possible, use ffmpeg to freeze a frame, but note that re-encoding introduces visible quality degradation on static frames where compression artifacts are most noticeable:
 
 ```bash
 # Split video at freeze point, hold frame, then append remainder
@@ -562,10 +726,21 @@ For each VO phrase, decide what the viewer sees:
 - **Particle/motion backgrounds**: Living visual world behind text
 
 **Rules:**
-- VO leads, visuals follow. Never show something before the narrator introduces it.
+- VO can anticipate visuals by 0.5-1s (say "in Teams" right before Teams appears). But VO must NEVER describe a scene that isn't on screen — if the footage shows a website, the VO cannot talk about Teams. Anticipation ≠ ignoring what's visible. When in doubt, render a still.
 - Card text mirrors VO — never show text not yet spoken. Cards are visual punctuation, not labels.
 - No non-demo frame stays the same >3 seconds. Break long VO across multiple cards.
 - Music plays from beat 1 — never fade in over the music's own intro. Only fade out at end.
+
+### MANDATORY: Render still at every VO placement
+
+Before committing ANY composition change, for EVERY VO placement:
+1. Calculate the absolute frame number
+2. `npx remotion still src/index.ts CompositionId still.png --frame=N`
+3. Read the image
+4. Confirm what's on screen matches what the VO describes
+5. If it doesn't match, fix the anchor BEFORE moving on
+
+This is not optional. This is not "spot check a few." This is every single placement. The cost of rendering stills is seconds; the cost of wrong timing is hours of debugging and frustrated users.
 
 ### Always verify no overlaps programmatically
 
@@ -608,6 +783,81 @@ Read the PNG to check. Verify every component: title cards, interstitials, perso
 
 **4K gotcha**: Everything needs to be 2-3x larger than you'd think. Font sizes, avatars, logos, spacing. Render a still, look at it, adjust.
 
+**Text card rule: 7 words max, each card stands alone.** Title cards, interstitials, and reveal cards must never exceed 7 words total. These are visual punctuation, not subtitles — the VO carries the message, the card reinforces it. If the VO sentence is long, distill to the core idea. **Each card must speak for itself** — when a new card appears, the previous card's text must not persist. Use separate `<Sequence>` blocks so each card replaces the last, never accumulates. Examples: "Remember Sam?" (2 words) → cut → "Here's how Maya set it up." (7 words). Never stack text from multiple VO sentences on the same card.
+
+### Word-synced closing cards (subtitle-level text card timing)
+
+For closing sequences where text cards match VO word-by-word (e.g., "Customer Connect Agent:" → "Faster resolutions." → "Happier customers." → "Ready from day one."), use Whisper word timestamps to sync each card to when the narrator says the corresponding word:
+
+```ts
+// Whisper: "faster" at 1210ms, "happier" at 2420ms, "ready" at 4300ms
+const cardCC = { at: t, dur: ms(1210) };                    // "Customer Connect Agent:"
+const cardFR = { at: t + ms(1210), dur: ms(2420 - 1210) };  // "Faster resolutions."
+const cardHC = { at: t + ms(2420), dur: ms(4300 - 2420) };  // "Happier customers."
+const cardRD = { at: t + ms(4300), dur: ms(5568 - 4300 + 800) }; // "Ready from day one." + beat
+```
+
+Each card appears at the exact moment the narrator says its first word. This creates a subtitle-level sync that feels deliberate and polished.
+
+### FCP / Remotion division of labor
+
+For multicam screen recordings with typing, the human and the agent have different strengths:
+
+**Human handles in FCP:**
+- Multicam cuts between views (website ↔ Teams)
+- Typing speed ramps (8x speedup in compose boxes)
+- DOM artifact removal (accidental DevTools, console hacks)
+- Agent-thinking dead time cuts
+
+**Agent handles in Remotion:**
+- VO generation, placement, and sync to footage moments
+- Freeze frames at answer/summary/reply moments
+- Music bespoke cuts at structural dips
+- Title cards, persona cards, closing card sequences
+- Music ducking based on VO ranges
+
+The human gives the agent a clean clip that plays at 1x throughout. The agent never attempts speed ramps — 1fps frame extraction can't identify precise typing start/stop boundaries, resulting in normal-speed typing leaking through or sped-up non-typing sections.
+
+### VO audit checklist for character changes (v2 → v3)
+
+When a composition changes characters (e.g., Maya → Sam as service rep), EVERY VO file must be audited:
+
+1. **Transcribe all VO files** with Whisper. Don't trust filenames or memory.
+2. **Check names**: "Maya asks about..." → "Sam asks about..." / "He asks about..."
+3. **Check pronouns**: "She asks..." → "He asks..." (or vice versa)
+4. **Check possessives**: "Maya's internal documents" → "Whisker Wonderland's internal documents" (use the business name, not the person's name, for resources that belong to the business)
+5. **Check stale v2 files**: Old files like `resolution--discounts` ("Maya asks about first-time discounts") may still exist and get accidentally included. Remove them from the composition.
+6. **Regenerate, don't patch**: If a file has the wrong name/pronoun, regenerate it. Don't try to edit audio.
+
+### Bespoke music cut workflow
+
+Music cutting comes LAST, after the edit is locked. During iteration, accept that the track will be too short — don't waste time building cuts that become stale with each freeze change.
+
+1. Lock all VO placements, freezes, and pacing
+2. Determine exact composition duration
+3. Analyze the original track for structural dips (already done in `media/music/analysis.md`)
+4. Splice at dips: `[0-N] + [loop section at matching energy] + [natural fadeout]`
+5. Verify energy at splice points — no jarring drops
+6. Wire into composition, render, verify music doesn't cut or loop audibly
+
+### In-place footage replacement (re-exports from Screen Studio)
+
+When the user re-exports footage from Screen Studio with different zoom animations, the file gets replaced in `media/footage/` but:
+- **Duration may change slightly** — always re-check with `ffprobe` and update `s(clipDur)` in the composition
+- **Zoom timing shifts mean breakdowns are stale** — re-extract frames at key moments and verify what's on screen at each VO placement. Don't trust the old breakdown.
+- **Freeze points may need adjustment** — if a zoom now lands at a different moment, the freeze at that footage second may show the wrong frame
+- The composition code structure stays the same, but every timing constant needs re-verification
+
+### Session handoff
+
+Multi-session projects WILL lose context. Before ending a session:
+1. Update `PROJECT.md` with current state — what's done, what's in progress, what's next
+2. List every file that needs to be generated/changed in the next session
+3. Commit everything including working files and drafts
+4. The next session should be able to read `PROJECT.md` and know exactly where to pick up
+
+Use the "In Progress" section of PROJECT.md as the handoff doc, not conversation history.
+
 ### Render workflow
 
 Only when approved:
@@ -647,6 +897,7 @@ npx remotion render CompositionId out/filename.mp4
 - **ms()/s() double-conversion**: The #1 timing bug. `ms()` returns frames. Never pass its result to `s()`.
 - **Whisper endpoint as file duration**: Whisper's last token != end of audio. Use `ffprobe` for actual WAV duration.
 - **VO overlaps**: When multiple VO sections play over the same footage, verify each starts AFTER the previous ends. Check programmatically.
+- **VO_GAP accumulation in intro sections**: If visual cards are sized to match individual VO sentence durations (e.g., `persona.dur = ms(2736)`, `widgetHero.dur = ms(3888)`), but `placeVO` adds VO_GAP between sentences, the total VO duration exceeds the visual card sum by `(N-1) * VO_GAP`. This means the last intro VO bleeds into the next section (footage start). Fix: `t = Math.max(t, introVO.endFrame)` after sizing visual cards. With 5 sentences and 300ms VO_GAP, the overshoot is 1.5 seconds — very audible.
 - **VO denser than footage**: Fix with freeze frames + split VO. Never play one long VO track hoping it syncs.
 - **Keeping timings in your head**: ALWAYS write `timing-reference.md`. Future sessions will lose anything not written down.
 - **Guessing music beats**: "The ding is at ~4s" is not enough. Analyze at 50ms resolution. Ear-placed beats can be 500ms off (15 frames).
