@@ -11,8 +11,8 @@
 **Blast radius**: self-contained
 **Fix shape**: Teach work-merger to merge by explicit PR/branch from any checkout, verify remote merged state after nonzero `gh pr merge`, and clean up local branch/worktree without requiring checkout to `main`.
 **Verification**: Re-read `skills/work-merger/SKILL.md` and confirm it includes explicit detached checkout guidance, post-merge verification, and multi-worktree-safe cleanup.
-**Status**: in-progress
-**Linked work**:
+**Status**: fixed
+**Linked work**: https://github.com/ouroborosbot/ouroboros-skills/pull/18
 **Notes**: Seed approved by the user after PR #448 landed.
 
 ---
