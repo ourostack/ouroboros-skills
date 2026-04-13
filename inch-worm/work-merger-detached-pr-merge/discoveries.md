@@ -44,7 +44,7 @@
 **Blast radius**: self-contained
 **Fix shape**: Replace the example with diary/journal/notes language while preserving the SEO lesson.
 **Verification**: Search `skills/seo-titles/SKILL.md` for `Memory` after the edit.
-**Status**: in-progress
-**Linked work**:
+**Status**: fixed
+**Linked work**: https://github.com/ouroborosbot/ouroboros-skills/pull/20
 
 ---
