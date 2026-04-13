@@ -32,7 +32,7 @@ A title tag is an ad in search results. It competes for clicks against 9 other r
    - Bad: "Getting Started"
    - Good: "Get Started in 3 Minutes"
    - Bad: "Documentation"
-   - Good: "Docs — Psyche, Memory, Architecture"
+   - Good: "Docs — Diary, Journal, Architecture"
 
 9. **Questions work.** "What Is an Agent Harness?" directly matches the search query. Questions also imply the page has the answer.
 
