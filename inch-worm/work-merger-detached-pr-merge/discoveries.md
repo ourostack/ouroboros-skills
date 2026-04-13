@@ -28,8 +28,8 @@
 **Blast radius**: self-contained
 **Fix shape**: Add the missing manifest entry with the skill path, description, and tags.
 **Verification**: Compare `rg --files 'skills/.*/SKILL.md'` against manifest skill paths.
-**Status**: in-progress
-**Linked work**:
+**Status**: fixed
+**Linked work**: https://github.com/ouroborosbot/ouroboros-skills/pull/19
 
 ---
 
