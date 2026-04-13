@@ -28,6 +28,22 @@
 **Blast radius**: self-contained
 **Fix shape**: Add the missing manifest entry with the skill path, description, and tags.
 **Verification**: Compare `rg --files 'skills/.*/SKILL.md'` against manifest skill paths.
+**Status**: in-progress
+**Linked work**:
+
+---
+
+## [D-003] — Replace stale Memory wording in seo-titles examples
+
+**Source**: observed-during-seed
+**What**: The `seo-titles` skill includes an example title, `Docs — Psyche, Memory, Architecture`, that still teaches the old Memory framing.
+**Where**: `skills/seo-titles/SKILL.md`
+**Why it matters**: Shared skills should not reintroduce vocabulary the harness has moved away from, especially in examples agents may copy into user-facing work.
+**Evidence**: `skills/seo-titles/SKILL.md` anti-pattern/rule examples include the string `Memory`.
+**Severity**: nice-to-have
+**Blast radius**: self-contained
+**Fix shape**: Replace the example with diary/journal/notes language while preserving the SEO lesson.
+**Verification**: Search `skills/seo-titles/SKILL.md` for `Memory` after the edit.
 **Status**: open
 **Linked work**:
 

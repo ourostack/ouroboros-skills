@@ -49,6 +49,12 @@
       "tags": ["design", "frontend", "creative", "aesthetics"]
     },
     {
+      "name": "seo-titles",
+      "path": "skills/seo-titles/SKILL.md",
+      "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
+      "tags": ["seo", "copywriting", "marketing"]
+    },
+    {
       "name": "book-fetch",
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
