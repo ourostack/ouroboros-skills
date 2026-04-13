@@ -8,16 +8,19 @@ You are a sync-and-merge agent. After work-doer finishes implementation on a fea
 
 ## On Startup
 
-### 1. Detect agent and branch
+### 1. Detect merge target, agent, and branch
 
 ```bash
 BRANCH=$(git branch --show-current)
+PR_TARGET="${PR_TARGET:-}"
 AGENT=$(echo "$BRANCH" | cut -d'/' -f1)
 ```
 
+`PR_TARGET` is optional. Use it when the caller gives an explicit PR number, PR URL, or branch name to merge. Do not assume work-merger is running from the feature branch; Codex app threads and shared worktree setups may leave the active checkout detached.
+
 The branch follows the `<agent>/<slug>` convention (e.g., `ouroboros/context-kernel`, `slugger/oauth-setup`). The first path segment is the agent name. If the branch has no `/`, the entire branch name is the agent (e.g., `ouroboros`).
 
-Do not hardcode agent names. Derive `<agent>` from the branch at runtime.
+Do not hardcode agent names. Derive `<agent>` from the branch at runtime when a branch is available.
 
 ### 1a. Determine the project-defined task-doc directory
 
@@ -69,6 +72,23 @@ gh repo set-default --view 2>/dev/null
 **Preflight summary:**
 - Self-fixable: repo default not set (agent sets it)
 - Requires human: `gh` not installed, not authenticated, no GitHub remote
+
+### 3a. Resolve branch from explicit PR target when detached
+
+After the `gh` preflight checks pass, fill in `BRANCH` from `PR_TARGET` if the local checkout is detached:
+
+```bash
+if [ -n "$PR_TARGET" ] && [ -z "$BRANCH" ]; then
+  BRANCH=$(gh pr view "$PR_TARGET" --json headRefName -q '.headRefName')
+fi
+if [ -z "$BRANCH" ]; then
+  echo "No current branch and no PR target. Provide a PR number, PR URL, or branch."
+  exit 1
+fi
+AGENT=$(echo "$BRANCH" | cut -d'/' -f1)
+```
+
+This lets work-merger operate from a detached checkout as long as the human or caller provided an explicit PR target.
 
 ### 4. Verify clean working tree
 
@@ -362,12 +382,28 @@ If the check reveals a genuine gap (missing criteria, wrong files included), fix
 ### Step 6: Merge the PR
 
 ```bash
-gh pr merge "${BRANCH}" --merge --delete-branch
+PR_REF="${PR_TARGET:-$BRANCH}"
+HEAD_REF=$(gh pr view "${PR_REF}" --json headRefName -q '.headRefName')
+HEAD_SHA=$(gh pr view "${PR_REF}" --json headRefOid -q '.headRefOid')
+gh pr merge "${PR_REF}" --merge --match-head-commit "${HEAD_SHA}"
 ```
 
 Use `--merge` (not `--squash` or `--rebase`). Merge commits preserve branch history.
 
-The `--delete-branch` flag handles remote branch cleanup. If it is not supported or fails, handle cleanup manually in **Post-Merge Cleanup**.
+Do not pass `--delete-branch` here. GitHub CLI attempts local branch cleanup as part of that flag, and that can fail after the remote merge has already succeeded when the current checkout is detached or when `main` is checked out in another worktree. Remote and local branch cleanup happen explicitly in **Post-Merge Cleanup**.
+
+If `gh pr merge` exits nonzero, immediately verify remote state before treating it as a failed merge:
+
+```bash
+STATE=$(gh pr view "${PR_REF}" --json state -q '.state' 2>/dev/null || echo "UNKNOWN")
+if [ "$STATE" = "MERGED" ]; then
+  echo "PR merged remotely; continuing with post-merge cleanup despite local gh cleanup/status error."
+else
+  echo "PR did not merge; inspect gh output and handle conflicts or CI failure."
+fi
+```
+
+Only proceed to **Race Condition Retry** when the PR is still open and GitHub reports conflicts or a dirty merge state. A nonzero local `gh` exit after `state=MERGED` is post-merge cleanup friction, not a race condition.
 
 If the merge fails due to merge conflicts (another agent merged to main while CI was running), proceed to **Race Condition Retry**.
 
@@ -541,35 +577,44 @@ Do NOT break the retry loop for:
 
 After the PR is successfully merged to main:
 
-### Step 1: Switch to main
+### Step 1: Refresh main without stealing another worktree's checkout
 
 ```bash
-git checkout main
-git pull origin main
+git fetch origin main --prune
+if [ "$(git branch --show-current)" = "main" ]; then
+  git pull origin main
+fi
 ```
 
-### Step 2: Delete local branch
+Do not require `git checkout main`. On machines with many active worktrees, `main` may already be checked out somewhere else. `origin/main` is enough to verify the merge and clean local branch metadata.
+
+### Step 2: Delete the remote branch
 
 ```bash
-git branch -d ${BRANCH}
+git push origin --delete "${HEAD_REF:-$BRANCH}" 2>/dev/null || true
 ```
 
-Use `-d` (not `-D`). If git refuses because the branch is not fully merged, something went wrong -- investigate.
+If the remote branch is already gone, this fails harmlessly. Ignore that case.
 
-### Step 3: Delete remote branch
-
-If `--delete-branch` was not used during `gh pr merge`, clean up manually:
+### Step 3: Delete local branch metadata safely
 
 ```bash
-git push origin --delete ${BRANCH}
+if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
+  if git merge-base --is-ancestor "${BRANCH}" origin/main; then
+    git branch -d "${BRANCH}" || git branch -D "${BRANCH}"
+  else
+    echo "Local branch ${BRANCH} is not an ancestor of origin/main; leaving it in place for investigation."
+  fi
+fi
 ```
 
-If the remote branch is already gone (deleted by `--delete-branch` or by GitHub's auto-delete setting), this will fail harmlessly. Ignore the error.
+Prefer `-d`, but if `merge-base --is-ancestor` proves the branch tip is already on `origin/main`, a fallback `-D` is acceptable cleanup for local metadata. If the branch is checked out in another worktree, remove the task worktree first or leave the branch and report the cleanup blocker; do not delete a branch that another active worktree is using.
 
 ### Step 4: Verify
 
 ```bash
-git log --oneline -5
+gh pr view "${PR_REF}" --json state,mergedAt,mergeCommit,url
+git log --oneline -5 origin/main
 ```
 
 Confirm the merge commit is visible on main.
