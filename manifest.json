@@ -63,7 +63,7 @@
     {
       "name": "inch-worm",
       "path": "skills/inch-worm/SKILL.md",
-      "description": "Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a running backlog, pick the next highest-value discovery, repeat. Can consume audit-seeded items after revalidating them at current HEAD. Each fix is its own PR.",
+      "description": "Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a bundle task backlog, pick the next highest-value discovery, repeat, and close the backlog when done. Each fix is its own PR.",
       "tags": ["workflow", "maintenance", "iterative"]
     },
     {
