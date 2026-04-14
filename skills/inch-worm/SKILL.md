@@ -1,6 +1,6 @@
 ---
 name: inch-worm
-description: Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a running backlog, pick the next highest-value discovery, repeat. Can consume audit-seeded items after revalidating them at current HEAD. Each fix is its own PR.
+description: Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a bundle task backlog, pick the next highest-value discovery, repeat, and close the backlog when done. Each fix is its own PR.
 model: opus
 ---
 
@@ -13,11 +13,20 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 3. **Log discoveries**: While working, every time you notice something else questionable — a v8 ignore that could be covered, a coverage gate gap, a dead branch, a comment that lies, a missing error case, a rebase-friction pattern, a duplicated helper, a TODO without a tracking issue, a flake, a console.warn that should be emitNervesEvent, etc. — append it to the backlog. Do NOT fix it now. Do NOT even think about fixing it now. Just log it.
 4. **Review**: When the seed fix is merged, read the backlog. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
-6. **Terminal condition**: You stop ONLY when the user says stop, the backlog is empty, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. When you hit that stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
+6. **Close out**: When no open items remain, mark the campaign closed and clean up the active backlog so it cannot be mistaken for a future seed source.
+7. **Terminal condition**: You stop ONLY when the user says stop, the backlog is empty after closeout, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. When you hit that stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
 
 ## Backlog format
 
-Lives at `./{task-name}/discoveries.md` (next to the doing doc if one exists, in a dedicated inch-worm directory the user designates, or as the canonical `audit-backlog.md` produced by `full-systems-audit`).
+Lives beside the agent's normal task files, usually:
+
+`~/AgentBundles/<agent>.ouro/tasks/one-shots/YYYY-MM-DD-HHMM-doing-<slug>/discoveries.md`
+
+If there is no doing doc yet, create a sibling campaign directory under `tasks/one-shots/`, such as:
+
+`~/AgentBundles/<agent>.ouro/tasks/one-shots/YYYY-MM-DD-HHMM-inch-worm-<slug>/discoveries.md`
+
+Do not create `./inch-worm/discoveries.md` in the code repo by default. A repo-tracked backlog is allowed only when the user explicitly designates it as the canonical artifact and accepts that it will be removed or archived when the campaign closes.
 
 There should be one canonical backlog per active campaign. If you are in an audit-fed campaign, append new discoveries to that canonical backlog instead of spawning sibling files.
 
@@ -113,9 +122,19 @@ The human will sometimes say "add this to the backlog." DO IT yourself — don't
 
 When the user asks "what's on the list" — read the file verbatim to them. When the user asks "prune the list" — go through each entry and ask whether it's still relevant. Stale entries are worse than no entries because they hide the ones that still matter.
 
+### 9. Close finished campaigns
+
+When the terminal condition is an empty backlog or no remaining sensible items:
+
+- Ensure every entry is `fixed`, `superseded`, or `deferred`; no `open` or `in-progress` items remain.
+- Record final PR/commit links in the doing doc or campaign header.
+- If the backlog file is repo-local, delete it before merging the final cleanup PR.
+- If the backlog file lives in the agent bundle, mark the campaign `closed` so future agents know it is historical evidence, not an active seed source.
+- Remove or archive any empty campaign directories created only for transient tracking.
+
 ## Starting a new inch-worm session
 
-1. **Find or create the backlog**. If the user hasn't pointed you at one, ask where it should live (usually `./inch-worm/discoveries.md`, alongside an existing doing doc, or in the canonical `audit-backlog.md` from `full-systems-audit`).
+1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
 2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Confirm before starting.
 3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR.
 4. **Hand off**. After the PR is open (or merged), report back with: (a) the fix, (b) the new discoveries added this iteration, (c) the proposed next seed.
@@ -143,7 +162,7 @@ You can pause and resume an inch-worm session across agent sessions. To resume:
 5. Revalidate audit-seeded candidates at current `HEAD`.
 6. Ask the user which one to pick as the next seed, or propose the highest-value leaf.
 
-Never silently "clean up" the log on resume — stale entries are the user's call, not yours.
+Never silently reuse a stale log on resume. If a backlog has no open items, close it out instead of treating it as active. If a repo-local backlog exists without explicit user designation, propose deleting it or moving the active entries into the agent bundle task area before continuing.
 
 ## Honest-work discipline
 
