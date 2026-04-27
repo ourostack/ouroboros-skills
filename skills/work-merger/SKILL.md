@@ -318,13 +318,15 @@ gh pr edit "${BRANCH}" \
 
 ### Step 3: Wait for CI
 
-Poll CI status until it completes:
+**Stay in turn while waiting.** This step usually takes minutes. The wrong move is to launch the wait in the background and ScheduleWakeup or yield. The right move is to use `Bash` (no background) for a single-shot wait, or `Monitor` for a chain of waits across multiple PRs. See the **stay-in-turn** skill for the full pattern.
+
+Single PR, blocking in turn:
 
 ```bash
 gh pr checks "${BRANCH}" --watch
 ```
 
-If `--watch` is not available, poll manually:
+If `--watch` is not available, poll manually with a foreground Bash call (timeout 600000):
 ```bash
 while true; do
   STATUS=$(gh pr checks "${BRANCH}" --json 'state' -q '.[].state' 2>/dev/null)
@@ -338,6 +340,8 @@ while true; do
   sleep 30
 done
 ```
+
+Multiple PRs in a chain (or after CI failures that need iteration): write a small driver script that emits `OK pr=N` / `FAIL pr=N` per result and attach a `Monitor` to its stdout. Do NOT yield between PRs. See **stay-in-turn** SKILL for the canonical driver shape.
 
 ### Step 4: Handle CI result
 

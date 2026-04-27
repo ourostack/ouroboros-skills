@@ -7,6 +7,12 @@
       "tags": ["meta", "bootstrap", "registry"]
     },
     {
+      "name": "stay-in-turn",
+      "path": "skills/stay-in-turn/SKILL.md",
+      "description": "Stay-in-turn for long-running work. Replaces the background+ScheduleWakeup+yield anti-pattern with a Monitor stream that produces events back into the same turn. Reach for this whenever the operator says 'do not return control until X' or whenever a task involves waiting on CI, a chain of merges, a build, or any operation longer than ~2 minutes.",
+      "tags": ["meta", "workflow", "execution"]
+    },
+    {
       "name": "work-ideator",
       "path": "skills/work-ideator/SKILL.md",
       "description": "Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run Tinfoil Hat and Stranger With Candy scrutiny passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.",
