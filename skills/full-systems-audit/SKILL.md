@@ -135,6 +135,16 @@ Stop after the audit artifacts are written and present them for review.
 
 Do NOT automatically start execution. Do NOT automatically convert the backlog into a doing doc. Wait for explicit approval on what should happen next.
 
+**However**: the operator may want every finding triaged before they review the high-level report. Triage means **for every backlog item, either**:
+
+1. **Fix it** — apply the change, update `Status: fixed`, link the PR or commit in `Linked work`.
+2. **Mark no-op** — document why the finding turned out to be invalid, already-fixed, intentional, or not worth acting on. Update `Status: deferred` (intentional / ambiguous / low-value) or `Status: superseded` (replaced by another item) and put the reason in `Notes`.
+3. **Hand off to a sub-skill** — when the fix needs `work-planner` or `inch-worm`, update `Status: in-progress` and link the doing doc / spawn target in `Linked work`.
+
+**Triage completion contract**: do not declare the audit "done" while any item still has `Status: open`. Open items are unfinished business. The acceptable end states are `fixed`, `deferred`, `superseded`, or `in-progress` (the latter only when a downstream skill has accepted ownership and the linked work is real).
+
+If the audit surfaces too many items to triage in one sitting (more than ~20 actionable ones, or >50 total), say so explicitly and ask the operator whether to triage in batches or hand the unfinished triage to a follow-up `inch-worm` campaign. Do not return control with a half-triaged backlog and a vague "more to do" — the user's stuck-on-rocks problem is the unfinished work, not the count itself.
+
 ### Phase 8: Post-large-work re-evaluation
 
 When the user chooses to execute the large tranche first, re-audit the affected areas after those items merge. Reclassify surviving backlog items before handing them to `inch-worm`. Many "small" items disappear, merge together, or change priority after the structural work lands.
@@ -258,3 +268,9 @@ When a tool, command, or subsystem is renamed, the *string literals* used in aud
 
 ### Asymmetric surface forces workarounds
 When add/list/edit operations exist for a primitive but `remove` is missing, callers re-emit the entire record minus what they want gone — fragile and lossy. List `*_create` / `*_update` / `*_remove` / `*_get` / `*_list` for every primitive and flag missing slots.
+
+### Don't return control with open items
+Recurring failure mode: write the backlog, summarize how big the campaign is, return control. The operator now owns the unfinished work without ever asking for it. Avoid this. Triage every item before returning — fix, defer, supersede, or formally hand off via `Linked work` to a downstream skill. If the volume is too large for a single triage pass, **say so explicitly up front** and ask the operator whether to chunk it. Do not silently leave items at `Status: open` while reporting the audit as "complete."
+
+### Verify agent-reported findings
+Sub-agents spawned for parallel exploration sometimes hallucinate findings (claim a function lacks a guard when it has one, claim a file is dead when it's tool-registered via dynamic dispatch, etc.). Sample-verify the highest-severity findings hands-on before listing them in the report. A small number of false positives undermine trust in the entire backlog. When in doubt, drop the finding rather than ship one you couldn't verify.
