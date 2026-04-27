@@ -167,3 +167,7 @@ Never silently reuse a stale log on resume. If a backlog has no open items, clos
 ## Honest-work discipline
 
 The inch-worm only moves forward on work that would have happened anyway. If you find yourself creating discoveries faster than you're shipping fixes, that's a sign you're surveying instead of working. Pull back. Do the seed fix. Log ONLY what you actually touched or tripped over, or what an audit explicitly routed to you and you revalidated. A slow-growing list is a healthy list.
+
+## Stay in turn during a campaign
+
+An inch-worm campaign is a chain of fix-PR-merge cycles. The wrong shape is to launch each PR's CI in the background, ScheduleWakeup, and end the turn — the operator becomes the orchestrator. The right shape is to use foreground `Bash` for single-PR waits, or a driver script + `Monitor` for processing a backlog of items serially. See the **stay-in-turn** skill for the pattern. If a fix is genuinely going to take days (e.g. waiting on a stakeholder review), say so explicitly and yield — do not silently stop because a wait *feels* long.
