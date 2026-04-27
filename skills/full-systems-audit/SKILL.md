@@ -249,7 +249,9 @@ After routing MCP through the daemon (if applicable), `send_message` requires th
 If an agent lives in the codebase, ask them what feels uncomfortable before finalizing the audit plan. Their perspective on "seams over size" is more valuable than file-length metrics.
 
 ### Names compound silently
-A misnamed public symbol is a tax every reader pays. It will continue to mislead for as long as the wrong name persists, and renaming gets harder over time as call sites accrete. When you find one, log it as MEDIUM minimum and surface even small/cosmetic naming weirdness — "no nit too small" is the right disposition for naming. The mail_thread/mail_body inversion sat for many releases before someone caught it. Don't let the next one sit that long.
+A misnamed public symbol is a tax every reader pays. It will continue to mislead for as long as the wrong name persists, and renaming gets harder over time as call sites accrete. When you find one, log it as MEDIUM minimum and surface even small/cosmetic naming weirdness — "no nit too small" is the right disposition for naming.
+
+Recurring shape to watch: a tool/function with a verb that *suggests* one operation but the body does another (e.g. a `*_thread` that returns one record, a `*_status` that lists ids, a `*_new` that's pure). When found, the right repair is usually to (a) rename the misnamed symbol to match its real behavior, (b) free the canonical name to attach to the operation it actually describes, and (c) sweep all call sites — including audit-log strings and nerves event names — in the same change. Small naming inversions sit for many releases before someone catches them. Don't let the next one sit that long.
 
 ### Audit-log / nerves-event strings outlast renames
 When a tool, command, or subsystem is renamed, the *string literals* used in audit logs (`tool: "x"`) and nerves events (`event: "x.y"`) often get missed. Grep for the old name across all `.ts` files (not just the file being renamed) before declaring the rename complete.
