@@ -68,14 +68,35 @@ Evaluate the clarity of the system's configuration surface.
 3. Assess whether an operator/agent can predict system behavior from the config alone.
 4. Note any configs that are scattered, duplicated, or confusingly named.
 
+### Phase 4b: Surface integrity (naming + contracts)
+
+Audit every public-facing surface for truth. The "names lie" class of bug compounds quietly until someone misuses the wrong tool/function/flag and the misuse looks correct on the page. **No nit too small here** — the audit's job is to surface them.
+
+1. **Tool / command / function name vs. behavior**: for every exported tool name, command, public function, CLI flag, nerve event, doctor category, etc., ask whether the name accurately describes what the operation does. If a stranger reading the name aloud would predict a different behavior than the implementation, that's a finding.
+   - Real example: `mail_thread` that returned ONE message body (not a thread). Misled callers for many releases. Fix landed by renaming to `mail_body` and giving the canonical name to the actual conversation walker.
+2. **Near-duplicate pairs / triples**: when two or more symbols look like they overlap, write down what each one *actually* does and check whether the names contrast accurately. Pairs that need scrutiny:
+   - `*_thread` vs `*_conversation` vs `*_message` vs `*_body`
+   - `*_status` vs `*_show` vs `*_get` vs `*_list`
+   - `*_create` vs `*_new` vs `*_init` vs `*_ensure`
+   - `*_remove` vs `*_delete` vs `*_drop` vs `*_clear`
+   - `check_*` vs `verify_*` vs `validate_*`
+   - `*_review` vs `*_audit` vs `*_inspect` vs `*_diagnose`
+3. **Misleading parameters**: a parameter named `id` that accepts both a storage id and an external id without saying so. A `limit` that's actually a max with implicit floor. A `since` that takes a duration string but is documented as a timestamp.
+4. **Doc vs. implementation drift**: read each tool/function's docstring and compare to its actual code. Flag where the doc says X but the code does Y, or where the description matches an earlier version of the function that has since drifted.
+5. **Audit-log strings, nerves event names, contract names**: every `tool: "x"` audit string and `event: "subsystem.x"` nerve event should match the *current* canonical name. A rename that misses these leaves a "history wormhole" that confuses future debuggers.
+6. **Discoverability through docs**: if there's a README or runbook listing tools/commands, does it list everything currently in the registry? Find drift in both directions.
+7. **Symmetry holes**: when there's a `*_create` is there a corresponding `*_remove`? When there's a list-shape, is there a get-shape? Asymmetric surface forces callers into workarounds.
+
+When a naming inversion exists (canonical name attached to the non-canonical operation), treat it as a `MEDIUM` finding minimum, `HIGH` when it's been load-bearing for a while.
+
 ### Phase 5: Findings synthesis
 
 Categorize everything into severity levels.
 
-**CRITICAL** — Architectural violations, competing implementations, broken layering.
-**HIGH** — God modules, overloaded directories, misleading coverage.
-**MEDIUM** — Duplication, naming issues, inline complexity, tight coupling.
-**LOW** — Vestigial code, missing lint rules, cosmetic issues.
+**CRITICAL** — Architectural violations, competing implementations, broken layering, security/trust boundary leaks.
+**HIGH** — God modules, overloaded directories, misleading coverage, naming inversions on load-bearing surfaces, doc-vs-implementation drift on critical paths.
+**MEDIUM** — Duplication, naming issues, inline complexity, tight coupling, asymmetric surface (e.g. create without remove), audit-log/nerves-event drift after renames.
+**LOW** — Vestigial code, missing lint rules, cosmetic issues, dead exports, redundant defensive branches that can't be triggered.
 
 Every finding needs:
 - **What**: The specific issue
@@ -226,3 +247,12 @@ After routing MCP through the daemon (if applicable), `send_message` requires th
 
 ### Ask the inhabitant
 If an agent lives in the codebase, ask them what feels uncomfortable before finalizing the audit plan. Their perspective on "seams over size" is more valuable than file-length metrics.
+
+### Names compound silently
+A misnamed public symbol is a tax every reader pays. It will continue to mislead for as long as the wrong name persists, and renaming gets harder over time as call sites accrete. When you find one, log it as MEDIUM minimum and surface even small/cosmetic naming weirdness — "no nit too small" is the right disposition for naming. The mail_thread/mail_body inversion sat for many releases before someone caught it. Don't let the next one sit that long.
+
+### Audit-log / nerves-event strings outlast renames
+When a tool, command, or subsystem is renamed, the *string literals* used in audit logs (`tool: "x"`) and nerves events (`event: "x.y"`) often get missed. Grep for the old name across all `.ts` files (not just the file being renamed) before declaring the rename complete.
+
+### Asymmetric surface forces workarounds
+When add/list/edit operations exist for a primitive but `remove` is missing, callers re-emit the entire record minus what they want gone — fragile and lossy. List `*_create` / `*_update` / `*_remove` / `*_get` / `*_list` for every primitive and flag missing slots.
