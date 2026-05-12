@@ -212,6 +212,8 @@ User answers questions → agent updates doc → agent sets status to `NEEDS_REV
 
 **The pass architecture: planner authors Pass 1; every subsequent review pass is dispatched to a fresh, no-context sub-agent.** This is intentional. Each pass is a distinct lens, and the planner has already justified the doc to itself by drafting it. Fresh sub-agents see the doc cold and catch what's actually on the page versus what the planner intended. The same agent doing all passes is honest but limited — context bleed-through means each pass is colored by what the prior pass found (or didn't). Fresh context per lens is the point.
 
+**Invocation constraint: this skill must be invoked from a top-level conversation, not from inside another sub-agent.** The Agent / Task dispatch tool is only available at the top level. If you (the planner) are running inside a sub-agent that itself was dispatched, you cannot dispatch sub-sub-agents for the review passes — the tool isn't surfaced into nested contexts. In that case, surface the constraint to the parent context and let the top-level driver run the chain. (This is the same reason work-merger's CI self-repair only runs at top level.)
+
 Run these passes — announce each. **ALL PASSES ARE MANDATORY (5 fixed passes + scrutiny passes until convergence). You must run every pass, even if you think nothing changed. Each pass MUST have its own commit (use "no changes needed" in the commit message if the pass found nothing to fix). Do NOT skip or combine passes.**
 
 ### Sub-agent review brief (template applied to every dispatched pass)
