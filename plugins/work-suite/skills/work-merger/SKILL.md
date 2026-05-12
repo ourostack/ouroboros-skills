@@ -318,13 +318,15 @@ gh pr edit "${BRANCH}" \
 
 ### Step 3: Wait for CI
 
-Poll CI status until it completes:
+**Stay in turn while waiting.** This step usually takes minutes. The wrong move is to launch the wait in the background and ScheduleWakeup or yield. The right move is to use `Bash` (no background) for a single-shot wait, or `Monitor` for a chain of waits across multiple PRs. See the **stay-in-turn** skill for the full pattern.
+
+Single PR, blocking in turn:
 
 ```bash
 gh pr checks "${BRANCH}" --watch
 ```
 
-If `--watch` is not available, poll manually:
+If `--watch` is not available, poll manually with a foreground Bash call (timeout 600000):
 ```bash
 while true; do
   STATUS=$(gh pr checks "${BRANCH}" --json 'state' -q '.[].state' 2>/dev/null)
@@ -339,6 +341,8 @@ while true; do
 done
 ```
 
+Multiple PRs in a chain (or after CI failures that need iteration): write a small driver script that emits `OK pr=N` / `FAIL pr=N` per result and attach a `Monitor` to its stdout. Do NOT yield between PRs. See **stay-in-turn** SKILL for the canonical driver shape.
+
 ### Step 4: Handle CI result
 
 **CI passes:**
@@ -347,37 +351,48 @@ done
 **CI fails:**
 - Proceed to **CI Failure Self-Repair**.
 
-### Step 5: Pre-merge sanity check
+### Step 5: Pre-merge sanity check (fresh sub-agent dispatched)
 
-Before merging, verify the PR delivers what the planning/doing doc intended. This is a lightweight review, not a full audit.
+Before merging, verify the PR delivers what the planning/doing doc intended. This is a lightweight review, not a full audit — but it runs in a fresh, no-context sub-agent rather than inline. Same principle as work-planner's review chain and work-doer's unit review: a fresh context catches what the merger has already justified to itself.
 
-1. Re-read the doing doc (already available from On Startup)
-2. Review the PR diff: `gh pr diff "${BRANCH}"`
-3. Check that:
-   - All completion criteria from the doing doc are addressed
-   - No unrelated changes slipped in
-   - The PR title and body accurately describe what shipped
-   - Upstream backlog item IDs are cited when the doing doc provides them
-4. Post findings as a PR comment:
+**Sub-agent review brief:**
+- Absolute path to the doing doc
+- Absolute path to the planning doc when it exists
+- The PR diff: capture from `gh pr diff "${BRANCH}"` and pass via temp file or inline
+- The PR title and body: capture from `gh pr view "${BRANCH}" --json title,body`
+- Lens — does the PR deliver what the docs promised?
+  - All completion criteria from the doing doc addressed by the diff?
+  - No unrelated changes slipped in?
+  - PR title and body accurately describe what shipped (no over-promising, no thin "five-section narrative" gaps)?
+  - Upstream backlog item IDs cited when the doing doc provides them?
+- Output format: `CONVERGED` or `FINDINGS` with severity per finding (`BLOCKER / MAJOR / MINOR / NIT`)
+- Time-box: report under ~400 words
+
+**Merger's response to findings:**
+- BLOCKER / MAJOR — fix the gap (update PR title/body, drop unrelated changes via revert/rebase, add missing implementation), commit, push, re-dispatch Round 2
+- MINOR / NIT — judgment call; address if cheap; defer with rationale
+- Round 2 finds new BLOCKER/MAJOR — escalate to user
+
+**Post the sub-agent findings as a PR comment** (whether converged or with addressed findings):
 
 ```bash
 gh pr comment "${BRANCH}" --body "$(cat <<'REVIEW'
 ## Pre-merge sanity check
 
-Checked PR against doing doc: `<doing-doc-path>`
+Reviewed PR against doing doc: `<doing-doc-path>`
+Sub-agent reviewer convergence: <CONVERGED | converged after N rounds>
 
-- [ ] All completion criteria addressed
-- [ ] No unrelated changes
-- [ ] PR description accurate
-
-<any notes or concerns>
+Findings addressed:
+- <each addressed finding with its resolution>
 
 Proceeding to merge.
 REVIEW
 )"
 ```
 
-If the check reveals a genuine gap (missing criteria, wrong files included), fix it before merging. If everything looks good, proceed to Step 6.
+**Operator-review escape hatch — same five categories.**
+
+If the sub-agent's findings touch voice-and-relationships / durably-shaping state / irreversible operations / genuine ambiguity / cross-org posture, surface to the user before merging.
 
 ### Step 6: Merge the PR
 
