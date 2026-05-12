@@ -128,12 +128,41 @@ starting Unit Xa: [name]
   - 2026-02-03 14:25 Unit Xa complete: [brief summary]
   ```
 
-### 4. Context management
+### 4. Sub-agent unit review (default for non-trivial units)
+
+Spawn a fresh, no-context sub-agent to review the just-completed unit. The reviewer reads the unit cold and checks that the unit actually landed correctly — same principle that drives work-planner's review-pass architecture: a fresh context sees what's on the page, not what the executor intended.
+
+**Sub-agent review brief:**
+- Absolute path to the doing doc (specifically the unit just completed: What / Output / Acceptance)
+- The diff for this unit: `git diff <unit-start-commit>..HEAD --` for the relevant files
+- The test output: passing tests + coverage report for the relevant files
+- The build output if a build was run: any warnings count as findings
+- Lens: did the unit land correctly? Tests pass? Coverage maintained or improved on new code? No warnings? Build clean? Doing-doc status updated to ✅? Every acceptance criterion the unit named is verifiable in the diff or test output?
+- Output format: `CONVERGED` or `FINDINGS` with severity per finding (`BLOCKER / MAJOR / MINOR / NIT`)
+- Time-box: report under ~400 words
+
+**Executor's response to findings:**
+- BLOCKER / MAJOR — spawn a fix sub-agent (per existing blocker pattern), commit the fix, re-dispatch Round 2 of the reviewer
+- MINOR / NIT — judgment call: address if cheap; defer with rationale in the progress log
+- Round 2 finds new BLOCKER/MAJOR — escalation trigger; surface to user with the residual
+
+**When to skip the unit review (executor's judgment):**
+- Trivial docs-only units (typo fix, comment update)
+- Pure rename refactors with mechanical diffs
+- Units that are themselves about running the review chain (avoid infinite recursion)
+
+When skipped, note in the progress log: `Unit review skipped (reason: ...)`.
+
+**Operator-review escape hatch — same five categories as work-planner:**
+
+If the unit (or the reviewer's findings) touches voice-and-relationships / durably-shaping state / irreversible operations / genuine ambiguity / cross-org posture, stop the autonomous chain and surface to the user before proceeding to the next unit.
+
+### 5. Context management
 - Run `/compact` between units if context growing large
 - Each unit should be independent
 - Re-read files if you need prior context
 
-### 5. Continue to next unit
+### 6. Continue to next unit
 
 ---
 
