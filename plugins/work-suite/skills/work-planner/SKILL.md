@@ -210,9 +210,28 @@ User answers questions → agent updates doc → agent sets status to `NEEDS_REV
 
 **CRITICAL: Planning doc is KEPT. Conversion creates a NEW doing doc alongside it in `TASK_DIR`.**
 
+**The pass architecture: planner authors Pass 1; every subsequent review pass is dispatched to a fresh, no-context sub-agent.** This is intentional. Each pass is a distinct lens, and the planner has already justified the doc to itself by drafting it. Fresh sub-agents see the doc cold and catch what's actually on the page versus what the planner intended. The same agent doing all passes is honest but limited — context bleed-through means each pass is colored by what the prior pass found (or didn't). Fresh context per lens is the point.
+
 Run these passes — announce each. **ALL PASSES ARE MANDATORY (5 fixed passes + scrutiny passes until convergence). You must run every pass, even if you think nothing changed. Each pass MUST have its own commit (use "no changes needed" in the commit message if the pass found nothing to fix). Do NOT skip or combine passes.**
 
-**Pass 1 — First Draft:**
+### Sub-agent review brief (template applied to every dispatched pass)
+
+Every dispatched pass uses the same brief shape, with the lens swapped per pass:
+
+- Absolute path to the doing doc (sub-agent must read end-to-end with no inherited context)
+- Absolute path to the planning doc the doing doc was drafted from
+- Absolute paths to source files cited in the doing doc (when the lens needs them)
+- The DOING TEMPLATE this skill prescribes (when the lens checks compliance)
+- The pass-specific lens (see each pass below)
+- Output format: `CONVERGED` or `FINDINGS` with severity per finding (`BLOCKER / MAJOR / MINOR / NIT`)
+- Time-box: keep the report under ~500 words
+
+Planner's response to findings (every pass):
+- BLOCKER / MAJOR — fix the doc, commit, re-dispatch Round 2 of the same pass with a fresh sub-agent
+- MINOR / NIT — judgment call: address if cheap; defer with rationale if not
+- Round 2 finds new BLOCKER/MAJOR — escalation trigger; surface to user with the residual (planning-level gap suspected)
+
+### Pass 1 — First Draft (planner-authored)
 - Create `YYYY-MM-DD-HHMM-doing-{short-desc}.md` (same timestamp and short-desc as planning)
 - Create adjacent artifacts directory in `TASK_DIR`: `YYYY-MM-DD-HHMM-doing-{short-desc}/` for any files, outputs, or working data
 - Use DOING TEMPLATE — **follow exactly**, including emoji status on every unit header (`### ⬜ Unit X:`)
@@ -220,72 +239,92 @@ Run these passes — announce each. **ALL PASSES ARE MANDATORY (5 fixed passes +
 - Decide execution_mode: `pending` (needs approval), `spawn` (spawn sub-agent per unit), or `direct` (run directly)
 - Commit: `git commit -m "docs(doing): create doing-{short-desc}.md"`
 
-**Pass 2 — Granularity:**
-- Each unit atomic? testable? one session?
-- Break down large units (1a, 1b, 1c pattern)
-- Every unit needs: What, Output, Acceptance
-- Commit: `git commit -m "docs(doing): granularity pass"` (or `"docs(doing): granularity pass - no changes needed"` if nothing to fix)
+### Pass 2 — Granularity (fresh sub-agent dispatched)
 
-**Pass 3 — Validation:**
-- Check assumptions against codebase — **actually read the files** referenced in the doing doc to verify paths, class names, method names, patterns, and conventions exist and are correct
-- Update units if reality differs from what was assumed during planning
-- Commit: `git commit -m "docs(doing): validation pass"` (or `"docs(doing): validation pass - no changes needed"` if nothing to fix)
+Lens: every unit must be atomic, testable, completable in one session. Each unit needs explicit What / Output / Acceptance. Large units (>1 session of work) must be broken into 1a/1b/1c sub-units following the test-then-implement-then-verify pattern.
 
-**Pass 4 — Ambiguity:**
-- Remove doer-facing ambiguity before execution starts
-- Tighten units so a `READY_FOR_EXECUTION` doing doc does not require structural rewrites by `work-doer`
-- Resolve fuzzy phrases like "appropriate files", "as needed", or "wherever the bug is" into concrete targets unless the project instructions explicitly require that flexibility
-- If uncertainty remains, keep it in the planning doc's `Open Questions`, set status to `NEEDS_REVIEW`, and STOP instead of shipping an ambiguous doing doc
-- Commit: `git commit -m "docs(doing): ambiguity pass"` (or `"docs(doing): ambiguity pass - no changes needed"` if nothing to fix)
+Address findings, then commit: `git commit -m "docs(doing): granularity pass — [N findings addressed | converged]"`
 
-**Pass 5 — Quality:**
-- All units have acceptance criteria?
-- No TBD items?
-- Completion criteria testable?
-- Code coverage requirements included?
-- **Every unit header starts with status emoji?** (`### ⬜ Unit X:`) — scan the doc and fix any missing ones before committing
-- Commit: `git commit -m "docs(doing): quality pass"` (or `"docs(doing): quality pass - no changes needed"` if nothing to fix)
+### Pass 3 — Validation (fresh sub-agent dispatched)
 
-**Pass 6+ — Scrutiny (two framings, repeat until convergence):**
+Lens: read each source file the doing doc cites. Verify the path exists at HEAD. Verify the class / method / pattern named in the doing doc actually exists in that file. Verify any conventions referenced match what the source actually uses. Flag anything stale, wrong, or hallucinated.
 
-Use two distinct adversarial framings. They catch different classes of bugs.
+Address findings, then commit: `git commit -m "docs(doing): validation pass — [N findings addressed | converged]"`
 
-**Framing A — Tinfoil Hat: "what am I not seeing?"**
-Catches omissions: missing scope, underspecified semantics, implicit assumptions, gaps in the flow.
-- Are there tools, files, types, or paths that the units reference but don't exist?
-- Are there dependency ordering problems? Would a unit need something from a later unit?
-- Are there missing units? Trace the full flow end-to-end and look for holes.
-- Are edge cases handled? Empty inputs, error paths, fallback behavior?
-- Is anything over-engineered or out of scope?
+### Pass 4 — Ambiguity (fresh sub-agent dispatched)
 
-**Framing B — Stranger With Candy: "what here looks correct but is actually wrong?"**
-Catches deception: things that pass a normal review but break at execution time.
-- Are file paths, line numbers, or variable names plausible but actually pointing to the wrong location?
-- Are items listed under the wrong category or file? (e.g., a tool listed in `tools-base.ts` that's actually defined in `tools-bluebubbles.ts`)
-- Are there duplicate entries that look like they belong?
-- Would a silent behavior change slip through? (e.g., display format changing from `"value"` to `"key=value"`)
-- Are test files or imports that will break mentioned explicitly, or left for the doer to discover?
+Lens: scan for doer-facing ambiguity. Phrases like "appropriate files", "as needed", "wherever the bug is", "the relevant pattern", "etc." — flag each. The doc must concretize these into specific targets the executor can act on without further interpretation. The exception is when project instructions explicitly require flexibility — call that out.
+
+Address findings, then commit: `git commit -m "docs(doing): ambiguity pass — [N findings addressed | converged]"`
+
+If the ambiguity reflects an unresolved planning-level question, push it back to the planning doc's `Open Questions`, set status to `NEEDS_REVIEW`, and STOP instead of shipping an ambiguous doing doc.
+
+### Pass 5 — Quality (fresh sub-agent dispatched)
+
+Lens: every unit has acceptance criteria? No TBD items? Completion criteria testable, not hand-wavy? Code coverage requirements present? Every unit header starts with status emoji (`### ⬜ Unit X:`)? TDD pattern intact (test unit before implementation unit)?
+
+Address findings, then commit: `git commit -m "docs(doing): quality pass — [N findings addressed | converged]"`
+
+### Pass 6+ — Scrutiny (alternating framings, fresh sub-agent per pass, until convergence)
+
+Two distinct adversarial framings. Each catches a different class of bug, and each runs in its own fresh sub-agent because a fresh context catches what the prior pass — even with a different lens — couldn't see.
+
+**Framing A — Tinfoil Hat sub-agent: "what am I not seeing?"**
+
+Lens — omissions:
+- Tools, files, types, or paths the units reference but don't exist?
+- Dependency ordering problems? Would a unit need something from a later unit?
+- Missing units? Trace the full flow end-to-end and look for holes.
+- Edge cases handled? Empty inputs, error paths, fallback behavior?
+- Anything over-engineered or out of scope?
+
+**Framing B — Stranger With Candy sub-agent: "what here looks correct but is actually wrong?"**
+
+Lens — deception:
+- File paths, line numbers, or variable names plausible but actually pointing to the wrong location?
+- Items listed under the wrong category or file? (e.g., a tool listed in `tools-base.ts` that's actually defined in `tools-bluebubbles.ts`)
+- Duplicate entries that look like they belong?
+- Silent behavior changes that would slip through? (e.g., display format changing from `"value"` to `"key=value"`)
+- Test files or imports that will break, mentioned explicitly vs left for the doer to discover?
 
 **Process:**
-- Alternate framings across passes (A, then B, then A if needed, etc.)
-- Actually read the codebase to verify claims — don't trust the doing doc's assertions
-- If issues found: fix them, commit with `"docs(doing): scrutiny pass N — [framing] [what was found]"`, and do another pass
-- **Convergence**: stop when a pass finds nothing new. This is not a fixed count — keep going until clean.
-- Commit even if nothing found: `git commit -m "docs(doing): scrutiny pass N - converged, no issues found"`
+- Alternate framings across passes (Tinfoil Hat first, then Stranger With Candy, then Tinfoil Hat again if findings, etc.)
+- **Each pass dispatches a NEW sub-agent** — no continuation; fresh context every time. Pass 6 uses sub-agent #1; Pass 7 uses sub-agent #2; both have read the doing doc cold.
+- Sub-agents must actually read the codebase to verify claims — don't trust the doing doc's assertions
+- Planner addresses findings between passes; commits after each
+- **Convergence**: stop when TWO CONSECUTIVE passes (one of each framing) find nothing. This is not a fixed count — keep going until clean.
+- Commit even if nothing found: `git commit -m "docs(doing): scrutiny pass N — [framing] converged, no issues found"`
 
-**STOP POINT:** After passes converge, output:
+### STOP POINT
+
+After all passes converge, output:
 ```
-doing doc created. planning doc kept.
+doing doc ready. planning doc kept.
 status: READY_FOR_EXECUTION
-review doing doc. say "approved" to finish.
+review chain converged: granularity, validation, ambiguity, quality, scrutiny (N passes).
+hand to work-doer.
 ```
+Return control to caller. Caller (parent agent or user) dispatches work-doer.
 
-**When user approves doing doc:**
+**Do NOT begin implementation. work-planner only creates docs.**
+
+### Operator-review escape hatch — five human-judgment categories
+
+If at any point during Phase 2 a sub-agent's findings touch one of the five categories from Phase 1 (voice and relationships / durably-shaping state / irreversible operations / genuine ambiguity / cross-org posture), the planner stops the autonomous pass chain and surfaces the issue to the user. This is the only path that surfaces to the user during Phase 2.
+
+When surfaced, output:
 ```
-✅ planning complete. docs ready.
-use work-doer to execute.
+doing doc in progress. status: NEEDS_REVIEW
+human-judgment category fired during Pass N: <category name + 1-line why>.
+review and say "approved" or give feedback.
 ```
-**STOP. Do NOT begin implementation. work-planner only creates docs.**
+And STOP. Wait for explicit user approval words. Resume the pass chain after approval.
+
+**On user-path approval (5-category):**
+- Update doing doc Status to `READY_FOR_EXECUTION`
+- Commit
+- Output the standard handoff message above
+- Return control. Do NOT begin implementation.
 
 **Checklist hygiene requirement:**
 - Keep planning and doing checklists accurate to known state.
