@@ -7,6 +7,12 @@
       "tags": ["meta", "bootstrap", "registry"]
     },
     {
+      "name": "autopilot",
+      "path": "skills/autopilot/SKILL.md",
+      "description": "Long-running agent loop discipline for multi-track, multi-PR mandates. Activates on operator phrases like 'autopilot', 'you got this', 'treat all as pending', or 'keep the ship moving'. Twelve durable rules (R1-R12) + ten recognized patterns. Between messages you are ALWAYS spawning new work, scheduled to scan-and-spawn shortly, or reporting a true blocker — never 'waiting silently'.",
+      "tags": ["meta", "workflow", "execution", "long-horizon"]
+    },
+    {
       "name": "stay-in-turn",
       "path": "skills/stay-in-turn/SKILL.md",
       "description": "Stay-in-turn for long-running work. Replaces the background+ScheduleWakeup+yield anti-pattern with a Monitor stream that produces events back into the same turn. Reach for this whenever the operator says 'do not return control until X' or whenever a task involves waiting on CI, a chain of merges, a build, or any operation longer than ~2 minutes.",
