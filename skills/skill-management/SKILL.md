@@ -7,7 +7,7 @@ This skill teaches agents how to discover, install, track, update, and contribut
 
 ## Concepts
 
-**Skills repo**: `github.com/ouroborosbot/ouroboros-skills` -- a public repo containing shared skill definitions as `SKILL.md` files.
+**Skills repo**: `github.com/ourostack/ouroboros-skills` -- a public repo containing shared skill definitions as `SKILL.md` files.
 
 **Manifest**: `manifest.json` at the repo root -- a machine-readable index of all available skills with names, paths, descriptions, and tags.
 
@@ -42,7 +42,7 @@ Query the manifest to see what skills are available.
 
 1. Fetch the manifest:
    ```
-   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
+   https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
    ```
 2. Parse the JSON. The schema is:
    ```json
@@ -60,7 +60,7 @@ Query the manifest to see what skills are available.
 3. Present the list to the user or filter by tags/keywords as needed.
 4. To read a skill's full content before installing, fetch:
    ```
-   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/skills/<skill-name>/SKILL.md
+   https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md
    ```
 
 ---
@@ -78,13 +78,13 @@ Fetch a skill from the repo and install it into the local skills directory.
    ```
 3. Fetch the SKILL.md content:
    ```
-   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/skills/<skill-name>/SKILL.md
+   https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md
    ```
 4. Write the content to `<skills-dir>/<skill-name>/SKILL.md`.
 5. Get the latest commit SHA for the skill file:
    ```bash
    # Use the GitHub API to get the latest commit touching this file
-   curl -s "https://api.github.com/repos/ouroborosbot/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
+   curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
    ```
 6. Update `_registry.json` (see Track Provenance below).
 
@@ -109,7 +109,7 @@ Steps:
 1. Determine every active skills directory for the runtime. Some host apps expose split roots, such as an agent-managed root plus an app-managed root; each root gets its own `_registry.json`.
 2. Fetch the shared manifest:
    ```
-   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
+   https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
    ```
 3. For each local skill directory containing `SKILL.md`:
    - If the skill name appears in the manifest, fetch the upstream `SKILL.md` and latest commit SHA for that skill path.
@@ -129,7 +129,7 @@ Freshness checks must fail closed when `_registry.json` is missing. Print the ex
 ```json
 {
   "<skill-name>": {
-    "source": "https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/skills/<skill-name>/SKILL.md",
+    "source": "https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md",
     "commit": "<sha of the commit that last touched this skill file>",
     "installed": "<ISO 8601 datetime of when the skill was installed or last updated>",
     "selfAuthored": false
@@ -165,12 +165,12 @@ Compare locally installed skills against the latest versions in the repo.
 1. Read `_registry.json` from the skills directory.
 2. Fetch the manifest:
    ```
-   https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
+   https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
    ```
 3. For each skill in `_registry.json` where `selfAuthored` is `false`:
    a. Get the latest commit SHA for the skill file from the GitHub API:
       ```bash
-      curl -s "https://api.github.com/repos/ouroborosbot/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
+      curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
       ```
    b. Compare against the `commit` field in `_registry.json`.
    c. If they differ, the skill has been updated upstream.
@@ -195,7 +195,7 @@ Guide the agent through contributing a new skill to the shared repo.
 
 ### Steps
 
-1. **Fork**: Fork `ouroborosbot/ouroboros-skills` to the contributor's GitHub account.
+1. **Fork**: Fork `ourostack/ouroboros-skills` to the contributor's GitHub account.
 2. **Clone**: Clone the fork locally.
 3. **Create branch**: Create a feature branch (e.g., `feat/add-<skill-name>`).
 4. **Create skill directory**: `skills/<skill-name>/`
@@ -213,7 +213,7 @@ Guide the agent through contributing a new skill to the shared repo.
    }
    ```
 7. **Commit and push**: Commit all changes and push to the fork.
-8. **Open PR**: Open a pull request against `ouroborosbot/ouroboros-skills` main branch.
+8. **Open PR**: Open a pull request against `ourostack/ouroboros-skills` main branch.
    - Title: `feat: add <skill-name> skill`
    - Body: Describe what the skill does and when agents should use it.
 
@@ -233,7 +233,7 @@ Guide the agent through proposing improvements to skills already in the repo.
 
 ### Steps
 
-1. **Fork** (if not already forked): Fork `ouroborosbot/ouroboros-skills`.
+1. **Fork** (if not already forked): Fork `ourostack/ouroboros-skills`.
 2. **Clone/update**: Clone or pull the latest from the fork.
 3. **Create branch**: Create a feature branch (e.g., `improve/<skill-name>-<brief-description>`).
 4. **Make changes**: Edit the skill's `SKILL.md` file.
@@ -242,7 +242,7 @@ Guide the agent through proposing improvements to skills already in the repo.
    - Keep the skill self-contained.
 5. **Update manifest.json** if the description or tags changed.
 6. **Commit and push**: Commit with a clear message explaining what was improved and why.
-7. **Open PR**: Open a pull request against `ouroborosbot/ouroboros-skills` main branch.
+7. **Open PR**: Open a pull request against `ourostack/ouroboros-skills` main branch.
    - Title: `improve(<skill-name>): <brief description of change>`
    - Body: Explain what was changed, why, and how it improves the skill.
 
