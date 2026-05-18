@@ -73,15 +73,15 @@ Each repo's doing doc must be kept current. At minimum:
 After the three artifact updates above:
 
 ```
-gh auth switch -u <alias>_microsoft && git add -A && git commit -m "task(<slug>): <old> -> <new>" && git push origin main
+cd $DESK && git add <specific-files> && git commit -m "task(<slug>): <old> -> <new>" && git push origin main
 ```
 
-Under the EMU account (see `emu-github`).
+Auth and push convention is consumer-specific: worker users push under EMU (`<alias>_microsoft` — see `worker:emu-github`); ouroboros agents push under whatever account their bundle's git remote is configured for; personal agents per their setup.
 
 ### 5. Downstream triggers
 
 - If transitioning to `done` or `cancelled` → invoke `archive-workflow`.
-- If the transition is shiproom-relevant (`processing`, `validating`, `done`, `blocked`) → invoke `ado-hygiene` to update the parent Feature's status tweet.
+- (Optional, worker context) If the transition is shiproom-relevant (`processing`, `validating`, `done`, `blocked`) → invoke `worker:ado-hygiene` to update the parent Feature's status tweet. Skip for non-coding / non-ADO contexts.
 
 ### Why three writes
 

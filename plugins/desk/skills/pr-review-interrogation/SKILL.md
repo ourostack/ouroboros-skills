@@ -138,7 +138,7 @@ For every new helper/abstraction:
    would not have added it. The reviewer's job is to challenge that
    premise, not to relay it.
 
-4. **Xmldoc-after-novelty.** If the helper passes the first three
+4. **doc-comment-after-novelty.** If the helper passes the first three
    questions, the doc-comment should explain **what** it does, not
    justify its existence by contrast with other callers. "We kept
    this separate because other callers rely on X" is a smell — a
@@ -200,7 +200,7 @@ usually by the reviewer trusting the PR's framing:
   rather than describing what the helper itself does, the helper is
   likely a parallel pattern that should have been an alignment.
 
-- **Xmldoc that justifies by contrast.** Phrases like "unlike the
+- **doc-comment that justifies by contrast.** Phrases like "unlike the
   existing `Foo`, this new `Bar` does Y differently" or "we
   deliberately chose a different approach from sibling X." These are
   the PR explaining its own design; they are not a review. A
