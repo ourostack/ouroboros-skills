@@ -20,6 +20,24 @@ Every task moves through a state machine with 8 states. The `status` field in `t
 | `done` | PR merged, archived | Terminal |
 | `cancelled` | Abandoned by operator | Terminal |
 
+## Checkpoint-type annotations on transitions (folded in from AIDLC 2026-05-18)
+
+Each transition has a checkpoint type declaring how humans interact at that gate. AIDLC's `feature-orchestration` skill used 5 types (GATE / CHECKPOINT / AUTO / CONFIRM / NOTIFY); desk adopts them as a sibling layer on the existing state machine (annotations, not a replacement).
+
+| Transition | Checkpoint type | What it means |
+|------------|-----------------|---------------|
+| → `drafting` | GATE | Entry point; operator must approve task creation OR worker creates autonomously per agent-initiated path |
+| `drafting` → `processing` | CHECKPOINT | Operator approves the planning doc + doing doc before implementation starts |
+| `processing` → `validating` | AUTO | Worker self-attests that implementation is complete; opens PR; no human gate |
+| `validating` → `done` | CONFIRM | Operator confirms merge — usually the PR-merge click; worker waits for CI green + operator approve |
+| Any → `collaborating` | NOTIFY | Worker pauses + tells operator what's needed; resumption is operator-initiated |
+| Any → `paused` | NOTIFY | Operator-requested pause; worker emits a clean handoff state |
+| Any → `blocked` | NOTIFY | External blocker; worker emits the blocker reason + escalation path |
+| Any → `cancelled` | CONFIRM | Operator confirms abandonment; rare; worker doesn't auto-cancel |
+| `done` / `cancelled` → (terminal) | (n/a) | Terminal states; no further transitions |
+
+**Why annotate:** the checkpoint-type makes the human-interaction expectations explicit at each transition. AUTO transitions don't need human attention; CHECKPOINT / CONFIRM transitions DO; NOTIFY transitions are informational. Worker uses these to decide when to surface status to operator vs proceed autonomously.
+
 ## Valid transitions
 
 ```
