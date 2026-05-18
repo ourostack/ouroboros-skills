@@ -1,15 +1,17 @@
 ---
 name: session-start
-description: Worker's session-start checklist. Invoke as the FIRST thing in every worker session — probes prerequisites (gh binary + version floor + auth state, jq, Windows PATH gotchas), syncs the worker-workspace repo, scans for active tasks, and emits a one-screen status block. Hard-stops on prereq failures; does NOT silently fall through to local-only operation. If `$DESK/` doesn't exist, hands off to `first-run-bootstrap`. If the operator picks a task to resume, hands off to `session-resumption`.
+description: Session-start checklist. Invoke as the FIRST thing in every agent session — probes prerequisites (gh binary + version floor + auth state, jq, Windows PATH gotchas), syncs the workspace repo, scans for active tasks, and emits a one-screen status block. Hard-stops on prereq failures; does NOT silently fall through to local-only operation. If `$DESK/` doesn't exist, hands off to `first-run-bootstrap`. If the operator picks a task to resume, hands off to `session-resumption`.
 ---
 
 # Session start
 
-Run this as the first thing in every worker session. It establishes trust that prereqs are met, task state is synced, and the operator knows what's in flight. The prereq probe has teeth — a failure is a hard stop, not a hint to route around.
+Run this as the first thing in every session. It establishes trust that prereqs are met, task state is synced, and the operator knows what's in flight. The prereq probe has teeth — a failure is a hard stop, not a hint to route around.
+
+> **worker users**: see `worker:ms-session-extensions` for the EMU identity resolve (Step 1f), ADO REST staleness probe (Step 1g), and ADO PR fan-out in Step 4.5. This skill stays generic.
 
 ## Step 1 — Prerequisite probe
 
-Seven checks. Any failure surfaces the specific remediation to the operator and **waits** — don't proceed to step 2, and don't fall back to a local-only mode. A session with broken auth is not "offline mode"; it's "not-yet-ready."
+Five checks. Any failure surfaces the specific remediation to the operator and **waits** — don't proceed to step 2, and don't fall back to a local-only mode. A session with broken auth is not "offline mode"; it's "not-yet-ready."
 
 ### 1a. `gh` binary present
 
@@ -24,7 +26,7 @@ Missing → install command per OS:
 
 ### 1b. `gh` version floor — 2.40 or newer
 
-`gh auth switch -u <user>` (which the `emu-github` skill chains before every GitHub write) was added in gh 2.40 (Dec 2023). Older gh errors with `unknown shorthand flag: 'u' in -u` and the rest of the chained command **never runs** — which is dangerous: if the operator has both accounts cached and the default is the personal one, a push could leak under the personal identity because the switch silently failed.
+`gh auth switch -u <user>` (used by any workflow that needs to disambiguate between multiple cached GitHub accounts) was added in gh 2.40 (Dec 2023). Older gh errors with `unknown shorthand flag: 'u' in -u` and the rest of the chained command **never runs** — which is dangerous when multiple identities are cached: a push can leak under the wrong account because the switch silently failed.
 
 ```bash
 gh --version | head -1 | awk '{print $3}'
@@ -43,7 +45,7 @@ Missing → `brew install jq`, `winget install jqlang.jq`, `sudo apt install jq`
 
 ### 1d. Windows winget diagnostic (only if `winget` itself is missing)
 
-Fresh Microsoft VM images built from a `vmadmin`-templated base often leave the current user's `WindowsApps` off their PATH, so `winget.exe` is installed but not reachable by name. Don't recommend "reinstall winget" — that's a dead end. Diagnose instead:
+Fresh Windows VM images built from a templated admin-user base often leave the current user's `WindowsApps` off their PATH, so `winget.exe` is installed but not reachable by name. Don't recommend "reinstall winget" — that's a dead end. Diagnose instead:
 
 ```powershell
 Get-AppxPackage Microsoft.DesktopAppInstaller
@@ -63,61 +65,9 @@ Surface both and let the operator pick.
 gh auth status
 ```
 
-Not just "the EMU account appears" — also check the output for `The github.com token in oauth_token is no longer valid` or similar staleness signals. A cached-but-expired token fails every subsequent gh call with a confusing 401/403 that masquerades as a permissions problem. **Hard-stop on stale token**. Walk the operator through `gh auth login --hostname github.com` (Microsoft SSO flow) before proceeding.
+Check the output for `The github.com token in oauth_token is no longer valid` or similar staleness signals. A cached-but-expired token fails every subsequent gh call with a confusing 401/403 that masquerades as a permissions problem. **Hard-stop on stale token**. Walk the operator through `gh auth login --hostname github.com` before proceeding.
 
-### 1f. EMU identity resolves
-
-```bash
-gh auth switch -u <alias>_microsoft && gh api user -q .login
-```
-
-Output must equal `<alias>_microsoft`. `<alias>` is derived from `git config --global user.email` (strip `@microsoft.com`). See the `emu-github` skill for the full EMU ruleset.
-
-If 1b failed (old gh without `auth switch`), skip to the fallback pattern in `emu-github` (GH_TOKEN env var) — but flag to the operator that this is a workaround and gh should be upgraded.
-
-### 1g. ADO REST staleness probe
-
-When ADO REST endpoints (or `Invoke-RestMethod` / equivalent) return
-all-empty objects with no exception, suspect token staleness. The
-ADO surface responds to an expired or rotated bearer token with an
-HTTP 302 redirect to the sign-in page; redirect-following clients
-(notably PowerShell `Invoke-RestMethod`) parse the resulting HTML as
-empty JSON and return a shape with every field blank — no thrown
-exception, no obvious error.
-
-The trap: trusting the empty result. "The PR has no description" —
-no, the auth is broken; the PR is fine.
-
-Verify with raw curl + `head -c`:
-
-```bash
-curl -s -H "Authorization: Bearer $(az account get-access-token --resource '499b84ac-1321-427f-aa17-267ca6975798' --query accessToken -o tsv)" "https://dev.azure.com/<org>/_apis/projects?api-version=7.1" | head -c 50
-```
-
-The GUID `499b84ac-1321-427f-aa17-267ca6975798` is the ADO resource
-ID and is generic across orgs.
-
-- Output starts with `{"count"` → token is fine.
-- Output starts with `<html` / `<!DOCTYPE` or contains
-  `Object moved to` → the token is being rejected and the call is
-  being silently redirected to the sign-in page.
-
-Fix: the operator runs `az login` (or
-`az login --tenant <tenantId>`); worker re-fetches the token via
-`az account get-access-token`; retry the call. If conditional
-access blocks an interactive flow, escalate to the operator.
-
-Fallback diagnostic: `az repos pr show <id>` returns a clear error
-in this state (`Before you can run Azure DevOps commands, you need
-to run the login command`) — useful when the calling client is one
-that masks the redirect, since the CLI surfaces the auth issue
-explicitly.
-
-This probe is also a session-resumption signal — when any ADO REST
-call mid-session returns all-empty objects, run the curl check
-before retrying or diagnosing further.
-
-## Step 2 — worker-workspace sync
+## Step 2 — Workspace sync
 
 If `$DESK/` doesn't exist → hand off to the `first-run-bootstrap` skill (which has its own gh-auth hard-gate; never proceed to bootstrap if step 1 is still red).
 
@@ -133,7 +83,7 @@ Glob `$DESK/**/task.md` excluding `_archive/`. Parse each card's YAML frontmatte
 
 ## Step 4 — Scan code repos
 
-For each active task card's `mode: local` repo, run `git fetch origin` and note current branch + dirty state. Don't block on this — it just informs the status output.
+For each active task card's locally-cloned repo, run `git fetch origin` and note current branch + dirty state. Don't block on this — it just informs the status output.
 
 ## Step 4.5 — Fan PR lookups across every `repos[]` on every non-terminal task
 
@@ -143,26 +93,21 @@ frontmatter. A task that declares `OrderService` + `OrderUI` in
 `repos[]` may have an active PR on either; session-start must surface
 both.
 
-Fan-out is engine-agnostic. Use the ADO REST API for each repo's PRs
-and `gh` for GitHub repos:
+For each GitHub repo entry:
 
-- **ADO repos** (repo entries with `org` matching a configured ADO
-  organization): `GET /{org}/{project}/_apis/git/repositories/{repoId}/pullRequests?searchCriteria.creatorId={userId}&searchCriteria.status=active&api-version=7.1`
-  — returns the current user's active PRs on that repo.
-- **GitHub repos**: `gh pr list --repo <org>/<repo> --author @me --state open --json number,title,url,isDraft`
-  — with the `emu-github`-switched account active so the listing
-  reflects the operator's EMU identity.
+```bash
+gh pr list --repo <org>/<repo> --author @me --state open --json number,title,url,isDraft
+```
+
+(worker users: ADO repos use a REST endpoint instead — see
+`worker:ms-session-extensions`.)
 
 For each PR surfaced:
-- If the PR has unresolved (Active) review threads from humans or the
-  PR-Assistant AI reviewer → flag for the pr-feedback-on-own-pr routing prompt
+- If the PR has unresolved (Active) review threads from humans or an
+  AI reviewer → flag for the pr-feedback-on-own-pr routing prompt
   in step 5.
 - Cache PR metadata in the task-scan output so step 5 can render it
   without a re-fetch.
-
-Skip the fan-out silently for `mode: mcp` repos without a local
-clone — the lookup still succeeds via ADO REST; just note the repo in
-the fan-out log so the operator sees the coverage.
 
 ## Step 4.6 — Friction-backlog scan
 
@@ -227,10 +172,10 @@ three platform-strongest primitives.
    if uname -s 2>/dev/null | grep -qiE '^(MINGW|MSYS|CYGWIN)' ; then
      # Windows: symlink → hardlink → copy
      powershell.exe -NoProfile -Command \
-       "New-Item -ItemType SymbolicLink -Path '$HOME\agency.toml' -Target '$HOME\worker-workspace\agency.toml' -ErrorAction Stop" \
+       "New-Item -ItemType SymbolicLink -Path '$HOME\agency.toml' -Target '$DESK\agency.toml' -ErrorAction Stop" \
        2>/dev/null \
      || powershell.exe -NoProfile -Command \
-          "New-Item -ItemType HardLink -Path '$HOME\agency.toml' -Target '$HOME\worker-workspace\agency.toml' -ErrorAction Stop" \
+          "New-Item -ItemType HardLink -Path '$HOME\agency.toml' -Target '$DESK\agency.toml' -ErrorAction Stop" \
           2>/dev/null \
      || cp -f "$DESK/agency.toml" "$HOME/agency.toml"
    else
@@ -338,11 +283,11 @@ If the operator wants the fuller dashboard → invoke the `status` skill.
 ### Skill-routing prompts
 
 After the status block, offer skill routing if the signals from steps
-4.5 and 4.6 fire. Both prompts are engine-agnostic prose the worker
+4.5 and 4.6 fire. Both prompts are engine-agnostic prose the agent
 presents; the operator picks. The prompts exist because `curator`
 and `pr-feedback-on-own-pr` are gated by explicit operator phrasing in their
 `description:` frontmatter — they won't auto-fire from ambient
-conversation, so worker surfaces them when signals warrant.
+conversation, so this skill surfaces them when signals warrant.
 
 - **Curator routing** (from step 4.6): if open `_friction/` entries
   exist on any active track, surface:
@@ -361,6 +306,6 @@ neither.
 
 ## Never skip, never route around
 
-All five steps run every session. The prereq probe in particular is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that worker didn't catch at start.
+All five steps run every session. The prereq probe in particular is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
 
-**Auto-mode is license for action, not for skipping safety checks.** A prereq-probe failure is like a compile error: fix it, don't proceed. If the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to worker-workspace = state won't sync across machines") and require an explicit override.
+**Auto-mode is license for action, not for skipping safety checks.** A prereq-probe failure is like a compile error: fix it, don't proceed. If the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to the workspace state repo = state won't sync across machines") and require an explicit override.

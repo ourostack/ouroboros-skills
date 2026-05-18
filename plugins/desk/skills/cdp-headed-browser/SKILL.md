@@ -1,39 +1,41 @@
 ---
 name: cdp-headed-browser
-description: Invoke when worker needs Playwright to drive a Microsoft web UI behind Entra Conditional Access (ECS portal, eng.ms admin surfaces, MyHR, internal SharePoint, any aka.ms link that 530003s on a fresh profile), OR when the operator wants multiple agents to share one auth'd browser, OR when a Playwright MCP session fails with Entra "Device state — Unregistered" (error 530003). Covers the CDP-attach architecture (long-running headed Edge + Playwright MCP attaches via `--cdp-endpoint`), the launch ritual, the macOS Edge first-launch trap, the no-`bringToFront()` rule, and reusable `connectOverCDP` patterns. Do NOT invoke for browser tasks against non-Microsoft sites where a throwaway isolated Chromium suffices, for headless scraping that doesn't need auth, or when the operator's current Playwright MCP is already working — the architecture switch has a relaunch cost and shouldn't be paid speculatively.
+description: Invoke when the agent needs Playwright to drive a web UI behind an interactive auth flow (SSO + device check + FIDO / hardware-key prompts) that a throwaway isolated Chromium can't complete, OR when the operator wants multiple agents to share one auth'd browser, OR when a Playwright MCP session fails because the user-data-dir is unrecognized. Covers the CDP-attach architecture (long-running headed browser + Playwright MCP attaches via `--cdp-endpoint`), the launch ritual, the macOS first-launch trap, the no-`bringToFront()` rule, and reusable `connectOverCDP` patterns. Do NOT invoke for browser tasks against sites where a throwaway isolated Chromium suffices, for headless scraping that doesn't need auth, or when the operator's current Playwright MCP is already working — the architecture switch has a relaunch cost and shouldn't be paid speculatively.
 ---
 
 # cdp-headed-browser
 
 This skill inherits all invariants in `../../principles.md`. Read them first if they are not already in context.
 
-The default Playwright MCP shape (throwaway isolated Chromium per session) breaks against Microsoft-internal web surfaces because:
+> **worker users**: see `worker:ms-edge-managed-mac` for Entra Conditional Access (error 530003), Platform SSO, and Edge-on-managed-Mac launch specifics. This skill stays generic.
 
-1. **Entra Conditional Access checks device identity** — a fresh `--user-data-dir` is an unregistered device. SSO returns error 530003 ("Set up your device to get access") before auth even gets to FIDO.
+The default Playwright MCP shape (throwaway isolated Chromium per session) breaks against any web surface with strict auth because:
+
+1. **Device-binding checks fail on fresh profiles** — a fresh `--user-data-dir` is an unrecognized device. SSO can refuse the sign-in before auth even gets to FIDO / hardware key.
 2. **Sessions can't share state** — every isolated launch starts from scratch; even if you somehow auth once, the next agent invocation re-FIDOs.
 3. **Headless mode silently swallows interactive auth prompts** — Windows Hello / hardware-key prompts can't be completed; the script just hangs at "Please wait."
 
-The fix is a different architecture: one **long-running headed browser** outside any worker session, with **Playwright MCP attaching to it via CDP**. Each worker session opens its own tab; auth state lives in the shared browser profile; multiple agents can drive concurrently without profile-lock conflicts.
+The fix is a different architecture: one **long-running headed browser** outside any agent session, with **Playwright MCP attaching to it via CDP**. Each session opens its own tab; auth state lives in the shared browser profile; multiple agents can drive concurrently without profile-lock conflicts.
 
-This skill covers how to set that up, the gotchas worker has actually hit, and the patterns worker uses to drive a CDP-attached browser without trampling the operator.
+This skill covers how to set that up, the gotchas the agent has actually hit, and the patterns to drive a CDP-attached browser without trampling the operator.
 
 ## When to set this up vs. when to leave it alone
 
-Setting it up costs a relaunch ritual and a one-time Edge profile bootstrap. Pay that cost when:
+Setting it up costs a relaunch ritual and a one-time browser profile bootstrap. Pay that cost when:
 
-- The operator's task needs an authenticated Microsoft web UI (ECS portal, Lockbox approval pages, AdminUX, eng.ms admin surfaces, internal SharePoint forms).
+- The operator's task needs an authenticated web UI that won't complete in an isolated Chromium.
 - Multiple agents need to drive Playwright concurrently against the same surface.
-- A previous attempt with the default isolated Chromium hit error 530003 or got stuck at a FIDO prompt.
+- A previous attempt with the default isolated Chromium hit a device-binding / SSO error or got stuck at a hardware-key prompt.
 
 Don't pay it for one-off scraping against external sites where the isolated Chromium works fine.
 
 ## The 3-constraint architecture
 
-| Constraint | Default isolated MCP | CDP-attach to headed Edge |
+| Constraint | Default isolated MCP | CDP-attach to headed browser |
 |---|---|---|
-| Any number of agents | Each spawns own Chromium. No state shared. | All MCP sessions attach to one Edge, each opens its own tab. |
-| Headed for human interaction + oversight | Headless by default; FIDO un-completable. | Edge is a real window; operator can intervene. |
-| Maintain session context (auth) | Fresh profile each session; auth lost. | Profile is persistent in `~/.playwright-agent-edge`. |
+| Any number of agents | Each spawns own Chromium. No state shared. | All MCP sessions attach to one browser, each opens its own tab. |
+| Headed for human interaction + oversight | Headless by default; FIDO un-completable. | Browser is a real window; operator can intervene. |
+| Maintain session context (auth) | Fresh profile each session; auth lost. | Profile is persistent in `~/.playwright-agent-browser`. |
 
 ## agency.toml
 
@@ -52,19 +54,17 @@ args = [
 
 No `--browser`, no `--isolated`, no `--user-data-dir`, no `--headless`. The browser running at `:9222` dictates the rest.
 
-After editing `agency.toml`, the operator must relaunch worker for the MCP to re-read its config.
+After editing `agency.toml`, the operator must relaunch the agent for the MCP to re-read its config.
 
-## Browser launch — Edge on managed macOS
+## Browser launch
 
-On a Microsoft-managed Mac, **Edge** is the right browser because it has native Platform SSO support — talks to the Company Portal extension at the OS level to grab device identity. A fresh `--user-data-dir` inherits Entra device registration automatically. Chrome can do this too but requires the Microsoft Single Sign On extension to be installed in the profile (which managed-Mac MDM policy typically pushes, but verifying that adds setup steps). Default to Edge unless the operator has a reason otherwise.
-
-Launch command:
+Pick a Chromium-derived browser the operator has installed (Chrome, Edge, Chromium, Brave). Launch it with a persistent profile directory and the CDP debugging port:
 
 ```bash
-nohup "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
+nohup "<path-to-browser-binary>" \
   --remote-debugging-port=9222 \
-  --user-data-dir="$HOME/.playwright-agent-edge" \
-  > /tmp/agent-edge.log 2>&1 &
+  --user-data-dir="$HOME/.playwright-agent-browser" \
+  > /tmp/agent-browser.log 2>&1 &
 disown
 ```
 
@@ -74,38 +74,27 @@ Then verify CDP is listening:
 curl -s http://localhost:9222/json/version | jq '.Browser'
 ```
 
-Expected: `"Edg/<version>"`.
+Expected: a string identifying the browser and version.
 
-## macOS Edge first-launch trap
+(worker users on a managed Mac: see `worker:ms-edge-managed-mac` for the specific Edge binary path, Platform SSO behavior, and Entra Conditional Access notes.)
 
-On the very first launch with a new `--user-data-dir`, macOS Edge prioritizes its first-run UX (Mac Welcome page, Copilot pitch, default-browser ask, sync setup) over any URL passed as a positional argument. The URL gets dropped on the floor.
+## macOS first-launch trap
+
+On the very first launch with a new `--user-data-dir`, macOS Chromium-derived browsers tend to prioritize their first-run UX (welcome page, default-browser ask, sync setup) over any URL passed as a positional argument. The URL gets dropped on the floor.
 
 Workaround: launch without a URL, wait for CDP to come up, then open the actual target URL via CDP HTTP API:
 
 ```bash
-curl -s -X PUT "http://localhost:9222/json/new?https://ecs.skype.com/..."
+curl -s -X PUT "http://localhost:9222/json/new?https://example.com/..."
 ```
 
 After the profile is established (the first run is over), subsequent launches honor a URL arg normally. The trap only bites once per `--user-data-dir`.
 
-## Platform SSO behavior
-
-On a managed Mac with Platform SSO active, the first time the agent-Edge profile sees a `*.microsoft.com` SSO surface:
-
-1. SSO loads, recognizes Platform SSO is available, shows a **multi-account picker** with every identity the OS has cached (operator's `@microsoft.com`, test-tenant admins, etc.).
-2. Operator picks the right account.
-3. SSO completes via PRT — usually no FIDO prompt, because the PRT establishes device identity automatically.
-4. Auth state lands in the profile's cookies.
-
-After the first sign-in, subsequent navigations from any tab/agent reuse the cached cookies. Refresh tokens last days to weeks before re-prompting.
-
-If the account picker doesn't appear (just a plain email-then-FIDO flow), Platform SSO isn't reaching this profile — usually means MDM policy didn't push the SSO config to the user-data-dir. The fallback is one FIDO completion which then caches the same way.
-
 ## The no-`bringToFront()` rule
 
-When driving the CDP-attached headed browser from worker, **never call `page.bringToFront()`**. The call yanks the Edge app to the macOS foreground every time it runs, stealing OS focus away from whatever the operator is doing in their other windows.
+When driving the CDP-attached headed browser, **never call `page.bringToFront()`**. The call yanks the browser app to the OS foreground every time it runs, stealing focus away from whatever the operator is doing in their other windows.
 
-This is invisible under the prior `--isolated` headless mode (no window = nothing to raise) but extremely visible under CDP-attached headed Edge. Operators have called it out by name as a focus-grabbing trap.
+This is invisible under the prior `--isolated` headless mode (no window = nothing to raise) but extremely visible under a CDP-attached headed browser. Operators have called it out by name as a focus-grabbing trap.
 
 Playwright's CDP-synthesized click/fill events don't require the window to be in foreground. The page can be backgrounded for the entire automation while still responding to all CDP commands.
 
@@ -136,7 +125,7 @@ For anything that requires *interaction* (clicks, fills, navigation tracking), u
 
 ## Playwright `connectOverCDP` template
 
-When worker needs to drive the attached browser from a Node script (e.g. when the Playwright MCP isn't loaded yet but Edge is already running):
+When the agent needs to drive the attached browser from a Node script (e.g. when the Playwright MCP isn't loaded yet but the browser is already running):
 
 ```js
 import { chromium } from 'playwright';
@@ -156,32 +145,31 @@ await browser.close({ reason: 'detach' });          // disconnects MCP from brow
                                                     // browser keeps running.
 ```
 
-Important: `browser.close({ reason: 'detach' })` on a CDP-connected browser only disconnects Playwright. The Edge process keeps running for the next agent. To actually terminate Edge, use `pkill` (see Cleanup).
+Important: `browser.close({ reason: 'detach' })` on a CDP-connected browser only disconnects Playwright. The browser process keeps running for the next agent. To actually terminate the browser, use `pkill` (see Cleanup).
 
 ## Cleanup
 
-When the operator says "close the browser" or worker is done with a one-off CDP-attached session:
+When the operator says "close the browser" or the agent is done with a one-off CDP-attached session:
 
 ```bash
-pkill -f "user-data-dir=.*playwright-agent-edge"
+pkill -f "user-data-dir=.*playwright-agent-browser"
 # Verify:
-pgrep -lf playwright-agent-edge || echo "(cleared)"
+pgrep -lf playwright-agent-browser || echo "(cleared)"
 curl -s --max-time 2 http://localhost:9222/json/version || echo "(CDP gone)"
 ```
 
-Edge spawns helper processes (renderer, GPU, utility) that may need a second pass — repeat the `pkill` if any survive. The `--user-data-dir` itself stays on disk; auth state in it persists for the next launch.
+Chromium-derived browsers spawn helper processes (renderer, GPU, utility) that may need a second pass — repeat the `pkill` if any survive. The `--user-data-dir` itself stays on disk; auth state in it persists for the next launch.
 
 ## Failure modes
 
-- **CDP not listening (`curl ... | head -c 50` returns empty / connection refused)** — Edge isn't running, or running without `--remote-debugging-port`, or another process is holding the port. Verify with `lsof -i :9222`.
-- **Error 530003 even with Edge on managed Mac** — Platform SSO didn't reach this profile. Fallback to MDM-distributed Microsoft SSO extension install in the profile, or accept the one-time FIDO and rely on cached cookies.
-- **First navigation lands at `edge://mac-welcome` regardless of URL arg** — first-launch trap; use `/json/new?url=` workaround.
+- **CDP not listening (`curl ... | head -c 50` returns empty / connection refused)** — the browser isn't running, or running without `--remote-debugging-port`, or another process is holding the port. Verify with `lsof -i :9222`.
+- **SSO / device-binding error on auth** — the user-data-dir isn't recognized by the IdP. worker users: see `worker:ms-edge-managed-mac` for Entra-specific fallbacks. Otherwise: accept the one-time interactive auth and rely on cached cookies.
+- **First navigation lands at a welcome / first-run page regardless of URL arg** — first-launch trap; use `/json/new?url=` workaround.
 - **Operator's focus keeps getting stolen** — `bringToFront()` is somewhere in the script. Strip it.
-- **Playwright `connectOverCDP` returns 0 contexts** — Edge crashed or restarted without the CDP flag. Re-launch.
-- **`browser.close()` without `{ reason: 'detach' }`** — may try to actually terminate the browser, killing other agents' tabs. Always pass `{ reason: 'detach' }` from worker code.
+- **Playwright `connectOverCDP` returns 0 contexts** — the browser crashed or restarted without the CDP flag. Re-launch.
+- **`browser.close()` without `{ reason: 'detach' }`** — may try to actually terminate the browser, killing other agents' tabs. Always pass `{ reason: 'detach' }`.
 
 ## Cross-references
 
-- **`agency.toml` schema** — see `worker:add-workspace-mcp` for the `[mcps.servers.<alias>]` shape and the agency-spawner gotchas around `type = "npx"` vs `type = "stdio"`.
-- **ECS portal driving** specifically — see `worker:ecs-portal-driving` which builds on this skill.
-- **Workspace operator's `~/.playwright-agent-edge` directory** is sacred state. Don't delete it; it holds auth.
+- **`agency.toml` schema** — worker users: see `worker:add-workspace-mcp` for the `[mcps.servers.<alias>]` shape and the agency-spawner gotchas around `type = "npx"` vs `type = "stdio"`.
+- **The persistent `~/.playwright-agent-browser` directory** is sacred state. Don't delete it; it holds auth.

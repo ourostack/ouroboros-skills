@@ -1,39 +1,17 @@
 ---
 name: git-hygiene
-description: Keep the two kinds of repo worker touches (worker-workspace state repo + each code repo) synced and never leave state behind. Use at session start, after every task-state change, before starting work in a code repo, and at session end. All GitHub writes use the EMU account (see emu-github).
+description: Keep the code repos the agent touches synced and never leave state behind. Use at session start, before starting work in a code repo, before every push, and at session end.
 ---
 
 # Git hygiene
 
-worker operates across two kinds of repos. Both must stay synced; neither should be left with local-only state at session end.
+> **worker users**: see `worker:ms-git-extensions` for the worker-workspace state-sync workflow, EMU account context, and the `$DESK/`-specific anti-patterns. This skill stays generic.
 
-## worker-workspace repo
-
-This is the per-operator private EMU repo at `$DESK/` where all task state lives.
-
-**On startup** (covered by `session-start` skill):
-```bash
-cd $DESK && git pull --rebase origin main
-```
-
-**After every task state change**:
-```bash
-gh auth switch -u <alias>_microsoft && git add -A && git commit -m "<descriptive message>" && git push origin main
-```
-
-A "task state change" includes:
-- Track or task card creation
-- Status transitions (see `task-lifecycle`)
-- Field updates (repos, ADO links, local paths)
-- Planning or doing doc creation
-- Archives (see `archive-workflow`)
-- Anything else that touches `$DESK/`
-
-Silent failure on `git push` is OK if no remote is configured, but warn the operator.
+The agent's pushes must reach the remote intact and on the right branch. This skill covers source-as-evidence reads, the pre-push CI-parity gate, merge-conflict EOL/BOM rules, force-push safe-conditions, and the post-commit verify gate.
 
 ## Code repos
 
-These are the actual project repos where implementation happens (paths from each task card's `repos[].local_path`; resolution handled by `repo-handling` skill).
+These are the actual project repos where implementation happens (paths resolved via the `repo-handling` skill).
 
 **Before starting work**:
 ```bash
@@ -54,7 +32,7 @@ git status               # check for uncommitted changes; warn, don't silently o
 
 The `## Code repos` rules above cover keeping a checkout current
 across a session. The runtime-investigation companion to that
-rule: when worker is reading source to inform a runtime question,
+rule: when the agent is reading source to inform a runtime question,
 the local working tree is not a trustworthy substrate by default —
 `origin/<branch>` is.
 
@@ -76,13 +54,11 @@ X behave this way?" investigation — default to reading from
 ### When the operator says "pull latest"
 
 Treat it as applying to ALL repos involved in the current
-investigation, not just `worker-workspace`. The state repo
-(`worker-workspace`) and code repos (the project repos worker is
-reading source from) all need to be current — code repos most of
-all when their source is being used as evidence for runtime
-behavior. Worker mechanically syncs `worker-workspace` at
-session-start; code repos are managed manually and may sit on
-feature branches. They're easy to forget.
+investigation, not just one. State repos and code repos (the
+project repos the agent is reading source from) all need to be
+current — code repos most of all when their source is being used
+as evidence for runtime behavior. Code repos are managed manually
+and may sit on feature branches; they're easy to forget.
 
 If unsure which repos the operator means, ask.
 
@@ -176,12 +152,11 @@ wait again. Only when all pipelines are green does the loop exit.
 ### Commands are repo-specific
 
 Exact build / test / formatter commands live under
-`../repo-knowledge/<repo>/`. The canonical reference for
-Teams-Graph is `../repo-knowledge/Teams-Graph/pre-push-gates.md` —
-safe-default build line, test-project cut-lines, and formatter
-fallback. For other repos, consult the repo's `repo-knowledge`
-directory or the repo's own build / test docs before the first
-push.
+`../repo-knowledge/<repo>/` (see `repo-handling` for the
+auto-loader). Each repo's `pre-push-gates.md` (or equivalent)
+captures the safe-default build line, test-project cut-lines, and
+formatter fallback. For repos without `repo-knowledge` content,
+consult the repo's own build / test docs before the first push.
 
 ## Test scope — cover consumers, not just the unit under change
 
@@ -224,12 +199,11 @@ solution (or equivalent monorepo-spanning test scope). A
 service-only solution does not include sibling tests, and sibling
 tests are exactly where interface-drift surfaces.
 
-For Teams-Graph specifically, the safe default for public-surface
-changes is `Src/Services.sln` — slower (~2–3 min) but catches
-cross-project breaks. Per-service solutions are fine only when the
-change is provably internal (no public-API touch, no shared DTO
-edit). Repo-specific cut-lines live in
-`../repo-knowledge/Teams-Graph/pre-push-gates.md`.
+Repo-specific cut-lines live in `../repo-knowledge/<repo>/`. When
+a repo defines a "broad" test target for public-surface changes,
+default to it for any diff that touches signatures / interfaces /
+DTOs; fall back to per-service solutions only when the change is
+provably internal (no public-API touch, no shared DTO edit).
 
 ## Test-count sanity check
 
@@ -339,53 +313,18 @@ for that path is not pulled in.
 Apply this per conflicted file that is a filter artifact. Files
 with real semantic conflicts get resolved normally.
 
-## Anti-pattern — don't branch/PR on `$DESK/`
-
-`$DESK/` is a state repo, not a code repo. Its designed
-workflow is direct commit + push to `main`. It has no reviewers, no
-CI, no squash-merge ceremony. Branches and PRs on this repo are
-overhead with no review benefit.
-
-### The anti-pattern
-
-When `git push origin main` on `$DESK/` is denied by the
-harness permission layer, the wrong move is to create a feature
-branch, push it, open a PR via `gh pr create`, and merge it. This
-"works" — the state reaches origin — but:
-
-- Every `worker-workspace` state-sync commit becomes a GitHub-visible
-  PR in the operator's inbox. Dozens of drive-by state-PRs drown
-  real code-repo PRs.
-- Per-commit overhead multiplies (branch create, push, PR open,
-  merge, local main re-sync).
-- The semantics get wrong. `worker-workspace` is not a collaborative
-  code-review surface; treating it as one obscures what it
-  actually is.
-
-### The right move
-
-On push denial:
-
-1. Surface the denial to the operator.
-2. Request either an allow-list fix (the `first-run-bootstrap`
-   skill writes a project-scoped `.claude/settings.json` that
-   covers most cases — if it's missing or insufficient on this
-   machine, extend it) or a one-time `/permissions` grant.
-3. Do **not** work around with a feature branch + PR.
-
-Never use branches or PRs on `$DESK/` to route around a
-push denial. The denial is a harness / permission config problem,
-and the fix is a harness / permission config change — not a
-workflow change.
-
 ## Never leave state behind
 
-If worker changed a file, it's committed and pushed **before the session ends**. Applies to:
-- Task cards in `worker-workspace`
-- Planning/doing docs in `worker-workspace`
+If the agent changed a file, it's committed and pushed **before the session ends**. Applies to:
+- Task cards and planning/doing docs in any state repo
 - Code changes in code repos (via `work-doer`)
 
 At session start, if git status in any repo shows unexpected uncommitted changes, surface them to the operator before doing anything else — they may represent orphaned work from a previous session.
+
+(worker users: see `worker:ms-git-extensions` for the
+state-repo-specific anti-pattern — never branch/PR on a state
+repo even when push-to-main is denied; the denial is a permission
+config problem, not a workflow problem.)
 
 ## Pre-commit scans (authorship, diff-scope)
 
@@ -399,7 +338,7 @@ starting point.
 
 Per `../principles.md` Invariant 4 (operator authorship overrides
 repo conventions), no AI-attribution trailer appears in any commit
-message or PR description the worker authors.
+message or PR description the agent authors.
 
 **Forbidden trailers — scan for these before every commit:**
 
@@ -461,7 +400,7 @@ Decision rule:
   ride along on a scoped edit.
 
 No ship-ready script for this one — the scan is a review of the
-staged diff against the unit's stated scope by the worker itself,
+staged diff against the unit's stated scope by the agent itself,
 informed by the unit's `What` and `Output` fields in the doing doc.
 
 ### Pre-PR diff-scope check
@@ -532,8 +471,8 @@ commit because:
 - `git show --stat HEAD` shows the *commit's contents* directly. The
   staged-vs-committed distinction collapses there.
 
-Applies to every repo the worker writes to — worker-workspace, code
-repos, and the plugin repo. The cost of one `git show --stat` per
+Applies to every repo the agent writes to — state repos, code
+repos, and plugin repos. The cost of one `git show --stat` per
 commit is tiny; the cost of an operator catching a partial commit on
 the next session (trust hit + extra cycle) is high.
 
@@ -541,9 +480,9 @@ the next session (trust hit + extra cycle) is high.
 
 ## Force-push — safe-conditions procedure
 
-Force-push is destructive. Most of the time the worker should stop
+Force-push is destructive. Most of the time the agent should stop
 and hand the push to the operator. The procedure below documents
-when force-push is safe for the worker to run without operator
+when force-push is safe for the agent to run without operator
 re-approval.
 
 If the trigger for considering force-push is a **parallel-PR
