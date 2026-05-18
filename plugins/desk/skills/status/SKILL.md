@@ -5,7 +5,9 @@ description: Emit a one-screen resume-friendly dashboard of all active worker st
 
 # Status
 
-A single-screen dashboard that answers "where are we?" without manual archaeology across worker-workspace markdown, ADO, and local code repos.
+A single-screen dashboard that answers "where are we?" without manual archaeology across workspace markdown, external work trackers, and local code repos.
+
+> **Worker users:** For ADO-formatted status entries (Feature IDs, `dev.azure.com` URLs, alias-aware paths), see `worker:ms-card-fields`.
 
 ## When to invoke
 
@@ -14,16 +16,18 @@ A single-screen dashboard that answers "where are we?" without manual archaeolog
 - Mid-session when the operator wants a checkpoint without reading every task card.
 - At the start of a resumed session, AFTER the session-start checklist completes (the checklist's status block is a SUBSET of `/status` — `/status` is the full read-out).
 
+> ADO-aware variant: worker users get a Feature-ID-aware status with `dev.azure.com` URLs via `worker:ms-card-fields`.
+
 ## What to emit
 
 Output a single Markdown block with these sections **in this order**. Skip empty sections silently — don't emit "No blockers" if there aren't any.
 
 ```markdown
-# Worker status — <operator alias>, <date YYYY-MM-DD>
+# Status — <operator alias>, <date YYYY-MM-DD>
 
 ## Active tracks (N)
 
-- **<track-slug>** — <track-title> · [Feature <ado-id>](<ado-url>)
+- **<track-slug>** — <track-title> · [<tracker-id>](<tracker-url>)
   - Tasks: <count by state>, e.g., `2 processing, 1 collaborating, 1 drafting`
   - Last activity: <human-friendly relative time>
 
@@ -31,9 +35,9 @@ Output a single Markdown block with these sections **in this order**. Skip empty
 
 ## Active tasks (M)
 
-| Track | Task | State | Repos | ADO | Updated |
-|-------|------|-------|-------|-----|---------|
-| <track-slug> | <task-slug> | processing | <repo-a>, <repo-b> | [<ado-id>](<url>) | 2h ago |
+| Track | Task | State | Repos | Tracker | Updated |
+|-------|------|-------|-------|---------|---------|
+| <track-slug> | <task-slug> | processing | <repo-a>, <repo-b> | [<tracker-id>](<url>) | 2h ago |
 | ... | ... | ... | ... | ... | ... |
 
 ## Code repo state
@@ -71,11 +75,13 @@ Resume one (`<track>/<task>`), start new, or run another command?
 | Attention required | task.md `status` field == `collaborating` or `blocked` | filter step from active tasks |
 | Recent friction | `$DESK/_meta/friction.md` | Parse `## YYYY-MM-DD — <title>` headers, take last 3 |
 
+External work tracker IDs/URLs (if any) come from the task/track frontmatter — schema is tracker-agnostic at this layer.
+
 ## Implementation notes
 
-- **Read-only operation.** `/status` never modifies state — no commits, no ADO writes, no file changes. If the operator wants action, they say so after seeing the dashboard.
-- **Do NOT pull worker-workspace before running `/status`** — that's the session-start checklist's job. `/status` reflects local state. If the operator wants a fresh sync, they ask.
-- **Do NOT fetch ADO** — the dashboard reads `track.md` / `task.md` cached metadata only. ADO links are clickable for the operator to drill in. Fetching live ADO state on every `/status` is too slow.
+- **Read-only operation.** `/status` never modifies state — no commits, no tracker writes, no file changes. If the operator wants action, they say so after seeing the dashboard.
+- **Do NOT pull the workspace before running `/status`** — that's the session-start checklist's job. `/status` reflects local state. If the operator wants a fresh sync, they ask.
+- **Do NOT fetch the external tracker live** — the dashboard reads `track.md` / `task.md` cached metadata only. Tracker links are clickable for the operator to drill in. Fetching live tracker state on every `/status` is too slow.
 - **Skip code-repo state if `mode: mcp`** — only check `mode: local` repos.
 - **Group by track in the tasks table**, sort tasks within a track by `updated` descending.
 - **Use relative timestamps** ("2h ago", "yesterday", "3d ago") not absolute — the dashboard is for orientation, not audit.
@@ -85,28 +91,28 @@ Resume one (`<track>/<task>`), start new, or run another command?
 
 - Archived tasks (those live under `_archive/`; the operator can browse manually).
 - Per-task planning doc previews (the task table links to the doing doc; that's enough).
-- ADO work item descriptions (the ADO link is clickable).
+- External tracker work item descriptions (the tracker link is clickable).
 - Git log or commit history (out of scope; use `git log` directly).
-- The agent's own internal state, TaskCreate items, or session memory — the dashboard reflects **persistent worker-workspace state**, not session ephemera.
+- The agent's own internal state, TaskCreate items, or session memory — the dashboard reflects **persistent workspace state**, not session ephemera.
 
 ## Example output (small worker-workspace)
 
 ```markdown
-# Worker status — <alias>_microsoft, 2026-01-15
+# Status — alice, 2026-01-15
 
 ## Active tracks (1)
 
-- **order-service-hardening** — [Infra] Order service compliance hardening · [Feature 1234567](<ado-url>)
+- **order-service-hardening** — [Infra] Order service compliance hardening · [TRACKER-1234567](<tracker-url>)
   - Tasks: 3 drafting
   - Last activity: 4h ago
 
 ## Active tasks (3)
 
-| Track | Task | State | Repos | ADO | Updated |
-|-------|------|-------|-------|-----|---------|
-| order-service-hardening | api-validation-layer | drafting | OrderService | [1234571](<ado-url>) | 4h ago |
-| order-service-hardening | admin-portal-refactor | drafting | OrderAdminPortal | [1234572](<ado-url>) | 4h ago |
-| order-service-hardening | db-schema-migration | drafting | OrderLegacy (mcp), OrderService | [1234573](<ado-url>) | 4h ago |
+| Track | Task | State | Repos | Tracker | Updated |
+|-------|------|-------|-------|---------|---------|
+| order-service-hardening | api-validation-layer | drafting | OrderService | [TRACKER-1234571](<tracker-url>) | 4h ago |
+| order-service-hardening | admin-portal-refactor | drafting | OrderAdminPortal | [TRACKER-1234572](<tracker-url>) | 4h ago |
+| order-service-hardening | db-schema-migration | drafting | OrderLegacy (mcp), OrderService | [TRACKER-1234573](<tracker-url>) | 4h ago |
 
 ## Code repo state
 

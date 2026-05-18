@@ -45,7 +45,7 @@ drift.
 - [Inputs (stored on task card)](#inputs-stored-on-task-card)
 - [Buckets](#buckets)
 - [Phase 1 — Gather](#phase-1--gather)
-- [Phase 2 — Auto-resolve auto-comments (PIE vs PR Assistant triage)](#phase-2--auto-resolve-auto-comments-pie-vs-pr-assistant-triage)
+- [Phase 2 — Auto-resolve auto-comments (privacy-scan vs AI-review triage)](#phase-2--auto-resolve-auto-comments-privacy-scan-vs-ai-review-triage)
 - [Phase 3 — Shape conversation](#phase-3--shape-conversation)
 - [Phase 4 — Walk-through](#phase-4--walk-through)
 - [Phase 5 — Synthesize (sweep + bake-in)](#phase-5--synthesize-sweep--bake-in)
@@ -166,7 +166,7 @@ How each comment is categorized up front.
 | **doc** | Redundant xmldoc, leaky impl notes, missing "why," numbered-step confusion | No (auto-apply) | "comments shouldn't be redundant to the JsonProperty" |
 | **clarification** | Reviewer is asking a question, not requesting a change | Yes (reply-first, no edit) | "what's 'binder default' mean?" |
 | **nit** | Small style/naming tweaks | No (auto-apply) | "let's give this a more declarative name" |
-| **auto-comment** | Bot-generated noise or gate feedback — not operator review input | Varies; see triage below | TFS ref-update, PIE privacy scan, PR Assistant AI review, coverage bot |
+| **auto-comment** | Bot-generated noise or gate feedback — not operator review input | Varies; see triage below | ref-update bot, privacy-scan bot, AI-review bot, coverage bot |
 
 ---
 
@@ -218,32 +218,33 @@ present.
 
 ---
 
-## Phase 2 — Auto-resolve auto-comments (PIE vs PR Assistant triage)
+## Phase 2 — Auto-resolve auto-comments (privacy-scan vs AI-review triage)
 
 For each `auto-comment` thread, pick a disposition. Most auto-comment
-disposition is mechanical; the exception is the GitOps PIE-vs-PR-
-Assistant distinction, which was a concrete miss on 2026-04-21 that
-cost two threads mid-iteration.
+disposition is mechanical; the load-bearing exception is the
+**privacy-scan-bot vs AI-review-bot** distinction — these can post
+under the same author identity, and conflating them costs threads
+mid-iteration.
 
 ### Author + body-content triage table
 
-Author alone is insufficient: multiple GitOps services post under the
-same `displayName`. Triage on body content.
+Author alone is insufficient: multiple bot services may post under
+the same `displayName`. Triage on body content.
 
-| author.displayName | Body-content signal | Triage | Default action |
+| Bot class | Body-content signal | Triage | Default action |
 |---|---|---|---|
-| `Microsoft.VisualStudio.Services.TFS` | "The reference refs/heads/... was updated." | ref-update | Resolve silently, no reply. |
-| `Azure Pipelines Test Service` | Coverage/build bot output | coverage bot | Leave Active. Auto-clears when the underlying gate turns green. Do not reply. |
-| `GitOps (Git LowPriv)` | Body begins with `# PIE Found A Potential Privacy Defect` + `Brittle Pattern` line | PIE privacy scan | Default False-Positive (most are noise). If the flagged line is plausibly real AND introduced/touched by this PR, escalate to operator with a one-line "Fix / FP / Pre-existing?" proposal. Never auto-create follow-up ADO items. |
-| `GitOps (Git LowPriv)` | Body contains `<span ...>PR Assistant</span>` OR an `AI Code Review` badge OR a ` ```suggestion ` code block | PR Assistant AI review | **Treat as reviewer feedback.** Bucket by content (behavior / architecture / nit / doc); push into the walk-through queue. Do NOT auto-FP. |
+| ref-update bot | "The reference refs/heads/... was updated." | ref-update | Resolve silently, no reply. |
+| coverage / test-service bot | Coverage/build bot output | coverage bot | Leave Active. Auto-clears when the underlying gate turns green. Do not reply. |
+| **privacy-scan bot** | Body begins with a privacy-defect header + "Brittle Pattern" or similar pattern-match line | privacy scan | Default False-Positive (most are noise). If the flagged line is plausibly real AND introduced/touched by this PR, escalate to operator with a one-line "Fix / FP / Pre-existing?" proposal. Never auto-create follow-up tracker items. |
+| **AI review bot** | Body contains an `AI Code Review` badge, an embedded "Assistant" span, OR a ` ```suggestion ` code block | AI review | **Treat as reviewer feedback.** Bucket by content (behavior / architecture / nit / doc); push into the walk-through queue. Do NOT auto-FP. |
 | Any other bot | — | Unknown bot | Batch-flag to operator; don't assume. |
 
 ### Pre-close safety check
 
-Before posting `status=Closed` on any GitOps thread, read the first
+Before posting `status=Closed` on any bot thread, read the first
 100–200 chars of the body and match against the signals above. If the
-body looks like a PR-Assistant suggestion (`suggestion` block present,
-or `PR Assistant` span) — escalate to walk-through instead of closing.
+body looks like an AI-review suggestion (`suggestion` block present,
+or an Assistant span) — escalate to walk-through instead of closing.
 
 ### Harness-denied reopen is correct-by-design
 
@@ -504,8 +505,9 @@ assigned to a unit or dispositioned.
 
 `work-doer` runs critical-path units serially + parallelizable units
 concurrently. Strict TDD per `../../principles.md` invariants. Repo-
-specific build-check before every commit (e.g., `csharpier --check`
-for Teams-Graph; see `../repo-knowledge/Teams-Graph/pipeline-notes.md`).
+specific build-check before every commit (e.g., a formatter `--check`
+flag for a C#-heavy reference implementation; capture per-repo
+build/lint commands in a repo-local notes file).
 
 **doing.md kept live:** every unit completion triggers
 `docs(doing): complete Unit X` — unit status flip `⬜ → ✅`,
@@ -602,7 +604,7 @@ flag the finding after the pin, strengthen or relocate the pin.
 All required pipelines green, coverage at or above gate.
 
 **No iteration cap.** 10+ pipeline iterations to green is not unheard
-of on a large repo (Teams-Graph first-run precedent: 6 iterations on
+of on a large repo (one reference implementation took 6 iterations on
 initial-impl just to clear stale-main + flakes). Do NOT hard-cap
 pipeline iterations. Do NOT return control for a cap hit. Return
 control ONLY for blockers that genuinely require operator input (see
@@ -624,7 +626,7 @@ Diagnosis classes:
 - `real regression (compile)`
 - `real regression (test)`
 - `coverage gap`
-- `formatter (csharpier)`
+- `formatter (e.g., csharpier / prettier / black / gofmt)`
 - `environment`
 
 Operator reading the table at any moment sees: how many iterations,
@@ -632,9 +634,9 @@ what keeps breaking, what patterns of flake. Operator may interrupt
 if the pattern is concerning; that's operator's call. Agent's job is
 to keep iterating + logging.
 
-See `../repo-knowledge/<repo>/pipeline-notes.md` for repo-specific
-failure classes (e.g., Teams-Graph's 3 failure classes + pipeline
-parity details).
+Capture repo-specific failure classes (and pipeline parity details)
+in a repo-local notes file so future iterations can match new
+failures against a known fingerprint set.
 
 ### Phase 8 and Phase 9 run in parallel after final-unit push
 
@@ -763,32 +765,24 @@ fix that doesn't address the actual cause.
 - Linter / formatter violations
 - Coverage-gate failures
 
-**Retrigger flow (ADO).** Retrigger via the policy-evaluation
-PATCH:
+**Retrigger flow.** Use whatever your platform provides to re-run a
+required policy or check without pushing a new commit (GitHub: re-run
+a failed check via `gh run rerun`; GitLab: retry a CI job; ADO:
+PATCH the policy evaluation to `queued`). The mechanics are
+platform-specific; the discipline is universal — retrigger on infra
+failure, code-fix on code failure.
 
-```bash
-# 1) Fetch the policy evaluation IDs for the PR.
-#    Output filtered to the failed build's displayName.
-EVAL_ID=$(az repos pr policy list --id <PR_ID> \
-  --org https://<org>.visualstudio.com --detect false -o json \
-  | python3 -c "<filter to evaluationId for the failed build's displayName>")
-
-# 2) PATCH the evaluation to status=queued (re-runs the policy).
-TOKEN=$(az account get-access-token --resource '499b84ac-1321-427f-aa17-267ca6975798' --query accessToken -o tsv)
-curl -s -X PATCH \
-  "https://<org>.visualstudio.com/<project>/_apis/policy/evaluations/$EVAL_ID?api-version=7.1-preview.1" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"queued"}'
-```
+> **Worker users:** the ADO-specific `az account get-access-token` +
+> `policy/evaluations` PATCH recipe lives in `worker:ms-pr-toolbox`,
+> along with the `az devops invoke` tactical wisdom below.
 
 **Guard rails on retriggers:**
 
 - **Max 2 retrigger attempts per build.** A third infra failure on
   the same build means the infra itself is the issue (registry
-  outage, agent pool down, ADO incident); surface to operator with
-  "Build [name] has failed 3 times due to infra issues — needs ADO
-  support."
+  outage, agent pool down, CI incident); surface to operator with
+  "Build [name] has failed 3 times due to infra issues — needs CI
+  platform support."
 - **Retriggers don't count against code-fix push cycles.** The
   separate counter exists because retriggering is cheap and
   doesn't risk a wrong-fix landing.
@@ -801,15 +795,14 @@ code-fix in the same counter rewards "edit something, anything,
 on every red" — which is how fake fixes land. Distinct counters
 keep the discipline honest.
 
-### Production pitfalls when polling ADO via shell + `az` + Python
+### Production pitfalls when polling CI state via shell + Python
 
-Tactical wisdom for any code that polls ADO state via shell
+Tactical wisdom for any code that polls CI state via shell
 loops (whether in this skill, in pipeline-verify scripts, or in
-ad-hoc one-offs). Battle-tested across multiple sessions:
+ad-hoc one-offs):
 
-- **`az devops invoke` doesn't reliably support `--query` with
-  complex JMESPath.** Pipe to `jq` or `python3` for filtering,
-  not the `--query` flag.
+- **CLI `--query` / `--jq` flags are rarely sufficient for complex
+  filtering.** Pipe to `jq` or `python3` for non-trivial extraction.
 - **Use temp files (`mktemp`) to pass JSON between shell and
   Python.** Shell variable interpolation breaks on JSON `null`
   values; the cleanest workaround is `echo "$BLOB" > "$TMPFILE"`
@@ -821,17 +814,16 @@ ad-hoc one-offs). Battle-tested across multiple sessions:
 - **Use `json.dump(data, sys.stdout)` instead of
   `print(json.dumps(data))`.** The `print` form adds a trailing
   newline that some captures interpret as part of the value.
-- **Pipe `az` commands through `2>/dev/null || echo '[]'`** for
+- **Pipe CLI commands through `2>/dev/null || echo '[]'`** for
   graceful handling of transient errors. The poll loop should
   treat a single-tick failure as "try again next tick," not as
   a hard stop.
-- **Token refresh per tick is mandatory** for any loop that runs
-  more than ~50 minutes (token TTL is ~1 hour). See "Long-
-  running pipeline waits" above.
+- **Token refresh per tick is mandatory** for any loop whose run
+  duration approaches the auth token TTL.
 
-These apply equally to one-off diagnostic shell sessions, not
-just polling loops. The patterns are short and worth muscle-
-memory.
+> **Worker users:** ADO/`az`-specific variants of these patterns
+> (token-refresh recipe, `az devops invoke --query` quirks) live in
+> `worker:ms-pr-toolbox`.
 
 ---
 
@@ -896,14 +888,17 @@ failing thread — it does not proceed past the failure with a
 "resolved-with-caveats" label. Phase 9 exits only when every thread
 is dispositioned cleanly.
 
-**Platform link syntax (ADO).** When a reply body references another
-PR or work item, use the platform's auto-link syntax — not raw URLs
-and not "PR <id>" prose:
+**Platform link syntax.** When a reply body references another PR
+or work item, use the platform's auto-link syntax — not raw URLs and
+not "PR <id>" prose. Each platform has its own conventions; pick the
+one your platform renders as a styled link with title/status.
 
-- **PR reference**: `!<id>` (e.g., `!1537249`). ADO renders as
-  styled link with PR title + status.
-- **Work-item reference**: `#<id>` (e.g., `#5348237`). ADO renders
-  as styled link with WI type + title.
+For example, on Azure DevOps:
+- **PR reference**: `!<id>` (e.g., `!1537249`)
+- **Work-item reference**: `#<id>` (e.g., `#5348237`)
+
+On GitHub: `#<id>` for PRs/issues; on GitLab: `!<id>` for MRs, `#<id>`
+for issues.
 
 Example: `"Resolved by !1543112 — landed the unified accessor in
 that PR; this thread's read-side now goes through it."` Reads

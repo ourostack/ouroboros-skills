@@ -432,40 +432,7 @@ most inferred-mechanism risk.
 - Cut the comment if you can't make the case without unverified
   claims.
 
-### MS-internal infrastructure trust boundaries
-
-A factual claim about a Microsoft-internal infrastructure access
-model — "ECS modifications require X identity," "this is gated on
-Y verification," "only Z can author this kind of flight" — must be
-verified, not inferred by analogy from another infra layer.
-
-The failure mode: worker reasons by analogy ("if X is gated on
-identity, the parallel question for Y is also gated on identity")
-without verifying Y's actual access model. The parallel can be
-wrong in either direction — Y may have stronger gating (and the
-analogy raises a non-existent risk) or weaker gating (and the
-analogy obscures a real risk).
-
-Same dial test as Code mechanism: where's the documented source
-for the trust-model claim? If you can't name it, soften
-("what's the trust model for...") or cut the architectural
-framing and lead with the substance question. Don't attach a
-fact-shaped trust-model claim to the operator's voice that
-worker can't back up.
-
-**Cheap verification techniques.** Search internal wikis (Eng
-Hub, ServiceTree, the relevant team's onboarding doc), read the
-config-management service's `README.md` if available, ask the
-operator if they know the layer's gating model. A two-minute
-verification clears most analogy-driven failures.
-
-**Stable facts worth encoding.** When verification surfaces a
-durable fact about an MS-internal infra access model (e.g., "ECS
-modifications require Microsoft-employee identity plus
-verification; not an external attack surface for tenant-scoped
-features"), capture it in the active track's repo-knowledge or a
-cross-track `_landscape/` entry. Future drafts can cite the
-encoded fact instead of re-verifying.
+> **Consumer agents adding MS-internal trust-boundary discipline use `worker:ms-infra-trust-boundaries`.**
 
 ### Bot-derived urgency
 
@@ -475,7 +442,7 @@ state, not human state**. The bot has its own clock; the author
 and operator have theirs. Treat bot signals as informational
 only:
 
-- "PR has been Active for N days" → fact about ADO state.
+- "PR has been Active for N days" → fact about platform state.
 - "Review-bot has nudged" → fact about the bot's behavior.
 - "SLA-breach badge fired" → fact about the bot's clock, NOT a
   fact about author urgency.
@@ -524,7 +491,7 @@ Three checks before posting:
 1. **If the proposed change lands, who covers the underlying
    cost instead?** Compute happened; someone covers it.
    "Customer shouldn't pay" is a position, but it implies
-   "Microsoft eats the cost" or "the request never gets
+   "the provider eats the cost" or "the request never gets
    served." If the draft doesn't acknowledge that trade, it's
    reasoning about charging in a vacuum.
 2. **What layer is the actual lever for the concern?** Drain

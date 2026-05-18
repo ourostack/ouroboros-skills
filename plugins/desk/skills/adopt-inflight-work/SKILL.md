@@ -11,9 +11,11 @@ The most common first-run scenario isn't greenfield — it's adoption. An operat
 
 - Operator says "I have existing work — this is now yours" or any variant.
 - A source bundle exists (planning docs, doing docs, design docs, flow diagrams).
-- The work maps to an existing ADO Feature (often split from a closed predecessor).
+- The work maps to an existing item in an external work tracker (often split from a closed predecessor).
 - The goal is to continue execution, not re-plan.
 - Operator picked Option 3 in worker's first-run bootstrap.
+
+> **Worker users:** For the ADO-specific Feature/Requirement schema (Status Tweet, Area Path, Iteration Path, parent Feature) and the predecessor-split flow, see `worker:ms-card-fields` and `worker:ado-hygiene`. The generic shape below is tracker-agnostic.
 
 ## The six-step flow
 
@@ -54,22 +56,19 @@ Files in this directory are superseded or historical. Retained for provenance.
 
 **Do NOT drop anything on the floor during adoption.** You've just been handed the work. You don't have the context to decide what's stale. Preservation is the bar; curation is for later with more information.
 
-### Step 2: Snapshot the ADO state
+### Step 2: Snapshot the external-tracker state
 
-Capture what the target ADO Feature looks like **at adoption time** — before you make any changes. This becomes the "before" reference.
+If the work is tracked in an external system (issue tracker, work-item DB, Jira, Linear, GitHub Issues, ADO, etc.), capture what the target item looks like **at adoption time** — before you make any changes. This becomes the "before" reference.
 
-Create `<track>/_planning/ado-snapshot-YYYY-MM-DD.md`:
+Create `<track>/_planning/tracker-snapshot-YYYY-MM-DD.md`. Capture, at minimum, the generic fields below; add tracker-specific fields as needed:
 
 ```markdown
-# ADO snapshot: Feature <id> at adoption (YYYY-MM-DD)
+# Tracker snapshot: <tracker-id> at adoption (YYYY-MM-DD)
 
-**Feature**: <id> — <title>
+**Identifier**: <tracker-id> — <title>
+**Type**: <work-item type, e.g., Feature / Epic / Story / Issue>
 **State**: <state>
-**Area Path**: <path>
-**Iteration Path**: <path>
-**Assigned To**: <person>
-**Status Tweet**: <tweet>
-**Target Date**: <date>
+**Parent**: <parent-id> — <parent-title> (if any)
 
 ## Relations
 
@@ -81,7 +80,6 @@ Create `<track>/_planning/ado-snapshot-YYYY-MM-DD.md`:
 
 | id | type | state | title |
 |----|------|-------|-------|
-| 1234571 | Requirement | Active | [API] Stub out new /endpoint |
 | ... | ... | ... | ... |
 
 ## Predecessor children at adoption (if applicable)
@@ -91,7 +89,7 @@ Create `<track>/_planning/ado-snapshot-YYYY-MM-DD.md`:
 | ... | ... | ... | ... |
 ```
 
-This freezes "what we inherited" so we can diff against "what we changed."
+This freezes "what we inherited" so we can diff against "what we changed." Worker users running on ADO should also capture Status Tweet, Area Path, Iteration Path, Assigned To, Target Date — see `worker:ms-card-fields`.
 
 ### Step 3: Snapshot code-repo state
 
@@ -124,7 +122,7 @@ adopted_from:
   source_path: /Users/<alias>/<path>/<to>/<source-bundle>
   source_sha: <git sha if the source is a git repo>
   adopted_at: 2026-01-15T14:30:00Z
-  adopted_by: <alias>_microsoft
+  adopted_by: <alias>
 ---
 ```
 
@@ -141,25 +139,27 @@ In the track body, add a section:
 
 **Source of truth (copied verbatim from the source bundle):**
 - Scope description
-- ADO Feature mapping (1234567)
-- Predecessor reference (1234560)
+- Tracker item mapping (TRACKER-1234567)
+- Predecessor reference (TRACKER-1234560)
 - Planning doc content (`_planning/planning.md`)
 - Doing doc contents (per-repo workspaces)
 
 **Inferred during adoption (my interpretation, not in the source):**
 - Task slugs: `api-validation-layer`, `admin-portal-refactor`, `db-schema-migration`
 - Task ordering (derived from planning.md's "Deliverables" section)
-- `ado_defaults` (inferred from parent Feature + operator correction)
+- Tracker defaults (inferred from parent item + operator correction)
 - Mapping from planning-doc "Deliverable N" numbering to the three task slugs
 ```
 
 A future operator or auditor can then tell which parts are load-bearing and which are safe to adjust.
 
-### Step 6: Audit the predecessor (and the Feature) before creating new ADO work items
+### Step 6: Audit the predecessor (and the parent item) before creating new tracker work items
 
-If the target Feature has a predecessor or is newly split, run the **Predecessor Split / Backlog Triage** flow (in the `ado-hygiene` skill) before creating any new child work items. One decision group at a time.
+If the target tracker item has a predecessor or is newly split, audit it before creating any new child work items. Decide one item at a time: was it delivered, should it be reparented to the new item, reframed, or deferred?
 
-After the triage completes, post a comment on the predecessor Feature summarizing what was done ("N closed as Delivered, M reparented, K reframed, L deferred").
+After the triage completes, post a comment on the predecessor summarizing what was done ("N closed as Delivered, M reparented, K reframed, L deferred").
+
+> **Worker users:** the Predecessor Split / Backlog Triage flow lives in `worker:ado-hygiene` and codifies the ADO-specific state transitions, Reason values, and Status Tweet maintenance.
 
 ## Track dashboard assembly
 
@@ -212,7 +212,7 @@ any sibling artifacts directory into `<YYYY-MM-DD>-adopted/artifacts/`.
 At the end of adoption:
 - `<track>/_planning/` holds the complete source bundle, sorted.
 - `<track>/_planning/_history/` holds superseded/binary artifacts with a provenance README.
-- `<track>/_planning/ado-snapshot-*.md` freezes the pre-adoption ADO state.
+- `<track>/_planning/tracker-snapshot-*.md` freezes the pre-adoption external-tracker state.
 - `<track>/_planning/code-snapshot-*.md` freezes the pre-adoption code state.
 - `<track>/track.md` points at all of the above via its frontmatter (`adopted_from`, `planning`) and its body (Adoption notes section).
 - `<track>/<task-slug>/` directories hold per-task state. Each `task.md` has `adopted_at:` + (if applicable) `planning_complete: true`.
