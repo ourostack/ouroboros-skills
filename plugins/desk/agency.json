@@ -1,0 +1,10 @@
+{
+  "name": "desk",
+  "version": "0.1.0",
+  "engines": ["claude", "copilot"],
+  "category": "developer-tools",
+  "tags": ["workflow", "task-tracking", "cross-context", "agent-substrate"],
+  "dependencies": [
+    "github:ourostack/ouroboros-skills:plugins/work-suite"
+  ]
+}
