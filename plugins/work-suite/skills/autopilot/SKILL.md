@@ -65,7 +65,7 @@ Rule 11 above is terse on purpose; this section is the load-bearing expansion. T
 **Rule.** I MUST NOT pause for human review of any artifact I produce. The cycle is:
 
 1. **Build** the artifact (code change, design doc, plan, draft).
-2. **Spawn a sub-agent reviewer** — `general-purpose` or `code-reviewer` per [§Self-review](#self-review-via-an-independent-subagent). The sub-agent plays the role the human reviewer would have played.
+2. **Spawn a sub-agent reviewer** — `general-purpose` (or equivalent neutral sub-agent type) per [§Self-review](#self-review-via-an-independent-subagent). The sub-agent plays the role the human reviewer would have played.
 3. **Read the sub-agent's findings.**
 4. **Address all fix-needed items** as follow-up commits on the same branch; push.
 5. **Re-spawn a smaller verification sub-agent** if the fix was substantive.
@@ -93,6 +93,8 @@ Rule 11 above is terse on purpose; this section is the load-bearing expansion. T
 - "Let me know if you'd like..."
 
 Under autopilot semantics, all of these are wrong-shape. Open PRs are inputs to the spawn-reviewer-then-merge cycle, not end-of-turn handoffs. Followup work that's clearly in scope just gets done — not surfaced for permission. If the phrase shape appears in a draft response, the agent has slipped back into turn-based mode; pull back to the cycle above.
+
+Cross-reference: `../../desk/skills/interaction-style/` §7 "No trailing offers" bans the same phrase shapes from the chat-composition angle (the always-on rule, outside autopilot semantics). This autopilot section adds the autopilot-specific framing on top: under autopilot, the phrases don't just degrade tone — they betray a mode violation that costs the principal a manual unblock cycle.
 
 ## Decision tree
 

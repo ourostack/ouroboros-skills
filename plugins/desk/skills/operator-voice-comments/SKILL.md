@@ -745,13 +745,21 @@ artifacts** by their canonical identifier (PR ID, work-item ID,
 commit SHA, file path + method, feature-flag string); use
 **collective phrasing** for groups.
 
-Worked example (a real operator-rewrite, anonymized). Agent
-drafted: *"the Phase-3 catch-all cleanup (deliverable-1 of
-`<track-slug>`) can proceed independently"*. Operator rewrote
-to: *"we're in the middle of migrating to the tighter `<config>`
-and the legacy catch-all is pending cleanup"* — concrete
-situation, no internal labels, decodable from the PR's own
-context.
+Worked example (a real operator-rewrite, anonymized). Same
+underlying claim, internal labels stripped:
+
+- **Before** — *"the Phase-3 catch-all cleanup (deliverable-1
+  of `<track-slug>`) can proceed independently from this PR."*
+- **After** — *"a separate cleanup that deprecates the legacy
+  catch-all is already in flight; this PR doesn't need to
+  entangle with it."*
+
+The claim ("the related cleanup can proceed independently") is
+held invariant; only the internal labels (`Phase-3`,
+`deliverable-1`, `<track-slug>`) are removed. The rewrite is
+NOT a license to change the substance of the comment — only to
+strip the operator-internal vocabulary that smuggled in
+alongside it.
 
 **Self-check before posting.** *Would a reader who has never
 seen my track cards, planning docs, or iteration history
