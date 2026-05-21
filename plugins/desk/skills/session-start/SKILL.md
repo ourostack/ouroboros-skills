@@ -13,22 +13,29 @@ Run this as the first thing in every session. It establishes trust that prereqs 
 
 Before any state-touching action — before prereq checks, before workspace sync, before scanning tasks — establish where this agent session is running. The substrate increasingly operates across multiple hosts (local mac, headless VM, remote fleet members). An agent that doesn't know its host context will commit to the wrong workspace, try to run host-specific tooling that doesn't exist on a different host, propose actions appropriate for the wrong machine, or miss host-specific recovery the operator actually needs.
 
-Run a minimal identity probe in the agent's first tool call of the session:
+Run a minimal identity probe in the agent's first tool call of the session. Use the variant matching the host shell:
+
+**POSIX shells (macOS, Linux, WSL, Git Bash):**
 
 ```bash
 hostname && pwd && whoami && uname -s
 ```
 
-Then write the result to durable session state. Two acceptable surfaces:
+**Windows PowerShell:**
 
-- **First chat message** — open with a one-line "Running on `<hostname>` as `<user>` in `<pwd>`, OS `<uname -s>`." Cheap; visible in any scrollback.
-- **Task card preamble** — if a task card exists for this session, append a "Host context" line to it: ``Host: `<hostname>` / user: `<user>` / cwd: `<pwd>` / OS: `<uname -s>` / probed: <timestamp>``. Persistent across sessions; future task-card readers see which host did what.
+```powershell
+hostname; (Get-Location).Path; whoami; [System.Environment]::OSVersion.Platform
+```
 
-Both is fine; one is mandatory. The point is that any later reader (operator, another agent inheriting the task, the curator pass) can unambiguously identify which host this session happened on without parsing log lines.
+Both shells: just run it. The probe is four commands and idempotent — re-running it is cheap. Don't try to short-circuit by "checking if probe already ran" before any tool call; the check is harder than the probe itself.
+
+Then write the result to durable session state. Persistence precedence:
+
+- **If a task card exists**, the task-card preamble is **mandatory**. Append a "Host context" line: ``Host: `<hostname>` / user: `<user>` / cwd: `<pwd>` / OS: `<os>` / probed: <timestamp>``. The chat one-liner is ephemeral from the perspective of a future session resuming this task — only the task-card preamble persists, and the friction motivating this step (an agent not knowing its host) won't be solved by a string in a prior session's scrollback. The task card is the durable surface.
+- **If no task card exists** (fresh session, no task picked yet), open the first chat message with a one-line "Running on `<hostname>` as `<user>` in `<pwd>`, OS `<os>`." Visible to the operator from turn one; cheap to add.
+- **Both** is fine — chat lead + task-card preamble together — but task-card preamble is what survives across sessions.
 
 Applies to ANY agent using this skill — worker, ccatester, investigator, triage, future fleet agents. Single-host development environments still benefit (the probe is fast and silent on the happy path), but the cost-of-omission climbs as host count grows.
-
-If host identity was already established earlier this session (probe ran successfully and the result is visible upstream), skip the re-probe. One source of truth per session, not redundant probing.
 
 ## Step 1 — Prerequisite probe
 
@@ -327,6 +334,6 @@ neither.
 
 ## Never skip, never route around
 
-All six steps (Step 0 + Steps 1–5) run every session. The host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
+Every step in this skill — Step 0 plus the Step 1 through Step 5 chain (including the `.x` sub-steps for 2.5, 4.5, 4.6, 4.7) — runs every session. The host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
 
 **Auto-mode is license for action, not for skipping safety checks.** A prereq-probe failure is like a compile error: fix it, don't proceed. If the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to the workspace state repo = state won't sync across machines") and require an explicit override.
