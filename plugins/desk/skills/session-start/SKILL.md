@@ -9,6 +9,27 @@ Run this as the first thing in every session. It establishes trust that prereqs 
 
 > **worker users**: see `worker:ms-session-extensions` for the EMU identity resolve (Step 1f), ADO REST staleness probe (Step 1g), and ADO PR fan-out in Step 4.5. This skill stays generic.
 
+## Step 0 — Host identity probe
+
+Before any state-touching action — before prereq checks, before workspace sync, before scanning tasks — establish where this agent session is running. The substrate increasingly operates across multiple hosts (local mac, headless VM, remote fleet members). An agent that doesn't know its host context will commit to the wrong workspace, try to run host-specific tooling that doesn't exist on a different host, propose actions appropriate for the wrong machine, or miss host-specific recovery the operator actually needs.
+
+Run a minimal identity probe in the agent's first tool call of the session:
+
+```bash
+hostname && pwd && whoami && uname -s
+```
+
+Then write the result to durable session state. Two acceptable surfaces:
+
+- **First chat message** — open with a one-line "Running on `<hostname>` as `<user>` in `<pwd>`, OS `<uname -s>`." Cheap; visible in any scrollback.
+- **Task card preamble** — if a task card exists for this session, append a "Host context" line to it: ``Host: `<hostname>` / user: `<user>` / cwd: `<pwd>` / OS: `<uname -s>` / probed: <timestamp>``. Persistent across sessions; future task-card readers see which host did what.
+
+Both is fine; one is mandatory. The point is that any later reader (operator, another agent inheriting the task, the curator pass) can unambiguously identify which host this session happened on without parsing log lines.
+
+Applies to ANY agent using this skill — worker, ccatester, investigator, triage, future fleet agents. Single-host development environments still benefit (the probe is fast and silent on the happy path), but the cost-of-omission climbs as host count grows.
+
+If host identity was already established earlier this session (probe ran successfully and the result is visible upstream), skip the re-probe. One source of truth per session, not redundant probing.
+
 ## Step 1 — Prerequisite probe
 
 Five checks. Any failure surfaces the specific remediation to the operator and **waits** — don't proceed to step 2, and don't fall back to a local-only mode. A session with broken auth is not "offline mode"; it's "not-yet-ready."
@@ -306,6 +327,6 @@ neither.
 
 ## Never skip, never route around
 
-All five steps run every session. The prereq probe in particular is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
+All six steps (Step 0 + Steps 1–5) run every session. The host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
 
 **Auto-mode is license for action, not for skipping safety checks.** A prereq-probe failure is like a compile error: fix it, don't proceed. If the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to the workspace state repo = state won't sync across machines") and require an explicit override.
