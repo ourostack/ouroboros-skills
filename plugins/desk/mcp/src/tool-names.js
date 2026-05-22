@@ -37,10 +37,12 @@ export const TOOL_DESCRIPTIONS = {
   lesson_add:
     "Write or append a lesson under <root>/_meta/tips/<topic>.md. Existing file gets an `## Update <date>` section.",
   desk_search:
-    "Hybrid lexical+semantic search across desk. Stub until Unit 5.",
+    "Hybrid lexical+semantic search across desk. Filters: track, status, kind, since, until. Returns ranked chunks with score_breakdown. Soft-fails to FTS-only when Ollama is unreachable.",
   desk_recall:
-    "Semantic-only loose recall with auto-clustering. Stub until Unit 5.",
-  desk_similar: "Find docs similar to a given path. Stub until Unit 5.",
-  desk_timeline: "Temporal queries. Stub until Unit 5.",
+    "Semantic-only loose recall — `do I remember anything about X`. Requires Ollama; errors when unreachable. Returns top matches deduped by doc.",
+  desk_similar:
+    "Find docs similar to a given path via centroid of the seed doc's chunk embeddings. Returns ranked similar docs excluding the seed itself.",
+  desk_timeline:
+    "Temporal query — filter docs by updated_at window, optionally combined with FTS+semantic. Without `query`: chronological listing. With `query`: hybrid ranking inside the window, ordered by updated_at DESC.",
   desk_thread: "Provenance walk via refs_graph. Stub until Unit 6.",
 }
