@@ -6,6 +6,7 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { homedir } from "node:os"
 
 // Import from tool-names directly (not server.js) so the test doesn't pull
 // the @modelcontextprotocol/sdk dep. Tool list is the canonical source.
@@ -44,7 +45,7 @@ test("server scaffolds all 12 expected tool names", () => {
 
 test("path resolver expands ~ and rejects nonexistent roots", async () => {
   const { resolveDeskRoot, expandHome } = await import("../src/util/paths.js")
-  assert.equal(expandHome("~"), process.env.HOME ?? require("node:os").homedir())
+  assert.equal(expandHome("~"), homedir())
   assert.ok(expandHome("~/foo").endsWith("/foo"))
   assert.equal(expandHome("/abs/path"), "/abs/path")
   assert.throws(
