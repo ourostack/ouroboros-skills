@@ -2,7 +2,8 @@
 //
 // W6 Unit 5. Each tool opens the index DB, executes its query, post-ranks in
 // JS, and returns a structured payload. The fifth search tool (desk_thread)
-// stays a stub until Unit 6.
+// lives in src/tools/thread.js — wired in Unit 6 (provenance walk via
+// refs_graph).
 //
 // Design references (see desk-search-design.md):
 //   §4 hybrid ranking — semantic 0.55 + bm25 0.25 + recency 0.12 + state 0.08

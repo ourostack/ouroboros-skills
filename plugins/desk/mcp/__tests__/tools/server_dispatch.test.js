@@ -1,5 +1,5 @@
-// server_dispatch — sanity-check that server.callTool routes the 7 runtime
-// tools to their real implementations and still stubs the search tools.
+// server_dispatch — sanity-check that server.callTool routes every tool
+// to its real implementation (no remaining stubs after Unit 6).
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
@@ -37,16 +37,18 @@ test("server.callTool surfaces tool errors as isError with structured body", asy
   assert.match(body.message, /does not exist/)
 })
 
-test("server.callTool returns not_implemented for desk_thread (still stub until Unit 6)", async () => {
+test("server.callTool routes desk_thread to the real implementation", async () => {
   const root = await mkTempDeskRoot()
   const res = await callTool({
     deskRoot: root,
     name: "desk_thread",
-    input: { path: "anything" },
+    input: { start_path: "nope/does/not/exist.md" },
   })
+  // No isError — desk_thread returns a structured `not_indexed` payload
+  // for an unknown path, not a thrown error.
   const body = parseResult(res)
-  assert.equal(body.status, "not_implemented")
-  assert.equal(body.tool, "desk_thread")
+  assert.equal(body.error, "not_indexed")
+  assert.match(body.note, /isn't in the desk-index/)
 })
 
 test("server.callTool rejects unknown tool names", async () => {
