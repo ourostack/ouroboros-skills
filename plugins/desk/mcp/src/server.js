@@ -117,7 +117,7 @@ export async function startServer({ deskRoot }) {
   const server = new Server(
     {
       name: "desk-mcp",
-      version: "0.7.1",
+      version: "1.0.0",
     },
     {
       capabilities: { tools: {} },
