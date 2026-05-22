@@ -1,0 +1,244 @@
+// index.js — top-level indexer orchestrator.
+//
+// Walks the desk root, parses each doc, hash-compares to the existing index,
+// re-chunks + re-embeds + upserts on change, and refreshes refs_graph.
+// Idempotent — running it twice on a clean tree results in 0 reindexed docs.
+//
+// Soft-fail: if Ollama is down, FTS5 still gets populated; chunk_vecs rows
+// for new chunks are left absent so semantic search degrades gracefully.
+
+import { promises as fs } from "node:fs"
+import { openDb, closeDb, setMeta } from "../db/init.js"
+import { discover } from "./discover.js"
+import { chunkBody } from "./chunk.js"
+import { embedChunks, EMBEDDING_DIM } from "./embed.js"
+import { computeRefs } from "./refs.js"
+
+/**
+ * Run the indexer against `deskRoot`. Creates/refreshes
+ * `<deskRoot>/.state/desk-index.sqlite` and returns a summary.
+ *
+ * @param {string} deskRoot
+ * @param {object} [opts]
+ * @param {object} [opts.db] — reuse an already-open DB handle (tests).
+ * @param {string} [opts.dbPath] — override DB path (tests).
+ * @param {object} [opts.embed] — override embed options (endpoint/model/fetch).
+ * @param {boolean} [opts.skipEmbed] — skip embedding entirely (testing).
+ * @returns {Promise<{ docs_indexed: number, docs_skipped: number,
+ *                     docs_removed: number, chunks_inserted: number,
+ *                     semantic_warnings: number }>}
+ */
+export async function rebuildIndex(deskRoot, opts = {}) {
+  const ownsDb = !opts.db
+  const db = opts.db ?? openDb(deskRoot, { dbPath: opts.dbPath })
+
+  const summary = {
+    docs_indexed: 0,
+    docs_skipped: 0,
+    docs_removed: 0,
+    chunks_inserted: 0,
+    semantic_warnings: 0,
+  }
+
+  try {
+    const discovered = await discover(deskRoot)
+    const discoveredByPath = new Map(discovered.map((d) => [d.path, d]))
+
+    // Compare against existing docs table. Anything no longer on disk gets
+    // deleted (cascade clears chunks + refs).
+    const existing = db
+      .prepare("SELECT id, path, hash, mtime FROM docs")
+      .all()
+    const existingByPath = new Map(existing.map((r) => [r.path, r]))
+
+    const deletedPaths = []
+    for (const row of existing) {
+      if (!discoveredByPath.has(row.path)) {
+        deletedPaths.push(row.path)
+      }
+    }
+    if (deletedPaths.length) {
+      const delStmt = db.prepare("DELETE FROM docs WHERE path = ?")
+      const delTxn = db.transaction((paths) => {
+        for (const p of paths) delStmt.run(p)
+      })
+      delTxn(deletedPaths)
+      summary.docs_removed = deletedPaths.length
+    }
+
+    // Decide which docs need reindexing.
+    const toReindex = []
+    for (const doc of discovered) {
+      const existingRow = existingByPath.get(doc.path)
+      if (existingRow && existingRow.hash === doc.hash) {
+        summary.docs_skipped += 1
+        continue
+      }
+      toReindex.push(doc)
+    }
+
+    // Per doc: upsert docs row, replace chunks, embed + write vecs.
+    for (const doc of toReindex) {
+      await indexOneDoc(db, doc, opts, summary)
+      summary.docs_indexed += 1
+    }
+
+    // Refs graph — recompute from scratch each pass. Cheap (just a table
+    // scan of docs frontmatter) and avoids stale edges.
+    refreshRefs(db, discovered)
+
+    setMeta(db, "last_indexed_at", new Date().toISOString())
+    setMeta(db, "embedding_dim", String(EMBEDDING_DIM))
+    setMeta(db, "embedding_model", opts.embed?.model ?? "nomic-embed-text")
+  } finally {
+    if (ownsDb) closeDb(db)
+  }
+
+  return summary
+}
+
+async function indexOneDoc(db, doc, opts, summary) {
+  const chunks = chunkBody(doc.body)
+
+  // Embed chunks unless caller asked us to skip. embedChunks returns an
+  // array of either Float32-friendly arrays or nulls; nulls mean Ollama
+  // was unreachable for that chunk (typically because it's been
+  // unreachable for ALL chunks this run).
+  let embeddings = chunks.map(() => null)
+  if (!opts.skipEmbed && chunks.length > 0) {
+    embeddings = await embedChunks(
+      chunks.map((c) => c.text),
+      opts.embed ?? {},
+    )
+    if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
+      summary.semantic_warnings += 1
+      // One log line per run is enough; downstream tools surface the
+      // semantic_unavailable warning at query time.
+      console.warn(
+        "[desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only",
+      )
+    }
+  }
+
+  // Upsert in a transaction so a crash mid-doc doesn't leave a half-indexed
+  // row.
+  const txn = db.transaction(() => {
+    // Upsert docs row.
+    const upsert = db.prepare(
+      `INSERT INTO docs (path, kind, track, task_slug, status, schema_version,
+                         created_at, updated_at, hash, mtime, frontmatter)
+       VALUES (@path, @kind, @track, @task_slug, @status, @schema_version,
+               @created_at, @updated_at, @hash, @mtime, @frontmatter)
+       ON CONFLICT(path) DO UPDATE SET
+         kind=excluded.kind,
+         track=excluded.track,
+         task_slug=excluded.task_slug,
+         status=excluded.status,
+         schema_version=excluded.schema_version,
+         created_at=excluded.created_at,
+         updated_at=excluded.updated_at,
+         hash=excluded.hash,
+         mtime=excluded.mtime,
+         frontmatter=excluded.frontmatter
+       RETURNING id`,
+    )
+    const row = upsert.get({
+      path: doc.path,
+      kind: doc.kind,
+      track: doc.track,
+      task_slug: doc.task_slug,
+      status: doc.status,
+      schema_version: doc.schema_version,
+      created_at: doc.created_at,
+      updated_at: doc.updated_at,
+      hash: doc.hash,
+      mtime: doc.mtime,
+      frontmatter: JSON.stringify(doc.frontmatter ?? {}),
+    })
+    const docId = row.id
+
+    // Replace chunks. CASCADE on chunks doesn't fire for ON CONFLICT, so
+    // we explicitly delete by doc_id first. The triggers on the chunks
+    // table keep chunks_fts in sync; chunk_vecs we update by hand below.
+    const oldChunkIds = db
+      .prepare("SELECT id FROM chunks WHERE doc_id = ?")
+      .all(docId)
+      .map((r) => r.id)
+    if (oldChunkIds.length) {
+      const delVec = db.prepare("DELETE FROM chunk_vecs WHERE chunk_id = ?")
+      for (const id of oldChunkIds) delVec.run(id)
+    }
+    db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(docId)
+
+    const insertChunk = db.prepare(
+      `INSERT INTO chunks (doc_id, chunk_index, text, heading, start_offset, end_offset)
+       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+    )
+    const insertVec = db.prepare(
+      `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
+    )
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i]
+      const ins = insertChunk.get(
+        docId,
+        c.index,
+        c.text,
+        c.heading,
+        c.start_offset,
+        c.end_offset,
+      )
+      summary.chunks_inserted += 1
+      const vec = embeddings[i]
+      if (vec) {
+        // sqlite-vec's vec0 virtual table requires BigInt for primary-key
+        // bind values — plain JS numbers raise "Only integers are allows
+        // for primary key values on chunk_vecs". The ins.id comes back as
+        // a number from better-sqlite3's RETURNING; convert at the bind.
+        insertVec.run(BigInt(ins.id), new Float32Array(vec))
+      }
+    }
+  })
+  txn()
+}
+
+function refreshRefs(db, docs) {
+  const edges = computeRefs(docs)
+  const txn = db.transaction(() => {
+    db.exec("DELETE FROM refs_graph")
+    if (!edges.length) return
+    const lookup = db.prepare("SELECT id FROM docs WHERE path = ?")
+    const ins = db.prepare(
+      "INSERT OR IGNORE INTO refs_graph (src_doc_id, dst_doc_id, ref_kind) VALUES (?, ?, ?)",
+    )
+    for (const e of edges) {
+      const from = lookup.get(e.from)
+      const to = lookup.get(e.to)
+      if (!from || !to) continue
+      ins.run(from.id, to.id, e.ref_kind)
+    }
+  })
+  txn()
+}
+
+/**
+ * Check whether the index at `dbPath` is fresh — i.e., no markdown file
+ * under `deskRoot` has an mtime newer than the recorded last_indexed_at.
+ *
+ * Cheap heuristic; the real correctness invariant is the hash-compare
+ * inside rebuildIndex. This is just for the boot-time "do we need to do
+ * anything?" decision.
+ */
+export async function isIndexFresh(deskRoot, db) {
+  const row = db
+    .prepare("SELECT value FROM meta WHERE key = 'last_indexed_at'")
+    .get()
+  if (!row) return false
+  const indexedMs = Date.parse(row.value)
+  if (Number.isNaN(indexedMs)) return false
+  // Walk discover() targets and bail on the first newer mtime.
+  const docs = await discover(deskRoot)
+  for (const d of docs) {
+    if (d.mtime > indexedMs) return false
+  }
+  return true
+}
