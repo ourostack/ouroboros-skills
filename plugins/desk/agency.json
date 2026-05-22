@@ -1,6 +1,6 @@
 {
   "name": "desk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": ["claude", "copilot", "ouro"],
   "category": "developer-tools",
   "tags": ["workflow", "task-tracking", "cross-context", "agent-substrate"],
