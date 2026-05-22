@@ -19,6 +19,10 @@ import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
  * @param {object} [opts]
  * @param {object} [opts.embed] — forwarded to rebuildIndex (test injection).
  * @param {boolean} [opts.skipEmbed] — skip embedding when (re)building.
+ * @returns {Promise<{ built: boolean, reason: string,
+ *                     summary?: import("./indexer/index.js").RebuildSummary }>}
+ *   When `built=true`, `summary` carries the rebuildIndex counts. When
+ *   `built=false` (fresh), `summary` is omitted — nothing was reindexed.
  */
 export async function ensureIndex(deskRoot, opts = {}) {
   const dbPath = indexDbPath(deskRoot)
@@ -29,8 +33,8 @@ export async function ensureIndex(deskRoot, opts = {}) {
       const fresh = await isIndexFresh(deskRoot, db)
       if (fresh) return { built: false, reason: "fresh" }
     }
-    await rebuildIndex(deskRoot, { ...opts, db })
-    return { built: true, reason: dbExisted ? "stale" : "missing" }
+    const summary = await rebuildIndex(deskRoot, { ...opts, db })
+    return { built: true, reason: dbExisted ? "stale" : "missing", summary }
   } finally {
     closeDb(db)
   }

@@ -1,8 +1,8 @@
-// Unit 2 scaffold test: assert the server registers all 12 tool names.
+// Scaffold test: assert the server registers all 13 tool names.
 //
 // Boots the server in-process (no actual stdio transport, no actual desk
-// dir) and pulls the TOOL_NAMES export. Asserts the canonical 12 are
-// present. Real per-tool behavioural tests arrive in Units 3-6.
+// dir) and pulls the TOOL_NAMES export. Asserts the canonical 13 are
+// present. Real per-tool behavioural tests live alongside in tools/.
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
@@ -27,9 +27,11 @@ const EXPECTED_TOOLS = [
   "desk_similar",
   "desk_timeline",
   "desk_thread",
+  // Index management
+  "desk_reindex",
 ]
 
-test("server scaffolds all 12 expected tool names", () => {
+test("server scaffolds all 13 expected tool names", () => {
   for (const name of EXPECTED_TOOLS) {
     assert.ok(
       TOOL_NAMES.includes(name),
