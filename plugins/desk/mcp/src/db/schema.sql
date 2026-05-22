@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS docs (
   updated_at TEXT,                          -- ISO 8601, from frontmatter
   hash TEXT NOT NULL,                       -- sha256 of file content for dirty-detection
   mtime INTEGER NOT NULL,                   -- filesystem mtime for fast first-pass dirty check
+  is_archived INTEGER NOT NULL DEFAULT 0,   -- 1 if the doc lives under any _archive/ ancestor
   frontmatter TEXT                          -- raw JSON of full frontmatter object
 );
 
@@ -33,6 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_docs_track ON docs(track);
 CREATE INDEX IF NOT EXISTS idx_docs_kind ON docs(kind);
 CREATE INDEX IF NOT EXISTS idx_docs_status ON docs(status);
 CREATE INDEX IF NOT EXISTS idx_docs_updated_at ON docs(updated_at);
+CREATE INDEX IF NOT EXISTS idx_docs_is_archived ON docs(is_archived);
 
 -- ---------------------------------------------------------------------------
 -- chunks: one row per semantic chunk extracted from a doc.
