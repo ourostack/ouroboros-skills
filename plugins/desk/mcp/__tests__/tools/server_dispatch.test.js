@@ -37,16 +37,16 @@ test("server.callTool surfaces tool errors as isError with structured body", asy
   assert.match(body.message, /does not exist/)
 })
 
-test("server.callTool returns not_implemented for search tools (still stubs)", async () => {
+test("server.callTool returns not_implemented for desk_thread (still stub until Unit 6)", async () => {
   const root = await mkTempDeskRoot()
   const res = await callTool({
     deskRoot: root,
-    name: "desk_search",
-    input: { q: "anything" },
+    name: "desk_thread",
+    input: { path: "anything" },
   })
   const body = parseResult(res)
   assert.equal(body.status, "not_implemented")
-  assert.equal(body.tool, "desk_search")
+  assert.equal(body.tool, "desk_thread")
 })
 
 test("server.callTool rejects unknown tool names", async () => {
