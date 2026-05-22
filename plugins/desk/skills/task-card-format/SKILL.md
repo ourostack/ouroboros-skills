@@ -11,11 +11,22 @@ description: Schema for `task.md` — the per-task card inside a task directory.
 
 ```yaml
 ---
+schema_version: 1
 title: "<task-slug>"
 status: drafting
 created: "YYYY-MM-DDTHH:MM:SSZ"
 updated: "YYYY-MM-DDTHH:MM:SSZ"
 track: <track-directory-name>
+
+# Optional: categorization + runtime fields (see "Runtime fields" below)
+category: general                       # general | reminder | coordination | infrastructure | <free>
+cadence: "30m"                          # recurring cadence — daemon fires `ouro poke <agent> --task <id>` per cadence
+scheduledAt: 2026-05-21T09:00:00Z       # one-time scheduled fire (mutually compatible with `cadence` if both present)
+requester: "ari"                        # who asked for this task (defaults to "self" when agent-initiated)
+validator: "ari"                        # who validates completion
+artifacts: [https://github.com/.../pull/123]  # outputs produced by this task (PR URLs / file paths)
+active_bridge: "bridge-abc123"          # set by bridge promotion — bridge ID this task durably records
+bridge_sessions: ["sess-xyz789"]        # set by bridge promotion — session IDs the bridge is coordinating
 
 # Optional: adoption signals
 planning_complete: true                 # skip ideator/planner; jump to work-doer
@@ -55,6 +66,29 @@ iterations:
 ## Required fields
 
 `title`, `status`, `created`, `updated`, `track`, `repos[]` (each with `name`, `local_path`, `mode`).
+
+## Schema versioning
+
+`schema_version: 1` declares the current task-card schema. Consumers (parsers, migrators, the desk MCP server) read it to know how to interpret the rest of the frontmatter.
+
+**Back-compat rule:** files missing `schema_version` are treated as `schema_version: 0` (pre-versioned). Consumers MUST accept v0 files indefinitely — parsing them with the current schema works because v1 is a strict superset of v0. New task creation always writes `schema_version: 1`.
+
+**Bump rule:** increment `schema_version` only when a change is genuinely breaking (a required field added, a field renamed, a value range changed). Adding optional fields is NOT a schema bump — desk has many optional fields and they accumulate without disturbing the schema_version.
+
+## Runtime fields (optional)
+
+These fields are read by the harness, not the agent. Set them when the task represents something the harness needs to schedule, route, or reconcile:
+
+- **`category`** — free-string tag. Reserved values: `reminder` (creates via `ouro reminder create` — fires on a schedule), `coordination` (bridge-promoted tasks), `infrastructure` (harness self-maintenance). Anything else is a project category the agent can use freely.
+- **`cadence`** — recurring schedule expressed as `Nm` / `Nh` / `Nd` (e.g. `30m`, `4h`, `1d`) or a cron expression. The daemon scheduler fires `ouro poke <agent> --task <id>` at each cadence interval. Leave unset for non-recurring tasks.
+- **`scheduledAt`** — ISO 8601 timestamp for a one-time scheduled fire. Compatible with `cadence`: `scheduledAt` is the first/next fire; `cadence` is the repeat interval after.
+- **`requester`** — who asked for this task. `"self"` when agent-initiated; the operator's alias when operator-initiated; another agent's name when delegated cross-agent.
+- **`validator`** — who validates completion. Usually the same as `requester`; differs when the validator is a separate party (e.g., automated test suite).
+- **`artifacts`** — list of outputs this task produced. PR URLs, file paths, document references. Appended to as the task progresses.
+- **`active_bridge`** — set automatically by `promoteBridgeToDesk`. Records the bridge ID this task durably represents. Read by the bridge lifecycle reconciler to auto-resolve bridges when their backing task reaches `done` / `cancelled`.
+- **`bridge_sessions`** — set automatically by `promoteBridgeToDesk`. Session IDs the bridge is coordinating across. Read by the same reconciler.
+
+Agents creating tasks via `desk` skills don't typically set runtime fields directly — they're added by `ouro reminder create`, by bridge promotion, or by the operator. But agents reading task cards should understand what these fields mean so they don't strip them on edits.
 
 Consumer agents extending this with their own work-tracker schema
 (e.g., worker users with ADO Features) add their own frontmatter
