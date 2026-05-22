@@ -50,6 +50,17 @@ Surface confirmed:
 
 - Initial skills + skeleton.
 
+## Setup (v1.0)
+
+After `ouro plugin install github:ourostack/ouroboros-skills:plugins/desk --agent <name>`:
+
+1. **Install plugin's MCP deps:** `cd ~/.ouro-cli/plugins/desk/mcp && npm install`
+2. **Install Ollama** for full semantic surface (recall / similar). Mac one-time: `curl -L https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz | tar -xz` then add the binary to PATH. Linux: `curl -fsSL https://ollama.com/install.sh | sh`.
+3. **Pull the embedding model:** `ollama serve &` then `ollama pull nomic-embed-text` (one-time, ~274MB).
+4. **Restart daemon** so plugin MCP discovery picks up the new server: `ouro stop && ouro up`.
+
+Without Ollama, desk_search falls back to FTS5-only (keyword) and desk_recall/desk_similar return empty. Substrate works; semantic surface is degraded.
+
 ## Known limitations (v1.0)
 
 These do NOT block v1.0 use but are tracked for follow-ups:
