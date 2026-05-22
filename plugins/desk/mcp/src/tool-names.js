@@ -13,7 +13,7 @@ export const TOOL_NAMES = [
   "track_update",
   "friction_add",
   "lesson_add",
-  // Search (Units 4-6)
+  // Search (Units 5 + 6)
   "desk_search",
   "desk_recall",
   "desk_similar",
@@ -44,5 +44,6 @@ export const TOOL_DESCRIPTIONS = {
     "Find docs similar to a given path via centroid of the seed doc's chunk embeddings. Returns ranked similar docs excluding the seed itself.",
   desk_timeline:
     "Temporal query — filter docs by updated_at window, optionally combined with FTS+semantic. Without `query`: chronological listing. With `query`: hybrid ranking inside the window, ordered by updated_at DESC.",
-  desk_thread: "Provenance walk via refs_graph. Stub until Unit 6.",
+  desk_thread:
+    "Provenance walk via refs_graph: BFS along planning/doing/feedback/iteration edges from a starting doc. Returns an ordered chain {path, kind, ref_kind, hop_distance, why_connected, updated_at}. Inputs: start_path (required), depth (optional, default 4), direction (optional: forward|backward|both, default both). Errors with not_indexed when start_path isn't in the index.",
 }
