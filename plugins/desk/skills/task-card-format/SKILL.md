@@ -11,6 +11,7 @@ description: Schema for `task.md` — the per-task card inside a task directory.
 
 ```yaml
 ---
+schema_version: 1
 title: "<task-slug>"
 status: drafting
 created: "YYYY-MM-DDTHH:MM:SSZ"
@@ -65,6 +66,14 @@ iterations:
 ## Required fields
 
 `title`, `status`, `created`, `updated`, `track`, `repos[]` (each with `name`, `local_path`, `mode`).
+
+## Schema versioning
+
+`schema_version: 1` declares the current task-card schema. Consumers (parsers, migrators, the desk MCP server) read it to know how to interpret the rest of the frontmatter.
+
+**Back-compat rule:** files missing `schema_version` are treated as `schema_version: 0` (pre-versioned). Consumers MUST accept v0 files indefinitely — parsing them with the current schema works because v1 is a strict superset of v0. New task creation always writes `schema_version: 1`.
+
+**Bump rule:** increment `schema_version` only when a change is genuinely breaking (a required field added, a field renamed, a value range changed). Adding optional fields is NOT a schema bump — desk has many optional fields and they accumulate without disturbing the schema_version.
 
 ## Runtime fields (optional)
 
