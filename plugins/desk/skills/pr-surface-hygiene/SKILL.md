@@ -77,18 +77,18 @@ containing surface is manually refreshed.
 |---|---|
 | `(12 tests)` / `(8 tests)` after a unit summary | No count — name the test class or `dotnet test --filter` string |
 | `GraphServiceAdapter.cs:2745` line refs | Method / class name: `GraphServiceAdapter.UpdateChannelAsync` |
-| "Unit 14" / "Phase 3" refs (doing-doc numbering) | The unit's name or the behavior it landed |
+| Numbered-unit refs (internal doing-doc numbering like "the third unit") | The unit's name or the behavior it landed |
 | "p99 ~42 ms on my dev box" | Link the production dashboard that will show p99 after rollout |
 | `312/312 green` | Pipeline-green reference (see Rule 1) |
 | Undated timing claim from development | Dated + scoped evidence only — or omit |
 
-The general principle: reach for **method names, class names, ADO
+The general principle: reach for **method names, class names,
 thread IDs, test-filter strings, and behavior descriptions**. Those
 survive reformatting, refactoring, extraction, and archival.
 
-## PSH-003 — verify ADO citations and require standalone WI bodies
+## PSH-003 — verify tracker citations and require standalone WI bodies
 
-When citing an ADO work item ID in a PR description, top-level PR
+When citing a work-item ID in a PR description, top-level PR
 comment, or commit message, two sub-rules apply.
 
 ### Rule 1 — verify the ID by reading the WI before citing
@@ -104,15 +104,15 @@ confirm:
 
 The fetch is cheap. The cost of citing the wrong item in a live PR
 description is high — the operator catches it, the PR-surface
-commit gets a "fix wrong ADO link" follow-up that bloats the audit
-trail, and the cited item points reviewers at the wrong scenario.
-ID conflation is especially easy when two follow-up tasks in the
-same theme share rough wording: one closes, the other stays open,
-and "the follow-up task" loses which-is-which.
+commit gets a "fix wrong tracker link" follow-up that bloats the
+audit trail, and the cited item points reviewers at the wrong
+scenario. ID conflation is especially easy when two follow-up tasks
+in the same theme share rough wording: one closes, the other stays
+open, and "the follow-up task" loses which-is-which.
 
 ### Rule 2 — the cited WI must stand on its own
 
-A reviewer who clicks an ADO link expects to land on a work item
+A reviewer who clicks a tracker link expects to land on a work item
 that explains itself. The body should carry, at minimum:
 
 - **Scenario** — what triggers the work or when it applies.

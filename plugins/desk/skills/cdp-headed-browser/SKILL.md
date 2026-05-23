@@ -7,7 +7,7 @@ description: Invoke when the agent needs Playwright to drive a web UI behind an 
 
 This skill inherits all invariants in `../../principles.md`. Read them first if they are not already in context.
 
-> **worker users**: see `worker:ms-edge-managed-mac` for Entra Conditional Access (error 530003), Platform SSO, and Edge-on-managed-Mac launch specifics. This skill stays generic.
+> **overlay users**: consumer overlays for org-managed Macs may ship their own managed-browser skill (covering corporate IdP conditional access, platform SSO, and managed-Edge specifics). This skill stays generic.
 
 The default Playwright MCP shape (throwaway isolated Chromium per session) breaks against any web surface with strict auth because:
 
@@ -37,9 +37,9 @@ Don't pay it for one-off scraping against external sites where the isolated Chro
 | Headed for human interaction + oversight | Headless by default; FIDO un-completable. | Browser is a real window; operator can intervene. |
 | Maintain session context (auth) | Fresh profile each session; auth lost. | Profile is persistent in `~/.playwright-agent-browser`. |
 
-## agency.toml
+## Workspace MCP config
 
-Workspace `agency.toml` `[mcps.servers.playwright]` block for CDP-attach:
+Workspace MCP config `[mcps.servers.playwright]` block for CDP-attach:
 
 ```toml
 [mcps.servers.playwright]
@@ -54,7 +54,7 @@ args = [
 
 No `--browser`, no `--isolated`, no `--user-data-dir`, no `--headless`. The browser running at `:9222` dictates the rest.
 
-After editing `agency.toml`, the operator must relaunch the agent for the MCP to re-read its config.
+After editing the workspace MCP config, the operator must relaunch the agent for the MCP to re-read its config.
 
 ## Browser launch
 
@@ -76,7 +76,7 @@ curl -s http://localhost:9222/json/version | jq '.Browser'
 
 Expected: a string identifying the browser and version.
 
-(worker users on a managed Mac: see `worker:ms-edge-managed-mac` for the specific Edge binary path, Platform SSO behavior, and Entra Conditional Access notes.)
+(overlay users on an org-managed Mac: consumer overlays may ship the specific managed-Edge binary path, platform SSO behavior, and conditional-access notes.)
 
 ## macOS first-launch trap
 
@@ -163,7 +163,7 @@ Chromium-derived browsers spawn helper processes (renderer, GPU, utility) that m
 ## Failure modes
 
 - **CDP not listening (`curl ... | head -c 50` returns empty / connection refused)** — the browser isn't running, or running without `--remote-debugging-port`, or another process is holding the port. Verify with `lsof -i :9222`.
-- **SSO / device-binding error on auth** — the user-data-dir isn't recognized by the IdP. worker users: see `worker:ms-edge-managed-mac` for Entra-specific fallbacks. Otherwise: accept the one-time interactive auth and rely on cached cookies.
+- **SSO / device-binding error on auth** — the user-data-dir isn't recognized by the IdP. overlay users: consumer overlays may ship IdP-specific fallbacks. Otherwise: accept the one-time interactive auth and rely on cached cookies.
 - **First navigation lands at a welcome / first-run page regardless of URL arg** — first-launch trap; use `/json/new?url=` workaround.
 - **Operator's focus keeps getting stolen** — `bringToFront()` is somewhere in the script. Strip it.
 - **Playwright `connectOverCDP` returns 0 contexts** — the browser crashed or restarted without the CDP flag. Re-launch.
@@ -171,5 +171,5 @@ Chromium-derived browsers spawn helper processes (renderer, GPU, utility) that m
 
 ## Cross-references
 
-- **`agency.toml` schema** — worker users: see `worker:add-workspace-mcp` for the `[mcps.servers.<alias>]` shape and the agency-spawner gotchas around `type = "npx"` vs `type = "stdio"`.
+- **Workspace MCP config schema** — see `desk:add-workspace-mcp` for the `[mcps.servers.<alias>]` shape and the runtime-spawner gotchas around `type = "npx"` vs `type = "stdio"`.
 - **The persistent `~/.playwright-agent-browser` directory** is sacred state. Don't delete it; it holds auth.

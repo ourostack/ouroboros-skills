@@ -34,9 +34,10 @@ planning: ./_planning/planning.md
 ```
 
 consumer agents extending this with their own work-tracker schema
-(e.g. worker users with ADO Features) add their own frontmatter
-block — see `worker:ms-card-fields` for the MS-specific `ado:` +
-`ado_defaults:` shape.
+(e.g. enterprise overlays with Feature / Epic hierarchies) add their
+own frontmatter block — typically the overlay ships a
+`<overlay>:card-fields` skill defining the tracker-specific shape
+(e.g. `tracker:` and `tracker_defaults:` keys).
 
 ## Schema versioning
 
@@ -68,8 +69,7 @@ One paragraph describing what this track covers.
 ```
 
 consumer agents may add a "Work-tracker structure" body section
-(e.g. the MS ADO Feature/Requirement/Task hierarchy) — that
-belongs in the consumer's extension skill, not here. worker users:
-see `worker:ms-card-fields`.
+(e.g. an enterprise Feature/Requirement/Task hierarchy) — that
+belongs in the consumer's extension skill, not here.
 
 keep the body concise. when a resuming operator slides the drawer open, they should know what's in flight and what's next in under 30 seconds.

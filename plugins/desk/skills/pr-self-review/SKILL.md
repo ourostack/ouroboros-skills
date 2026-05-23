@@ -52,16 +52,17 @@ redesign, not a tweak.
 
 4. **Findings are findings regardless of source.** The output format
    is `feedback.md`-compatible. `pr-feedback-on-own-pr`'s walk-through flow
-   consumes pr-self-review findings the same way it consumes ADO
+   consumes pr-self-review findings the same way it consumes real PR
    reviewer threads. A finding from the self-review evaluator and a
    comment from an external human reviewer are the same kind of
    thing once they land in the queue. No source-specific branching
    downstream.
 
 5. **Rule-IDs are stable.** Every finding cites a rule-ID of the form
-   `<PREFIX>-NNN`. Prefixes are namespaced by origin (`TG-STD-` for
-   Teams-Graph code-standards, `PSH-` for pr-surface-hygiene, `PSR-`
-   for pr-self-review's own baseline rules). Once a rule-ID is
+   `<PREFIX>-NNN`. Prefixes are namespaced by origin (e.g. a repo-
+   specific prefix for the repo's code-standards rules, `PSH-` for
+   pr-surface-hygiene, `PSR-` for pr-self-review's own baseline
+   rules). Once a rule-ID is
    assigned, it does not get renumbered. This is the prerequisite
    for future per-rule effectiveness tracking and for stable cross-
    references from findings back to the rule that produced them.
@@ -114,11 +115,11 @@ confusion than signal.
 ### Annotated diff (line-numbered)
 
 Produce an annotated view of the diff where each line the evaluator
-may cite has its file-relative line number visible. This pattern is
-adopted from Daniel Sada's v3 `/review-pr` implementation in
-`teams-modular-packages` — the evaluator's findings are much easier
-to ground-truth in Phase 3 when the line numbers in the finding map
-cleanly back to the diff the evaluator actually read.
+may cite has its file-relative line number visible. This pattern
+borrows from prior PR-review implementations in the broader
+community — the evaluator's findings are much easier to ground-truth
+in Phase 3 when the line numbers in the finding map cleanly back to
+the diff the evaluator actually read.
 
 The annotated diff is derivable mechanically from `git diff` output
 plus `git blame` or `git show` for the pre-image line numbers;
@@ -214,14 +215,14 @@ Phase 3 will then fact-check.
 
 ### Why unified, not multi-track
 
-Daniel Sada's v3 implementation splits evaluation into two tracks:
+Some PR-review implementations split evaluation into two tracks:
 typed rules (executed by a rule compiler) and experts (scoped
 personas that each evaluate a slice of the diff). That design makes
-sense at Teams' scale — thousands of PRs per day, fine-grained
-cost control needed. Worker's scale is low-volume and high-care
-per invocation; the expert/rules split collapses cleanly into one
-evaluator pass over the merged rule set. The "expert roles" were
-always rules in costumes; we just ask for the findings directly.
+sense at very-high-volume scale — thousands of PRs per day, fine-
+grained cost control needed. Worker's scale is low-volume and high-
+care per invocation; the expert/rules split collapses cleanly into
+one evaluator pass over the merged rule set. The "expert roles"
+were always rules in costumes; we just ask for the findings directly.
 
 A single pass also simplifies fact-checking in Phase 3 (one list of
 findings, not N lists to reconcile) and keeps the skill small enough
@@ -472,10 +473,9 @@ recommendations in Phase 4's `human` path.
 ## Phase 3 — Fact-check
 
 Phase 3 is **grounding verification** for every raw finding out of
-Phase 2. It is adopted directly from Daniel Sada's v3 `/review-pr`
-implementation in `teams-modular-packages` (his Phase 5c), and
-credit is due to that design: fact-check is cheap for an agent to
-do and catches a large fraction of hallucinated findings before
+Phase 2. The pattern is borrowed from prior PR-review skill
+implementations in the community: fact-check is cheap for an agent
+to do and catches a large fraction of hallucinated findings before
 they reach the operator.
 
 ### The mechanism
@@ -683,10 +683,10 @@ Each finding is emitted in a shape that `pr-feedback-on-own-pr` can consume
 as a synthetic thread. YAML:
 
 ```yaml
-- thread_id: self-review-001      # generated; distinguishes from ADO thread IDs
+- thread_id: self-review-001      # generated; distinguishes from real PR thread IDs
   source: pr-self-review
   iteration: 1                    # which pass of the convergence loop
-  rule_id: TG-STD-007
+  rule_id: REPO-STD-007
   file: packages/foo/src/bar.ts
   line: 142
   severity: blocking | recommended | nit
@@ -700,14 +700,14 @@ as a synthetic thread. YAML:
 ```
 
 The `source: pr-self-review` marker lets `pr-feedback-on-own-pr` distinguish
-self-review synthetic threads from real ADO threads when both are
+self-review synthetic threads from real PR threads when both are
 present, without changing downstream handling — both just flow into
 the same walk-through.
 
 ### Artifacts
 
 Phase 4 writes two files to the iteration's artifacts directory in
-worker-workspace (same location as the planning and doing docs):
+the desk-workspace repo (same location as the planning and doing docs):
 
 - `artifacts/pr-self-review.md` — human-readable report. Grouped by
   file, ordered by severity within file, with suggested fixes
@@ -720,7 +720,7 @@ Both files are rewritten on each iteration of the convergence loop,
 with the `iteration` field updated and only findings from the most
 recent pass present. Historical iteration state, if needed for
 debugging, can be recovered from the git history of the
-worker-workspace iteration folder.
+desk-workspace iteration folder.
 
 ### Hand-off to the convergence loop
 
@@ -788,7 +788,7 @@ Each pass of the loop is a full re-execution of Phases 1–4:
 - **Phase 4 re-runs** and rewrites both artifacts with
   `iteration: N+1` on every finding. Only findings from the most
   recent pass are present in the artifacts; previous iterations live
-  in the git history of worker-workspace.
+  in the git history of the desk-workspace repo.
 
 The `iteration` field on each finding is the counter that
 distinguishes one pass from another. Iteration 1 is the first pass
@@ -895,7 +895,7 @@ can legitimately invalidate a prior deferral.
 Mechanically, the list lives in the iteration's artifacts directory
 alongside `findings.json` — e.g., `artifacts/deferred-items.md` —
 and is rewritten on each iteration with the accumulated entries.
-Git history of the worker-workspace iteration folder preserves per-
+Git history of the desk-workspace iteration folder preserves per-
 iteration snapshots for debugging.
 
 Relationship to inline pins (Phase 4 `human` path): the pin is
@@ -928,7 +928,7 @@ invokes `pr-feedback-on-own-pr` with a mode flag and the path to the
 findings file:
 
 - **Mode**: `auto-apply-only`. Skip the operator-confirm phases,
-  skip any reply-to-ADO-thread behavior (those are for real
+  skip any reply-to-PR-thread behavior (those are for real
   reviewer threads), process only findings with
   `resolution_path: auto`. Return a summary: list of threads that
   were applied, list that were skipped, and whether any code
@@ -936,7 +936,7 @@ findings file:
 - **Input**: the `artifacts/pr-self-review-findings.json` produced
   by Phase 4. `pr-feedback-on-own-pr`'s Phase 1 gather (after the extension
   described in that skill) treats each finding as a synthetic
-  thread alongside any real ADO threads in scope.
+  thread alongside any real PR threads in scope.
 
 `pr-feedback-on-own-pr` handles the actual edits, test runs, and commits.
 When it returns, the convergence loop checks whether any code

@@ -142,7 +142,7 @@ directory and frontmatter; nothing on the diff itself is read yet.
      placeholder sections for the diff opener, the walkthrough log,
      and the backlog).
 
-   Commit + push to worker-workspace per `../git-hygiene/SKILL.md`. The
+   Commit + push to the desk-workspace repo per `../git-hygiene/SKILL.md`. The
    directory existing on disk before Phase 2 starts is the signal
    that the review is in flight; later phases assume it.
 
@@ -197,8 +197,9 @@ pausing to ask the operator how to proceed:
 
 1. **Fork a `gather-diff` sub-agent** that fetches each non-test
    changed file's base + head content via the platform's file-
-   content API (engine-agnostic; ADO has `GET /items?path=...&versionDescriptor=...`,
-   GitHub has `GET /repos/{owner}/{repo}/contents/{path}?ref=...`).
+   content API (engine-agnostic; GitHub has
+   `GET /repos/{owner}/{repo}/contents/{path}?ref=...`; other PR
+   hosts have equivalents).
 2. **For each file, pick the right shape:**
    - Added file → head-only.
    - Edited file → fetch base + head, run `diff -u` locally on the
@@ -256,7 +257,7 @@ directly to peer review.
 ### Default file-read order for engine + integration + UI diffs
 
 When the diff has the shape "engine logic + integration callsite +
-UI surface" (a common shape in MS internal repos), default to this
+UI surface" (a common shape in layered codebases), default to this
 file-read order rather than top-to-bottom-of-the-file-tree:
 
 1. Public type contract (`.types.ts` or named type exports;
@@ -497,18 +498,17 @@ When a comment body references another PR or work item, use the
 platform's auto-link syntax — not raw URLs and not "PR <id>"
 prose. The exact syntax is platform-specific:
 
-- **Azure DevOps**: `!<id>` for PRs (e.g., `!1537249`), `#<id>`
-  for work items (e.g., `#5348237`). ADO renders each as a
-  styled link with the title and current status.
 - **GitHub**: `#<id>` for both PRs and issues (e.g., `#1234`).
   GitHub renders it as a styled link with the title.
+- Other PR hosts have their own conventions (e.g., `!<id>` for
+  PRs / MRs on some, `#<id>` for work items on others).
 
-Examples (ADO shape):
+Examples (GitHub shape):
 
-- Bad: `"...lines up with the PATCH endpoint landing in PR 1537249..."`
-- Good: `"...lines up with the PATCH endpoint landing in !1537249..."`
-- Bad: `"see PR https://dev.azure.com/.../pullrequest/1537249"`
-- Good: `"see !1537249"`
+- Bad: `"...lines up with the PATCH endpoint landing in PR 1234..."`
+- Good: `"...lines up with the PATCH endpoint landing in #1234..."`
+- Bad: `"see PR https://github.com/<org>/<repo>/pull/1234"`
+- Good: `"see #1234"`
 
 Use raw URLs only when you specifically want the URL visible
 (e.g., link to a wiki page, dashboard, log). For PRs and work
@@ -603,7 +603,7 @@ review's outcome without opening `notes.md`: vote cast, comments
 posted (and where they live as thread IDs), promotions applied,
 closing posture.
 
-After the move, commit + push to worker-workspace per
+After the move, commit + push to the desk-workspace repo per
 `../git-hygiene/SKILL.md`. The archive is read-only after this
 point; if the review needs to be revisited, open a new review.
 

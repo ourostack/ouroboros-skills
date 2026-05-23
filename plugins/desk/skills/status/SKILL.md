@@ -7,7 +7,7 @@ description: Emit a one-screen resume-friendly dashboard of all active worker st
 
 A single-screen dashboard that answers "where are we?" without manual archaeology across workspace markdown, external work trackers, and local code repos.
 
-> **Worker users:** For ADO-formatted status entries (Feature IDs, `dev.azure.com` URLs, alias-aware paths), see `worker:ms-card-fields`.
+> **Overlay users:** consumer overlays often ship tracker-formatted status entries (work-item IDs, tracker URLs, identity-aware paths) via an overlay-specific card-fields skill.
 
 ## When to invoke
 
@@ -16,7 +16,7 @@ A single-screen dashboard that answers "where are we?" without manual archaeolog
 - Mid-session when the operator wants a checkpoint without reading every task card.
 - At the start of a resumed session, AFTER the session-start checklist completes (the checklist's status block is a SUBSET of `/status` — `/status` is the full read-out).
 
-> ADO-aware variant: worker users get a Feature-ID-aware status with `dev.azure.com` URLs via `worker:ms-card-fields`.
+> Tracker-aware variant: overlays add work-item-ID-aware status with tracker URLs via their card-fields skill.
 
 ## What to emit
 
@@ -95,7 +95,7 @@ External work tracker IDs/URLs (if any) come from the task/track frontmatter —
 - Git log or commit history (out of scope; use `git log` directly).
 - The agent's own internal state, TaskCreate items, or session memory — the dashboard reflects **persistent workspace state**, not session ephemera.
 
-## Example output (small worker-workspace)
+## Example output (small desk workspace)
 
 ```markdown
 # Status — alice, 2026-01-15
@@ -122,7 +122,7 @@ All `mode: local` repos clean.
 
 - 2026-01-14 — Status dashboard proposal — landed
 - 2026-01-13 — Task cards aren't portable across machines — landed
-- 2026-01-12 — Enforce EMU account via pre-Bash hook — open
+- 2026-01-12 — Enforce work-account identity via pre-Bash hook — open
 
 ---
 

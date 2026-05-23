@@ -2,11 +2,9 @@
 
 ## 1.2.1 — 2026-05-22
 
-First actual migration shipped via the framework: **`migrations/01-workspace-to-ms-desk.md`**. Auto-cutovers operator machines from `~/worker-workspace/` or `~/desk/` to the new canonical `~/ms-desk/`, repoints the `~/agency.toml` symlink, and updates the git remote URL. Hard-stops the session after the migration runs so the next session's preamble loads against `~/ms-desk/`.
+First actual migration shipped via the framework (overlay-private). Migrations using this framework are idempotent and reversible: the operations they wrap (e.g. `mv` for path renames) are atomic + the new name is the only post-state. Safety check refuses if there's uncommitted work in the old workspace dir; never sweep-stages.
 
-The migration is **idempotent and reversible**: `mv` is atomic + the new name is the only post-state. Safety check refuses if there's uncommitted work in the old workspace dir; never sweep-stages.
-
-This release is just the migration file — no code or driver changes from 1.2.0.
+This release is just the migration framework — no code or driver changes from 1.2.0. Concrete migrations live in consumer overlays.
 
 ## 1.2.0 — 2026-05-22
 
@@ -23,11 +21,11 @@ Design choices:
 
 Integration: `desk:session-start` now hands off to this skill in a new Step 0.5 — after Step 0's host-identity probe, before Step 1's prereq probe. The order matters: most later steps assume `$DESK/` resolves to the canonical workspace path, so migrations run first.
 
-This release ships the framework only; the first actual migration (`01-workspace-to-ms-desk.md`) lands in a follow-up PR.
+This release ships the framework only; concrete migrations live in consumer overlays.
 
 ## 1.1.0 — 2026-05-22
 
-**Archive is now searchable.** Reversed the v1.0 Unit 4 decision to skip `_archive/` at index time. Archive content was always meant to be preserved for future recall — making it unsearchable defeated the purpose.
+**Archive is now searchable.** Reversed the v1.0 indexer behavior that skipped `_archive/` at index time. Archive content was always meant to be preserved for future recall — making it unsearchable defeated the purpose.
 
 What changed:
 
@@ -68,29 +66,29 @@ Surface confirmed:
 
 ## 0.7.0 — 2026-05-22
 
-- Unit 6: `desk_thread` provenance walk.
+- `desk_thread` provenance walk MCP tool.
 
 ## 0.6.0 — 2026-05-22
 
-- Unit 5: search tools (`desk_search`, `desk_recall`, `desk_similar`, `desk_timeline`).
+- Search tools: `desk_search`, `desk_recall`, `desk_similar`, `desk_timeline`.
 
 ## 0.5.0 — 2026-05-22
 
-- Unit 4: SQLite + sqlite-vec + nomic-embed-text indexer (via Ollama).
+- SQLite + sqlite-vec + nomic-embed-text indexer (via Ollama).
 
 ## 0.4.0 — 2026-05-22
 
-- Unit 3: runtime CRUD (`task_create`, `task_update`, `task_archive`, `track_create`, `track_update`, `friction_add`, `lesson_add`).
+- Runtime CRUD MCP tools: `task_create`, `task_update`, `task_archive`, `track_create`, `track_update`, `friction_add`, `lesson_add`.
 
 ## 0.3.0 — 2026-05-22
 
-- Unit 2: MCP server scaffold with `.mcp.json` declaration.
+- MCP server scaffold with `.mcp.json` declaration.
 
 ## 0.2.0 — 2026-05-22
 
-- Unit 1: extends task.md schema; adds `schema_version: 1`; drops Execution Mode (spawn-mode).
+- Extends task.md schema; adds `schema_version: 1`; drops Execution Mode (spawn-mode).
 
-## 0.1.0 — pre-W6
+## 0.1.0
 
 - Initial skills + skeleton.
 
