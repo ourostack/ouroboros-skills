@@ -9,13 +9,13 @@
   },
   "main": "./index.js",
   "scripts": {
-    "test": "node --test __tests__/"
+    "test": "node --test \"__tests__/**/*.test.js\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.3.0",
-    "sqlite-vec": "^0.1.6",
-    "gray-matter": "^4.0.3"
+    "gray-matter": "^4.0.3",
+    "sqlite-vec": "^0.1.6"
   },
   "engines": {
     "node": ">=20.0.0"

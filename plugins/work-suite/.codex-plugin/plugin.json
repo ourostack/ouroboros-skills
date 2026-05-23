@@ -1,0 +1,41 @@
+{
+  "name": "work-suite",
+  "version": "1.3.0",
+  "description": "The four-phase workflow primitive for orchestrator agents: ideate, plan, execute, and merge, plus long-horizon execution discipline.",
+  "author": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/work-suite",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "planning",
+    "execution",
+    "merge"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Work Suite",
+    "shortDescription": "Ideation, planning, doing, merging, and autonomous execution skills.",
+    "longDescription": "Work Suite packages the canonical Ourostack workflow skills for Codex and other agent runtimes: work-ideator, work-planner, work-doer, work-merger, autopilot, and inch-worm.",
+    "developerName": "ourostack",
+    "category": "Engineering",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/work-suite",
+    "privacyPolicyURL": "https://github.com/ourostack/ouroboros-skills",
+    "termsOfServiceURL": "https://github.com/ourostack/ouroboros-skills",
+    "defaultPrompt": [
+      "Plan and execute this work.",
+      "Run an inch-worm improvement loop.",
+      "Merge this finished branch."
+    ],
+    "brandColor": "#0F766E",
+    "screenshots": []
+  }
+}
