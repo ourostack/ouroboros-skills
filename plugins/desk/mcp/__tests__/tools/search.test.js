@@ -86,6 +86,30 @@ test("desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailab
   assert.equal(res.results[0].score_breakdown.semantic, 0)
 })
 
+test("desk_search — repairs a fresh lexical-only index when embeddings are available", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha semantic repair body\n",
+  )
+  const { rebuildIndex } = await import("../../src/indexer/index.js")
+  await rebuildIndex(root, { embed: { fetch: makeFailingFetch() } })
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+
+  assert.equal(res.semantic_unavailable, false)
+  assert.ok(res.results.length >= 1)
+  assert.ok(
+    res.results[0].score_breakdown.semantic > 0,
+    "semantic component should be restored after repair",
+  )
+})
+
 test("desk_search — track filter narrows to one track", async () => {
   const root = await buildBaseDesk()
   await buildFixtureIndex(root)

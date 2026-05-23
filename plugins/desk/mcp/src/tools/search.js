@@ -34,6 +34,18 @@ import {
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 50
 const SNIPPET_MAX_CHARS = 280
+const SEMANTIC_REPAIR_COMMAND =
+  "Start Ollama, pull nomic-embed-text, then run desk_reindex; no force is required after v1.2.2 because missing vectors are repaired automatically."
+
+function semanticUnavailableFields(diagnostic) {
+  return {
+    semantic_note: diagnostic?.message
+      ? `Semantic search unavailable: ${diagnostic.message}`
+      : "Semantic search unavailable: embedding service did not return a usable vector",
+    semantic_diagnostic: diagnostic ?? null,
+    semantic_repair: SEMANTIC_REPAIR_COMMAND,
+  }
+}
 
 /**
  * Read `<deskRoot>/_meta/featured.md` and return the first track slug listed
@@ -403,7 +415,7 @@ export async function desk_search({ deskRoot, input, opts }) {
   const scope = input?.scope
   const now = opts?.now ?? Date.now()
 
-  await ensureIndex(deskRoot)
+  await ensureIndex(deskRoot, { embed: opts?.embed ?? {} })
   const db = openDb(deskRoot)
   try {
     const { matchExpr, terms } = buildFtsQuery(query)
@@ -412,7 +424,11 @@ export async function desk_search({ deskRoot, input, opts }) {
     const scopeFilter = resolveScopeFilter(scope, "active")
 
     // Embed the query (with caller-injectable opts for tests).
-    const { vector: queryVec, available: semanticAvailable } = await embedQuery(
+    const {
+      vector: queryVec,
+      available: semanticAvailable,
+      diagnostic: semanticDiagnostic,
+    } = await embedQuery(
       query,
       opts?.embed ?? {},
     )
@@ -499,6 +515,7 @@ export async function desk_search({ deskRoot, input, opts }) {
       results,
       semantic_unavailable: !semanticAvailable,
       latency_ms: Date.now() - t0,
+      ...(!semanticAvailable ? semanticUnavailableFields(semanticDiagnostic) : {}),
     }
   } finally {
     closeDb(db)
@@ -531,14 +548,19 @@ export async function desk_recall({ deskRoot, input, opts }) {
   const limit = clampLimit(input?.limit)
   const scope = input?.scope
 
-  await ensureIndex(deskRoot)
+  await ensureIndex(deskRoot, { embed: opts?.embed ?? {} })
   const db = openDb(deskRoot)
   try {
-    const { vector: queryVec, available } = await embedQuery(topic, opts?.embed ?? {})
+    const {
+      vector: queryVec,
+      available,
+      diagnostic: semanticDiagnostic,
+    } = await embedQuery(topic, opts?.embed ?? {})
     if (!available) {
       return {
         error: "semantic_unavailable",
-        note: "Ollama not running; recall requires semantic search",
+        note: "Recall requires semantic search; the embedding service is unavailable.",
+        ...semanticUnavailableFields(semanticDiagnostic),
         latency_ms: Date.now() - t0,
       }
     }
@@ -612,7 +634,7 @@ export async function desk_similar({ deskRoot, input, opts }) {
   const limit = clampLimit(input?.limit)
   const scope = input?.scope
 
-  await ensureIndex(deskRoot)
+  await ensureIndex(deskRoot, { embed: opts?.embed ?? {} })
   const db = openDb(deskRoot)
   try {
     const seedDoc = db
@@ -642,8 +664,8 @@ export async function desk_similar({ deskRoot, input, opts }) {
       return {
         error: "semantic_unavailable",
         note:
-          "seed doc has no embeddings — Ollama was unreachable at index time. " +
-          "Run `ouro desk reindex` once Ollama is back up.",
+          "seed doc has no embeddings; the index was built while semantic embeddings were unavailable.",
+        semantic_repair: SEMANTIC_REPAIR_COMMAND,
         latency_ms: Date.now() - t0,
       }
     }
@@ -725,7 +747,7 @@ export async function desk_timeline({ deskRoot, input, opts }) {
   const scope = input?.scope
   const now = opts?.now ?? Date.now()
 
-  await ensureIndex(deskRoot)
+  await ensureIndex(deskRoot, { embed: opts?.embed ?? {} })
   const db = openDb(deskRoot)
   try {
     // Window filter clauses for the docs table + scope filter.
@@ -746,11 +768,13 @@ export async function desk_timeline({ deskRoot, input, opts }) {
     params.push(...scopeFilter.params)
 
     let semanticAvailable = false
+    let semanticDiagnostic = null
     let queryVec = null
     if (query) {
       const r = await embedQuery(query, opts?.embed ?? {})
       semanticAvailable = r.available
       queryVec = r.vector
+      semanticDiagnostic = r.diagnostic
     }
 
     let candidateChunks = []
@@ -861,6 +885,9 @@ export async function desk_timeline({ deskRoot, input, opts }) {
       results: candidateChunks,
       semantic_unavailable: query ? !semanticAvailable : false,
       latency_ms: Date.now() - t0,
+      ...(query && !semanticAvailable
+        ? semanticUnavailableFields(semanticDiagnostic)
+        : {}),
     }
   } finally {
     closeDb(db)
