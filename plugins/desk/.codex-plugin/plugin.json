@@ -1,0 +1,42 @@
+{
+  "name": "desk",
+  "version": "1.2.1",
+  "description": "A quiet workspace substrate for long-running agents: tracks, tasks, friction notes, lessons, lifecycle skills, and an MCP server for desk CRUD plus search.",
+  "author": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/desk",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-workspace",
+    "tasks",
+    "memory",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Desk",
+    "shortDescription": "Durable tracks, tasks, friction, and lessons for long-running agents.",
+    "longDescription": "Desk gives Codex and other agent runtimes a portable workspace substrate: track cards, task cards, iteration folders, friction capture, lesson capture, lifecycle skills, and an MCP server for workspace CRUD and search.",
+    "developerName": "ourostack",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/desk",
+    "privacyPolicyURL": "https://github.com/ourostack/ouroboros-skills",
+    "termsOfServiceURL": "https://github.com/ourostack/ouroboros-skills",
+    "defaultPrompt": [
+      "Start a desk task for this work.",
+      "Search my desk for related context.",
+      "Capture this friction for later."
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

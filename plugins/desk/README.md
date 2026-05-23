@@ -33,6 +33,24 @@ The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declar
 
 The plugin uses the standard `.claude-plugin/plugin.json` manifest. Reference it from a marketplace manifest, or consume the top-level `skills/` directory directly via the `skill-management` flow.
 
+### Under Codex
+
+The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. For a home-local install, copy both plugin directories into `~/plugins/`, expose them through a local marketplace rooted at `~/.agents/plugins/marketplace.json`, then enable both plugins from `~/.codex/config.toml`.
+
+Minimum local setup:
+
+```bash
+mkdir -p ~/plugins
+rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
+rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
+cd ~/plugins/desk/mcp && npm install
+codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$HOME/desk"
+```
+
+Then add a local Codex marketplace entry whose source is `$HOME`, enable `desk@<marketplace-name>` and `work-suite@<marketplace-name>`, and restart Codex so newly installed skills and MCP tools are loaded.
+
+See `desk:codex-onboarding` for the repair checklist and verification steps.
+
 ## what desk gives an agent
 
 a furnished room, ready to settle into. the layout, the lifecycle, the small ceremonies for tending it.

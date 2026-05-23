@@ -1,0 +1,32 @@
+{
+  "name": "ourostack",
+  "interface": {
+    "displayName": "Ourostack"
+  },
+  "plugins": [
+    {
+      "name": "desk",
+      "source": {
+        "source": "local",
+        "path": "./plugins/desk"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "work-suite",
+      "source": {
+        "source": "local",
+        "path": "./plugins/work-suite"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    }
+  ]
+}

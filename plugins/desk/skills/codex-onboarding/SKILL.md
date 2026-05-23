@@ -1,0 +1,97 @@
+---
+name: codex-onboarding
+description: Install and verify the desk plugin under Codex, including the local marketplace entry, `$DESK` workspace binding, desk MCP server, and companion work-suite plugin.
+---
+
+# Codex onboarding
+
+Use this when a Codex agent needs to install or repair desk support on a machine.
+
+## Target shape
+
+- Local workspace: `$DESK`, commonly `~/desk` for a personal Codex workspace.
+- Local plugin source: `~/plugins/desk`.
+- Companion workflow plugin: `~/plugins/work-suite`.
+- Local marketplace: `~/.agents/plugins/marketplace.json`.
+- Codex config has:
+  - a local marketplace entry pointing at the home directory.
+  - `desk@<marketplace-name>` enabled.
+  - `work-suite@<marketplace-name>` enabled.
+  - an MCP server named `desk` that launches `node ~/plugins/desk/mcp/index.js --root "$DESK"`.
+
+Codex plugin and MCP changes generally require a new Codex session before the tools and skills appear in the active tool list.
+
+## Install or repair
+
+1. Clone or copy the plugin directories:
+
+```bash
+mkdir -p ~/plugins
+rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
+rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
+```
+
+2. Install the desk MCP dependencies:
+
+```bash
+cd ~/plugins/desk/mcp && npm install
+```
+
+3. Ensure `~/.agents/plugins/marketplace.json` includes `desk` and `work-suite` with local paths under `./plugins/`.
+
+4. Ensure `~/.codex/config.toml` has a local marketplace entry:
+
+```toml
+[marketplaces.ourostack-local]
+source_type = "local"
+source = "/Users/<operator>"
+
+[plugins."desk@ourostack-local"]
+enabled = true
+
+[plugins."work-suite@ourostack-local"]
+enabled = true
+```
+
+5. Register the desk MCP server:
+
+```bash
+codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$DESK"
+```
+
+If `desk` already exists, inspect it with `codex mcp get desk`; remove and re-add only when it points at the wrong plugin path or workspace root.
+
+6. Verify:
+
+```bash
+cd "$HOME/plugins/desk/mcp" && npm test && npm audit --omit=dev
+codex mcp get desk
+```
+
+For an end-to-end stdio smoke, list the server's tool surface:
+
+```bash
+cd "$HOME/plugins/desk/mcp" && node --input-type=module <<'EOF'
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
+
+const root = process.env.DESK || `${process.env.HOME}/desk`
+const client = new Client({ name: "desk-smoke", version: "0.0.0" }, { capabilities: {} })
+const transport = new StdioClientTransport({
+  command: "node",
+  args: [`${process.env.HOME}/plugins/desk/mcp/index.js`, "--root", root],
+  stderr: "pipe",
+})
+
+await client.connect(transport)
+const tools = await client.listTools()
+console.log(tools.tools.map((tool) => tool.name).sort().join("\n"))
+await client.close()
+EOF
+```
+
+The active Codex session will not gain new plugin skills retroactively. Restart Codex or open a fresh session to confirm that `desk` and `work-suite` appear in the available plugins/skills list.
+
+## Friction rule
+
+If onboarding reveals a missing Codex instruction, broken manifest, stale path convention, or dependency trap, patch the plugin source first and then reinstall locally from that patched source. A desk that future agents cannot reliably enter is not finished.
