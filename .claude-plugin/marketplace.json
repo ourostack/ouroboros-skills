@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ourostack",
+  "description": "Shared skills and plugin bundles for the Ouroboros agent ecosystem — the desk substrate (workspace conventions, lifecycle, friction registers, engineering posture) and the work-suite doing-phase skills (ideator / planner / doer / merger).",
+  "owner": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "plugins": [
+    {
+      "name": "desk",
+      "description": "A quiet room for a long-running agent's work — the universal substrate underneath whichever overlay (corporate worker, autonomous agent, personal coding agent) sits on top. Drawers for tracks, manilla envelopes for tasks, a corkboard for friction notes, a small reference shelf for lessons earned. Cross-context portable via the $DESK placeholder convention. Depends on work-suite for doing-phase skills.",
+      "author": {
+        "name": "ourostack",
+        "url": "https://github.com/ourostack/ouroboros-skills"
+      },
+      "source": "./plugins/desk",
+      "category": "productivity",
+      "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/desk"
+    },
+    {
+      "name": "work-suite",
+      "description": "The four-phase workflow primitive used by orchestrator agents: work-ideator (explore), work-planner (scope), work-doer (execute with TDD), work-merger (PR + merge) — plus autopilot (long-horizon loop discipline) and inch-worm (open-ended improvement loop). Vendor-neutral, engine-agnostic plugin bundle.",
+      "author": {
+        "name": "ourostack",
+        "url": "https://github.com/ourostack/ouroboros-skills"
+      },
+      "source": "./plugins/work-suite",
+      "category": "development",
+      "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/work-suite"
+    }
+  ]
+}

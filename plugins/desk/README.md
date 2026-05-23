@@ -31,7 +31,17 @@ The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declar
 
 ### Under Claude Code
 
-The plugin uses the standard `.claude-plugin/plugin.json` manifest. Reference it from a marketplace manifest, or consume the top-level `skills/` directory directly via the `skill-management` flow.
+The repo ships a top-level `.claude-plugin/marketplace.json`, so a Claude Code session can register the marketplace and install both plugins via the slash-command flow:
+
+```
+/plugin marketplace add ourostack/ouroboros-skills
+/plugin install desk@ourostack
+/plugin install work-suite@ourostack
+```
+
+Then export `DESK` in your shell rc (e.g. `echo 'export DESK="$HOME/desk"' >> ~/.zshrc`) so the bundled `.mcp.json` resolves the desk MCP's workspace root, and open a fresh Claude Code session.
+
+For a shared-with-Codex local install, or a non-interactive harness-state install, see `desk:claude-onboarding`.
 
 ### Under Codex
 
