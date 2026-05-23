@@ -1,5 +1,13 @@
 # desk plugin — changelog
 
+## Unreleased
+
+- Add Codex plugin metadata and a local-marketplace entry for `desk`.
+- Add a Codex onboarding skill covering local install, `$DESK` binding, MCP registration, and the companion `work-suite` plugin.
+- Document the Codex install path in the desk README.
+- Fix the MCP package test script so `npm test` discovers nested Node test files on current Node.
+- Upgrade the MCP TypeScript SDK dependency to the current non-vulnerable line.
+
 ## 1.2.1 — 2026-05-22
 
 First actual migration shipped via the framework (overlay-private). Migrations using this framework are idempotent and reversible: the operations they wrap (e.g. `mv` for path renames) are atomic + the new name is the only post-state. Safety check refuses if there's uncommitted work in the old workspace dir; never sweep-stages.
