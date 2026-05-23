@@ -37,6 +37,14 @@ Then write the result to durable session state. Persistence precedence:
 
 Applies to ANY agent using this skill — worker, ccatester, investigator, triage, future fleet agents. Single-host development environments still benefit (the probe is fast and silent on the happy path), but the cost-of-omission climbs as host count grows.
 
+## Step 0.5 — Auto-heal migrations
+
+Before any path-dependent work — before the prereq probe, before workspace sync, before scans — hand off to the `session-start-migrations` skill. That skill walks every enabled plugin's `migrations/` dir, runs each migration's Detect predicate, and (for the migrations that fire) runs Safety/Migrate/Announce. If any migration with `needs_restart: true` runs successfully, the skill hard-stops the session with a "please restart" message; the operator restarts and the next session begins against canonical paths.
+
+Why here, not later: most later steps assume `$DESK/` already resolves to the canonical workspace path. If the operator's machine is still on a pre-migration name (e.g. an old workspace dir that's since been renamed), running Step 1's prereq probe or Step 2's `cd $DESK && git pull` first would either fail confusingly or — worse — operate against stale state. Migrations run first, restart, and everything downstream resolves cleanly.
+
+On a machine with no pending migrations (the common case), this step is a few cheap Detect bash exits and the skill returns immediately.
+
 ## Step 1 — Prerequisite probe
 
 Five checks. Any failure surfaces the specific remediation to the operator and **waits** — don't proceed to step 2, and don't fall back to a local-only mode. A session with broken auth is not "offline mode"; it's "not-yet-ready."
