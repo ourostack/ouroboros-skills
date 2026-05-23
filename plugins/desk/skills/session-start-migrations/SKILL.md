@@ -79,9 +79,16 @@ Splitting these out means the driver can run Detect cheaply against every migrat
 ## Driver flow
 
 1. **Discover migrations across every enabled plugin.**
-   - Walk every plugin install directory. For Claude Code, plugins typically live under `~/.claude/plugins/` and/or the active workspace's plugin dirs; the agency CLI may surface them via `agency plugin list` or `agency config list`. For Copilot, similar conventions apply. The skill is engine-agnostic: it discovers `migrations/` subdirs by walking known plugin roots rather than by asking the harness.
-   - Acceptable discovery heuristic: enumerate every plugin root currently active for this agent. For each, check for a `migrations/` subdir; if present, list `*.md` files within it sorted alphabetically by filename.
-   - Across plugins, sort the full migration list alphabetically by filename. With the `<NN>-<slug>.md` convention, this gives global ordering by `NN` regardless of which plugin owns each file.
+   - Walk every plugin root. The skill is engine-agnostic — it queries the filesystem rather than asking the harness — so the same logic works under Claude Code, Copilot CLI, and any future engine.
+   - **Canonical plugin roots to walk (in order):**
+     - `~/.claude/plugins/` — Claude Code's user-level plugin install dir
+     - `~/.claude-plugin/plugins/` — older Claude Code convention; check if present
+     - `~/.copilot/plugins/` — Copilot CLI's user-level plugin install dir
+     - `~/.ouro-cli/plugins/` — ouro daemon's per-machine plugin install dir (relevant when this skill runs in an ouro-agent context)
+     - `~/code/<plugin-id>/` and `~/code/<plugin-id>.ouro/` — local dev clones the operator symlinks into a plugin engine (Microsoft engineers frequently develop plugins out of `~/code/`)
+     - Any plugin root surfaced by `agency plugin list --json` if `agency` is on PATH (parse the JSON; the `path` field gives the install dir per plugin)
+   - For each plugin root, the rule is: if a `migrations/` subdir exists, every `*.md` file inside it is a candidate migration. Dedupe by absolute path in case the same plugin is found under multiple roots (e.g. installed system-wide AND symlinked from `~/code/`).
+   - Across plugins, sort the full migration list alphabetically by filename. With the `<NN>-<slug>.md` convention, this gives global ordering by `NN` regardless of which plugin owns each file. (Implementation note: sort by the leaf filename, not the full path, so a migration named `02-plugin-rename.md` in plugin B sorts after `01-workspace-to-ms-desk.md` in plugin A.)
 
 2. **For each migration in id-order across all plugins:**
    - Parse the frontmatter and the four body code blocks.
