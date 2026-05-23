@@ -5,7 +5,7 @@ A portable plugin bundle of the four core workflow skills from `ouroboros-skills
 | Skill | Purpose |
 |-------|---------|
 | `work-ideator` | Explore ambiguous ideas before planning (Tinfoil Hat + Stranger With Candy scrutiny) |
-| `work-planner` | Interactive planning doc → doing doc conversion with human approval gate |
+| `work-planner` | Planning doc → doing doc conversion with fresh sub-agent reviewer gates by default |
 | `work-doer` | Execute doing-doc units sequentially with strict TDD |
 | `work-merger` | Fetch / merge / PR / wait for CI / merge-to-main cleanup |
 

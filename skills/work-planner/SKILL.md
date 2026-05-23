@@ -1,6 +1,6 @@
 ---
 name: work-planner
-description: Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.
+description: Task planner for coding work. Generates planning docs, clears default gates through fresh sub-agent reviewer convergence, and converts to doing docs. Can resume from existing planning docs.
 model: opus
 ---
 
@@ -101,7 +101,7 @@ fix and continue? (y/n)
 5. Commit: `git commit -m "docs(planning): template compliance fix"`
 6. Add Progress Log entry with git timestamp
 7. Show summary: what moved where, nothing lost
-8. Continue to review: `"fixed. status: NEEDS_REVIEW. say 'approved' or give feedback."`
+8. Continue into the planning approval gate: default fresh sub-agent review, or user review only when a human-judgment escape hatch fires.
 
 **If user says no:**
 - Continue with doc as-is (user accepts non-compliance)
@@ -117,20 +117,20 @@ fix and continue? (y/n)
 5. Ask clarifying questions about scope, completion criteria, unknowns
 6. Refine based on answers — **commit after each significant change**
 7. Update Progress Log with git timestamp after each commit
-8. **After incorporating answers, re-present the updated planning doc and explicitly ask for approval. User answering questions ≠ user approving the plan.**
+8. **After incorporating answers, move into the approval gate.** Default path is fresh sub-agent review; do not ask the user for approval unless a human-judgment escape hatch fires.
 9. If the user/caller provided upstream backlog item IDs (for example `A-001` from `full-systems-audit`), preserve them verbatim in both planning and doing docs.
 
 **DO NOT ASSIGN TIME ESTIMATES** — no hours, days, or duration predictions.
 
-**Scrutiny — Tinfoil Hat (before presenting for approval):**
-After drafting and refining the planning doc, run a "tinfoil hat" pass before presenting it. This pass asks: **"what am I not seeing?"**
+**Scrutiny — Tinfoil Hat (before the approval gate):**
+After drafting and refining the planning doc, run a "tinfoil hat" pass before the approval gate. This pass asks: **"what am I not seeing?"**
 - Are there gaps in scope? Things that will obviously be needed but aren't listed?
 - Are the completion criteria actually verifiable, or are they hand-wavy?
 - Are there implicit assumptions that should be explicit decisions?
 - Does the scope accidentally include or exclude something it shouldn't?
 - Are there dependencies or ordering constraints that the plan ignores?
 - Actually read the code/files referenced — do they exist? Do the patterns described match reality?
-- If issues found: fix them, commit with `"docs(planning): tinfoil hat pass"`, then present for approval
+- If issues found: fix them, commit with `"docs(planning): tinfoil hat pass"`, then enter the approval gate
 - If nothing found: commit with `"docs(planning): tinfoil hat pass - no issues found"`
 
 **STOP POINT:** When scope is clear, output:
@@ -238,7 +238,7 @@ Planner's response to findings (every pass):
 - Create adjacent artifacts directory in `TASK_DIR`: `YYYY-MM-DD-HHMM-doing-{short-desc}/` for any files, outputs, or working data
 - Use DOING TEMPLATE — **follow exactly**, including emoji status on every unit header (`### ⬜ Unit X:`)
 - Fill from planning doc
-- Decide execution_mode: `pending` (needs approval), `spawn` (spawn sub-agent per unit), or `direct` (run directly)
+- Decide execution_mode: `pending` (human/caller approval before each unit; use only when an explicit human/caller gate is intended), `spawn` (spawn sub-agent per unit), or `direct` (run directly)
 - Commit: `git commit -m "docs(doing): create doing-{short-desc}.md"`
 
 ### Pass 2 — Granularity (fresh sub-agent dispatched)
@@ -409,7 +409,7 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 
 ## Execution Mode
 
-- **pending**: Awaiting user approval before each unit starts (interactive)
+- **pending**: Awaiting human/caller approval before each unit starts; use only when the task deliberately requires an interactive per-unit gate
 - **spawn**: Spawn sub-agent for each unit (parallel/autonomous)
 - **direct**: Execute units sequentially in current session (default)
 
@@ -502,7 +502,7 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 14. **Template compliance on resume** — check and offer to fix violations
 15. **Status flags drive flow**:
     - `drafting` → working on it
-    - `NEEDS_REVIEW` → waiting for human
+    - `NEEDS_REVIEW` → waiting for the active review gate: fresh sub-agent review by default, human review only when an escape hatch fires
     - `approved` / `READY_FOR_EXECUTION` → can proceed
 16. **TDD is mandatory** — tests before implementation, always
 17. **100% coverage** — no exceptions, no exclude attributes

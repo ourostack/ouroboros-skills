@@ -21,7 +21,7 @@
     {
       "name": "work-planner",
       "path": "skills/work-planner/SKILL.md",
-      "description": "Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.",
+      "description": "Task planner for coding work. Generates planning docs, clears default gates through fresh sub-agent reviewer convergence, and converts to doing docs. Can resume from existing planning docs.",
       "tags": ["workflow", "planning"]
     },
     {

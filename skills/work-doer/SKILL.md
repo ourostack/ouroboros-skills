@@ -81,7 +81,7 @@ starting Unit Xa: [name]
 
 **General execution rules:**
 - Save all outputs, logs, and data to `{task-name}/` artifacts directory
-- If execution_mode is `pending`, wait for user approval before starting each unit
+- If execution_mode is `pending`, wait for human/caller approval before starting each unit. This mode is an explicit interactive gate, not the default workflow.
 - If execution_mode is `spawn`, spawn a sub-agent for each unit
 - If execution_mode is `direct`, proceed immediately
 

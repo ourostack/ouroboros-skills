@@ -62,7 +62,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | Skill | Description |
 |-------|-------------|
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
-| **work-planner** | Interactive task planner. Generates planning docs with human conversation. |
+| **work-planner** | Task planner that clears default planning/doing gates through fresh sub-agent reviewer convergence. |
 | **work-doer** | Executes doing.md units sequentially with strict TDD. |
 | **work-merger** | Sync-and-merge agent. Creates PRs, waits for CI, merges to main. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
