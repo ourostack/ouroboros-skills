@@ -7,6 +7,7 @@
 import { existsSync } from "node:fs"
 import { closeDb, indexDbPath, openDb } from "./db/init.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
+import { probeEmbeddingService } from "./indexer/embed.js"
 
 /**
  * Bring the on-disk index up to date for `deskRoot`. Idempotent: when the
@@ -20,7 +21,8 @@ import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
  * @param {object} [opts.embed] — forwarded to rebuildIndex (test injection).
  * @param {boolean} [opts.skipEmbed] — skip embedding when (re)building.
  * @returns {Promise<{ built: boolean, reason: string,
- *                     summary?: import("./indexer/index.js").RebuildSummary }>}
+ *                     summary?: import("./indexer/index.js").RebuildSummary,
+ *                     semantic?: object }>}
  *   When `built=true`, `summary` carries the rebuildIndex counts. When
  *   `built=false` (fresh), `summary` is omitted — nothing was reindexed.
  */
@@ -29,13 +31,71 @@ export async function ensureIndex(deskRoot, opts = {}) {
   const dbExisted = existsSync(dbPath)
   const db = openDb(deskRoot)
   try {
+    const semanticBefore = getSemanticCoverage(db)
+    let repairMissing = false
     if (dbExisted) {
       const fresh = await isIndexFresh(deskRoot, db)
-      if (fresh) return { built: false, reason: "fresh" }
+      if (fresh) {
+        const repair = await maybeRepairMissingEmbeddings(
+          deskRoot,
+          db,
+          opts,
+          semanticBefore,
+        )
+        if (repair) return repair
+        return { built: false, reason: "fresh", semantic: semanticBefore }
+      }
+      repairMissing = await shouldRepairMissingEmbeddings(opts, semanticBefore)
     }
-    const summary = await rebuildIndex(deskRoot, { ...opts, db })
-    return { built: true, reason: dbExisted ? "stale" : "missing", summary }
+    const summary = await rebuildIndex(deskRoot, {
+      ...opts,
+      db,
+      reembedMissing: repairMissing,
+    })
+    const semanticAfter = getSemanticCoverage(db)
+    if (repairMissing) semanticAfter.embedding_available = true
+    return {
+      built: true,
+      reason: dbExisted ? "stale" : "missing",
+      summary,
+      semantic: semanticAfter,
+    }
   } finally {
     closeDb(db)
+  }
+}
+
+export function getSemanticCoverage(db) {
+  const chunks = db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n
+  const vectors = db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n
+  return {
+    chunks_total: chunks,
+    vectors_indexed: vectors,
+    missing_vectors: Math.max(0, chunks - vectors),
+  }
+}
+
+async function shouldRepairMissingEmbeddings(opts, semantic) {
+  if (opts.skipEmbed) return false
+  if (!semantic || semantic.missing_vectors <= 0) return false
+  const probe = await probeEmbeddingService(opts.embed ?? {})
+  semantic.embedding_available = probe.available
+  semantic.embedding_diagnostic = probe.diagnostic
+  return probe.available
+}
+
+async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
+  const shouldRepair = await shouldRepairMissingEmbeddings(opts, semantic)
+  if (!shouldRepair) return null
+  const summary = await rebuildIndex(deskRoot, {
+    ...opts,
+    db,
+    reembedMissing: true,
+  })
+  return {
+    built: true,
+    reason: "semantic_missing",
+    summary,
+    semantic: { ...getSemanticCoverage(db), embedding_available: true },
   }
 }

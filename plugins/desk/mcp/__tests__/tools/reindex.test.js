@@ -8,11 +8,28 @@ import { existsSync } from "node:fs"
 import * as path from "node:path"
 
 import { desk_reindex } from "../../src/tools/reindex.js"
-import { indexDbPath } from "../../src/db/init.js"
+import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
+import { rebuildIndex } from "../../src/indexer/index.js"
 import { mkTempDeskRoot } from "./_helpers.js"
 
 // All tests use skipEmbed to keep them hermetic (no Ollama dependency).
 const reindexOpts = { embed: undefined, skipEmbed: true }
+
+function okEmbedFetch() {
+  const vec = Array.from({ length: 768 }, (_, i) => (i % 11) / 768)
+  return async () => ({
+    ok: true,
+    json: async () => ({ embedding: vec }),
+  })
+}
+
+function failingFetch() {
+  return async () => {
+    const err = new Error("ECONNREFUSED")
+    err.code = "ECONNREFUSED"
+    throw err
+  }
+}
 
 async function writeFile(root, rel, body) {
   const abs = path.join(root, rel)
@@ -82,6 +99,42 @@ test("desk_reindex — second call without force returns built=false reason=fres
   assert.equal(res.reason, "fresh")
   // ensureIndex no-op path → no per-doc counts (0).
   assert.equal(res.docs_indexed, 0)
+})
+
+test("desk_reindex — no-force repairs a fresh lexical-only index when embeddings return", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nsemantic repair body\n",
+  )
+  await rebuildIndex(root, { embed: { fetch: failingFetch() } })
+
+  let chunks = 0
+  {
+    const db = openDb(root)
+    try {
+      chunks = db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n
+      const vectors = db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n
+      assert.ok(chunks >= 1, "fixture should have chunks")
+      assert.equal(vectors, 0, "first pass should be lexical-only")
+    } finally {
+      closeDb(db)
+    }
+  }
+
+  const res = await desk_reindex({
+    deskRoot: root,
+    input: {},
+    opts: { embed: { fetch: okEmbedFetch() } },
+  })
+  assert.equal(res.status, "ok")
+  assert.equal(res.built, true)
+  assert.equal(res.reason, "semantic_missing")
+  assert.equal(res.chunks_total, chunks)
+  assert.equal(res.vectors_indexed, chunks)
+  assert.equal(res.missing_vectors, 0)
+  assert.equal(res.semantic_available, true)
 })
 
 test("desk_reindex — force:true drops the DB and rebuilds from scratch", async () => {
