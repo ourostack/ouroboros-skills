@@ -102,8 +102,10 @@ test("desk_similar — seed without embeddings returns semantic_unavailable", as
   const res = await desk_similar({
     deskRoot: root,
     input: { path: "trackA/seed/task.md" },
+    opts: { embed: { fetch: makeFailingFetch() } },
   })
   assert.equal(res.error, "semantic_unavailable")
+  assert.match(res.semantic_repair, /desk_reindex/)
 })
 
 test("desk_similar — dedupes by doc_id (one entry per similar doc)", async () => {

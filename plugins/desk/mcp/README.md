@@ -14,7 +14,7 @@ Or via environment:
 DESK=~/<your-workspace> node ./index.js
 ```
 
-## Tools exposed (12)
+## Tools exposed (13)
 
 **Runtime CRUD:**
 - `task_create`, `task_update`, `task_archive`
@@ -27,8 +27,9 @@ DESK=~/<your-workspace> node ./index.js
 - `desk_similar` — find docs similar to a given path
 - `desk_timeline` — temporal queries
 - `desk_thread` — provenance walk via refs_graph
+- `desk_reindex` — rebuild or repair the local search index
 
-All 12 tools are wired to real implementations.
+All 13 tools are wired to real implementations.
 
 ## How consumers wire this up
 
@@ -58,7 +59,9 @@ Claude Code reads this natively. Copilot CLI inherits the same spec. The ourobor
 
 `sqlite-vec` and `better-sqlite3` are native deps; if `npm install` fails on a platform, try `npm install --build-from-source`.
 
-Semantic ranking requires Ollama running locally with `nomic-embed-text` pulled. If Ollama is unavailable, search soft-falls-back to FTS5-only with a `semantic_unavailable` warning in the response.
+Semantic ranking requires Ollama with `nomic-embed-text` pulled. The MCP resolves the embedding endpoint in this order: explicit test/tool `endpoint`, `DESK_EMBED_ENDPOINT`, `DESK_OLLAMA_ENDPOINT`, `OLLAMA_HOST`, `http://127.0.0.1:11434`, then `http://localhost:11434`. Set `DESK_EMBED_MODEL` to override `nomic-embed-text`, and `DESK_EMBED_TIMEOUT_MS` to adjust the per-endpoint timeout.
+
+If Ollama is unavailable, search soft-falls-back to FTS5-only with `semantic_unavailable` plus `semantic_diagnostic` and `semantic_repair` fields in the response. If a desk was indexed while Ollama was down, `desk_reindex` without arguments now repairs missing vectors automatically once embeddings are reachable; `force:true` is only needed when you intentionally want to drop and rebuild the whole DB.
 
 ## Tests
 

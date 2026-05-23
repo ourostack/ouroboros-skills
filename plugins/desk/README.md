@@ -49,6 +49,8 @@ codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$HOME/desk"
 
 Then add a local Codex marketplace entry whose source is `$HOME`, enable `desk@<marketplace-name>` and `work-suite@<marketplace-name>`, and restart Codex so newly installed skills and MCP tools are loaded.
 
+For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
+
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 
 ## what desk gives an agent

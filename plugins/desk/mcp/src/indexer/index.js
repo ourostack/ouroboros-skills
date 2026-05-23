@@ -24,6 +24,8 @@ import { computeRefs } from "./refs.js"
  * @param {string} [opts.dbPath] — override DB path (tests).
  * @param {object} [opts.embed] — override embed options (endpoint/model/fetch).
  * @param {boolean} [opts.skipEmbed] — skip embedding entirely (testing).
+ * @param {boolean} [opts.reembedMissing] — reindex unchanged docs whose
+ *   chunks exist but do not have vectors.
  * @returns {Promise<{ docs_indexed: number, docs_skipped: number,
  *                     docs_removed: number, chunks_inserted: number,
  *                     semantic_warnings: number }>}
@@ -71,6 +73,14 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     for (const doc of discovered) {
       const existingRow = existingByPath.get(doc.path)
       if (existingRow && existingRow.hash === doc.hash) {
+        if (
+          opts.reembedMissing &&
+          !opts.skipEmbed &&
+          docHasMissingEmbeddings(db, existingRow.id)
+        ) {
+          toReindex.push(doc)
+          continue
+        }
         summary.docs_skipped += 1
         continue
       }
@@ -95,6 +105,18 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   return summary
+}
+
+function docHasMissingEmbeddings(db, docId) {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS missing
+       FROM chunks c
+       LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+       WHERE c.doc_id = ? AND v.chunk_id IS NULL`,
+    )
+    .get(docId)
+  return (row?.missing ?? 0) > 0
 }
 
 async function indexOneDoc(db, doc, opts, summary) {

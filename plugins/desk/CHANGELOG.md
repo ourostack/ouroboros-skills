@@ -7,6 +7,7 @@
 - Document the Codex install path in the desk README.
 - Fix the MCP package test script so `npm test` discovers nested Node test files on current Node.
 - Upgrade the MCP TypeScript SDK dependency to the current non-vulnerable line.
+- Make semantic search self-healing across machines: embedding endpoint discovery now honors `OLLAMA_HOST` plus desk-specific overrides, unavailable semantic responses include structured diagnostics and repair guidance, and `desk_reindex` repairs fresh lexical-only indexes once embeddings return without requiring `force:true`.
 
 ## 1.2.1 — 2026-05-22
 
