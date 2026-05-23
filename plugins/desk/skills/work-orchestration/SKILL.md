@@ -14,7 +14,7 @@ worker drives four phases per task. The four `work-*` components are **skills** 
 | `work-doer` | Implementation | Execute the doing doc's units with strict TDD |
 | `work-merger` | Merge | Fetch, merge, PR, CI, merge-to-main, cleanup |
 
-worker remains the doer across all four — these skills structure the workflow, not replace worker's agency.
+the host agent remains the doer across all four — these skills structure the workflow, not replace the agent's own initiative.
 
 ## Phase 1 — Exploration (drafting state)
 
@@ -25,12 +25,12 @@ When a task enters `drafting`, start with exploration if the problem is ambiguou
 3. If the operator needs to decide (scope, naming, architecture) → transition to `collaborating` and wait.
 4. Once the shape is clear → Phase 2.
 
-**Skip Phase 1** when the operator gave a clear, well-scoped task description or ADO work item with sufficient detail. Not every task needs ideation.
+**Skip Phase 1** when the operator gave a clear, well-scoped task description or work-tracker item with sufficient detail. Not every task needs ideation.
 
 ## Phase 2 — Planning (drafting state)
 
 1. Invoke `work-planner` via the Skill tool.
-2. Pass task context — ideation output (if any), ADO work item details, operator description.
+2. Pass task context — ideation output (if any), work-tracker item details, operator description.
 3. **If the resulting doing doc will produce units that author PR content** (PR description, top-level PR comment), include a directive that those units apply the `pr-surface-hygiene` skill. `work-planner` and `work-doer` are general-purpose; they don't know which pipelines are required in this org. Worker bridges that gap by flagging the hygiene requirement at planning time so the drafted description lands correctly the first time.
 4. `work-planner` writes a planning doc to the repo workspace: `$DESK/<track>/<task>/<repo>/YYYY-MM-DD-HHMM-planning-*.md`.
 5. `work-planner` has a hard approval gate — the operator must explicitly approve the planning doc.
@@ -51,7 +51,7 @@ worker IS the doer.
 
 **"Multi-session" is not a valid stop reason.** Context compression is the harness's job; worker proceeds until all units are `✅`, a real unit blocker surfaces, or the operator explicitly stops. If a sub-agent returns early framing remaining work as "should be sized as multiple dispatches," the default response is re-dispatch or handle in the main thread — not agreement with the framing. See `principles.md` sub-invariant 2a (no-flinching / phantom limits) for the flinch-phrase signals and the three valid stop conditions.
 
-`work-doer` operates in the actual repo clone (path from `repos[].local_path` — the `repo-handling` skill resolves this). The doing doc + planning doc live in `worker-workspace`; the code changes happen in the real repo.
+`work-doer` operates in the actual repo clone (path from `repos[].local_path` — the `repo-handling` skill resolves this). The doing doc + planning doc live in the desk workspace; the code changes happen in the real repo.
 
 ## Phase 4 — Merge (validating state)
 
@@ -65,7 +65,7 @@ worker IS the doer.
 
 ## Available operator-triggered passes
 
-Some skills in the worker plugin are **available** as operator-
+Some skills in this plugin are **available** as operator-
 triggered passes at specific lifecycle points, but are NOT forced
 steps in the four-phase flow above. The operator decides whether
 and when to run them.
@@ -207,7 +207,7 @@ sub-agent's intended work is not where it was supposed to land.
 ### Version-file conflicts on parallel PRs — merge, don't rebase
 
 **Rule.** When parallel PRs hit conflicts on version-coordinated
-files (`agency.json`, `plugin.json`, or any other "first-merger-wins"
+files (a runtime's manifest, `plugin.json`, or any other "first-merger-wins"
 file where each PR independently bumps the same value), prefer
 `git merge origin/main` + resolve + regular `git push` over
 `git rebase origin/main` + `git push --force`. Force-push is on the

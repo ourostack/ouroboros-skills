@@ -61,8 +61,8 @@ space?"
      doesn't."
    - Verifying state assumptions (deployment version, config
      loaded, feature-flag state).
-   - Inspecting recent changes (git log, ADO deploys, recent
-     incidents on chat).
+   - Inspecting recent changes (git log, deploy/release records,
+     recent incidents on chat).
 
 5. **Update the hypothesis space.** Repeat step 4 until one
    hypothesis remains.
@@ -96,7 +96,7 @@ when the assumption is the load-bearing one, dismissing it costs
 the rest of the investigation.
 
 Load-bearing assumptions deserve verification, not dismissal.
-"Presumably deployed" should be "verifiable in two ADO queries."
+"Presumably deployed" should be "verifiable in two tracker queries."
 If a hypothesis is cheap to verify, verify it before ruling it out
 — even when current intuition rates it unlikely.
 

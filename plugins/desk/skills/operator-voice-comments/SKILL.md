@@ -1,6 +1,6 @@
 ---
 name: operator-voice-comments
-description: Invoke ONLY when worker is drafting content for posting in the operator's voice — PR comments (top-level or thread reply), PR description prose, ADO work-item comments, chat messages worker drafts for the operator to send. Triggered by other skills (pr-feedback-on-own-pr, pr-surface-hygiene, pr-self-review, peer-pr-review) at their drafting steps. Do NOT invoke for skill-internal docs, doing-doc / planning-doc prose, commit messages, or worker's own chat replies to the operator (different surfaces with different conventions).
+description: Invoke ONLY when worker is drafting content for posting in the operator's voice — PR comments (top-level or thread reply), PR description prose, work-item comments, chat messages worker drafts for the operator to send. Triggered by other skills (pr-feedback-on-own-pr, pr-surface-hygiene, pr-self-review, peer-pr-review) at their drafting steps. Do NOT invoke for skill-internal docs, doing-doc / planning-doc prose, commit messages, or worker's own chat replies to the operator (different surfaces with different conventions).
 ---
 
 # operator-voice-comments
@@ -29,7 +29,7 @@ In scope (worker is drafting; operator posts):
 - Top-level PR comments (status updates, ready-for-review notes,
   ad-hoc observations).
 - PR description prose worker produces or audits.
-- ADO work-item comments / descriptions.
+- Work-item-tracker comments / descriptions.
 - Group-chat messages the operator will send.
 
 Out of scope (different surfaces, different rules):
@@ -41,58 +41,20 @@ Out of scope (different surfaces, different rules):
 
 ## Surface mechanics
 
-For most in-scope surfaces — PR comments, ADO comments, PR
+For most in-scope surfaces — PR comments, work-item comments, PR
 descriptions — worker drafts prose and the operator (or worker via
-the GitHub / ADO API on the operator's behalf) posts it. The
-rendering is whatever the destination does with markdown, and
-worker doesn't have to think about it.
+the PR host's API on the operator's behalf) posts it. The rendering
+is whatever the destination does with markdown, and worker doesn't
+have to think about it.
 
-The exception is Teams chat. When worker posts via
-`mcp__teams__SendMessageToChat` or
-`mcp__teams__UpdateChatMessage`, set `contentType: "html"` for any
-multi-line content. The default `text` contentType collapses
-newlines and bullets into a wall of text on Teams render —
-paragraphs lose their breaks, lists lose their bullets, the
-message becomes unreadable.
-
-The Teams renderer's quirks are narrower than HTML's full surface,
-and the default-to-`<p>` instinct backfires:
-
-- **Inter-section separator: `<br><br>`** — force a visible blank
-  line between every distinct section. `<p>...</p>` does NOT give
-  visible paragraph spacing in Teams; the renderer collapses the
-  inter-`<p>` margin to a single line break and your bold section
-  header sits flush under the previous section's body.
-- **Intra-section line break: `<br>`** — for header→body within a
-  single section (`<b>Section</b><br>body...`).
-- **No `<p>...</p>` wrappers.** They imply spacing they don't
-  deliver, and bloat the source for no visible gain.
-- **`<a href>`, `<b>`, `<i>` render fine inline.**
-- **Avoid `<table>`, `<h1>`–`<h6>`, `<div>`, `<code>`, `<ul><li>`** —
-  the rich-message-format reference lists some as supported but
-  rendering is unreliable in practice. Inline code-ish strings
-  (paths, identifiers, flags) work fine as plain text; engineers
-  recognize `/path/to/something` and `EnableSomeFlag` without
-  backtick formatting.
-
-Single-line text sends are fine with the default `text` contentType.
-
-**Counter-example (don't do this)**:
-```html
-<p>opener</p>
-<p><b>Section A</b><br>body A</p>
-<p><b>Section B</b><br>body B</p>
-```
-Renders as one continuous block with no visible breaks between sections.
-
-**Correct shape**:
-```html
-opener<br><br>
-<b>Section A</b><br>body A<br><br>
-<b>Section B</b><br>body B<br><br>
-closer line
-```
-Renders with a visible blank line between each section.
+The exception is chat surfaces with non-markdown rendering. Some
+chat systems collapse newlines and bullets into a wall of text on
+render — paragraphs lose their breaks, lists lose their bullets, the
+message becomes unreadable. For those surfaces, consumer overlays
+typically document the chat system's specific rendering quirks (which
+content-type to use, which HTML tags render, what the visible
+section-break shape is). When in doubt: write the prose, check what
+the target surface renders, adjust shape on a per-surface basis.
 
 ## Anchor placement
 
@@ -124,7 +86,7 @@ anchoring there makes the comment more actionable.
   the recipient to hold the comment context separately and
   re-correlate to code.
 - **PR-iteration durability.** File-thread anchors survive
-  re-pushes (ADO tracks the line via diff-aware anchoring).
+  re-pushes (the PR host tracks the line via diff-aware anchoring).
   Top-level comments float free of the diff state.
 - **Reader-scanning cost.** A reviewer skimming the PR for
   unresolved threads sees anchored comments inline with the code
@@ -146,18 +108,18 @@ concern truly spans many files equally, pick the most central
 file and acknowledge the cross-cutting nature in the comment body
 itself, not by floating the comment up.
 
-## Chat-share register vs. ADO-comment register
+## Chat-share register vs. cold-read-surface register
 
 The skill's tone rules below (No fabrication, No sycophantic
 padding, Match operator's voice, Verify before posting) are
 written predominantly in their **PR-comment register**: rationale-
 first, formal, no double punctuation, no informal contractions.
 That register is right for surfaces a third party reads cold,
-possibly months later — PR descriptions, ADO thread replies,
-work-item comments. The reader is approaching the surface
-without context; rationale-first prose does the work.
+possibly months later — PR descriptions, work-item comments and
+thread replies. The reader is approaching the surface without
+context; rationale-first prose does the work.
 
-**Teams chat surfaces are a different register.** Group chats,
+**Live chat surfaces are a different register.** Group chats,
 DMs, replies in channel threads — these read live, in-context,
 between peers who are already collaborating. The right register
 is warm/loose, with a few specific positive shapes that
@@ -179,15 +141,15 @@ message reads as treating their time as a debt being collected.
 
 Compare the same situation in two registers:
 
-- ADO thread reply (PR register): *"replies are up on the 3
+- PR thread reply (PR register): *"replies are up on the 3
   remaining active threads — happy to walk through any sync"*
-- Teams group-chat ping (chat register): *"hi both!! thanks for
-  reviewing the TCA PR — have 3 comments still open awaiting
+- Group-chat ping (chat register): *"hi both!! thanks for
+  reviewing the PR — have 3 comments still open awaiting
   y'all's resolution. lmk if you have more thoughts there or if
   we can resolve"*
 
 Same substance, different opening. The PR-register version is
-correct for ADO; it would read flat-by-rules in chat.
+correct for the PR surface; it would read flat-by-rules in chat.
 
 ### Dual ask
 
@@ -208,16 +170,16 @@ empting a follow-up the operator might actually want.
 
 ### Surface markers
 
-Teams chat tolerates and benefits from:
+Live chat surfaces tolerate and benefit from:
 
 - Double punctuation: `!!`
 - Informal contractions: `y'all's`, `lmk`, `wdyt`
 - Lowercase openers: `hi <name>!!`
 - Single-word energy markers: `sweet`, `cool`, `thanks!!`
 
-PR / ADO surfaces don't. The contractions and double punctuation
-that make a Teams ping land warm read as unprofessional in a PR
-description.
+PR / work-item surfaces don't. The contractions and double
+punctuation that make a chat ping land warm read as unprofessional
+in a PR description.
 
 ### Concrete shape pairs
 
@@ -238,7 +200,7 @@ that's the symptom the chat-register rules exist to prevent.
 
 ### When the surface is ambiguous
 
-Some surfaces are hybrid (a Teams channel post that serves as a
+Some surfaces are hybrid (a channel post that serves as a
 quasi-status-update and gets read later by people who weren't
 online). When in doubt, lean to the surface's primary read mode:
 live-and-peer → chat register; cold-and-formal → PR register.
@@ -270,14 +232,14 @@ it with invented prior incidents undermines trust regardless.
 **Verify before naming.** Before writing a comment that
 references a specific past event, check workspace files
 (planning docs, design docs, `_friction/`, `_landscape/`,
-`_meta/`), prior chat history, SharePoint / OneDrive for
-operator-authored docs, or ADO (wiki pages, work item history,
-prior PR threads).
+`_meta/`), prior chat history, the operator's document store
+for operator-authored docs, or the work-item tracker (wiki pages,
+work item history, prior PR threads).
 
 **If you can't verify but the reference is still useful, gesture
 without specifics.**
 
-- Bad: "the recent `TeamId` vs `TeamsId` cleanup."
+- Bad: "the recent `UserId` vs `UsersId` cleanup."
 - Good: "the recent cleanup of overlapping ID names in this
   codebase" (no specific names that could be wrong).
 - Best: verify the actual specifics, then cite verbatim with
@@ -302,10 +264,10 @@ point to a specific source? If no, don't make the claim.
 ### Calendar timelines
 
 Worker-suggested timelines that get baked into long-lived
-artifacts (PR descriptions, ADO task titles, commit messages)
-are hard to remove later. Once "60-day follow-up" sits in an
-ADO task title, every downstream surface that references that
-task carries the implicit claim that the team agreed to a 60-day
+artifacts (PR descriptions, work-item titles, commit messages)
+are hard to remove later. Once "60-day follow-up" sits in a
+work-item title, every downstream surface that references that
+item carries the implicit claim that the team agreed to a 60-day
 timeline — which isn't what happened.
 
 **Rule**: bake calendar timelines ("60-day follow-up," "in 30
@@ -334,7 +296,7 @@ calendar-driven:**
    operator-authored timeline, not worker-fabricated.
 3. **Pre-existing surfaces that have inherited a worker-
    fabricated timeline**: surface to operator before reusing the
-   framing. "ADO task X title says '60-day follow-up' — was that
+   framing. "Work-item X title says '60-day follow-up' — was that
    your call or worker's? Worth retitling?"
 
 **Cost asymmetry**: data-driven framings are slightly less crisp
@@ -432,7 +394,7 @@ most inferred-mechanism risk.
 - Cut the comment if you can't make the case without unverified
   claims.
 
-> **Consumer agents adding MS-internal trust-boundary discipline use `worker:ms-infra-trust-boundaries`.**
+> **Consumer overlays that need org-internal trust-boundary discipline typically ship their own trust-boundaries skill.**
 
 ### Bot-derived urgency
 
@@ -697,9 +659,9 @@ typically already knows what's coming next) or replace with
 plain English (`"the next PR"`, `"when you implement"`,
 `"the follow-up"`).
 
-The check: would a reviewer who doesn't use worker plugin
-understand this comment without translation? If no, replace or
-drop the worker-isms.
+The check: would a reviewer who doesn't share the operator's
+internal toolchain vocabulary understand this comment without
+translation? If no, replace or drop the in-house terms.
 
 ### No operator-internal tracking vocabulary
 
@@ -723,8 +685,9 @@ Categories of leak to watch for:
   hotfix`, `the active hotfix`. Internal naming for in-flight
   changes.
 - **Internal labels for related artifacts that have public
-  identifiers** — when a PR has an ADO / GitHub ID and title,
-  reference it by `!<id>` (same repo) or full URL (cross-repo).
+  identifiers** — when a PR has a public ID and title from the
+  PR host, reference it by the host's link syntax (e.g. `#<id>`
+  for same-repo GitHub PRs) or full URL (cross-repo).
   Don't reference by track-card slug or operator-internal label.
 - **Named reviewer groups treated as common knowledge** — e.g.,
   `the <area> approvers`, `the <project> crew`. Unless reviewers
@@ -780,7 +743,7 @@ for them in the original comment.
 ### Don't add formatting / subject lines beyond the approved draft
 
 When the operator approves draft text for a chat / channel / PR /
-ADO surface, **stick to literal approved content**. No subject
+work-item surface, **stick to literal approved content**. No subject
 lines, no extra emoji, no paragraph reorganization, no bold-header
 metadata, no body-style overrides — unless the operator wrote them
 into the approved draft.
@@ -1015,7 +978,7 @@ fix the specific failure rather than tweaking around it.
 ### Validator-first gate (default for all operator-voice artifacts)
 
 Worker's previous default was "ask operator at draft time" for
-any operator-voice public-surface artifact (PR replies, ADO
+any operator-voice public-surface artifact (PR replies, work-item
 comments, chat-share drafts, status updates). That default is
 overcautious — most of these can be auto-validated by a zero-
 context sub-agent and only need human attention when something
