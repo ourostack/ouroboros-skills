@@ -8,10 +8,10 @@ description: Start a new task in the workspace from either an operator descripti
 A task enters the workspace through one of two paths. Both end in the same
 place: a new `task.md` under a track directory in `$DESK/`.
 
-For Microsoft / ADO users with an Azure DevOps work-item ID, use
-`worker:start-task-ado` instead — that path also captures `ado.id` /
-`ado.url` and walks the work-item-relations chain to find the parent
-Feature's track.
+For overlays with their own work-item tracker (and a work-item ID),
+consumer overlays typically ship a tracker-aware `start-task` variant
+that also captures the tracker's ID + URL and walks the work-item-
+relations chain to find the parent Feature's track.
 
 ## Path A — operator-described
 
@@ -79,6 +79,6 @@ all lands under `$DESK/`.
 
 ## Linking later
 
-Either path can be linked to an external tracker (ADO, GitHub Issue,
-Jira) after creation by appending the relevant fields to `task.md`.
-No state transition required.
+Either path can be linked to an external tracker (GitHub Issue, Jira,
+or an enterprise work-item tracker) after creation by appending the
+relevant fields to `task.md`. No state transition required.

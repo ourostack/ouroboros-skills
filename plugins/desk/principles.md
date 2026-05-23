@@ -1,7 +1,7 @@
-# Worker principles
+# Substrate principles
 
 Five cross-cutting invariants. Every skill and repo-knowledge file
-inherits these. The worker agent reads this file first, before
+inherits these. The host agent reads this file first, before
 operating; skills reference it at their top when invoked.
 
 These are invariants, not defaults. Exceptions are called out in the
@@ -192,7 +192,7 @@ for authorship of artifacts the operator personally commits and ships
 under their name.
 
 **No AI-attribution appears in any commit or PR description authored
-by the worker**, on any repo, regardless of whether the repo's
+by the agent**, on any repo, regardless of whether the repo's
 `CLAUDE.md` prescribes it. Forbidden trailers:
 
 - `Co-Authored-By: Claude ...`
@@ -205,7 +205,7 @@ by the worker**, on any repo, regardless of whether the repo's
 agent is a tool. Tools do not sign artifacts.
 
 If a repo's `CLAUDE.md` prescribes AI attribution, flag it on first
-encounter; the operator confirms the override; the worker applies the
+encounter; the operator confirms the override; the agent applies the
 override from then on across all commits in that repo.
 
 The `skills/git-hygiene/SKILL.md` pre-commit scan catches these
@@ -226,7 +226,7 @@ never carries "maybe later" entries.
 
 Valid no-op rationales:
 - Harness-specific change that violates engine-agnostic constraints
-  (see `skills/curator/SKILL.md` for canonical examples — e.g., engine-specific protections, MS EMU-hook patterns).
+  (see `skills/curator/SKILL.md` for canonical examples — e.g., engine-specific protections, overlay-specific auth-hook patterns).
 - Duplicate of an already-encoded entry.
 - Operator decided against encoding after seeing the proposal.
 
@@ -277,20 +277,20 @@ synchronous gate-opening on every run.
 
 ### Sub-invariant 6a — sub-agent review replaces operator review for non-judgment gates
 
-When worker reaches a point that would otherwise prompt "please
+When the agent reaches a point that would otherwise prompt "please
 review" / "approve when ready" / "look this over" — the default move
 is **spawn a sub-agent reviewer**, not pass it to operator. Operator
 review is the exception, not the default.
 
 **Three review paths in priority order:**
 
-1. **Self-check.** If the decision can be encoded as a rule worker
+1. **Self-check.** If the decision can be encoded as a rule the agent
    runs itself (per Invariant 6 above), do that. No reviewer needed.
 2. **Sub-agent review.** For "review the work I produced" gates —
    planning docs, doing docs, captured notes from external sources,
    non-trivial drafts. Spawn a fresh sub-agent with a self-contained
    briefing; it reads the artifact, verifies against source material,
-   reports findings. Worker addresses findings with judgment.
+   reports findings. The agent addresses findings with judgment.
 3. **Operator review.** Only when the gate genuinely requires human
    judgment.
 
@@ -299,11 +299,11 @@ review is the exception, not the default.
 - **Voice and relationships.** Operator-voice content (PR comments,
   chat messages, FYIs, Connect drafts) lands under operator's name.
   Operator owns that surface.
-- **Durably-shaping state.** New track slugs (permanent, ADO-mapped),
-  new ADO work-item titles, schema choices that propagate.
+- **Durably-shaping state.** New track slugs (permanent, work-item-tracker-mapped),
+  new work-item titles, schema choices that propagate.
 - **Irreversible operations.** Already covered by the preflight-actions
   skill, but reinforces the rule.
-- **Genuine ambiguity.** Worker has tried, can't pick, doesn't have
+- **Genuine ambiguity.** The agent has tried, can't pick, doesn't have
   the context operator has.
 - **Cross-org / cross-team posture.** What to say to one peer vs
   another, how to frame an escalation, when to push back vs accept.
@@ -329,7 +329,7 @@ or just there because the agent didn't yet have a self-check encoded.
 If the latter, encode the self-check (Invariant 6 main rules) or
 swap to sub-agent review (this sub-invariant).
 
-**Anti-pattern.** Worker writes a 200-line planning doc, sets status
+**Anti-pattern.** The agent writes a 200-line planning doc, sets status
 to NEEDS_REVIEW, ends turn waiting for operator. Operator now has to
 read 200 lines and respond — when a sub-agent could have reviewed
 against the source rules and flagged any drift in 30 seconds without

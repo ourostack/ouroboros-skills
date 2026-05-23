@@ -11,15 +11,12 @@ branch-policy required-reviewer rules, scoped by file path) and **who
 is actually reviewing the PR today**. This skill is the
 platform-agnostic recipe.
 
-> **Worker users:** the runnable ADO-flavoured implementation
-> (`helpers/audit.py`), the `az account get-access-token` auth
-> preamble, the `microsoft.onmicrosoft.com` tenant-sniff check, the
-> ADO REST endpoints (`policy/configurations`, `git/repositories`),
-> the required-reviewer policy type GUID
-> (`fd2167ab-b0be-447a-8ec8-39368250530e`), and the dead-end
-> CRG/AAD/PIM-JIT group-expansion lore all live in
-> `worker:ms-pr-toolbox`. Use that on ADO. The conceptual recipe
-> below applies to any platform.
+> **Overlay users:** platform-specific runnable implementations
+> (auth preamble, tenant-sniff checks, REST endpoints, required-
+> reviewer policy-type identifiers, and any group-expansion lore
+> for the host's identity system) typically live in a consumer
+> overlay's PR-toolbox skill. The conceptual recipe below applies
+> to any platform.
 
 ## 4-step recipe
 

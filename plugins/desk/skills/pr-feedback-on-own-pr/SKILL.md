@@ -90,7 +90,7 @@ pr-feedback-on-own-pr runs in one of two modes, set by the caller:
   loop. In this mode:
   - Phase 1 Gather still runs, but only the synthetic self-review
     threads from `pr-self-review-findings.json` are in scope. Real
-    ADO threads are loaded for awareness but not acted on in this
+    real PR threads are loaded for awareness but not acted on in this
     invocation.
   - Phase 2 (auto-comment triage) is skipped — self-review
     findings have no bot-vs-reviewer triage to do.
@@ -175,10 +175,12 @@ How each comment is categorized up front.
 Pull every Active thread on the PR. Bucket by the categories above.
 Produce a table the operator can skim.
 
-**Data source (engine-agnostic):** ADO REST API.
-`GET /{org}/{project}/_apis/git/repositories/{repoId}/pullRequests/{pullRequestId}/threads?api-version=7.1`
-returns the full thread list. Each thread's `comments[0].author.displayName`
-is the bot/author identifier; `comments[0].content` is the body.
+**Data source (engine-agnostic):** the PR host's threads/comments API
+(e.g. `GET /repos/<owner>/<repo>/pulls/<pr-id>/reviews` + `/comments`
+on GitHub, or the equivalent on whatever code-review system the
+overlay targets). The call returns the full thread list. Each thread's
+first-comment author identifier is the bot/author; the comment body
+is the content.
 
 Produce the run file at
 `<iteration-dir>/feedback.md` and populate the threads-table with
@@ -189,11 +191,11 @@ refines in phase 3.
 
 If `<iteration-dir>/artifacts/pr-self-review-findings.json` exists
 (produced by the `pr-self-review` skill), load every finding in that
-file as an additional **synthetic thread** alongside the real ADO
+file as an additional **synthetic thread** alongside the real PR
 threads. Each synthetic thread carries:
 
 - `id`: the `thread_id` from the findings file (e.g., `self-review-001`),
-  distinguishable from ADO thread IDs by prefix.
+  distinguishable from real PR thread IDs by prefix.
 - `author`: `pr-self-review` (so the bucketing + disposition code
   can branch on it when needed).
 - `bucket`: derived from the finding's `severity` and
@@ -207,8 +209,8 @@ threads. Each synthetic thread carries:
   Phase 3 and Phase 4 can treat it identically to a real thread.
 
 Synthetic threads flow through the same downstream phases as real
-ADO threads. The only phase that branches on source is Phase 9
-close — synthetic self-review threads have no ADO thread to mark
+PR threads. The only phase that branches on source is Phase 9
+close — synthetic self-review threads have no real PR thread to mark
 Resolved, so the "post behavioral reply + Resolved" step becomes
 "update the findings file entry to mark the finding as addressed."
 
@@ -248,7 +250,7 @@ or an Assistant span) — escalate to walk-through instead of closing.
 
 ### Harness-denied reopen is correct-by-design
 
-If you mis-classify and close a PR-Assistant thread, the ADO API will
+If you mis-classify and close a PR-Assistant thread, the PR host's API will
 sometimes accept a reopen request and sometimes reject it. A correctly-
 configured operating environment may deny the reopen ("reversing a
 resolution without authorization is destructive"). That denial is
@@ -486,8 +488,8 @@ default.
 
 Before handing off to `work-doer`:
 
-1. **Re-pull active threads** via the ADO REST API (same call as
-   phase 1): `GET /{org}/{project}/_apis/git/repositories/{repoId}/pullRequests/{pullRequestId}/threads`.
+1. **Re-pull active threads** via the PR host's threads API (same call as
+   phase 1).
 2. **Diff against `feedback.md`'s thread list.** New threads posted
    since phase 1 get bucketed and assigned to units BEFORE execution
    starts.
@@ -646,7 +648,7 @@ verify) are independent work streams. The agent should run them
 concurrently rather than serially:
 
 - Phase 9 thread replies reference stable commit SHAs
-  (`"Resolved by Unit 8 commit 473f9a56"`). Those SHAs don't change
+  (e.g. `"Resolved by commit 473f9a56"`). Those SHAs don't change
   as fix-up commits for format / test-contract errors layer on.
 - Pipeline churn during Phase 8 therefore rarely invalidates Phase
   9 work.
@@ -681,8 +683,8 @@ and producing no clear "done" signal.
    `1 = timeout` (or equivalent). The parent branches on the exit
    code to know whether the wait succeeded or hit the wall.
 4. **Per-tick interval respects the watched system's rate
-   limits.** ADO pipeline status: 3-4 minutes between ticks is
-   the bar. Faster runs into rate-limit / load problems.
+   limits.** For long-running CI pipelines, 3-4 minutes between
+   ticks is a typical bar. Faster runs into rate-limit / load problems.
 
 **Tool selection — pick by behavior signature, not by tool name.**
 
@@ -725,7 +727,7 @@ while true; do
   if [ $(( $(date +%s) - START )) -gt "$MAX_SECONDS" ]; then
     echo "TIMEOUT"; exit 1
   fi
-  sleep 240   # 4 minutes; respects ADO pipeline rate limits
+  sleep 240   # 4 minutes; respects CI pipeline rate limits
 done
 ```
 
@@ -755,7 +757,7 @@ fix that doesn't address the actual cause.
 - Docker / container runtime failures
 - Package-restore timeouts (NPM / Yarn / NuGet registry issues)
 - Out-of-memory errors not caused by recent code changes
-- Generic ADO / cloud-build service errors with no test or compile
+- Generic CI / cloud-build service errors with no test or compile
   trail in the log
 
 **Code-failure signals** (fix in code):
@@ -767,14 +769,15 @@ fix that doesn't address the actual cause.
 
 **Retrigger flow.** Use whatever your platform provides to re-run a
 required policy or check without pushing a new commit (GitHub: re-run
-a failed check via `gh run rerun`; GitLab: retry a CI job; ADO:
-PATCH the policy evaluation to `queued`). The mechanics are
-platform-specific; the discipline is universal — retrigger on infra
-failure, code-fix on code failure.
+a failed check via `gh run rerun`; GitLab: retry a CI job; other
+platforms: their equivalent). The mechanics are platform-specific;
+the discipline is universal — retrigger on infra failure, code-fix on
+code failure.
 
-> **Worker users:** the ADO-specific `az account get-access-token` +
-> `policy/evaluations` PATCH recipe lives in `worker:ms-pr-toolbox`,
-> along with the `az devops invoke` tactical wisdom below.
+> **Overlay users:** platform-specific retrigger recipes (e.g.
+> non-GitHub PR hosts requiring an auth-token refresh + a state-PATCH
+> against a policy-evaluation endpoint) typically live in a consumer
+> overlay's PR-toolbox skill.
 
 **Guard rails on retriggers:**
 
@@ -821,9 +824,9 @@ ad-hoc one-offs):
 - **Token refresh per tick is mandatory** for any loop whose run
   duration approaches the auth token TTL.
 
-> **Worker users:** ADO/`az`-specific variants of these patterns
-> (token-refresh recipe, `az devops invoke --query` quirks) live in
-> `worker:ms-pr-toolbox`.
+> **Overlay users:** platform-specific variants of these patterns
+> (token-refresh recipes, vendor-CLI `--query` quirks) typically live
+> in a consumer overlay's PR-toolbox skill.
 
 ---
 
@@ -856,9 +859,8 @@ the thread or only posts a reply:
 For each non-auto thread, in dependency order:
 
 1. Re-read reviewer body + `proposed_action` + `action` tag +
-   assigned unit(s) + actual landed diff on the PR (via
-   `GET /{org}/{project}/_apis/git/repositories/{repoId}/pullRequests/{pullRequestId}/iterations/{iterationId}/changes`
-   or equivalent).
+   assigned unit(s) + actual landed diff on the PR (via the PR
+   host's "PR iterations / changes" API or equivalent).
 2. Landed code must satisfy the ask. Not "intended to"; landed.
 3. **If no:** loop back to phase 6a (update plan) or phase 7 (add
    units). Never Resolved on intention.
@@ -893,17 +895,13 @@ or work item, use the platform's auto-link syntax — not raw URLs and
 not "PR <id>" prose. Each platform has its own conventions; pick the
 one your platform renders as a styled link with title/status.
 
-For example, on Azure DevOps:
-- **PR reference**: `!<id>` (e.g., `!1537249`)
-- **Work-item reference**: `#<id>` (e.g., `#5348237`)
+On GitHub: `#<id>` for PRs/issues. On GitLab: `!<id>` for MRs, `#<id>`
+for issues. Other PR hosts have their own conventions.
 
-On GitHub: `#<id>` for PRs/issues; on GitLab: `!<id>` for MRs, `#<id>`
-for issues.
-
-Example: `"Resolved by !1543112 — landed the unified accessor in
+Example (GitHub): `"Resolved by #1543 — landed the unified accessor in
 that PR; this thread's read-side now goes through it."` Reads
-shorter than `"Resolved by PR 1543112"` and renders as a clickable
-link in the ADO comment. Same applies to commit references where a
+shorter than `"Resolved by PR 1543"` and renders as a clickable
+styled link in the comment. Same applies to commit references where a
 sibling-PR commit landed the resolution. Reserve raw URLs for
 non-PR/non-WI links (wiki, dashboard, log).
 
@@ -914,7 +912,7 @@ Edge cases:
 
 ### Cross-check live PR threads after any thread-creation flow
 
-**Rule.** After any flow that creates ADO PR threads — whether
+**Rule.** After any flow that creates PR threads — whether
 written inline by the agent doing per-thread verify, or via a
 delegated authoring helper that may retry internally — query the
 live PR's thread list and look for duplicates of the just-created
@@ -1071,7 +1069,7 @@ from this file alone.
 | Two human comments conflict | Surface, block, wait for resolution before phase 5 |
 | Volume > 20 human comments | Break walk-through into batches of ~10 |
 | Thread is a clarification question | Reply first, mark `pending-clarification`; don't mark confirmed until operator answers |
-| Comment in a file the PR only touches adjacently | Confirm with operator whether it's in-scope; if not, resolve with "pre-existing, follow-up tracked in `<ADO #N>`" |
+| Comment in a file the PR only touches adjacently | Confirm with operator whether it's in-scope; if not, resolve with "pre-existing, follow-up tracked in `<tracker-id>`" |
 | Architecture change would require reverting a unit the PR already built | Surface the cost tradeoff BEFORE planning; operator may accept or request compromise |
 | Phase 9 verify fails for a thread | Loop back to phase 6a (update plan) or phase 7 (add units). Don't mark Resolved-with-caveats. |
 | Harness / environment blocker (permission denial, unreachable service) | Return control to operator per `../../principles.md` Invariant 1 — that's a real decision point. |
@@ -1093,12 +1091,12 @@ design:
 - Pre-code iterations (task has no repo yet).
 - Cross-repo atomic iteration (must land in multiple repos
   simultaneously).
-- Task-level non-iteration notes (incident reports, Kusto findings).
+- Task-level non-iteration notes (incident reports, ad-hoc analytics findings).
 
 ### 2026-04-21 — process clarifications from first-run (commit+push cadence; doing.md live; drift re-fetch; phase-9 loop; phase-8 no-cap)
 
-Clarifications surfaced during the first live run (PR 1537249,
-review-pass-1). None contradict the phase bodies above; they sharpen
+Clarifications surfaced during the first live run (review-pass-1 on
+the pilot PR). None contradict the phase bodies above; they sharpen
 specific invariants.
 
 **Commit+push cadence — atomic, everywhere, every file edit.**
@@ -1115,9 +1113,9 @@ specific invariants.
 
 **Drift re-fetch gates — phase 9 is not the only place we re-check.**
 - End of phase 6b (before starting phase 7): re-pull active threads
-  via the ADO REST API. Diff against `feedback.md`'s thread list. New
-  human threads get bucketed + assigned to units BEFORE execution
-  starts.
+  via the PR host's threads API. Diff against `feedback.md`'s thread
+  list. New human threads get bucketed + assigned to units BEFORE
+  execution starts.
 - Start of phase 9: re-pull once more. Threads posted during
   execution are handled before closing the iteration.
 - Between units is NOT a re-pull point — noise.
@@ -1149,7 +1147,7 @@ specific invariants.
 
 ### 2026-04-21 — three-doc layered design record formalized (feedback.md / planning.md / doing.md)
 
-Pattern piloted during PR 1537249 review-pass-1. Re-evaluate at
+Pattern piloted during the first review-pass-1. Re-evaluate at
 archive time (what worked, what didn't, what to adjust before second
 use).
 
