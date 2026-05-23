@@ -12,7 +12,7 @@
 //     indexer's internals
 //   - future work (cached query vectors keyed by query string) lives here
 
-import { embedChunk } from "../indexer/embed.js"
+import { embedChunkDetailed } from "../indexer/embed.js"
 
 /**
  * Embed a query string. Returns `{ vector, available }` — `vector` is a
@@ -25,8 +25,12 @@ import { embedChunk } from "../indexer/embed.js"
  */
 export async function embedQuery(query, opts = {}) {
   if (typeof query !== "string" || query.trim().length === 0) {
-    return { vector: null, available: false }
+    return { vector: null, available: false, diagnostic: null }
   }
-  const vec = await embedChunk(query, opts)
-  return { vector: vec, available: vec != null }
+  const result = await embedChunkDetailed(query, opts)
+  return {
+    vector: result.vector,
+    available: result.available,
+    diagnostic: result.diagnostic,
+  }
 }

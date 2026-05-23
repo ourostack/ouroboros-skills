@@ -56,7 +56,8 @@ test("desk_recall — Ollama-down returns semantic_unavailable error", async () 
   })
 
   assert.equal(res.error, "semantic_unavailable")
-  assert.match(res.note, /Ollama/)
+  assert.match(res.note, /semantic search/)
+  assert.match(res.semantic_repair, /desk_reindex/)
   assert.equal(res.results, undefined, "no results in error payload")
 })
 
