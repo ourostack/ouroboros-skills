@@ -31,7 +31,23 @@ The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declar
 
 ### Under Claude Code
 
-The plugin uses the standard `.claude-plugin/plugin.json` manifest. Reference it from a marketplace manifest, or consume the top-level `skills/` directory directly via the `skill-management` flow.
+The `ourostack/ouroboros-skills` repo ships a Claude Code marketplace manifest at `.claude-plugin/marketplace.json`, so installation is two slash commands inside a Claude Code session:
+
+```
+/plugin marketplace add ourostack/ouroboros-skills
+/plugin install desk@ouroboros-skills
+/plugin install work-suite@ouroboros-skills
+```
+
+Claude Code doesn't auto-resolve plugin deps — install `work-suite` explicitly (it provides the doing-phase skills the desk agent references).
+
+After install, launch the default worker agent:
+
+```bash
+claude --agent desk:worker
+```
+
+Or inside an existing Claude session: `@desk:worker say hi`. The agent's preamble auto-loads with the cozy library voice and a placeholder `$DESK` binding (typically `~/desk/`). See [`agents/README.md`](./agents/README.md) for the full agent file reference.
 
 ### Under Codex
 
