@@ -25,6 +25,12 @@
       "tags": ["workflow", "ideation", "planning"]
     },
     {
+      "name": "workbench-operator",
+      "path": "skills/workbench-operator/SKILL.md",
+      "description": "Use Ouro Workbench as the native control room for terminal/TUI agents, including boss-agent check-ins, Workbench MCP tools, Desk mirroring, onboarding, and first-class Claude Code, Codex, Copilot CLI, and shell sessions.",
+      "tags": ["workflow", "workbench", "desk", "mcp", "terminal-agents"]
+    },
+    {
       "name": "work-planner",
       "path": "skills/work-planner/SKILL.md",
       "description": "Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.",
