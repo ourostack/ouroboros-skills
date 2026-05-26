@@ -1,5 +1,17 @@
 # desk plugin — changelog
 
+## 1.3.1 — 2026-05-26
+
+**Codex agent-setup docs**: close the UX gap introduced in 1.3.0. Codex plugins ship skills + MCP + apps + hooks per the [plugin schema](https://developers.openai.com/codex/concepts/customization), but cannot ship subagents or AGENTS.md content directly — the agent layer is user-installed. 1.3.0 shipped `agents/worker.toml` but didn't explain how to install it, nor did it mention the AGENTS.md path that most operators actually want.
+
+What changes:
+
+- **New `agents/README.md`** — per-harness install + invocation reference. Spells out the two Codex paths: (A) default behavior via appending the canonical body to `~/.codex/AGENTS.md` so Codex always reads it; (B) explicit subagent via `cp worker.toml → ~/.codex/agents/`. The two paths compose.
+- **`codex-onboarding` skill** — adds Step 7 (Install the `worker` agent layer) covering both paths, with the `awk`-based frontmatter-stripping append command for Path A and the `cp` + verify-with-`codex /agents list` for Path B.
+- **Top-level README's Invocation section** — Codex line is now two-paragraph, calls out the schema constraint, and links to `agents/README.md` for details.
+
+No functional/manifest changes vs. 1.3.0; purely documentation.
+
 ## 1.3.0 — 2026-05-26
 
 **Default `worker` agent + cross-harness manifest completion.** The desk plugin is now standalone-functional — no overlay required. A new substrate-default engineering agent ships with the plugin, and the manifest set is complete for Claude Code + Copilot CLI + Codex.

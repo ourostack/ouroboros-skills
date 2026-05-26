@@ -1,6 +1,6 @@
 ---
 name: codex-onboarding
-description: Install and verify the desk plugin under Codex, including the local marketplace entry, `$DESK` workspace binding, desk MCP server, and companion work-suite plugin.
+description: Install and verify the desk plugin under Codex, including the local marketplace entry, `$DESK` workspace binding, desk MCP server, companion work-suite plugin, and the `worker` agent layer (AGENTS.md default-behavior path OR subagent TOML path).
 ---
 
 # Codex onboarding
@@ -18,6 +18,9 @@ Use this when a Codex agent needs to install or repair desk support on a machine
   - `desk@<marketplace-name>` enabled.
   - `work-suite@<marketplace-name>` enabled.
   - an MCP server named `desk` that launches `node ~/plugins/desk/mcp/index.js --root "$DESK"`.
+- The `worker` agent layer installed via one or both paths:
+  - **Default behavior** (recommended): the canonical body appended to `~/.codex/AGENTS.md` so every Codex session reads the desk substrate as always-on context.
+  - **Explicit subagent** (power-user): `~/.codex/agents/worker.toml` for `/agent worker` invocation.
 
 Codex plugin and MCP changes generally require a new Codex session before the tools and skills appear in the active tool list.
 
@@ -91,6 +94,36 @@ EOF
 ```
 
 The active Codex session will not gain new plugin skills retroactively. Restart Codex or open a fresh session to confirm that `desk` and `work-suite` appear in the available plugins/skills list.
+
+## 7. Install the `worker` agent layer
+
+Codex plugins ship skills + MCP + apps + hooks per the plugin schema, but cannot ship subagents or AGENTS.md content directly — the agent layer is user-installed. Pick the path that matches the use case.
+
+**Path A — default behavior (recommended).** Codex itself behaves like `worker` in every session. Append the canonical body to `~/.codex/AGENTS.md`:
+
+```bash
+# Strip the YAML frontmatter (between the first two --- lines) and append.
+awk '/^---$/{c++; next} c>=2' "$HOME/plugins/desk/agents/worker.md" >> "$HOME/.codex/AGENTS.md"
+```
+
+If `~/.codex/AGENTS.md` already contains the body (e.g. a prior install), de-duplicate by trimming the older copy first. The appended body uses `$DESK` placeholders that the consumer agent's preamble resolves at use time.
+
+**Path B — explicit subagent.** Spawn `worker` on demand via `/agent worker` while keeping Codex's default behavior unchanged:
+
+```bash
+mkdir -p "$HOME/.codex/agents"
+cp "$HOME/plugins/desk/agents/worker.toml" "$HOME/.codex/agents/worker.toml"
+```
+
+Paths A and B compose. AGENTS.md = default behavior every session. TOML = isolated subagent session on demand.
+
+Verify Path B is registered:
+
+```bash
+codex /agents list  # should include 'worker'
+```
+
+(Path A is verified implicitly — the next session reads the appended AGENTS.md and behaves like worker.)
 
 ## Friction rule
 
