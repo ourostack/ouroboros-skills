@@ -1,0 +1,70 @@
+name: Validate skills
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate manifest and skill files
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+          if (!Array.isArray(manifest.skills)) {
+            throw new Error("manifest.skills must be an array");
+          }
+
+          const names = new Set();
+          for (const skill of manifest.skills) {
+            if (!skill || typeof skill !== "object") {
+              throw new Error("every skill entry must be an object");
+            }
+            if (typeof skill.name !== "string" || skill.name.trim() === "") {
+              throw new Error(`invalid skill name: ${JSON.stringify(skill)}`);
+            }
+            if (names.has(skill.name)) {
+              throw new Error(`duplicate skill name: ${skill.name}`);
+            }
+            names.add(skill.name);
+
+            if (typeof skill.path !== "string" || !skill.path.endsWith("/SKILL.md")) {
+              throw new Error(`${skill.name}: path must point at SKILL.md`);
+            }
+            if (!fs.existsSync(skill.path)) {
+              throw new Error(`${skill.name}: missing ${skill.path}`);
+            }
+            if (typeof skill.description !== "string" || skill.description.trim() === "") {
+              throw new Error(`${skill.name}: description is required`);
+            }
+            if (!Array.isArray(skill.tags) || skill.tags.length === 0) {
+              throw new Error(`${skill.name}: tags must be a non-empty array`);
+            }
+
+            const body = fs.readFileSync(skill.path, "utf8");
+            const frontmatter = body.match(/^---\n([\s\S]*?)\n---/);
+            if (!frontmatter) {
+              throw new Error(`${skill.name}: missing YAML frontmatter`);
+            }
+            const declaredName = frontmatter[1].match(/^name:\s*"?([^"\n]+)"?\s*$/m)?.[1];
+            if (declaredName !== skill.name) {
+              throw new Error(`${skill.name}: frontmatter name is ${declaredName ?? "missing"}`);
+            }
+          }
+
+          console.log(`Validated ${manifest.skills.length} skills.`);
+          NODE
