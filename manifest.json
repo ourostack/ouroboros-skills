@@ -85,6 +85,12 @@
       "tags": ["audit", "architecture", "refactoring", "code-quality"]
     },
     {
+      "name": "dragon-hunt",
+      "path": "skills/dragon-hunt/SKILL.md",
+      "description": "Run an adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. Find, prove, fix, test, and log every reachable defect before declaring a system ready.",
+      "tags": ["audit", "security", "qa", "integration", "workflow"]
+    },
+    {
       "name": "word-docs",
       "path": "skills/word-docs/SKILL.md",
       "description": "Convert markdown drafts into shareable Word documents using a bundled helper script.",
