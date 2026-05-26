@@ -18,7 +18,7 @@ AGENT=$(echo "$BRANCH" | cut -d'/' -f1)
 
 `PR_TARGET` is optional. Use it when the caller gives an explicit PR number, PR URL, or branch name to merge. Do not assume work-merger is running from the feature branch; Codex app threads and shared worktree setups may leave the active checkout detached.
 
-The branch follows the `<agent>/<slug>` convention (e.g., `ouroboros/context-kernel`, `slugger/oauth-setup`). The first path segment is the agent name. If the branch has no `/`, the entire branch name is the agent (e.g., `ouroboros`).
+The branch follows the `<agent>/<slug>` convention (e.g., `ouroboros/context-kernel`, `<your-agent>/oauth-setup`). The first path segment is the agent name. If the branch has no `/`, the entire branch name is the agent (e.g., `ouroboros`).
 
 Do not hardcode agent names. Derive `<agent>` from the branch at runtime when a branch is available.
 
@@ -267,14 +267,14 @@ Do not use generic titles like `merge <branch>`. Title must describe delivered c
 - `<optional-agent-prefix>: <no-context-needed-short-title> — <short detailed description>`
 
 Rules:
-- If an agent is publishing, include agent prefix (example: `slugger:`).
+- If an agent is publishing, include agent prefix (example: `<your-agent>:`).
 - The first title segment must be understandable without branch, gate, or planning-doc context.
 - The second segment adds concise detail.
-- Do **not** use gate labels (`Gate 6`, `Gate 11`) in titles.
+- Do **not** use internal gate or sprint labels in titles.
 
 Examples:
-- `slugger: Ship model-driven task lifecycle — add tools, transitions, and archival flow`
-- `slugger: Enable autonomous coding execution — orchestrate external sessions with recovery`
+- `<your-agent>: Ship model-driven task lifecycle — add tools, transitions, and archival flow`
+- `<your-agent>: Enable autonomous coding execution — orchestrate external sessions with recovery`
 - `Improve CI diagnostics — include failure context and retry metadata in logs`
 
 **Body structure (exact headings):**
