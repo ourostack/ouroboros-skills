@@ -1,8 +1,22 @@
 # desk plugin — changelog
 
+## 1.3.4 — 2026-05-26
+
+**Claude Code install path is now operator-actionable.** Repo gains a Claude Code marketplace manifest (`.claude-plugin/marketplace.json` at the root of `ouroboros-skills`) listing `desk` and `work-suite`. The desk plugin's README `Under Claude Code` section, previously a single sentence assuming prior marketplace knowledge, now walks through the three slash commands:
+
+```
+/plugin marketplace add ourostack/ouroboros-skills
+/plugin install desk@ouroboros-skills
+/plugin install work-suite@ouroboros-skills
+```
+
+…plus the agent-launch command (`claude --agent desk:worker`) and a note that Claude Code doesn't auto-resolve deps (install `work-suite` explicitly).
+
+No semantic changes to skills or agent body. Pure install-path improvement so fresh-machine adoption stops requiring tribal knowledge.
+
 ## 1.3.3 — 2026-05-26
 
-**Fix YAML frontmatter parse error in `desk:worker` agent files.** Smoke test on Claude Code surfaced `YAML parsing error: mapping values are not allowed in this context at line 2 column 279` when launching `agency claude -a desk:worker`. The `description:` value contained `Cross-harness: same skills body...` — the unquoted `:` followed by a space is parsed by YAML as a mapping key starting inside the scalar.
+**Fix YAML frontmatter parse error in `desk:worker` agent files.** Smoke test on Claude Code surfaced `YAML parsing error: mapping values are not allowed in this context at line 2 column 279` when launching the agent. The `description:` value contained `Cross-harness: same skills body...` — the unquoted `:` followed by a space is parsed by YAML as a mapping key starting inside the scalar.
 
 Fix: double-quote the `description` value in `agents/worker.md` and `agents/worker.agent.md`, and replace the inline `Cross-harness:` colon with an em-dash (`Cross-harness —`) for readability when reading raw. Same em-dash treatment applied to the Codex TOML's `description` for consistency (TOML was already correctly quoted; just the readability tweak).
 
