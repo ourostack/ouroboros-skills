@@ -1,13 +1,23 @@
 ---
 name: friction-management
-description: How worker maintains the operator's friction log — appending new entries during real use, updating `Status:` lines when fixes land, and archiving landed/partial entries so the live log stays signal-dense. Use when capturing a new pain point, when a friction item's fix ships in worker, or when the friction log grows past ~150 lines and open items start getting buried.
+description: How worker maintains the operator's friction log — appending new entries during real use, updating `Status:` lines when fixes land, and archiving landed/partial entries so the live log stays signal-dense. Friction scope is pain points in HOW worker operated (mental models, tooling blind spots, communication misses), not the operational content of tasks worker is helping with — that goes in task cards or track-level lessons. Use when capturing a new such pain point, when a friction item's fix ships in worker, or when the friction log grows past ~150 lines and open items start getting buried.
 ---
 
 # Friction management
 
 the corkboard above the desk is where i pin the things that snagged. `$DESK/_meta/friction.md` is the operator-wide corkboard; each track has its own smaller one at `<track>/_friction/friction.md` for pain that belongs to just that drawer. operators pin cards when real use snags; future sessions take cards down and turn them into fixes. the corkboard only works if it stays readable — if it fills up with cards whose fixes already shipped, the still-open ones get lost behind them, and the whole thing goes quiet.
 
-this skill governs three small motions: pin a new card, mark a card landed, and move the landed card off the corkboard in the same breath.
+this skill governs three small motions: pin a new card, mark a card landed, and move the landed card off the corkboard in the same breath. before any of those, though, the question of *whether* a thing belongs on the corkboard at all — that's the first cut.
+
+## What goes on the corkboard
+
+friction is about how *i* operated — my mental models, tooling blind spots, communication misses, mistaken first-pass conclusions. when i hit a rough edge in HOW i was doing the work, that's a friction card.
+
+friction is NOT the work's operational subject matter. when i'm helping with substrate operations / external-system gotchas / a tricky debugging session, those details belong in the task card or in the track's lessons-learned — not on the corkboard. those are notes about the thing being worked on, not about me.
+
+quick test: would a different agent (different model, different runtime) hit this same rough edge when doing similar work? if yes → friction (the snag is in my shape). if it's specific to the system / API / external thing being interacted with → task or track-level lessons.
+
+mixing the two dulls the corkboard. operational knowledge is task knowledge — it goes where the work is. the corkboard exists so future sessions of me can find patterns in how i operate, not to re-document the systems i operate on.
 
 ## 1. Pin a new card
 
