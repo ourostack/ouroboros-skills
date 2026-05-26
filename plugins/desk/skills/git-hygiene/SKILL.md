@@ -543,8 +543,60 @@ history need a force-push. Sequence:
 1. Rewrite history locally with `git filter-branch --msg-filter` or
    `git rebase -i` + trailer-strip.
 2. Verify `git log --format=%B origin/main..HEAD | grep -E "Co-Authored-By: Claude|..."` → zero hits.
-3. Apply safe-conditions check above.
+3. Apply safe-conditions check above (especially the **upstream-currency check** below if rewriting on a shared branch).
 4. Force-push. If harness denies, surface the exact command.
+
+### Mass history rewrites — upstream-currency check is load-bearing
+
+A history rewrite that replaces a swath of commit SHAs (mailmap
+author rename, `git filter-repo`, BFG, `git filter-branch`, etc.)
+followed by a force-push to a shared branch will **silently drop**
+any commits that landed on origin since the local clone last synced.
+
+The trap: the rewrite runs cleanly, the force-push succeeds, every
+SHA matches what the operator expected — and any commits the
+upstream advanced past the local snapshot are now orphaned. The
+"git cherry" safe-condition above catches this only if the local
+branch knew about those commits; if origin advanced after the last
+local fetch, `git cherry` has nothing to compare against.
+
+**Standing rule.** Before force-pushing rewritten history to a
+shared branch (including the rare authorized force-push to `main`):
+
+1. **Upstream-currency check** — must return empty:
+   ```bash
+   git fetch origin && git log HEAD..origin/<branch>
+   ```
+   If non-empty, origin has commits the local clone hasn't seen.
+   Stop. Sync (or recover, below) before pushing.
+
+2. **Even better: start from a fresh mirror clone.** For
+   `git filter-repo` runs in particular:
+   ```bash
+   git clone --mirror https://github.com/<owner>/<repo>.git /tmp/<repo>-rewrite.git
+   cd /tmp/<repo>-rewrite.git
+   git filter-repo --mailmap /path/to/mailmap.txt --force
+   # …verify, re-add origin, push…
+   ```
+   The mirror IS origin's current state at clone time — no
+   stale-checkout window. Still re-run the upstream-currency check
+   right before pushing (origin may have advanced again during the
+   rewrite).
+
+3. **Recovery if commits did get dropped.** GitHub keeps orphaned
+   objects for ~90 days, fetchable by SHA. Rebase the orphan chain
+   onto the rewritten base; force-push again:
+   ```bash
+   git fetch origin <orphaned-sha>:refs/recovered/old-tip
+   git checkout refs/recovered/old-tip
+   git rebase --onto <new-rewritten-base> <old-rewritten-base>
+   git branch -f <branch> HEAD
+   # then re-apply force-push (after upstream-currency check)
+   ```
+   The rebase is clean when the rewrite only changed metadata
+   (mailmap, AI-attribution strip, etc.) — each commit's tree is
+   identical to its rewritten counterpart, so diffs apply on the
+   rewritten base without conflicts.
 
 ---
 

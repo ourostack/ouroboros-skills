@@ -1,5 +1,17 @@
 # desk plugin — changelog
 
+## 1.3.2 — 2026-05-26
+
+**Git-hygiene: mass-history-rewrite upstream-currency rule.** Encodes a lesson learned the hard way during an author-rename rewrite: force-pushing rewritten history without first verifying the local clone is current with origin silently drops any commits that advanced upstream since the last sync.
+
+What changes:
+
+- New `Mass history rewrites — upstream-currency check is load-bearing` subsection in `git-hygiene/SKILL.md` (under `Force-push — safe-conditions procedure`).
+- Three concrete patterns: (1) the standing `git fetch origin && git log HEAD..origin/<branch>` check before any force-push that follows a history rewrite; (2) start-from-fresh-mirror-clone as the preferred pattern for `git filter-repo` runs (sidesteps the stale-checkout window); (3) recovery procedure when commits did get dropped — fetch the orphan chain by SHA into `refs/recovered/old-tip`, rebase onto the rewritten base (clean when the rewrite only changed metadata since trees are identical), force-push again after re-applying the upstream-currency check.
+- Existing `AI-attribution cleanup` use case cross-references the new subsection.
+
+Why this lives in desk (substrate), not an overlay: every consumer agent that ever rewrites history on a shared branch faces the same trap, regardless of context (corporate engineering, autonomous agent, personal-coding). The rule belongs with the engineering posture skills the substrate provides.
+
 ## 1.3.1 — 2026-05-26
 
 **Codex agent-setup docs**: close the UX gap introduced in 1.3.0. Codex plugins ship skills + MCP + apps + hooks per the [plugin schema](https://developers.openai.com/codex/concepts/customization), but cannot ship subagents or AGENTS.md content directly — the agent layer is user-installed. 1.3.0 shipped `agents/worker.toml` but didn't explain how to install it, nor did it mention the AGENTS.md path that most operators actually want.
