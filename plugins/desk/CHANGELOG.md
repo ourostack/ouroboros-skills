@@ -44,6 +44,8 @@ codex /agent worker   # after copying worker.toml to ~/.codex/agents/
 - Add Codex plugin metadata and a local-marketplace entry for `desk`.
 - Add a Codex onboarding skill covering local install, `$DESK` binding, MCP registration, and the companion `work-suite` plugin.
 - Document the Codex install path in the desk README.
+- Add a Claude Code onboarding skill (`claude-onboarding`) mirroring `codex-onboarding`: upstream-marketplace path, local-marketplace-shared-with-Codex path, and a non-interactive harness-state fallback for self-installing agents.
+- Document the Claude Code install path in the desk README (now points at the new top-level `.claude-plugin/marketplace.json`).
 - Fix the MCP package test script so `npm test` discovers nested Node test files on current Node.
 - Upgrade the MCP TypeScript SDK dependency to the current non-vulnerable line.
 - Make semantic search self-healing across machines: embedding endpoint discovery now honors `OLLAMA_HOST` plus desk-specific overrides, unavailable semantic responses include structured diagnostics and repair guidance, and `desk_reindex` repairs fresh lexical-only indexes once embeddings return without requiring `force:true`.
