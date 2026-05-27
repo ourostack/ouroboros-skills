@@ -6,7 +6,9 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
-import { homedir } from "node:os"
+import { homedir, tmpdir } from "node:os"
+import { mkdtempSync, mkdirSync, rmSync } from "node:fs"
+import * as path from "node:path"
 
 // Import from tool-names directly (not server.js) so the test doesn't pull
 // the @modelcontextprotocol/sdk dep. Tool list is the canonical source.
@@ -54,4 +56,149 @@ test("path resolver expands ~ and rejects nonexistent roots", async () => {
     () => resolveDeskRoot("/definitely/does/not/exist/" + Date.now()),
     /does not exist/,
   )
+})
+
+test("path resolver — explicit --root wins over env + fallbacks", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const explicit = path.join(tmp, "explicit")
+    mkdirSync(explicit)
+    const prevDesk = process.env.DESK
+    process.env.DESK = "/nonexistent/should/be/ignored"
+    try {
+      assert.equal(resolveDeskRoot(explicit), explicit)
+    } finally {
+      if (prevDesk === undefined) delete process.env.DESK
+      else process.env.DESK = prevDesk
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("path resolver — $DESK env var used when --root absent", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const envRoot = path.join(tmp, "env-root")
+    mkdirSync(envRoot)
+    const prevDesk = process.env.DESK
+    const prevHome = process.env.HOME
+    process.env.DESK = envRoot
+    // Point HOME at a fresh empty dir so the fallback chain finds nothing
+    // and $DESK is what wins.
+    process.env.HOME = path.join(tmp, "empty-home")
+    mkdirSync(process.env.HOME)
+    try {
+      assert.equal(resolveDeskRoot(null), envRoot)
+    } finally {
+      if (prevDesk === undefined) delete process.env.DESK
+      else process.env.DESK = prevDesk
+      process.env.HOME = prevHome
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("path resolver — falls through $HOME canonical locations when env unset", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const fakeHome = path.join(tmp, "home")
+    mkdirSync(fakeHome)
+    // Create ~/desk but NOT ~/ms-desk — verify ~/desk is found.
+    mkdirSync(path.join(fakeHome, "desk"))
+    const prevDesk = process.env.DESK
+    const prevHome = process.env.HOME
+    delete process.env.DESK
+    process.env.HOME = fakeHome
+    try {
+      assert.equal(resolveDeskRoot(null), path.join(fakeHome, "desk"))
+    } finally {
+      if (prevDesk !== undefined) process.env.DESK = prevDesk
+      process.env.HOME = prevHome
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("path resolver — prefers ms-desk over desk over worker-workspace", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const fakeHome = path.join(tmp, "home")
+    mkdirSync(fakeHome)
+    // Create all three — ms-desk should win per order.
+    mkdirSync(path.join(fakeHome, "ms-desk"))
+    mkdirSync(path.join(fakeHome, "desk"))
+    mkdirSync(path.join(fakeHome, "worker-workspace"))
+    const prevDesk = process.env.DESK
+    const prevHome = process.env.HOME
+    delete process.env.DESK
+    process.env.HOME = fakeHome
+    try {
+      assert.equal(resolveDeskRoot(null), path.join(fakeHome, "ms-desk"))
+    } finally {
+      if (prevDesk !== undefined) process.env.DESK = prevDesk
+      process.env.HOME = prevHome
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("path resolver — falls back to worker-workspace as last resort", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const fakeHome = path.join(tmp, "home")
+    mkdirSync(fakeHome)
+    mkdirSync(path.join(fakeHome, "worker-workspace"))
+    const prevDesk = process.env.DESK
+    const prevHome = process.env.HOME
+    delete process.env.DESK
+    process.env.HOME = fakeHome
+    try {
+      assert.equal(resolveDeskRoot(null), path.join(fakeHome, "worker-workspace"))
+    } finally {
+      if (prevDesk !== undefined) process.env.DESK = prevDesk
+      process.env.HOME = prevHome
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("path resolver — fatal error lists every path tried", async () => {
+  const { resolveDeskRoot } = await import("../src/util/paths.js")
+  const tmp = mkdtempSync(path.join(tmpdir(), "desk-paths-"))
+  try {
+    const fakeHome = path.join(tmp, "home-empty")
+    mkdirSync(fakeHome)
+    const prevDesk = process.env.DESK
+    const prevHome = process.env.HOME
+    process.env.DESK = path.join(tmp, "missing-env-desk")
+    process.env.HOME = fakeHome
+    try {
+      assert.throws(
+        () => resolveDeskRoot(null),
+        (err) => {
+          assert.match(err.message, /no desk workspace found/)
+          assert.match(err.message, /\$DESK=/)
+          assert.match(err.message, /ms-desk/)
+          assert.match(err.message, /worker-workspace/)
+          return true
+        },
+      )
+    } finally {
+      if (prevDesk === undefined) delete process.env.DESK
+      else process.env.DESK = prevDesk
+      process.env.HOME = prevHome
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
 })

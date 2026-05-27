@@ -1,5 +1,17 @@
 # desk plugin — changelog
 
+## 1.3.5 — 2026-05-27
+
+**Fix fresh-install MCP launch when `$DESK` is unset.** The plugin's `.mcp.json` was passing `--root "${DESK:-./desk}"`, which Claude Code (and Codex) pass through to the MCP entrypoint literally — the shell substitution never runs. So fresh installs without an exported `$DESK` got `node mcp/index.js --root ./desk`, which resolved relative to the plugin install dir, didn't exist, and the MCP exited fatally. JSON-RPC surfaced as `-32000` and none of the plugin's tools loaded.
+
+What changes:
+
+- `mcp/src/util/paths.js` — `resolveDeskRoot()` now walks a fallback chain when `--root` isn't passed and `$DESK` isn't set: `$HOME/ms-desk/` → `$HOME/desk/` → `$HOME/worker-workspace/` (the last one for operators still on the pre-rename layout). The fatal error message now lists every path tried, so the operator can diagnose at a glance.
+- `.mcp.json` — drop the inline `${DESK:-./desk}` fallback. `args` is now just `["./mcp/index.js"]`; the JS does discovery.
+- `mcp/__tests__/scaffold.test.js` — six new tests cover the chain: explicit `--root` wins, `$DESK` wins over fallbacks, fallback chain order, last-resort `worker-workspace`, and the diagnostic fatal message.
+
+No behavior change for operators who already set `$DESK` or pass `--root` explicitly.
+
 ## 1.3.4 — 2026-05-26
 
 **Claude Code install path is now operator-actionable.** Repo gains a Claude Code marketplace manifest (`.claude-plugin/marketplace.json` at the root of `ouroboros-skills`) listing `desk` and `work-suite`. The desk plugin's README `Under Claude Code` section, previously a single sentence assuming prior marketplace knowledge, now walks through the three slash commands:
