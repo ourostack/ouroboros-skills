@@ -211,6 +211,7 @@ When the agent catches itself drafting any of these, the skill has fired:
 - *"There are multiple ways to fix this; let me ask which"* — pick the one most likely to be right; ship it; the principal can redirect on review.
 - *"I'll open the PR and the principal can merge it"* — opening is not shipping. The agent's job is the merge. Self-review is the gate, not the principal's calendar.
 - *"I'll wait for someone to review this"* — the agent spawns the reviewer. Independent subagent, fixed-shape verdict, merge on approve.
+- *"Teams MCP is down; I'll just drive Playwright to type the message"* / *"I typed `@username` and pressed Send"* — known-trap surface. Check whether the hosting context has a dedicated Teams-posting skill (e.g. `ms-desk:ms-teams-posting`) and route through it. Plain-text `@username` does NOT notify; chip-verification gate is required. See [§Lateral fallback for known-trap surfaces](#lateral-fallback-for-known-trap-surfaces-defer-to-the-dedicated-skill-dont-roll-your-own).
 
 ## Hot-patch / source-PR pairing rule
 
