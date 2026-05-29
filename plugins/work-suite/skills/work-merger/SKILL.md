@@ -259,11 +259,68 @@ Read the doing doc you are executing, plus any other explicitly provided task do
 - A final "Files changed" summary (e.g., "164 files changed — new context kernel, codebase restructure, sync-and-merge system")
 - If the doing doc has an `Upstream Work Items` section, cite those backlog IDs verbatim in the PR body
 
-#### PR title and body contract (required)
+#### Step 2a — Probe the repo's PR-description convention BEFORE drafting
+
+The default body shape this skill prescribes (the 5-section narrative below) is a **fallback**, not a mandate. Many repos already have a PR-description convention — a template file, an operator-established structure, a team norm. Using the fallback shape in a repo that has its own convention produces "wrong template" feedback and a forced redo. **Always probe first; draft second.**
+
+**Probe 1 — PR template file. Check all of these locations (both GitHub and ADO):**
+
+```bash
+# GitHub conventions
+ls .github/PULL_REQUEST_TEMPLATE.md 2>/dev/null
+ls .github/pull_request_template.md 2>/dev/null
+ls .github/PULL_REQUEST_TEMPLATE/ 2>/dev/null        # multi-template directory
+ls .github/pull_request_template/ 2>/dev/null
+
+# ADO conventions
+ls .azuredevops/pull_request_template.md 2>/dev/null
+ls .azuredevops/pull_request_template/ 2>/dev/null    # multi-template directory
+
+# Repo-rooted
+ls PULL_REQUEST_TEMPLATE.md 2>/dev/null
+ls pull_request_template.md 2>/dev/null
+
+# Under /docs/
+ls docs/pull_request_template.md 2>/dev/null
+ls docs/pull_request_template/ 2>/dev/null
+```
+
+If a template file (or directory of templates) is found, **read it** and mirror its section structure verbatim — headings, ordering, field names, code-fence conventions. For multi-template repos, pick the template whose name best matches the change shape (feature, bugfix, rollout, etc.) and cite the choice in the PR body's opening line.
+
+**Probe 2 — last 2–3 merged PRs. Templates drift; real PRs are ground truth:**
+
+```bash
+# GitHub
+gh pr list --state merged --limit 3 --json number,title,author,body
+
+# ADO
+az repos pr list --status completed --top 3 --org <org-url> --repository <repo>
+```
+
+Skim the bodies. Identify:
+- The actual section structure operators use (which may differ from the template file)
+- Field prefixes like `WILink: <bug-id>`, `Closes #123`, `Fixes AB#456` that appear in every PR
+- Title-pattern conventions (conventional-commit prefixes, scope tags, `[area]` prefixes)
+- Code-fence vs prose conventions for verification/evidence
+
+**Probe 3 — operator-authored prior PRs in the same repo.** If the branch is being merged under the operator's identity and the operator has prior merged PRs in this repo, **mirror their structure verbatim**. The operator's own PRs are the canonical reference — they're how the operator's reviewers, dashboards, and downstream tooling expect to read PRs in this repo. A custom shape from this skill overrides the operator's hand-built convention, which is a "wrong template" miss.
+
+**Probe-result handling:**
+
+- **Template found + operator-PR convention matches it**: use that exact structure. Do not add the fallback 5-section shape. Do not invent sections the convention doesn't include.
+- **Template found + operator-PR convention drifts from it**: prefer the operator-PR convention (templates lie; merged PRs are ground truth). Note the drift in the merge-progress log only — do not "correct" the PR back to the template.
+- **No template + operator has prior PRs**: mirror the prior-PR structure. The first 2–3 PRs are the convention.
+- **No template + no prior operator PRs + repo is new/small**: only then fall back to the 5-section default below.
+
+**Never use a custom section structure** (`## Problem` / `## What this PR does` / `## Background` / `## Follow-up` / etc.) when a template OR an established convention exists. Custom sections in a repo with conventions are exactly the "wrong template" failure mode this step exists to prevent.
+
+#### PR title and body contract (fallback — only when probes find no convention)
+
+This contract is the **default** for repos where Step 2a's probes returned no template AND no established operator-PR convention. When a convention IS found, the convention wins — skip this contract entirely.
 
 Do not use generic titles like `merge <branch>`. Title must describe delivered capability and stand on its own with no external context.
 
-**Title pattern (always):**
+**Title pattern (default):**
 - `<optional-agent-prefix>: <no-context-needed-short-title> — <short detailed description>`
 
 Rules:
@@ -271,13 +328,14 @@ Rules:
 - The first title segment must be understandable without branch, gate, or planning-doc context.
 - The second segment adds concise detail.
 - Do **not** use internal gate or sprint labels in titles.
+- If Probe 2 surfaced a conventional-commit style (`feat(scope): ...`, `fix(scope): ...`), use that instead — that's the repo's convention.
 
 Examples:
 - `<your-agent>: Ship model-driven task lifecycle — add tools, transitions, and archival flow`
 - `<your-agent>: Enable autonomous coding execution — orchestrate external sessions with recovery`
 - `Improve CI diagnostics — include failure context and retry metadata in logs`
 
-**Body structure (exact headings):**
+**Body structure (default — exact headings):**
 1. `## What shipped`
 2. `## Why this matters`
 3. `## How to try it yourself`
@@ -688,3 +746,4 @@ STOP after escalating. Do not continue until the user responds.
 14. **Preserve both intents** -- when resolving conflicts, both agents' work must be present in the result.
 15. **Never skip CI** -- even if you are confident the code is correct. CI is the gate.
 16. **Derive agent from branch** -- parse `<agent>` from the first path segment of the branch name. Never hardcode agent names.
+17. **Probe before drafting the PR description** -- before writing a single section of the PR body, run Step 2a's three probes (template file, last 2-3 merged PRs, operator-authored prior PRs). The default 5-section narrative is a *fallback* for greenfield repos, not a mandate. Custom shape in a repo with conventions = "wrong template" feedback; that mistake is what this rule exists to prevent.
