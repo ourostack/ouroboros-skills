@@ -211,6 +211,7 @@ When the agent catches itself drafting any of these, the skill has fired:
 - *"There are multiple ways to fix this; let me ask which"* — pick the one most likely to be right; ship it; the principal can redirect on review.
 - *"I'll open the PR and the principal can merge it"* — opening is not shipping. The agent's job is the merge. Self-review is the gate, not the principal's calendar.
 - *"I'll wait for someone to review this"* — the agent spawns the reviewer. Independent subagent, fixed-shape verdict, merge on approve.
+- *"Teams MCP is down; I'll just drive Playwright to type the message"* / *"I typed `@username` and pressed Send"* — known-trap surface. Check whether the hosting context has a dedicated Teams-posting skill (e.g. `ms-desk:ms-teams-posting`) and route through it. Plain-text `@username` does NOT notify; chip-verification gate is required. See [§Lateral fallback for known-trap surfaces](#lateral-fallback-for-known-trap-surfaces-defer-to-the-dedicated-skill-dont-roll-your-own).
 
 ## Hot-patch / source-PR pairing rule
 
@@ -235,6 +236,31 @@ Any post that isn't substrate-authored at substrate-run-time is theater. Reconst
 When a transport fails and the substrate's deterministic output is preserved on disk / in git, the *messages* are recoverable — but they're only **legitimately deliverable** via the sanctioned transport (fixed probe + native replay, or a downstream consumer driven by the substrate). A side-channel wrapper that posts on the substrate's behalf is theater, not recovery.
 
 Why this is stronger than the rules above: the core rules are heuristics for shipping fixes and avoiding paperwork. The authenticity invariant constrains *what surface gets to speak in whose voice*. Violating a heuristic produces a slower agent; violating authenticity produces a *dishonest* agent.
+
+## Lateral fallback for known-trap surfaces: defer to the dedicated skill, don't roll your own
+
+When the obvious path (an MCP tool, a native API, the operator's normal channel) is unavailable and a lateral fallback is needed, the autopilot stance is "find another angle and ship." But some target surfaces have **known-trap mechanics** where a hand-rolled fallback silently produces broken output. For those surfaces, the right lateral move is to **route through the hosting context's dedicated skill** for that surface, not to invent a fallback from primitives in the moment.
+
+**Known-trap surfaces (non-exhaustive):**
+
+- **Teams chat posting via Playwright** when the Teams MCP is down. Typing `@username` via keyboard does NOT produce a real mention chip — it produces plain text. The user receives NO notification. Verification gate: the composer's `innerHTML` must contain a mention-chip element, not just `@username` in `innerText`. Hand-rolled Playwright scripts that drive the keyboard and press Send without the chip-verification gate ship broken mentions. If the hosting context has a dedicated Teams-posting skill (e.g. `ms-desk:ms-teams-posting`), defer to it — that skill encodes the chip-verification mechanics and the picker-dismissal gotchas.
+- **Email send via Playwright** to managed mail clients (OWA, Gmail enterprise) — recipient-chip vs typed-address has the same failure mode; the typed string sends as plain text and the to-field validator may silently strip it.
+- **Calendar invites with attendees via Playwright** — same chip-vs-text trap on attendee fields.
+- **Any composer-with-picker UI in general** — if the surface has an autocomplete picker (mention, recipient, hashtag, room, etc.), keyboard typing alone is almost never sufficient. The picker has to fire AND the entry has to be actively selected, OR the picker has to be dismissed and the surface re-checked for what actually went in.
+
+**The rule.** Before hand-rolling a Playwright (or any browser-automation) script as a fallback for one of these surfaces:
+
+1. Check whether the hosting context provides a dedicated skill for the target surface (skill catalog, plugin manifest, `desk:`/`ms-desk:` namespace, etc.). If yes, route through that skill — it exists for exactly this reason.
+2. If no dedicated skill exists, treat the fallback as a probe rather than a final delivery — verify the output landed correctly via a separate read-back (re-fetch the message, re-open the composer, etc.) before treating the post as sent.
+3. If verification reveals the chip-vs-text trap fired, do NOT retry blindly — the fallback mechanics need a chip-verification gate before the next attempt.
+
+**Anti-pattern phrases that betray this rule:**
+
+- *"Teams MCP is down; I'll just drive Playwright to type the message"* — without checking whether a dedicated Teams-posting skill exists in the hosting context.
+- *"I typed `@username` and pressed Send; the post went through"* — sent ≠ mentioned. Plain text mentions are silent failures from the recipient's perspective.
+- *"I'll use a sleep + keystroke loop to wait for the picker"* — the picker timing is not stable across machines or load; the chip-verification gate is the only reliable signal.
+
+The general autopilot creativity rule still applies — when the obvious path is blocked, find a lateral one. But "find a lateral one" includes "use the skill that already encodes the lateral mechanics" — not "reinvent the lateral mechanics from primitives every time."
 
 ## Recovering from agent-introduced messes
 

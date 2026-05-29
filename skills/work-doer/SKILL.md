@@ -137,7 +137,7 @@ Spawn a fresh, no-context sub-agent to review the just-completed unit. The revie
 - The diff for this unit: `git diff <unit-start-commit>..HEAD --` for the relevant files
 - The test output: passing tests + coverage report for the relevant files
 - The build output if a build was run: any warnings count as findings
-- Lens: did the unit land correctly? Tests pass? Coverage maintained or improved on new code? No warnings? Build clean? Doing-doc status updated to ✅? Every acceptance criterion the unit named is verifiable in the diff or test output?
+- Lens: did the unit land correctly? Tests pass? Coverage maintained or improved on new code? No warnings? Build clean? Doing-doc status updated to ✅? Every acceptance criterion the unit named is verifiable in the diff or test output? **If the unit touched adapter-pattern code (HTTP / GraphQL / gRPC / cmdlet / shell-out / SDK wrapper) — do the unit tests capture and assert on the OUTGOING request (URL, body, headers, args), not only on the response? See "Adapter-pattern testing" in TDD Requirements.**
 - Output format: `CONVERGED` or `FINDINGS` with severity per finding (`BLOCKER / MAJOR / MINOR / NIT`)
 - Time-box: report under ~400 words
 
@@ -190,6 +190,33 @@ Before marking any implementation unit complete:
 4. **Refactor**: Clean up, tests stay green
 5. **Never skip**: No implementation without failing test first
 6. **Never modify tests to pass**: Implementation satisfies tests, not vice versa
+
+### Adapter-pattern testing: assert on the OUTGOING request, not just the response
+
+For any unit that adds, modifies, or refactors code that **constructs an outbound request** to an external system — HTTP / GraphQL / gRPC / cmdlet-wrapping / shell-out / SDK call — the unit test MUST capture and assert on the outbound shape, not only on response handling.
+
+**The trap this catches.** If the test only stubs the response (e.g., the mock returns a canned payload regardless of what the adapter sent), the adapter can be silently building the wrong URL, the wrong query string, the wrong headers, the wrong request body, or the wrong cmdlet args — and the test will still pass green because the response path is exercised. The bug ships. The first real call to the live system fails.
+
+**Concrete failure mode this prevents:** an adapter constructs a URL like `/v1.0/v1.0/users` (path-segment duplication from a misjoined base + relative). The mocked client returns whatever fake payload the test seeded, so the test passes. In production the live API returns 404 on the first real call.
+
+**What "assert on the outgoing request" means by adapter family:**
+
+- **HTTP / REST adapter (`HttpClient`, `requests`, `fetch`, etc.)**: capture the `HttpRequestMessage` / `Request` / `URL` / `body` / `headers` actually sent. Patterns: a fake `HttpMessageHandler` that records every request; Moq `.Callback<HttpRequestMessage>(req => captured = req)`; `nock` / `msw` recorders; `httptest.NewRecorder()`. Assert on `RequestUri.AbsoluteUri`, query string, body bytes, content-type, auth header presence.
+- **GraphQL adapter**: capture the operation name, query/mutation body, and variables. The shape of the GraphQL document IS the contract.
+- **gRPC adapter**: capture the request proto. A test that only asserts on the response proto can ship the wrong field mapping into the request.
+- **Cmdlet / shell-out adapter (`PowerShell.Invoke`, `child_process.spawn`, `subprocess.run`)**: capture the cmdlet name + parameters or the argv. Assert on every parameter the adapter is supposed to set.
+- **SDK wrapper (cloud-SDK clients, Graph SDK, etc.)**: capture the method call + arguments via the SDK's test double / interceptor surface. Assert on what was sent into the SDK, not only what the SDK returned.
+
+**The rule for the unit test:**
+
+1. Wire the mock to **record** the outbound call, not just to return a canned response.
+2. Assert on the recorded outbound shape — URL, body, headers, args, every field the adapter is supposed to set.
+3. Assert on response handling SEPARATELY — that's a different code path.
+4. Both assertions must be present in the test for adapter units.
+
+**The red-phase check.** When the failing test is first written (TDD step 1–2), the failure message must be about the outbound assertion failing, not about a missing mock or a null response. If the test fails only because the response handling broke, you have not actually tested the request construction — go back and add the outbound capture.
+
+**Sub-agent unit review must verify this.** When the sub-agent reviews an adapter-pattern unit, "did the test capture and assert on the outbound request?" is a checklist item. If it didn't, that's a `BLOCKER` finding — re-spawn for a fix, do not let the unit close with response-only assertions.
 
 ---
 
@@ -264,3 +291,4 @@ When all units are `✅`:
 18. **Always compile** — run the project's build command after every implementation/refactor unit. Tests passing is necessary but not sufficient.
 19. **Checklist hygiene is mandatory** — keep doing/planning `Completion Criteria` checklists synchronized with verified completion evidence.
 19. **Verify APIs before importing** — before writing `import { Foo } from './bar'`, use `grep` or `read_file` to confirm `Foo` is actually exported from that module. Never assume an export exists — always check the source first. This prevents wasted cycles on "module has no exported member" errors.
+20. **Adapter-pattern tests assert on the outgoing request** — for any unit touching code that builds an outbound HTTP / GraphQL / gRPC / cmdlet / shell-out / SDK call, the test MUST capture and assert on the URL, body, headers, and args actually sent — not only on the response. A response-only test on an adapter is a green light that hides URL-construction, query-string, and arg-mapping bugs. See "Adapter-pattern testing" in TDD Requirements for the patterns by adapter family.
