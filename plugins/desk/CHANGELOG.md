@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.2 — 2026-06-01
+
+**`git-hygiene` — verify the merge landed before cleanup.** The "Clone hygiene" cleanup step now gates worktree/branch removal on a confirmed `gh pr view <id> --json state --jq .state == MERGED`, never chaining cleanup unconditionally after `gh pr merge`. A merge can fail (flipped auth identity, newly-required status check, race); cleanup that assumes success deletes the worktree + branch on a false premise. If the merge didn't land, nothing is lost — the commit is safe on the remote and the PR stays open.
+
 ## 1.4.1 — 2026-06-01
 
 **`git-hygiene` clone-on-`main` + worktree discipline.** New section "Clone hygiene — `main` is the resting state; do work in worktrees": the canonical clone's resting state is `main`; each unit of work happens in a git worktree off `main` (not by checking out a branch in the shared clone); after merge, remove the worktree + delete the branch + `pull --ff-only` so the clone returns to a clean `main` with zero residue. Adds a "Verify before delete" subsection — a leftover branch is only safe to delete once `git diff origin/main..<branch> --stat` is empty; a non-empty diff means real unmerged work to drive to merge or preserve, never delete unexamined.
