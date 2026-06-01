@@ -1,5 +1,11 @@
 # desk plugin — changelog
 
+## 1.4.0 — 2026-06-01
+
+**New Invariant 7 — gather all human judgement before beginning a task.** `principles.md` gains a seventh cross-cutting invariant: before starting a task, surface and resolve every decision that genuinely needs the principal's judgement up front, in one batch, rather than deferring to "I'll ask when I get there" — the asking-channel may be closed when you reach the fork, and entangled calls resolved late invalidate earlier work. Pairs with the execution-side `work-suite:autopilot` "act when authority is broad and the action is safe-and-reversible" rule. The intro's invariant count is corrected (five → seven; the stale "five" predated Invariant 6). No behavior change to the existing invariants.
+
+Also reconciles a pre-existing version drift across the desk manifests (root `plugin.json` at 1.3.5, `.claude-plugin`/`.codex-plugin` at 1.3.4, marketplace entry at 1.3.3) — all now 1.4.0.
+
 ## 1.3.5 — 2026-05-27
 
 **Fix fresh-install MCP launch when `$DESK` is unset.** The plugin's `.mcp.json` was passing `--root "${DESK:-./desk}"`, which Claude Code (and Codex) pass through to the MCP entrypoint literally — the shell substitution never runs. So fresh installs without an exported `$DESK` got `node mcp/index.js --root ./desk`, which resolved relative to the plugin install dir, didn't exist, and the MCP exited fatally. JSON-RPC surfaced as `-32000` and none of the plugin's tools loaded.
