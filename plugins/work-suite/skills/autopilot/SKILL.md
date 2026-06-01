@@ -231,7 +231,7 @@ This is the incident-ordered form of [§Creativity](#creativity): when the obvio
 **Anti-pattern phrases that betray a wait-instead-of-pivot:**
 
 - *"X is wedged; waiting for it to clear before retrying"* — use another lever in the same turn.
-- *"Nothing else I can do until X resolves"* — almost never true; the ladder has five rungs before "wait."
+- *"Nothing else I can do until X resolves"* — almost never true; four action levers and a bounded retry come before anything resembling an open wait.
 - *"I'll check back in 30 minutes"* — valid only for a real external clock (a scheduled deploy, an oncall handoff), never for "hoping the tool clears."
 
 ### Act when authority is broad and the action is safe-and-reversible
