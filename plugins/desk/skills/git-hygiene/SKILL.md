@@ -28,6 +28,37 @@ git status               # check for uncommitted changes; warn, don't silently o
 
 **After merge**: `work-merger` handles the PR + merge flow; on completion, verify main is current.
 
+## Clone hygiene — `main` is the resting state; do work in worktrees
+
+A code clone is shared infrastructure: many sessions, machines, and agents touch the same checkout over time. Its **resting state is `main`** — clean, current, predictable. An agent that parks a clone on its own feature branch and walks away forces the next session into archaeology ("what is this branch, is it safe to build on?") before it can start.
+
+The discipline:
+
+1. **The canonical clone stays on `main`.** Never leave it checked out on a feature branch between units of work. At session start, if a clone is sitting on a feature branch from prior work, return it to `main` once that work is resolved (merged — or explicitly preserved, see verify-before-delete below).
+2. **Do each unit of work in a git worktree off `main`**, not by checking out a branch in the canonical clone:
+   ```bash
+   git -C <clone> fetch origin
+   git -C <clone> worktree add -b <branch> /tmp/<name> origin/main
+   # edit / commit / push / PR / review / merge from the worktree
+   # (use `git -C <worktree>` for EVERY git command — see work-orchestration
+   #  "Worktree-isolated sub-agent dispatch" for the cwd-reset trap)
+   ```
+   The worktree isolates the work: parallel units never collide in the working tree, and the canonical clone's resting state is never perturbed.
+3. **Clean up after yourself.** After the PR merges: `git worktree remove <path>`, delete the local branch (`--delete-branch` on the merge removes the remote), and `git -C <clone> pull --ff-only origin main` so the canonical clone absorbs the merge and returns to a clean `main`. The end state has **zero stray worktrees and zero stray `user/*` branches.**
+
+**Why:** the clone's checked-out state is cattle, not a pet — only `main` and the remote are durable. This is the working-copy layer of "Never leave state behind" (below) and the branch → PR → merge drive-to-merge motion: branch in a worktree → PR → merge → delete branch → remove worktree → clone back on clean `main`, no residue at any layer.
+
+### Verify before delete — cleanup is not destroy
+
+Before deleting a leftover branch found at session start, confirm its content is actually on `main`:
+
+```bash
+git -C <clone> fetch origin
+git -C <clone> diff origin/main..<branch> --stat
+```
+
+Empty diff → the branch's content is fully upstream → safe to delete (use `git branch -D`, since a squash-merge leaves the branch "ahead" in ancestry even when its content is fully merged — trust the content diff, not the commit count). Non-empty diff → the branch carries **real unmerged work**; do NOT delete it. Drive it to merge if it's ready, or preserve it and surface it to the operator. "These were probably just left behind" is a hypothesis to verify, not a license to delete unexamined work.
+
 ## Reading source as evidence
 
 The `## Code repos` rules above cover keeping a checkout current
