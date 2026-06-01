@@ -432,6 +432,8 @@ The mechanic: even if the agent accidentally returns control (the worst-case aut
 
 Caveat on `ScheduleWakeup`: scheduling a wakeup ENDS the current turn. The runtime re-invokes you on the earlier of (a) wakeup-fire, (b) task-notification (sub-agent completion). So schedule wakeups only when all active work is delegated to sub-agents and there's nothing local to do this instant.
 
+**Wakeups are check-ins, not deferral parkings.** `ScheduleWakeup` exists for exactly two things: (a) waiting on an external clock-driven event the agent cannot otherwise observe (a CI run completing, a supervised reboot, a scheduled task firing, a principal-side timeline), and (b) bounded check-ins on long-horizon state. It is NEVER the right move when there is actionable open work the agent could ship right now. The default after any unit of work completes is: scan the open follow-ups, pick the next-most-leveraged one, ship it. A draft that contains BOTH "queue a wakeup" AND "open follow-ups remain" is self-contradicting — delete the wakeup and do the work. (This is the wakeup-surface form of "Merge, don't queue" and the never-wait rules above: a wakeup that parks shippable work is the same abdication as a status bullet that defers a fixable bug.)
+
 ## Sub-agent brief discipline
 
 Sub-agents in autopilot mode produce work proportional to the quality of their briefing. Pattern:
