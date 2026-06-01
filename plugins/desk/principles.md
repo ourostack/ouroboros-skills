@@ -1,6 +1,6 @@
 # Substrate principles
 
-Five cross-cutting invariants. Every skill and repo-knowledge file
+Seven cross-cutting invariants. Every skill and repo-knowledge file
 inherits these. The host agent reads this file first, before
 operating; skills reference it at their top when invoked.
 
@@ -334,3 +334,54 @@ to NEEDS_REVIEW, ends turn waiting for operator. Operator now has to
 read 200 lines and respond — when a sub-agent could have reviewed
 against the source rules and flagged any drift in 30 seconds without
 burning operator time.
+
+---
+
+## Invariant 7 — Gather all human judgement before beginning a task
+
+**Before starting a task, surface and resolve EVERY decision that
+genuinely needs the principal's judgement — up front, in one batch.**
+Not "I'll ask when I get there."
+
+The asking-channel may be closed when you reach the fork. An agent that
+begins with unresolved judgement calls scattered through the work will,
+at each fork, either stall waiting for an answer it can't get, or guess
+and risk building in a direction the principal didn't want. Both are
+failures. Front-loading turns the forks into *inputs*, so once execution
+starts it runs to completion without blocking on the principal.
+
+**Before beginning, ask:**
+
+1. Which decisions in this task genuinely require the principal's
+   judgement — voice, relationships, durable/irreversible choices,
+   genuine ambiguity (Invariant 6a's operator-review set)? List them ALL.
+2. For each, can I resolve it from the request, the code, or a sensible
+   default? If yes, decide it and move on. If no, it is a real
+   judgement call — surface it now.
+3. Are any of these calls entangled, where one answer changes another
+   or changes work I would do before reaching it? Entangled calls
+   especially must be gathered before starting — resolving them late
+   invalidates earlier work.
+
+Surface the genuine judgement calls as a single batched decision set,
+each with a recommendation, so the principal answers once and the work
+then runs uninterrupted.
+
+**Why up-front, not just-in-time.** "I'll ask when I get there" bets on
+the principal being reachable at an unpredictable future moment. The
+present — when the principal is engaged enough to scope the task — is
+the cheapest and most reliable moment to extract every judgement the
+task needs. Deferring squanders a guaranteed-available principal and
+gambles on a maybe-available future one.
+
+**Carve-out.** A genuinely unforeseeable fork can surface mid-task;
+surface it when it appears. But "I didn't think about it up front" is
+not "unforeseeable" — the discipline is to think hard about the whole
+decision surface before starting, not to defer that thinking into
+execution.
+
+**Execution-side twin.** Once everything is gathered and the work is
+running, `work-suite:autopilot` "Act when authority is broad and the
+action is safe-and-reversible" governs: act, don't stall. Invariant 1
+(collab-flow) governs the cadence of the few returns that remain. This
+invariant governs the moment *before* the work begins.
