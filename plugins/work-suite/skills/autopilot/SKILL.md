@@ -215,6 +215,39 @@ General patterns the agent should reach for:
 - **A verifier says success-is-failure?** Either widen the verifier's accepted states or change what the agent emits so the verifier classifies it correctly. Don't accept the misclassification.
 - **A long-running operation hangs after producing the real artifact?** Investigate the post-artifact path; add a hard timeout; make the cleanup pure (no external dependencies it can hang on).
 
+## Incident recovery — walk the lever ladder, never wait
+
+During any incident recovery — a wedged tool, a broken pipeline, a dead service, a blocked channel — the response to a blocked path is NEVER to pause and wait for it to self-heal. Pivot to a different lever within the same turn. **The wait IS the failure mode.** A silent turn-end during an active incident reads to the principal as abdication: they see no movement, infer the agent is stuck, intervene manually, and are right to be frustrated that the agent waited rather than working around. The agent's job during an incident is to be visibly making progress on *something* related, even when the obvious next step is blocked.
+
+This is the incident-ordered form of [§Creativity](#creativity): when the obvious path is blocked, there is always another lever. Walk them in order until one produces movement:
+
+1. **Try the obvious tool.** If it works, proceed.
+2. **Wedged → switch transport.** A different tool, a different machine, a different channel, a different ingress for the same intent. A sibling API on a different code path often works while the primary is wedged.
+3. **No alternate transport → ship a PR.** Code that lands now and applies on the next cycle is still movement — hardening, additional guards, schema fixes, anything that strengthens the recovery posture and applies the moment the blocked path returns.
+4. **Nothing PR-worthy → encode the lesson** in the persistent state location (friction, planning doc, runbook). It survives compaction and propagates.
+5. **Everything blocked → schedule a wake at the BLOCKED-PATH cadence** (a short retry interval), not a long "hope it clears" wait. See the `ScheduleWakeup` caveat in [§Long-horizon autopilot](#long-horizon-autopilot-resume-here-docs--wakeup-loops).
+6. **Surface a status post** only if the wedge is structurally novel and the post carries new information — never as an "I'm waiting" announcement.
+
+**Anti-pattern phrases that betray a wait-instead-of-pivot:**
+
+- *"X is wedged; waiting for it to clear before retrying"* — use another lever in the same turn.
+- *"Nothing else I can do until X resolves"* — almost never true; four action levers and a bounded retry come before anything resembling an open wait.
+- *"I'll check back in 30 minutes"* — valid only for a real external clock (a scheduled deploy, an oncall handoff), never for "hoping the tool clears."
+
+### Act when authority is broad and the action is safe-and-reversible
+
+When the principal has granted broad authority (an autopilot mandate) and the asking-channel is structurally blocked, the agent does not stall on a decision it can resolve. **If an action is evidence-grade-safe and reversible-by-restore, act** — and cite the evidence in the persistent state as the audit trail. Waiting for a confirmation channel that may be closed is itself the failure mode. (The planning-side twin is [[principles]] "gather judgement before starting" — gather every decision while the channel is open, so that once running you never reach a fork you can't resolve.)
+
+**The hold-line is load-bearing — do not let "act" degrade into "act on everything."** The actions that warrant acting are the ones that are *both* evidence-grade-safe *and* reversible-by-restore (re-fetchable, re-runnable, restorable from a known-good state). The actions that still warrant holding are the genuinely-destructive-on-shared-state ones — the same set as [§The only two exceptions](#the-only-two-exceptions): force-push to a shared `main`, drop a production datastore, restart shared security / infrastructure services, or anything the mandate explicitly excluded or that was separately vetoed. Reversible-and-safe → act; destructive-on-shared-state → still hold.
+
+### A newer, broader instruction supersedes an older, narrower one
+
+A pre-written gate — an authorization table, a recurring-job prompt, a runbook — was authored at a point in time. When the principal later gives a broader mandate ("fix everything, you've got this"), that broader signal **supersedes** the earlier narrow gate at execution time. Recognize when the literal scope you are holding to was written *before* the broader signal arrived; resolve in favor of the broader signal.
+
+This applies across surfaces: a rule file, a scheduled-job prompt, an earlier message in the same session. The trap is continuing to execute a stale literal gate across many cycles while a superseding broad mandate sits unintegrated. When a gate and a later broad mandate conflict, the later, broader one wins — re-read your standing instructions against the most recent signal before deferring to an older one.
+
+**Composes with** [§Never wait for human review](#never-wait-for-human-review--sub-agent-review-is-confirmation) (autopilot delegation removes the human from the inner loop) and [§The only two exceptions](#the-only-two-exceptions) (the destructive-action hold-line). Respect [[evidence-discipline]] — the safety judgment behind "reversible-by-restore" must itself be grounded, not assumed.
+
 ## Default action: ship a merged source PR (the steps)
 
 1. **Name the root cause in one sentence.** If you can't, you haven't diagnosed it — ultrathink first.
