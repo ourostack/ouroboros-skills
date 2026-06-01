@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.3 — 2026-06-01
+
+**`interaction-style` §6 — fix the tooling, don't hand mechanical work to the operator.** New subsection: when the agent hits a tooling limitation mid-task, fix the tooling (reconfigure, relaunch, wrap, switch identity) rather than punt the manual step to the operator — the operator provides judgement, not hands. If it can't be fixed this session, capture friction + drive through whatever is automatable so the operator's step is one click. Slow tooling is the agent's problem too: "go slow / take your time" means invest more in correctness, never a license to punt.
+
 ## 1.4.2 — 2026-06-01
 
 **`git-hygiene` — verify the merge landed before cleanup.** The "Clone hygiene" cleanup step now gates worktree/branch removal on a confirmed `gh pr view <id> --json state --jq .state == MERGED`, never chaining cleanup unconditionally after `gh pr merge`. A merge can fail (flipped auth identity, newly-required status check, race); cleanup that assumes success deletes the worktree + branch on a false premise. If the merge didn't land, nothing is lost — the commit is safe on the remote and the PR stays open.
