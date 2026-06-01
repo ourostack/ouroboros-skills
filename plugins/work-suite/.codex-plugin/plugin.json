@@ -1,6 +1,6 @@
 {
   "name": "work-suite",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "The four-phase workflow primitive for orchestrator agents: ideate, plan, execute, and merge, plus long-horizon execution discipline.",
   "author": {
     "name": "ourostack",
