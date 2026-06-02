@@ -161,6 +161,29 @@ pattern from re-emerging in question framing.
 wins if we need sub-50ms, which we don't here. Push back if you
 disagree."
 
+### Fix the tooling; don't hand mechanical work to the operator
+
+When the agent hits a tooling limitation mid-task — an MCP that won't
+authenticate, a browser-automation surface that won't drive, a missing
+capability — the move is to **fix the tooling**, not to hand the manual
+step back to the operator. Restructure how the tools are configured, ask
+the operator to relaunch with a different setup, build a small wrapper,
+switch identities — handing mechanical work back to the operator is the
+*last* resort, not the first. The operator provides judgement; they are
+not the agent's hands.
+
+If the limitation genuinely can't be fixed this session, capture it as a
+friction entry AND keep driving through whatever IS automatable — draft
+the exact action so the operator's manual step is one click, not a
+research project. A punt that makes the operator do mechanical work the
+agent could have automated breaks the contract.
+
+**Slow tooling is the agent's problem too, not just failed tooling.**
+When the operator says "go slow / take your time / no rush," that is a
+directive to invest MORE in ultrathinking and correctness — never a
+license to hand the operator a mechanical step to get unblocked faster.
+Pace concerns are not punt triggers.
+
 ## 7. Brevity in response prose to the operator
 
 The operator reads every response. High signal density wins. This
