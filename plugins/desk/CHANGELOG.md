@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.8 — 2026-06-01
+
+**`cdp-headed-browser` send-safety — read the authoritative outbound layer before you send.** New section: a rich web editor keeps a model separate from the DOM, and pressing Send transmits the model — so DOM-injection (`execCommand`) + reading `innerText` to "verify" can send content the agent never saw. Hard rule: never send without reading the exact content that will transmit via the authoritative path, never a layer you just manipulated. Plus commit via real paste/keystroke not DOM-injection, don't use the shared OS clipboard as private staging when a human shares the machine, and surface the final text for confirmation before sending to real people.
+
 ## 1.4.7 — 2026-06-01
 
 **Review/comment value-restraint (two friction encodes).** `peer-pr-review` Phase 7 gains two value-filters beyond the confidence check: validator-parrot (cut what an automated validator already flags) and landscape-gap-as-finding (verify the access/deployment model before flagging a "risk" that's really your own gap; if it checks out the disposition is "no finding," not "ask the author"). `operator-voice-comments` gains "Match the receiver's expertise — evidence-trail, not a tour": for a system-expert receiver, terse evidence-trail mode (cap at the load-bearing few, don't recreate surfaces they already have, don't invert the audience-asymmetry).

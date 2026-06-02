@@ -100,6 +100,21 @@ Playwright's CDP-synthesized click/fill events don't require the window to be in
 
 If a specific action genuinely needs the page visible (a Save-As dialog, an OS-level permission prompt — rare), surface that to the operator instead of grabbing focus silently.
 
+## Sending to a real human — read the authoritative outbound layer before you send
+
+The highest-stakes operation on a CDP-driven UI is pressing Send on a message to a real person. A rich web editor (Teams, OWA, Slack, etc.) keeps an internal **model** separate from the **DOM**: a real paste or a real keystroke commits to the model, but `document.execCommand('insertText')` and similar DOM-injection only rewrite the DOM. Pressing Send transmits the **model**, not the DOM. So a script that injects into the DOM, "verifies" by reading `innerText` (the DOM), and presses Send can transmit content the agent never actually saw — including stale or wrong content it had explicitly rejected.
+
+**HARD RULE: never send without reading the EXACT content that will transmit, via the authoritative path — never a layer you just manipulated.** If you can't reliably read what will go out, you don't send.
+
+Mechanics:
+
+1. **Enter text via a method that commits to the editor model** — a real paste of verified-current clipboard, or real keyboard typing (Shift+Enter for newlines) — NOT `execCommand` DOM injection.
+2. **Read the committed / rendered state back** (the model's rendered output, not the layer you injected), confirm it matches the intended text, THEN send.
+3. **Don't use the shared OS clipboard as a private staging buffer when a human shares the machine.** A human actively using the box can clobber your clipboard between stage and paste, so the *path* pastes instead of your message; prefer keyboard entry that doesn't depend on clipboard state, or re-read the clipboard immediately before paste.
+4. **For outbound messages to real people, default to surfacing the final text for operator confirmation before send**, unless explicitly told to fire autonomously.
+
+Companion: any composer with an autocomplete picker (@-mentions, recipient fields) has its own chip-verification trap on top of this — route through the host context's dedicated posting skill when one exists, which encodes those gates.
+
 ## CDP HTTP API — what you can do without Playwright
 
 The browser's CDP server exposes a small HTTP surface (default `:9222`) that's useful for cheap operations without spinning up the Playwright library:
