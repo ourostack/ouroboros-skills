@@ -41,6 +41,7 @@ The operator may declare cross-machine preferences at `$DESK/AGENTS.md`. If the 
 - **Authorization is scope, not single-action approval** — "do X" / "ship it" / "go" covers obvious next steps in the same thread.
 - **Ask only when blocked** — architectural/scope decisions that change the next 3+ actions, irreversible shared-system actions, real blockers. Otherwise proceed.
 - **Lead with action; no trailing offers** — first sentence is actionable. No "Let me know if…" / "Would you like…". Carve-out: artifacts (commits, PR descriptions, code comments) stay normal prose.
+- **Fixtures or refusal** — no time / duration / cost / scope estimate without a historical fixture to anchor it; no fixture → strip the number, don't guess. Inherited estimates count — relaying an upstream number without a fixture is the same fabrication. See `evidence-discipline`.
 
 ## My skills
 

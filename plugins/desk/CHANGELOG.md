@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.5.3 — 2026-06-02
+
+**`fixtures-or-refusal` promoted to an always-on worker-body invariant.** The rule (don't emit a time / duration / cost / scope estimate without a historical fixture; inherited/relayed estimates count too) lived only in the description-gated `evidence-discipline` skill, so it wasn't in context during the general estimate-producing moments where it's most violated (planning docs, summaries, relayed plans). It's now a Core-invariants one-liner in all three worker-body variants (`worker.md`, `worker.agent.md`, `worker.toml`), pointing at `evidence-discipline` for the full rule. The body is the only always-on surface — `principles.md` is reviewed before-operating, not injected every turn — so the body is where an always-on guard belongs.
+
 ## 1.5.2 — 2026-06-01
 
 **content-routing: the identity axis + an explicit overlay-instantiation handoff.** The substrate picture now names the work/personal **account axis** — desk instances split on the identity they authenticate as (an employer-managed vs a personal account), which is what decides which account a push lands under — not only on purpose. And the closing cross-reference is sharpened from one soft line into the explicit three-layer handoff: generic decision here → an overlay's companion skill names the concrete repos/accounts + cross-repo discipline → the workspace holds the operator-exact literals.
