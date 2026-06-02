@@ -23,13 +23,15 @@ for each open friction entry in `$DESK/<track>/_friction/` (or
 one of three dispositions:
 
 1. **encode-in-skill** — content belongs in an existing or new
-   `plugins/worker/skills/<name>/SKILL.md`. this covers both narrow
+   `plugins/<plugin>/skills/<name>/SKILL.md`. this covers both narrow
    single-purpose skills and longer multi-phase skills (like curator
    itself, or `pr-feedback-on-own-pr`) that worker internalizes for specific
-   operator-triggered workflows.
+   operator-triggered workflows. use `content-routing` to choose the
+   plugin (generic vs an overlay) and the within-plugin surface (an
+   always-on body / `principles.md` vs a triggered skill).
 2. **encode-in-repo-knowledge** — content is repo-specific (build
    gotchas, pipeline IDs, code-review rules for a particular repo);
-   goes under `plugins/worker/repo-knowledge/<repo>/*.md` where the
+   goes under `plugins/<plugin>/repo-knowledge/<repo>/*.md` where the
    `repo-handling` auto-loader picks it up.
 3. **no-op** — content cannot be encoded in the plugin. carries a
    one-line rationale on the entry's `Status:` line and stays open on

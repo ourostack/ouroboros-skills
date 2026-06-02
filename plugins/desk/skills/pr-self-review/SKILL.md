@@ -134,7 +134,7 @@ from whichever sources the repo provides, in this preference order:
    written rules are the highest-priority source. Both filenames are
    checked so repos that haven't migrated to the `AGENTS.md`
    convention yet still participate.
-2. **`plugins/worker/repo-knowledge/<repo>/code-standards.md`.**
+2. **`plugins/<plugin>/repo-knowledge/<repo>/code-standards.md`.**
    Worker's own accumulated knowledge about a specific repo, used
    when the repo itself doesn't carry in-tree rules but worker has
    built up standards from operator-worker collab in prior tasks.
