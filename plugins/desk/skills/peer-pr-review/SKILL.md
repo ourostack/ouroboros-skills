@@ -459,6 +459,30 @@ Hedging language pasted onto an unverified claim ("I think,"
 not better; per `../operator-voice-comments/SKILL.md`, hedge-and-keep
 is not a valid resolution.
 
+### Two value filters — even a true finding can be worthless
+
+Confidence answers "is this right?" These two filters answer "even
+if right, is it worth surfacing?" — run both before a comment ships:
+
+1. **Validator-parrot.** Will an automated validator on either side
+   (a coverage check, a build, a policy gate, CI) already flag this?
+   If yes, cut it. The author reads the same report; echoing it adds
+   nothing and dilutes the signal of any real finding. (This filter
+   also applies to reviewing one's own PR — see `pr-self-review`.)
+2. **Landscape-gap-as-finding.** Is this only a concern because
+   worker is missing the deployment / access-model / who-can-reach-
+   this-flow context? If maybe, verify the landscape BEFORE drafting
+   (the entry points, which flags gate it, who actually reaches this
+   path). If it checks out, the disposition is **"no finding"** — not
+   "ask the author." A risk that's only a risk because worker doesn't
+   understand the system advertises that gap and wastes the author's
+   time on a question worker should have answered itself.
+
+A review that surfaces nothing beyond what the validators already
+catch is a **legitimate, valuable outcome** — sign off. The instinct
+to "find something to say" after the one real finding lands is exactly
+what pushes toward both failure modes.
+
 After Phase 7, every backlog comment is either above the bar or
 gone. There is no "post this with caveats" path.
 
