@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.5 — 2026-06-01
+
+**`runtime-symptom-investigation` — the control-plane view is not the inside ground-truth.** New section: when asking "is this system alive or wedged?", a control-plane / outside view (orchestrator status fields, cloud power/provisioning state, an is-it-running API) is hearsay — it can stick in a transitional value while the system runs fine. Find the authoritative *inside* signal (a heartbeat it writes, a health endpoint it serves) and check that first before any aggressive recovery; only a genuinely-stale inside signal justifies a restart. Source-of-truth variant of "Poll vs inspect."
+
 ## 1.4.4 — 2026-06-01
 
 **`pr-surface-hygiene` PSH-008 — use the repo's PR template, not a custom structure.** Before opening a PR in any repo, probe for a PR-template file (`.github/PULL_REQUEST_TEMPLATE*`, repo-rooted, `/docs/`, or the platform's equivalent) AND pull the last 2–3 merged PRs to mirror the team's actual filled-in convention (recent merged PRs are ground truth; templates drift). Never invent a custom `## Problem` / `## What this PR does` structure when the repo has a template or convention — it reads as "wrong template" and gets bounced.
