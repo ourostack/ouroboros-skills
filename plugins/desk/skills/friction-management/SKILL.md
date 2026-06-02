@@ -19,6 +19,8 @@ quick test: would a different agent (different model, different runtime) hit thi
 
 mixing the two dulls the corkboard. operational knowledge is task knowledge — it goes where the work is. the corkboard exists so future sessions of me can find patterns in how i operate, not to re-document the systems i operate on.
 
+when a card's fix is later encoded (the `curator` pass), *where* it lands — workspace vs plugin, which plugin, always-on vs a triggered skill — is a `content-routing` decision.
+
 ## 1. Pin a new card
 
 when the operator hits friction, or when i notice a recurring rough edge:
