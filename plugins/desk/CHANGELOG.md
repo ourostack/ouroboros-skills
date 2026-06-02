@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.6 — 2026-06-01
+
+**`pr-surface-hygiene` PSH-009 — one canonical body for human + agent readers; no agent-only formatting.** New rule (generalizes beyond PRs to bug reports / dashboards / runbooks / status posts): an artifact read by both humans and agents gets ONE canonical body, not a duplicated `## For your AI agent` block. Modern agents have large context + tool calls to fetch source, so an agent-only section is drift that reads like robot prose to humans. Use stable section headings + inline actionable data + collapsibles; a structured machine-readable sidecar as a separate attachment is the only sanctioned exception.
+
 ## 1.4.5 — 2026-06-01
 
 **`runtime-symptom-investigation` — the control-plane view is not the inside ground-truth.** New section: when asking "is this system alive or wedged?", a control-plane / outside view (orchestrator status fields, cloud power/provisioning state, an is-it-running API) is hearsay — it can stick in a transitional value while the system runs fine. Find the authoritative *inside* signal (a heartbeat it writes, a health endpoint it serves) and check that first before any aggressive recovery; only a genuinely-stale inside signal justifies a restart. Source-of-truth variant of "Poll vs inspect."
