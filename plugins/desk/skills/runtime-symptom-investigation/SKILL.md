@@ -164,3 +164,15 @@ silently?" / "did the runtime exit and not get restarted?").
 **Cross-link.** Pairs with `../evidence-discipline/SKILL.md` "smoke
 before infinity" — if the smoke gate caught the per-iter failure, the
 polled metric would never be reading zero in the first place.
+
+## The control-plane view is not the inside ground-truth
+
+When the question is "is this system alive or wedged?", the control-plane / outside view — an orchestrator's status fields, a cloud provider's power/provisioning state, an "is it running" API — is NOT the inside ground-truth. Control-plane state-machine fields routinely stick in a transitional value (`Updating`, `Pending`, `Terminating`) for many minutes while the system underneath keeps operating normally. Treating the outside view as authoritative produces the classic over-diagnosis — "it's wedged, restart it!" — when the truth is "it's fine, the control plane is just lagging."
+
+Before declaring a system wedged or reaching for aggressive recovery (force-restart, redeploy, hard-stop), find the **authoritative inside signal** and check that first:
+
+1. Identify the signal the system emits from the *inside* — a heartbeat it writes, a health endpoint it serves, a log line it appends, a queue it drains. That is ground-truth; the control-plane status is hearsay about it.
+2. Is the inside signal fresh (within its expected cadence)? If yes → the system is alive; pivot to non-destructive diagnosis (read its logs, its error fields) instead of restarting.
+3. Only if the inside signal is genuinely stale — well past its expected cadence — is the system actually down and aggressive recovery justified.
+
+The inside-signal check is cheap; the mistake it prevents — restarting a healthy-but-slow system and making things worse — is expensive. This is the source-of-truth variant of [§Poll vs inspect](#poll-vs-inspect--switch-when-the-metric-stops-moving): that section is about watching the right *metric*; this one is about trusting the right *source*.
