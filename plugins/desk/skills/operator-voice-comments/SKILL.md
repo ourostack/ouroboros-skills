@@ -574,6 +574,30 @@ anchoring also tends to slide back into test-file analysis
 worker shouldn't be doing. The substance of the comment carries
 on its own.
 
+### Match the receiver's expertise — evidence-trail, not a tour
+
+When the receiver is a system-expert (the area owner, the engineer
+who owns the system you're commenting on), default to TERSE
+evidence-trail mode, not tutorial / toolkit mode. A bug or
+work-item comment is an **evidence trail** — "here is the data that
+shaped this diagnosis" — not a **toolkit** of hypothetical entry
+points for an investigation they might run.
+
+Three failures this guards against:
+
+- **Tutorial register.** A system-expert receiver needs findings,
+  not a walkthrough of how to investigate; they know the system
+  better than the filer.
+- **Recreating surfaces they already have.** Don't paste a tour of
+  links/queries that recreate a dashboard the receiver uses daily —
+  they'd just open their own. Cap at the load-bearing few (e.g. the
+  2–3 queries that back the differential), each paired with what it
+  shows and what that means for the diagnosis; reference the full
+  set elsewhere.
+- **Audience-asymmetry inversion.** Adding more explanation assumes
+  the receiver knows *less* than the filer. For a system-expert
+  receiver that assumption is backwards.
+
 ### No trailing periods on PR comments
 
 Apply to the LAST punctuation of every PR comment — not just
