@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.4.9 — 2026-06-01
+
+**`git-hygiene` targeted staging — never `git add -A` in a shared/multi-track workspace.** New pre-commit subsection: stage the explicit files your unit wrote, never `git add -A` / `git add .` from a workspace root, where parallel agents/tracks leave untracked state across directories — `-A` sweeps another track's in-flight file into your commit (message lies by omission; intentionally-untracked work frozen mid-thought). The prevention to the diff-scope scan's detection.
+
 ## 1.4.8 — 2026-06-01
 
 **`cdp-headed-browser` send-safety — read the authoritative outbound layer before you send.** New section: a rich web editor keeps a model separate from the DOM, and pressing Send transmits the model — so DOM-injection (`execCommand`) + reading `innerText` to "verify" can send content the agent never saw. Hard rule: never send without reading the exact content that will transmit via the authoritative path, never a layer you just manipulated. Plus commit via real paste/keystroke not DOM-injection, don't use the shared OS clipboard as private staging when a human shares the machine, and surface the final text for confirmation before sending to real people.

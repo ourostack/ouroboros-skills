@@ -406,6 +406,21 @@ if grep -qE "Co-Authored-By: Claude|Co-authored with Claude|Generated with Claud
 fi
 ```
 
+### Targeted staging — never `git add -A` in a shared or multi-track workspace
+
+In a workspace where parallel agents (or other tracks) leave
+untracked or modified state across multiple directories, **stage the
+explicit list of files your unit wrote** — `git add <path> <path>`,
+never `git add -A` or `git add .` from a workspace root. `-A` sweeps
+in another track's or another agent's in-flight untracked file and
+bundles it into your commit: the commit message then lies by omission
+(`git show` reveals content the message never mentions), and if that
+file was being kept untracked intentionally, you've frozen it
+mid-thought. `git add -A` is convenient for a solo-track repo and
+dangerous for a shared one. When in doubt, `git status` first and
+stage by name. (This is the prevention; the diff-scope scan below is
+the detection.)
+
 ### Diff-scope scan
 
 Per `../principles.md` Invariant 2b (lean diffs), every commit
