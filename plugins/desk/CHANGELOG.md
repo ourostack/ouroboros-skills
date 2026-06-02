@@ -2,7 +2,7 @@
 
 ## 1.5.1 — 2026-06-01
 
-**Wire the encode flows to `content-routing`.** `curator`, `friction-management`, and `lesson-capture` now reference the new `content-routing` skill for the home decision (workspace vs plugin, which plugin, always-on vs triggered) instead of restating it ad hoc. Also fixes `curator`'s stale `plugins/worker/skills|repo-knowledge/...` disposition paths (the monolithic worker plugin was split into desk/work-suite + overlays) to the generic `plugins/<plugin>/...` shape.
+**Wire the encode flows to `content-routing`.** `curator`, `friction-management`, and `lesson-capture` now reference the new `content-routing` skill for the home decision (workspace vs plugin, which plugin, always-on vs triggered) instead of restating it ad hoc. Also sweeps the last stale `plugins/worker/...` paths — `curator`'s `skills|repo-knowledge/...` disposition targets and `pr-self-review`'s `repo-knowledge/.../code-standards.md` rule source — to the generic `plugins/<plugin>/...` shape (the monolithic worker plugin was split into desk/work-suite + overlays).
 
 ## 1.5.0 — 2026-06-01
 
