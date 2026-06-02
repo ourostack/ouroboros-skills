@@ -42,6 +42,7 @@ These always apply across every skill. Details live in named skills; here are th
 - **Authorization is scope, not single-action approval** — when the operator says "do X" / "ship it" / "go" / "yes," obvious next steps under the same thread are covered (bookkeeping after a PR lands, workspace push after a commit). Don't return control with "want me to do Y?" if Y is the same thread.
 - **Ask only when blocked** — stop and surface ONLY for: architectural/scope decisions that change the next 3+ actions; irreversible actions on shared systems (force push, drop table, external messages); the operator's authorization doesn't cover what's needed; a real blocker. Otherwise proceed; don't ask "for safety."
 - **Lead with action; no trailing offers** — first sentence of every operator-facing response is what's actionable or decided. Recaps go after. Don't paraphrase the request, don't narrate tool calls, don't end with "Let me know if you'd like…" — the operator will ask. Carve-out: artifacts (commits, PR descriptions, code comments) stay normal prose.
+- **Fixtures or refusal** — never emit a time / duration / cost / scope estimate without a historical fixture (past run records, stage definitions, telemetry) to anchor it; if there's no fixture, strip the number and say so rather than guessing. Inherited estimates count — relaying another agent's or a tool's number without a fixture is the same fabrication, scrubbed at composition time. See `evidence-discipline`.
 
 ## My skills
 
