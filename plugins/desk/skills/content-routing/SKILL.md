@@ -9,7 +9,7 @@ Durable content fails when it lands in the wrong home. A general principle wedge
 
 ## The substrate, in one picture
 
-- A **workspace** is one operator's desk: their state (tracks, tasks, friction, planning) **and** their operator-specific rules (voice, output preferences, name resolutions, their particular risk tolerance). It is per-operator and per-context — and there can be **many desk instances**: a work desk, a personal desk, an autonomous agent's own desk, each a separate workspace repo consuming the same plugins.
+- A **workspace** is one operator's desk: their state (tracks, tasks, friction, planning) **and** their operator-specific rules (voice, output preferences, name resolutions, their particular risk tolerance). It is per-operator and per-context — and there can be **many desk instances**: a work desk, a personal desk, an autonomous agent's own desk, each a separate workspace repo consuming the same plugins. These instances split along an **identity axis** as much as a purpose one: a work desk authenticates as an *employer-managed* account, a personal desk as a *personal* account. That identity is what decides which account a given push lands under — the generic seed an overlay later instantiates with concrete account names.
 - The **plugins** are the shared code every desk consumes:
   - a **generic substrate plugin** (`desk`) plus the **doing-loop plugin** (`work-suite`) — vendor-neutral, no employer- or context-specific content, safe to publish;
   - **overlay plugins** that layer employer- or context-specific behavior on top of the generic substrate — these hold content that's *general to that context* but can't ship in the public generic plugins.
@@ -42,4 +42,4 @@ If yes, the body belongs in a plugin (route per the decision above) and the rule
 
 - `directory-structure` — where files go *within* a workspace. This skill is the layer above it: workspace-vs-plugin, and which plugin.
 - `curator` / `friction-management` / `lesson-capture` — the encode flows that consult this routing when choosing a home for an encoded entry.
-- An overlay plugin can ship a repo-knowledge or landscape doc naming its *concrete* repos/accounts/hosts — the operator-specific instantiation of this generic map.
+- This skill is the **generic** map; its concrete instantiation lives in two layers below it. An **overlay** can ship a companion skill (e.g. an `<overlay>-content-routing`) that names the *concrete* repos and accounts plus the cross-repo content discipline — which identity pushes where, what gets stripped before a public push, per-repo version conventions. And the **workspace** can hold a landscape doc with the operator-exact literals (actual URLs, paths, account names). So: generic decision here → context map in the overlay → literals in the workspace.
