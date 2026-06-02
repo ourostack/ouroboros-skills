@@ -3,7 +3,7 @@
     "desk": {
       "type": "stdio",
       "command": "node",
-      "args": ["./mcp/index.js", "--root", "${DESK:-./desk}"],
+      "args": ["./mcp/index.js", "--root", "${DESK:-${HOME}/desk}"],
       "env": {}
     }
   }

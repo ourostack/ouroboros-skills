@@ -1,5 +1,14 @@
 # desk plugin — changelog
 
+## 1.4.0 — Claude Code default worker (output-style + SessionStart hook)
+
+**A default Claude Code session now boots AS the desk worker** — Claude Code's missing "Path A" (Codex had it via AGENTS.md append; Claude Code only had the selectable `--agent desk:worker` sub-agent).
+
+- `output-styles/worker.md` — the worker persona as a `force-for-plugin: true` output style, so it auto-activates for every session while `desk` is enabled (no manual `/output-style` selection). `keep-coding-instructions: true` layers it on top of Claude Code's built-in coding behavior rather than replacing it.
+- `hooks/hooks.json` + `hooks/session-start.sh` — a fast, non-blocking `SessionStart` hook (startup|resume|clear) that injects orientation: binds $DESK, scans open (non-terminal) tasks, and points at the `session-start` skill. Always exits 0 so it can't block a session.
+- `.mcp.json` — desk MCP root default is now `${DESK:-${HOME}/desk}` so it resolves to the operator desk with no per-machine env edit.
+
+
 ## 1.3.4 — 2026-05-26
 
 **Claude Code install path is now operator-actionable.** Repo gains a Claude Code marketplace manifest (`.claude-plugin/marketplace.json` at the root of `ouroboros-skills`) listing `desk` and `work-suite`. The desk plugin's README `Under Claude Code` section, previously a single sentence assuming prior marketplace knowledge, now walks through the three slash commands:
