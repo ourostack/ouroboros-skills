@@ -63,6 +63,7 @@ Skills come from two plugins:
 | `track-card-format` | Creating or reading a `track.md` |
 | `task-card-format` | Creating or reading a `task.md` |
 | `directory-structure` | Laying out `$DESK/<track>/...` |
+| `content-routing` | Deciding where a durable rule/lesson/fact belongs — workspace (operator-specific) vs plugin (general), generic plugin vs overlay, always-on body/principles vs triggered skill. The encode flows (curator, friction-management, lesson-capture) consult it |
 | `git-hygiene` | Syncing desk + code repos; pre-push gates |
 | `repo-handling` | Task references a code repo without a resolvable local clone |
 | `archive-workflow` | Task transitions to `done` or `cancelled` |

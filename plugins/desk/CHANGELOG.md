@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.5.0 — 2026-06-01
+
+**New `content-routing` skill — where does durable content belong?** The decision tree for placing a rule/lesson/fact/preference: operator-specific → the workspace; general → a plugin (generic `desk`/`work-suite` if publishable, an overlay plugin if employer/context-specific); within a plugin, every-turn → the agent body / `principles.md`, fires-at-a-moment → a skill. Plus the substrate model (one generic plugin + overlays; multiple desk instances) and the self-check that keeps a general principle from being wedged into an operator's rules file under an "operator said X" framing (the mis-tag that makes it fail to fire). The encode flows (`curator`, `friction-management`, `lesson-capture`) consult it. Registered in worker.md.
+
 ## 1.4.9 — 2026-06-01
 
 **`git-hygiene` targeted staging — never `git add -A` in a shared/multi-track workspace.** New pre-commit subsection: stage the explicit files your unit wrote, never `git add -A` / `git add .` from a workspace root, where parallel agents/tracks leave untracked state across directories — `-A` sweeps another track's in-flight file into your commit (message lies by omission; intentionally-untracked work frozen mid-thought). The prevention to the diff-scope scan's detection.
