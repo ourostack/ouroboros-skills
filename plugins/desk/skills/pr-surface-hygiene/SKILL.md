@@ -307,6 +307,45 @@ repo that has conventions read as "wrong template" and get bounced. Only
 when neither a template nor a clear recent convention exists is a concise
 `## What` / `## Why` a safe default.
 
+## PSH-009 — one canonical body for human + agent readers; no agent-only formatting
+
+This rule generalizes beyond PRs to any artifact read by BOTH humans and
+coding agents — bug reports, dashboards, runbooks, status posts, as well as
+PR descriptions.
+
+When an artifact will be read by both humans and agents, give it ONE
+canonical body — do NOT add agent-specific formatting that humans wouldn't
+also benefit from. The body should be scannable by humans (hierarchy +
+TL;DR + collapsibles) AND machine-parseable by agents (stable section
+headings + embedded data).
+
+**Why.** Modern coding agents have large context windows and tool calls to
+fetch the source themselves. A duplicated "agent block" creates a second
+source of truth that drifts independently of the body on updates, reads
+like robot prose to the humans who'd have parsed the same prose without
+help, and spends design effort solving a context-window problem that no
+longer exists.
+
+**How to apply:**
+
+- Don't add a `## For your AI agent` / `## Drop-into-your-agent` /
+  `## Agent prompt` section duplicating what's already in the body.
+- Don't pre-stuff JSON / YAML blobs that mirror prose elsewhere on the
+  same page.
+- DO use stable, predictable section headings ("Repro", "Acceptance
+  criteria", "Suspect code surface") so an agent navigating the doc finds
+  the same anchor every time.
+- DO embed actionable data inline (queries in fenced blocks, `file:line`
+  references in tables, command-lines in code blocks) — useful to humans
+  copy-pasting AND agents extracting.
+- DO use HTML `<details>` collapsibles for depth sections humans scan past
+  but agents read fully — a UX win for humans at no cost to agents.
+
+**Exception.** A structured machine-readable sidecar (e.g. a
+`proposed-bug.json`) posted as a SEPARATE attachment, for tooling that
+prefers parsing JSON, is fine — that's a parallel surface for a different
+consumer, not formatting drift inside the same document.
+
 ## Carve-outs — when specific or brittle-looking content IS fine
 
 The rule is narrower than "never use numbers or references." Three
