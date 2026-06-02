@@ -284,6 +284,29 @@ where PSH-005's "self-referential glue" anti-pattern is easiest to
 slip into — keep the framing tight: feature link, repo split, link
 to the sibling tracker. No prose about why the split happened.)
 
+## PSH-008 — use the repo's PR template / established convention, not a custom structure
+
+Before opening ANY PR in ANY repo, do two probes — never invent a
+section structure when the repo already has one:
+
+1. **Probe for a PR-template file.** GitHub: `.github/PULL_REQUEST_TEMPLATE.md`
+   (single) or `.github/PULL_REQUEST_TEMPLATE/*.md` (multi). Repo-rooted:
+   `/PULL_REQUEST_TEMPLATE.md`, `/pull_request_template.md`. In `/docs/`:
+   `/docs/pull_request_template.md`. Other git-hosting platforms expose an
+   equivalent template path under their own config directory — probe for it.
+2. **Pull the last 2–3 merged PRs** (via `gh` or the platform's REST) to
+   see the team's ACTUAL filled-in convention — templates drift; recent
+   merged PRs are ground truth. If the operator has authored prior PRs in
+   the same repo, mirror THEIR structure verbatim (sections, ordering,
+   link placement, code-fence conventions).
+
+**NEVER use a custom section structure** (`## Problem` / `## What this PR
+does` / `## Background` / `## Validation`, etc.) when the repo has a
+discoverable template OR an established convention. Custom sections in a
+repo that has conventions read as "wrong template" and get bounced. Only
+when neither a template nor a clear recent convention exists is a concise
+`## What` / `## Why` a safe default.
+
 ## Carve-outs — when specific or brittle-looking content IS fine
 
 The rule is narrower than "never use numbers or references." Three
