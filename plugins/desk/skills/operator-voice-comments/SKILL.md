@@ -831,6 +831,34 @@ short, low-stakes, conversational.
 - Bad: `"Nit. Rename X to Y reads cleaner than the current
   shape."`
 
+### Match the operator's casing register
+
+The lowercase prefix above is one facet of a broader signal: many
+operators write in a **casual lowercase register** by default —
+lowercase line-openers, including **bold leads** (`**the overlay
+runs...**`, not `**The overlay...**`) and the first word after a
+period mid-comment — and reserve normal capitalization for
+**formal artifacts** (a published doc, a high-effort or
+widely-read post). When the operator's own comments use the
+casual register, match it on *every* line of the comment, not
+just the `nit:`/`q:` prefix — sentence-case openers read as the
+agent overriding their voice.
+
+Two carve-outs hold regardless of register:
+
+- **Backticked identifiers** keep their real casing (`UserConfig`,
+  `parseInput`) — that's code, not prose.
+- **Formal surfaces** get normal capitalization even for a
+  casual-register operator. If unsure whether a surface is
+  "formal," the markers are *wide-audience* + *high-effort* (a
+  doc, a polished announcement); default to the operator's casual
+  register otherwise.
+
+The slip is easiest on **bold leads** — the instinct to
+capitalize the first word of a bold span is strong. Before
+posting, read the first character of every line as the recipient
+will.
+
 ### Question shape where actually a question
 
 If the comment is asking, write it as a question — with a `?`,

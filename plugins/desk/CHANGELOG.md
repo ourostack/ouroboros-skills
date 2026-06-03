@@ -1,5 +1,12 @@
 # desk plugin — changelog
 
+## 1.6.1 — 2026-06-02
+
+**Two worker-discipline encodings.**
+
+- **`principles.md` Invariant 8 — Durable-by-default.** Reusable artifacts the agent drafts that the operator might call back in a *future* session (a command, query, snippet, paste-ready draft) get persisted to the workspace **at draft time**, not left only in chat — chat is ephemeral across sessions, so a fresh agent would re-derive instead of retrieve. The test: *"would a fresh session be able to `grep` it?"*
+- **`operator-voice-comments` — Match the operator's casing register.** Generalizes the existing "lowercase nit prefix" guidance: when an operator writes in a casual lowercase register, match it on *every* line (including **bold leads** + the first word after a period), and reserve normal capitalization for formal artifacts (docs, high-effort posts). The bold-lead slip is called out specifically.
+
 ## 1.6.0 — 2026-06-02
 
 **Claude Code boots as the desk worker by default.** Codex gets the worker as its default via the `AGENTS.md` append; Claude Code previously only shipped the *selectable* `--agent desk:worker` sub-agent, so a fresh `claude` came up as the generic assistant rather than the worker. Two additions close that gap:

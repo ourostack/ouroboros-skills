@@ -385,3 +385,33 @@ running, `work-suite:autopilot` "Act when authority is broad and the
 action is safe-and-reversible" governs: act, don't stall. Invariant 1
 (collab-flow) governs the cadence of the few returns that remain. This
 invariant governs the moment *before* the work begins.
+
+## Invariant 8 — Durable-by-default: callable-back artifacts land in the workspace
+
+The workspace is the durable substrate across sessions; chat scrollback
+is not — it's gone when the session ends. So any **reusable artifact** the
+agent drafts that the operator might call back in a *future* session — a
+command, a query, a config snippet, a paste-ready draft, a decision — gets
+persisted to the workspace **at the moment it's drafted** (a tips note, the
+relevant track, the review folder — wherever it will be found), not left
+only in the conversation.
+
+**The test.** *"If the operator said tomorrow 'get that X we made,' would a
+fresh session — with no memory of this chat — be able to **grep** it out of
+the workspace?"* If no, it isn't encoded yet.
+
+**At draft time, not on request.** Persist when you produce the artifact;
+don't wait to be asked whether it's findable. The cost of a stray note is
+trivial; the cost of a re-derivation — or a lost artifact — is the
+operator's time and trust. A fresh agent retrieving beats a fresh agent
+reconstructing.
+
+**Scope.** This is about *reusable* artifacts — things with a second life.
+Not every message needs a file; ephemeral reasoning, one-shot answers, and
+working scratch stay in chat. The trigger is "would we want this again?"
+
+**Why it's an invariant.** The whole point of a persistent workspace is
+that state outlives any one session. An artifact that lives only in chat
+defeats that — it makes the next session strictly poorer than this one.
+Durable-by-default keeps the substrate monotonic: each session leaves the
+workspace able to answer more, never less.
