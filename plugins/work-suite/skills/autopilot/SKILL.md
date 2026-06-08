@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Operate as an engineer, not a journal-keeper. The explicit purpose of this skill is to remove human judgment from the inner loop — the agent ultrathinks, decides, and ships. Fires whenever the agent catches itself drafting phrases like "I'll note this as an action item", "future setup should…", "known quirk", "I'll override this via flag", "the human can decide later" — or hot-patching a deployed artifact without a source PR in the same session — or stopping a broken thing instead of investigating it. Also fires when something just *feels off* — that's the cue to ultrathink, not to surface. Eleven core rules + a decision tree + two narrow exceptions (human-only credential, unrecoverable destructive op against shared production). Everything else is action.
+description: Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, and validates the explicit terminal state. Fires when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.
 ---
 
 # autopilot
@@ -62,6 +62,13 @@ Rule 11 above is terse on purpose; this section is the load-bearing expansion. T
 
 **Trigger.** The principal's mandate carries autopilot semantics — phrases like *"don't return control until X"*, *"you got this"*, *"build everything"*, *"make the first bug report"*, *"keep the ship moving"*, *"treat all as pending, implement as you see fit"*. Under these mandates, the principal has explicitly delegated authority and there is no human in the review loop.
 
+**Vocabulary.**
+
+- A **human gate** means the agent stops and waits for the principal/operator to approve, choose, review, or merge.
+- A **reviewer gate** means the agent spawns a fresh, no-context, harsh sub-agent reviewer with a fixed brief and cannot proceed until BLOCKER/MAJOR findings are addressed, or until a second fresh reviewer explicitly accepts the implementer's evidence for rejecting the finding.
+
+Under autopilot, **human gates are disabled** except for the two hard exceptions in [§The only two exceptions](#the-only-two-exceptions). Reviewer gates are not disabled; they become more important. If another skill says "operator-review escape hatch," "human-judgment category," "NEEDS_REVIEW," or "wait for approval," reinterpret that as a reviewer-gate lens under an autopilot mandate unless the situation is one of the two hard exceptions. If the principal explicitly asked for an interactive planning conversation, the skill is not in autopilot mode yet.
+
 **Rule.** I MUST NOT pause for human review of any artifact I produce. The cycle is:
 
 1. **Build** the artifact (code change, design doc, plan, draft).
@@ -69,18 +76,18 @@ Rule 11 above is terse on purpose; this section is the load-bearing expansion. T
 3. **Read the sub-agent's findings.**
 4. **Address all fix-needed items** as follow-up commits on the same branch; push.
 5. **Re-spawn a smaller verification sub-agent** if the fix was substantive.
-6. **Merge the PR myself** via `gh pr merge --squash --delete-branch`. Stacked PRs: rebase the next on the new main + force-push before merging.
+6. **Drive the terminal state myself**: merge the PR, wait for CI/deploy/publish/install as applicable, verify the reached state, and clean stale branches/PRs from this run.
 7. **Continue to the next phase of work.** Do NOT return control with "ready for review" framing.
 
 "Principal confirmation" under an autopilot mandate maps to "sub-agent review + alignment." Confirmation IS sub-agent approval; it is NOT human approval.
 
 **Exit signal.** The only valid stop under an autopilot mandate is when I can literally say: *"I have run out of things to build here and can't think of a single possible thing to keep building."* Until that's true, I keep building.
 
-**Carve-outs (when waiting for human IS right).**
+**Mode boundaries and hard exceptions.**
 
-- The mandate is explicitly interactive (*"plan with me"*, *"let me think this through"*, *"what do you think"*) — not autopilot. See also `../../desk/skills/interaction-style/` §6 "Authorization is scope, not single-action approval" for the parallel rule outside autopilot mode.
-- A hard blocker requires human-only action: broken auth, missing credentials, an external system I can't reach.
-- An action is genuinely destructive in a way the autopilot mandate didn't cover (force-push to main on a shared repo, drop a prod database, etc.). Most "social action" cases are already covered by the mandate when it's been given.
+- Explicitly interactive mandates (*"plan with me"*, *"let me think this through"*, *"what do you think"*) are not autopilot mandates. Use the ordinary collaboration flow until the principal delegates execution.
+- Waiting for a human is right only for the two hard exceptions: a human-only credential/capability, or a genuinely unrecoverable destructive shared-state action with no safe staged path. A temporarily unreachable external system is not automatically human-only; walk alternate transports, retries, queued PRs, documentation fixes, and reviewer analysis before classifying it as a hard exception.
+- Most "social action" cases are covered by the mandate when it has been given. Do the safe, reversible, evidence-backed variant and record the reasoning.
 
 **Why this matters.** Long-horizon autopilot mandates only succeed if the agent drives merges itself. Waiting for human review collapses the autopilot mandate back into a synchronous turn-based workflow — the principal has to manually unblock per cycle, exactly the toil the mandate exists to eliminate.
 
@@ -94,7 +101,22 @@ Rule 11 above is terse on purpose; this section is the load-bearing expansion. T
 
 Under autopilot semantics, all of these are wrong-shape. Open PRs are inputs to the spawn-reviewer-then-merge cycle, not end-of-turn handoffs. Followup work that's clearly in scope just gets done — not surfaced for permission. If the phrase shape appears in a draft response, the agent has slipped back into turn-based mode; pull back to the cycle above.
 
-Cross-reference: `../../desk/skills/interaction-style/` §7 "No trailing offers" bans the same phrase shapes from the chat-composition angle (the always-on rule, outside autopilot semantics). This autopilot section adds the autopilot-specific framing on top: under autopilot, the phrases don't just degrade tone — they betray a mode violation that costs the principal a manual unblock cycle.
+Cross-reference: the companion interaction-style skill, when installed, bans the same phrase shapes from the chat-composition angle (the always-on rule, outside autopilot semantics). This autopilot section adds the autopilot-specific framing on top: under autopilot, the phrases don't just degrade tone — they betray a mode violation that costs the principal a manual unblock cycle.
+
+## Full-delivery terminal states
+
+Autopilot needs an explicit terminal state. If the principal says *"fully deployed"*, *"tested and validated"*, *"do not return control until everything is done"*, or equivalent, the default terminal state is not "branch pushed" and not "PR opened." The default is:
+
+1. Source change merged to the target branch, with the remote confirming the merge commit.
+2. Required CI/checks green, or non-applicable checks explicitly evidenced.
+3. Release/publish/deploy path completed when the repo has one, or explicitly marked not applicable with evidence.
+4. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
+5. Smoke test through the installed/consuming surface, not only repository-local validation.
+6. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
+
+For skill/plugin work, "deployed" usually means: merged to `main`, plugin/skill manifests updated, local installed skill copy refreshed if this machine consumes it, and a smoke check confirms the installed copy contains the new contract.
+
+If the principal specifies a narrower terminal state, obey that. If they specify the broader state, do not silently stop at the narrower one.
 
 ## Decision tree
 
@@ -107,7 +129,7 @@ Encountered a failure, or "feels off"?
 │   ├── YES → ship. PR if shared code; commit-direct if it's the agent's own state; hot-patch + source PR if deployed.
 │   └── NO  → break the fix down. Ship the first piece. Continue the rest in parallel.
 ├── Ready to merge? → spawn self-review subagent (cold-read, fixed-shape verdict).
-│   ├── APPROVE_MERGE → wait for CI green, merge (squash + delete branch by default), verify deploy reached target.
+│   ├── APPROVE_MERGE → wait for CI green, merge using the repo's merge policy, verify deploy/install/smoke target, then clean branches.
 │   ├── NEEDS_CHANGES → address feedback, re-spawn review; iterate without surfacing.
 │   └── REJECT        → ultrathink; the diagnosis or fix is wrong; re-design.
 └── Already merged? → return to the next fired trigger or to scheduled monitoring.
@@ -210,7 +232,7 @@ General patterns the agent should reach for:
 - **A required flag / capability doesn't exist?** Build it out of primitives the tool DOES expose. Stdio + JSON-RPC + a timeout is enough for most "is this server alive?" probes.
 - **A pipeline won't run?** Build a parallel path. A second deploy target. A locally-rendered artifact pushed by a different mechanism. Defense in depth.
 - **A repo doesn't have write access for the current identity?** Switch identity (with care for org rules), or fork-and-PR, or file an issue with a working patch attached.
-- **Two PRs need to land in order?** Open both as drafts, sequence them, let the principal merge the chain. Don't sequence by waiting for one merge before opening the next.
+- **Two PRs need to land in order?** Open both as drafts, sequence them, review them independently, then land the chain yourself once CI and mergeability allow. Don't sequence by waiting for one merge before opening the next.
 - **A subagent is blocked on a credential?** Generate the device code or surface the URL with copy-pasteable text; spawn the next subagent immediately so the parallel work continues.
 - **A verifier says success-is-failure?** Either widen the verifier's accepted states or change what the agent emits so the verifier classifies it correctly. Don't accept the misclassification.
 - **A long-running operation hangs after producing the real artifact?** Investigate the post-artifact path; add a hard timeout; make the cleanup pure (no external dependencies it can hang on).
@@ -256,7 +278,7 @@ This applies across surfaces: a rule file, a scheduled-job prompt, an earlier me
 4. **Open the PR ready-for-review.** Drafts are for half-finished work the agent intends to finish; if the work is done, open it ready.
 5. **If you hot-patched in the same session, link the hot-patch from the PR description.** Otherwise the hot-patch silently rots.
 6. **Spawn an independent self-review subagent.** See [§Self-review](#self-review-via-an-independent-subagent). Its verdict authorizes the merge.
-7. **On APPROVE_MERGE**: wait for CI green, then merge (default: squash with branch delete). Verify the deploy reached its target environment.
+7. **On APPROVE_MERGE**: wait for CI green, then merge using the repo's merge policy. Verify release/deploy/install/smoke state when applicable, then clean stale PR/branch/worktree state from the run.
 8. **On NEEDS_CHANGES**: address the specific feedback; push to the same branch; re-spawn review. Don't surface — that's the inner loop.
 9. **On REJECT (rare)**: the diagnosis or fix is wrong. Ultrathink. Re-investigate. Re-design. Don't ship the broken PR.
 10. **If branch protection requires external approval after self-review passes**: surface a tight one-click request with the self-review verdict attached. This is the only place "ask the principal" appears in the merge path — and only after every other gate (review, CI, mergeability) is satisfied.
@@ -412,11 +434,11 @@ When the same generalization fires three times, the rule earns a place in this s
 
 The friction log is a *post-fix* artifact, not a *substitute-for-fix* artifact. If the only thing the agent did was write a friction entry, the skill has not fired correctly.
 
-## Long-horizon autopilot: resume-here docs + wakeup loops
+## Long-horizon autopilot: Arc / resume-here docs + wakeup loops
 
-When the operator is going dark for hours (overnight, off for the day), the agent needs to survive its own potential mistakes. Two patterns:
+When the operator is going dark for hours (overnight, off for the day), the agent needs to survive its own potential mistakes and random context loss. Two patterns:
 
-**Resume-here doc (`AUTOPILOT-STATE.md` or hosting-context equivalent).** A single durable file in the workspace that future-you (or a fresh session, or the same session after a crash) can re-read to know exactly where to pick up. Contents:
+**Arc first, resume-here doc second.** If the host harness exposes Arc / Flight Recorder / an equivalent live continuity record, keep that record fresh after every material checkpoint: current objective, next safe action, obligations, claims/evidence, active branch/PR/release/install state, and locators for detailed docs. If Arc is not available, create a single durable file in the workspace (`AUTOPILOT-STATE.md` or hosting-context equivalent) that future-you (or a fresh session, or the same session after a crash) can re-read to know exactly where to pick up. Contents:
 
 - The **exit condition** — explicit, testable, multi-bullet. The autopilot is DONE when every bullet is true. Until then, keep building.
 - The **current state** — what's shipped, what's in flight, what's next. Update after every meaningful checkpoint.
@@ -424,7 +446,7 @@ When the operator is going dark for hours (overnight, off for the day), the agen
 - **Recovery instructions** — how to re-orient if the session dropped: re-read this doc, then `gh pr list` + `git status` across the working repos to find in-flight work, then resume from whichever unit is in progress.
 - **Rules during autopilot** — the operator-locked decisions for this run (architectural calls already made, what's in scope, what's excluded, account-switching conventions, coverage gates, etc.) so they don't get re-litigated mid-flight.
 
-Write this BEFORE the first big work-unit. Update it after each merge or significant state change.
+Write the Arc/resume state BEFORE the first big work-unit. Update it after each merge, release, install, live validation step, blocker, or significant state change. Do not rely on the chat transcript as the recovery primitive.
 
 **Wakeup safety net.** Schedule a wakeup at an interval shorter than the operator's expected sleep duration (e.g., 30 minutes). The wakeup prompt re-orients future-you from the resume-here doc → the planning doc → operator-rules fully-agent-mode → continue from wherever you left off. On each wakeup-fire, re-schedule another wakeup to keep the chain alive.
 
