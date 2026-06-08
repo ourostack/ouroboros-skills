@@ -9,7 +9,7 @@
     {
       "name": "autopilot",
       "path": "skills/autopilot/SKILL.md",
-      "description": "Operate as an engineer, not a journal-keeper. The explicit purpose of this skill is to remove human judgment from the inner loop — the agent ultrathinks, decides, and ships. Fires when the agent catches itself drafting action items, framing tractable failures as 'known quirks', overriding wrong defaults via flag, hot-patching without a source PR, or stopping a broken thing instead of investigating it. Eleven core rules + a decision tree + only two narrow exceptions (human-only credential, unrecoverable destructive op against shared production). 'Shipped' means merged; opening a PR is paperwork, not work.",
+      "description": "Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, and validates the explicit terminal state. Fires when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.",
       "tags": ["meta", "workflow", "execution", "long-horizon"]
     },
     {
@@ -33,19 +33,19 @@
     {
       "name": "work-planner",
       "path": "skills/work-planner/SKILL.md",
-      "description": "Interactive task planner for coding tasks. Generates planning doc with human conversation, then converts to doing doc after signoff. Can resume from existing planning doc.",
+      "description": "Task planner for coding tasks. Generates planning docs, runs reviewer-gated approval by default, converts to doing docs after the correct gate clears, and treats autopilot/no-human-gates mandates as sub-agent reviewer gates rather than human stops.",
       "tags": ["workflow", "planning"]
     },
     {
       "name": "work-doer",
       "path": "skills/work-doer/SKILL.md",
-      "description": "Executes doing.md units sequentially with strict TDD. Reads the doing doc, works through each unit, commits after each. Use after planning is complete and doing.md exists.",
+      "description": "Executes doing.md units sequentially with strict TDD. Reads the doing doc, resolves ordinary blockers with sub-agent reviewers/fixers under autopilot, updates continuity state, and commits after each unit.",
       "tags": ["workflow", "execution", "tdd"]
     },
     {
       "name": "work-merger",
       "path": "skills/work-merger/SKILL.md",
-      "description": "Sync-and-merge agent. Runs after work-doer completes. Fetches origin/main, merges, resolves conflicts using task docs, creates PR via gh, waits for CI, merges to main, cleans up branch.",
+      "description": "Sync-and-merge agent. Fetches origin/main, resolves conflicts using task docs, creates PRs, runs harsh reviewer gates, waits for CI, merges to main, verifies terminal deploy/install state when applicable, and cleans up stale PR/branch/worktree state.",
       "tags": ["workflow", "git", "merge"]
     },
     {

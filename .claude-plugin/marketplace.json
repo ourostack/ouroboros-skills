@@ -6,7 +6,7 @@
     "url": "https://github.com/ourostack/ouroboros-skills"
   },
   "metadata": {
-    "description": "Cross-engine skills + agent substrate for long-running engineering agents. Ships `desk` (workspace substrate — tracks, tasks, friction, lessons, lifecycle skills, MCP server) and `work-suite` (the four-phase doing primitives: work-ideator → work-planner → work-doer → work-merger, plus autopilot + inch-worm). Engine-agnostic; works on Claude Code, Copilot CLI, and Codex.",
+    "description": "Cross-engine skills + agent substrate for long-running engineering agents. Ships `desk` (workspace substrate — tracks, tasks, friction, lessons, lifecycle skills, MCP server) and `work-suite` (ideate, plan, execute, merge, plus no-human-gates autopilot and inch-worm improvement loops). Engine-agnostic; works on Claude Code, Copilot CLI, and Codex.",
     "version": "1.0.0"
   },
   "plugins": [
@@ -21,8 +21,8 @@
     {
       "name": "work-suite",
       "source": "./plugins/work-suite",
-      "description": "The four-phase workflow primitive used by orchestrator agents: work-ideator (explore), work-planner (scope), work-doer (execute with TDD), work-merger (PR + merge) — plus autopilot (long-horizon loop discipline) and inch-worm (open-ended improvement loop). Vendor-neutral; companion to desk.",
-      "version": "1.4.1",
+      "description": "The workflow primitive used by orchestrator agents: work-ideator (explore), work-planner (scope), work-doer (execute with TDD), work-merger (PR + merge) — plus autopilot (no-human-gates full-delivery discipline) and inch-worm (open-ended improvement loop). Vendor-neutral; companion to desk.",
+      "version": "1.4.2",
       "category": "workflow",
       "tags": ["tdd", "planning", "autopilot", "engineering"]
     }

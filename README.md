@@ -13,11 +13,17 @@ ouroboros-skills/
   skills/
     skill-management/        # Bootstrap skill for managing other skills
       SKILL.md
-    work-planner/            # Interactive task planner
+    autopilot/               # Full-delivery execution doctrine
+      SKILL.md
+    work-ideator/            # Ambiguous-idea exploration before planning
+      SKILL.md
+    work-planner/            # Reviewer-gated task planner
       SKILL.md
     work-doer/               # Task executor with strict TDD
       SKILL.md
     work-merger/             # Sync-and-merge after execution
+      SKILL.md
+    inch-worm/               # Open-ended improvement loop
       SKILL.md
     video-editing/           # Remotion-based video production
       SKILL.md
@@ -62,14 +68,19 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | Skill | Description |
 |-------|-------------|
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
-| **work-planner** | Interactive task planner. Generates planning docs with human conversation. |
+| **autopilot** | Full-delivery doctrine: no human gates, harsh sub-agent reviewer gates, explicit terminal validation, Arc/resume continuity. |
+| **stay-in-turn** | Keep long-running work in the same turn with monitor-style waiting instead of background wakeup deferral. |
+| **work-ideator** | Explore ambiguous product, architecture, workflow, or coding ideas before planning. |
+| **work-planner** | Reviewer-gated task planner. Generates planning docs and converts to doing docs after the correct gate clears. |
 | **work-doer** | Executes doing.md units sequentially with strict TDD. |
 | **work-merger** | Sync-and-merge agent. Creates PRs, waits for CI, merges to main. |
 | **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
 | **full-systems-audit** | End-to-end repo audit that produces an audit report plus a routed backlog for the rest of the skill ecosystem. |
+| **dragon-hunt** | Adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. |
 | **design** | Design and build production-grade frontend interfaces from scratch. |
 | **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality. |
+| **seo-titles** | Write HTML title tags that rank and get clicked. |
 | **book-fetch** | Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. |
 | **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
 | **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
