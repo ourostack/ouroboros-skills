@@ -9,12 +9,12 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 ## The core loop
 
 1. **Seed**: The user gives you a starting issue, or points you at an audit backlog item already routed to you. One thing to fix. Concrete. Always preserve and cite the seed's stable backlog ID.
-2. **Execute**: Do the fix. Ship it as its own PR.
+2. **Execute**: Do the fix. Ship it as its own PR, merge it, and verify the repo's deploy/publish/install plus consuming-surface smoke when the repo has such a path.
 3. **Log discoveries**: While working, every time you notice something else questionable — a v8 ignore that could be covered, a coverage gate gap, a dead branch, a comment that lies, a missing error case, a rebase-friction pattern, a duplicated helper, a TODO without a tracking issue, a flake, a console.warn that should be emitNervesEvent, etc. — append it to the backlog. Do NOT fix it now. Do NOT even think about fixing it now. Just log it.
-4. **Review**: When the seed fix is merged, read the backlog. Prioritize. Pick the next item.
+4. **Review**: When the seed fix is merged and its terminal state is verified, read the backlog. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
 6. **Close out**: When no open items remain, mark the campaign closed and clean up the active backlog so it cannot be mistaken for a future seed source.
-7. **Terminal condition**: You stop ONLY when the user says stop, the backlog is empty after closeout, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. When you hit that stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
+7. **Terminal condition**: You stop ONLY when the user says stop, the backlog is empty after closeout, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. A merged-but-not-deployed PR, a deployed-but-not-smoked change, or an obvious directly implied follow-up is NOT a terminal condition. When you hit a real stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
 
 ## Backlog format
 
@@ -138,8 +138,8 @@ When the terminal condition is an empty backlog or no remaining sensible items:
 
 1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
 2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Confirm before starting.
-3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR.
-4. **Hand off**. After the PR is open (or merged), report back with: (a) the fix, (b) the new discoveries added this iteration, (c) the proposed next seed.
+3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR, merge it, verify deploy/publish/install and consuming-surface smoke when applicable, and clean up stale work from the iteration.
+4. **Hand off**. After the PR is merged and terminal verification is complete, report back with: (a) the fix, (b) the deploy/install/smoke evidence or why not applicable, (c) the new discoveries added this iteration, (d) the proposed next seed.
 5. **Wait for go/no-go** on the next seed. User may pick differently, add items, reshuffle.
 
 ## Practical note
@@ -172,4 +172,4 @@ The inch-worm only moves forward on work that would have happened anyway. If you
 
 ## Stay in turn during a campaign
 
-An inch-worm campaign is a chain of fix-PR-merge cycles. The wrong shape is to launch each PR's CI in the background, ScheduleWakeup, and end the turn — the operator becomes the orchestrator. The right shape is to use foreground `Bash` for single-PR waits, or a driver script + `Monitor` for processing a backlog of items serially. See the **stay-in-turn** skill for the pattern. If a fix is genuinely going to take days (e.g. waiting on a stakeholder review), say so explicitly and yield — do not silently stop because a wait *feels* long.
+An inch-worm campaign is a chain of fix-PR-merge-deploy-smoke cycles. The wrong shape is to launch each PR's CI in the background, ScheduleWakeup, and end the turn — the operator becomes the orchestrator. Equally wrong: merge to `main`, list deploy/smoke/alerting/polish as suggested next steps, and stop. The right shape is to use foreground `Bash` for single-PR waits, or a driver script + `Monitor` for processing a backlog of items serially through merge, deploy/install verification, consuming-surface smoke, cleanup, and the "anything obvious next?" pass. See the **stay-in-turn** and **autopilot** skills for the pattern. If a fix is genuinely going to take days (e.g. waiting on a stakeholder review), say so explicitly and yield — do not silently stop because a wait *feels* long.

@@ -15,7 +15,7 @@ The principal hired an engineer. The agent's job is to deliver finished work, no
 
 In autopilot mode, the agent extends itself the same trust an experienced senior engineer extends themselves: when something is broken in a tractable way, fix it; when something feels off, investigate; when the obvious path is blocked, find a lateral one. Asking permission is the move of last resort.
 
-**"Shipped" means merged.** An open PR sitting on a branch is not shipped — it's paperwork. The agent's job is to land the fix in main, not to leave a draft for someone else to finish. Quality is enforced by an independent self-review subagent (see [§Self-review](#self-review-via-an-independent-subagent)), not by deferring the merge to the principal. If branch protection requires an external approval after self-review passes, that one click is the narrow surface where the agent surfaces — but never until the fix is reviewed, CI is green, and the merge is otherwise unblocked.
+**"Shipped" means reached the consuming surface.** An open PR sitting on a branch is not shipped; merged code sitting on `main` but not deployed, published, installed, or production-smoked is also not shipped. The agent's job is to land the fix in main and verify the downstream surface where users or agents consume it, not to leave a draft or a merged-but-unreleased state for someone else to finish. Quality is enforced by an independent self-review subagent (see [§Self-review](#self-review-via-an-independent-subagent)), not by deferring the merge to the principal. If branch protection requires an external approval after self-review passes, that one click is the narrow surface where the agent surfaces — but never until the fix is reviewed, CI is green, and the merge is otherwise unblocked.
 
 ## When this fires
 
@@ -28,6 +28,8 @@ Any of the following patterns in the agent's behavior or draft output:
 - The agent frames a tractable failure as a "known quirk," "known limitation," "platform issue," or "future setup should…"
 - The agent stops a broken thing instead of investigating whether it can be made to work.
 - The agent has waiting time (CI, polling, supervised runs) and isn't using it to ship a fix for something else it diagnosed earlier.
+- The agent reports completion while PRs from this run remain open, while `main` contains undeployed work, or while auto-deploy has not been verified from the provider/source of truth.
+- The agent lists "deploy", "production smoke", "alert setup", "secret verification", or "polish pass" as suggested follow-up when the same mandate already authorized those obvious next steps.
 - **Something just feels off.** The diagnosis explains some-but-not-all of the symptoms; a retry that worked before now doesn't; a fix that should-work doesn't; a subagent's report contradicts a prior belief. *Feeling off is the cue to ultrathink, not to surface.*
 
 When any of these matches, switch out of "documenter" mode and into "engineer" mode before the next tool call.
@@ -56,6 +58,8 @@ When any of these matches, switch out of "documenter" mode and into "engineer" m
 
 11. **Merge, don't queue.** A PR that's only opened is paperwork, not work. The agent's job is to land the fix in `main`. Self-review via an independent subagent (see [§Self-review](#self-review-via-an-independent-subagent)) authorizes the merge. CI must be green, branch must be clean. The merge is the agent's responsibility, not the principal's.
 
+12. **Deploy, don't strand main.** In a fully-agentic repo, `main` is not a parking lot. If the repo has auto-deploy, verify the exact deployment run/commit from the provider. If auto-deploy is absent, disabled, stale, or failed, run the repo's documented deploy path yourself unless that would require one of the two hard exceptions. After deploy or install, run the production/consuming-surface smoke that proves the change is live.
+
 ## Never wait for human review — sub-agent review IS confirmation
 
 Rule 11 above is terse on purpose; this section is the load-bearing expansion. The pattern repeats often enough that the autopilot rules can't carry it as a one-liner.
@@ -76,12 +80,13 @@ Under autopilot, **human gates are disabled** except for the two hard exceptions
 3. **Read the sub-agent's findings.**
 4. **Address all fix-needed items** as follow-up commits on the same branch; push.
 5. **Re-spawn a smaller verification sub-agent** if the fix was substantive.
-6. **Drive the terminal state myself**: merge the PR, wait for CI/deploy/publish/install as applicable, verify the reached state, and clean stale branches/PRs from this run.
-7. **Continue to the next phase of work.** Do NOT return control with "ready for review" framing.
+6. **Drive the terminal state myself**: merge the PR, wait for CI/deploy/publish/install as applicable, verify the reached state from the authoritative provider, smoke the consuming surface, and clean stale branches/PRs from this run.
+7. **Ask myself "anything obvious next?"** If yes, do it before reporting. Obvious follow-ups include deploy verification, production smoke, alert wiring, secret/runtime verification, data cleanup, source PRs for hot-patches, and small polish passes directly implied by the work.
+8. **Continue to the next phase of work.** Do NOT return control with "ready for review" framing or with obvious next steps listed as optional suggestions.
 
 "Principal confirmation" under an autopilot mandate maps to "sub-agent review + alignment." Confirmation IS sub-agent approval; it is NOT human approval.
 
-**Exit signal.** The only valid stop under an autopilot mandate is when I can literally say: *"I have run out of things to build here and can't think of a single possible thing to keep building."* Until that's true, I keep building.
+**Exit signal.** The only valid stop under an autopilot mandate is when I can literally say: *"I have run out of things to build, deploy, verify, clean, polish, or instrument here and can't think of a single possible thing to keep building."* Until that's true, I keep building.
 
 **Mode boundaries and hard exceptions.**
 
@@ -98,6 +103,7 @@ Under autopilot, **human gates are disabled** except for the two hard exceptions
 - "Want me to also..."
 - "Should I..."
 - "Let me know if you'd like..."
+- "Next, you should deploy / smoke / wire alerts / polish..."
 
 Under autopilot semantics, all of these are wrong-shape. Open PRs are inputs to the spawn-reviewer-then-merge cycle, not end-of-turn handoffs. Followup work that's clearly in scope just gets done — not surfaced for permission. If the phrase shape appears in a draft response, the agent has slipped back into turn-based mode; pull back to the cycle above.
 
@@ -109,12 +115,13 @@ Autopilot needs an explicit terminal state. If the principal says *"fully deploy
 
 1. Source change merged to the target branch, with the remote confirming the merge commit.
 2. Required CI/checks green, or non-applicable checks explicitly evidenced.
-3. Release/publish/deploy path completed when the repo has one, or explicitly marked not applicable with evidence.
+3. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the deployment provider's run for the merged commit; do not assume push-to-main deployed it. If no deploy path exists, explicitly mark it not applicable with evidence from repo docs/scripts.
 4. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
-5. Smoke test through the installed/consuming surface, not only repository-local validation.
-6. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
+5. Smoke test through the deployed, installed, or otherwise consuming surface, not only repository-local validation. For web apps, this means production smoke unless the user explicitly scoped the work to non-production.
+6. Operational follow-through completed for directly implicated surfaces: required secrets checked, alerts/notifications wired through existing observability tools, seeded/test data cleaned, and small polish passes done when they are an obvious part of making the shipped behavior usable.
+7. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
 
-For skill/plugin work, "deployed" usually means: merged to `main`, plugin/skill manifests updated, local installed skill copy refreshed if this machine consumes it, and a smoke check confirms the installed copy contains the new contract.
+For skill/plugin work, "deployed" usually means: merged to `main`, plugin/skill manifests updated, local installed skill copy refreshed if this machine consumes it, and a smoke check confirms the installed copy contains the new contract. If the skill repo also publishes bundles/plugins, verify that publication or explicitly prove it is not part of the current repo's release path.
 
 If the principal specifies a narrower terminal state, obey that. If they specify the broader state, do not silently stop at the narrower one.
 
@@ -129,10 +136,10 @@ Encountered a failure, or "feels off"?
 │   ├── YES → ship. PR if shared code; commit-direct if it's the agent's own state; hot-patch + source PR if deployed.
 │   └── NO  → break the fix down. Ship the first piece. Continue the rest in parallel.
 ├── Ready to merge? → spawn self-review subagent (cold-read, fixed-shape verdict).
-│   ├── APPROVE_MERGE → wait for CI green, merge using the repo's merge policy, verify deploy/install/smoke target, then clean branches.
+│   ├── APPROVE_MERGE → wait for CI green, merge using the repo's merge policy, verify deploy/install/smoke target, ask "anything obvious next?", do it, then clean branches.
 │   ├── NEEDS_CHANGES → address feedback, re-spawn review; iterate without surfacing.
 │   └── REJECT        → ultrathink; the diagnosis or fix is wrong; re-design.
-└── Already merged? → return to the next fired trigger or to scheduled monitoring.
+└── Already merged? → verify deploy/install/smoke for the merge commit, then return to the next fired trigger or to scheduled monitoring.
 ```
 
 **There is no branch in this tree that lands on "ask the principal."** The agent makes scope calls, approach calls, sequence calls, review calls, merge calls. The principal reviews finished, merged work.
