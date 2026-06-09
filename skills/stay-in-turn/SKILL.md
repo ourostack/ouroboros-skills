@@ -3,7 +3,7 @@ name: stay-in-turn
 description: Stay-in-turn for long-running work — the right way to wait on CI, batched merges, multi-PR refactors, audits, and any operation that takes longer than a couple of minutes. Resolves the "Claude keeps stopping mid-task" failure mode by replacing background+wakeup yields with a Monitor stream that produces events back into the same turn.
 ---
 
-This skill is short. Read it once. Reach for it whenever a task involves waiting on something external (CI, network, long script, multi-step chain) — especially when the operator says "do not return control until X is done."
+This skill is short. Read it once. Reach for it whenever a task involves waiting on something external (CI, deploys, production smoke, network, long script, multi-step chain) — especially when the operator says "do not return control until X is done."
 
 ## The failure mode
 
@@ -25,7 +25,7 @@ The Monitor tool's contract: events arrive on their own schedule. They are NOT u
 The shape:
 
 ```
-1. Write a driver script that does the whole long task and emits one event line per logical milestone (per PR, per file, per check).
+1. Write a driver script that does the whole long task and emits one event line per logical milestone (per PR, per file, per check, per deploy, per smoke).
 2. Launch the driver via Bash run_in_background: true.
 3. Start a Monitor that tails the driver's stdout, filtered to event lines.
 4. React to each event in-turn. Continue the same turn until the driver emits its end-marker (e.g. "DRIVER_END") or all expected events arrive.
@@ -40,7 +40,7 @@ This is the standard for any task >2 minutes of expected wall-clock work.
 | --- | --- |
 | Foreground command <2 min, you need the output now | `Bash` (no background) |
 | One-shot wait for a specific completion ("tell me when build finishes") | `Bash run_in_background: true` with an `until <condition>; do sleep 30; done` body — completion = single notification |
-| Recurring events, eventual end (per-PR result, per-test pass/fail, per-file processed) | `Monitor` with a driver script that emits one line per event |
+| Recurring events, eventual end (per-PR result, per-test pass/fail, per-deploy result, per-smoke result, per-file processed) | `Monitor` with a driver script that emits one line per event |
 | Indefinite watch (every error in a log, "tell me whenever an event happens") | `Monitor persistent: true` |
 | **Genuine "come back days from now"** (cron-like, not in-turn waiting) | `ScheduleWakeup` — and only this case |
 
@@ -100,6 +100,8 @@ When `DRIVER_END` lands: summarize and yield naturally.
 ## When the operator says "do not return control until X is done"
 
 This phrase is your cue to use this pattern. The operator is asking for an autonomous chain. The Monitor pattern lets you deliver it. ScheduleWakeup-then-yield does NOT — the operator's experience is that you stopped.
+
+The chain ends at the terminal state, not at the first green checkpoint. For fully-agentic repos, keep the driver or foreground loop alive through PR merge, deploy/publish/install verification, consuming-surface smoke, cleanup, and the "anything obvious next?" pass. A driver that emits `OK pr=123 merged` and then exits before deploy/smoke is encoding the same premature handoff this skill exists to prevent.
 
 If the chain genuinely cannot run autonomously (e.g. needs operator approval mid-way), say so up front, get the approval, then run autonomously the rest of the way.
 

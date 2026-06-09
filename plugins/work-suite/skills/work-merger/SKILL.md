@@ -475,10 +475,15 @@ If the sub-agent's findings touch voice-and-relationships / durably-shaping stat
 PR_REF="${PR_TARGET:-$BRANCH}"
 HEAD_REF=$(gh pr view "${PR_REF}" --json headRefName -q '.headRefName')
 HEAD_SHA=$(gh pr view "${PR_REF}" --json headRefOid -q '.headRefOid')
-gh pr merge "${PR_REF}" --merge --match-head-commit "${HEAD_SHA}"
+
+# Prefer merge commits when the repo allows them, but follow the repo's configured
+# merge policy rather than leaving the PR open.
+if ! gh pr merge "${PR_REF}" --merge --match-head-commit "${HEAD_SHA}"; then
+  gh pr merge "${PR_REF}" --squash --match-head-commit "${HEAD_SHA}"
+fi
 ```
 
-Use `--merge` (not `--squash` or `--rebase`). Merge commits preserve branch history.
+Prefer `--merge` because merge commits preserve branch history. If the repo disables merge commits, fall back to the enabled method instead of stranding a green PR.
 
 Do not pass `--delete-branch` here. GitHub CLI attempts local branch cleanup as part of that flag, and that can fail after the remote merge has already succeeded when the current checkout is detached or when `main` is checked out in another worktree. Remote and local branch cleanup happen explicitly in **Post-Merge Cleanup**.
 
@@ -718,10 +723,12 @@ Confirm the merge commit is visible on main.
 Before reporting completion, always verify and record the terminal state. For full-delivery/autopilot mandates, the whole terminal state must be complete, not merely PR-merged:
 
 1. Required CI/checks are green, or non-applicable checks are explicitly evidenced.
-2. Release/publish/deploy path completed when the repo has one, or explicitly marked not applicable with evidence from repo docs/scripts.
+2. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the provider's deployment run for the merged commit; do not assume push-to-main deployed it. If auto-deploy is absent, stale, disabled, or failed, run the documented deploy path yourself unless a hard exception applies.
 3. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
-4. Smoke test ran through the installed/consuming surface, not only repository-local validation.
-5. No dirty worktree, no open PR from this run, no stale local/remote branch from this run, and no disposable worktree from this run left behind.
+4. Smoke test ran through the deployed/installed/consuming surface, not only repository-local validation. For web apps, production smoke is the default unless the user explicitly scoped the task away from production.
+5. Direct operational follow-through is complete: implicated secrets/config are verified, built-in observability/alerting is wired and tested where the task added a new failure mode, disposable/test data is cleaned, and obvious polish passes required for a usable shipped experience are done.
+6. The agent has explicitly asked itself "anything obvious next?" and completed any safe, in-scope answer before reporting.
+7. No dirty worktree, no open PR from this run, no stale local/remote branch from this run, and no disposable worktree from this run left behind.
 
 Update Arc / `AUTOPILOT-STATE.md` after PR creation, each CI repair loop, merge, release/publish/deploy, install/runtime refresh, smoke validation, and cleanup. The continuity record must include current branch/PR, merge commit, terminal-state checklist, next action, and any hard blocker classification.
 
@@ -765,19 +772,20 @@ In non-autopilot mode, STOP after surfacing and wait for the user. Under autopil
 ## Rules
 
 1. **PR-based merge only** -- never push directly to main. Always create a PR, wait for CI, then merge.
-2. **Merge commits** -- use `--merge`, not `--squash` or `--rebase`. Preserve branch history.
+2. **Follow repo merge policy** -- prefer `--merge` when allowed, but use the repo's enabled merge method rather than leaving a green PR open. Always protect the exact reviewed head with `--match-head-commit`.
 3. **Always create PR** -- even on fast-path (branch already up-to-date). CI must pass before landing on main.
 4. **Always run tests** -- before pushing, after conflict resolution, after CI fixes. `npm test` must pass.
 5. **Git-informed task doc discovery** -- use `git log origin/main --not HEAD` to find doing docs, not filename timestamps.
 6. **Exponential backoff on retry** -- start at 30s, double each time, no limit. Never retry silently.
 7. **Communicate every retry** -- tell the user the retry number, wait duration, and reason. Every time.
 8. **Self-repair CI failures** -- fix lint, test, build, coverage issues yourself. In non-autopilot mode, escalate after two failed attempts; under autopilot/no-human-gates, dispatch a fresh failure-analysis sub-agent and continue unless the blocker is proven to require a human-only credential/capability or a genuinely unrecoverable destructive shared-state action.
-9. **Clean up after merge** -- delete feature branch locally and remotely.
+9. **Clean up after merge** -- delete feature branch locally and remotely unless the repo's workflow explicitly preserves it, and record any branch that cannot be cleaned.
 10. **Escalate only when genuinely stuck** -- in non-autopilot mode: ambiguous conflicts, repeated failures after self-repair, credential issues. Under autopilot/no-human-gates: only true human-only credentials/capabilities or genuinely unrecoverable destructive shared-state actions. Not for fixable problems.
 11. **Own the branch exclusively** -- `--force-with-lease` is safe because no one else pushes to this branch during merge.
 12. **Timestamps from git** -- `git log -1 --date=format:'%Y-%m-%d %H:%M' --format='%ad'`
 13. **Atomic commits** -- one logical change per commit.
 14. **Preserve both intents** -- when resolving conflicts, both agents' work must be present in the result.
 15. **Never skip CI** -- even if you are confident the code is correct. CI is the gate.
-16. **Derive agent from branch** -- parse `<agent>` from the first path segment of the branch name. Never hardcode agent names.
-17. **Probe before drafting the PR description** -- before writing a single section of the PR body, run Step 2a's three probes (template file, last 2-3 merged PRs, operator-authored prior PRs). The default 5-section narrative is a *fallback* for greenfield repos, not a mandate. Custom shape in a repo with conventions = "wrong template" feedback; that mistake is what this rule exists to prevent.
+16. **Never strand main** -- after merge, verify deploy/publish/install/production-smoke or prove it is not applicable before reporting completion.
+17. **Derive agent from branch** -- parse `<agent>` from the first path segment of the branch name. Never hardcode agent names.
+18. **Probe before drafting the PR description** -- before writing a single section of the PR body, run Step 2a's three probes (template file, last 2-3 merged PRs, operator-authored prior PRs). The default 5-section narrative is a *fallback* for greenfield repos, not a mandate. Custom shape in a repo with conventions = "wrong template" feedback; that mistake is what this rule exists to prevent.
