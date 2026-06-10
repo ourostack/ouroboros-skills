@@ -1,5 +1,11 @@
 # desk plugin — changelog
 
+## 1.7.1 — 2026-06-10
+
+**`_shared/` read-across indexing.** Completes the shared-workspace read-across promise: the indexer now indexes team-neutral docs under `_shared/` (e.g. `_shared/landscape/*.md`) so `desk_search` spans the whole crew brain — every agent reads all of `desks/*/` **and** `_shared/`, not just its own desk. `discover.js` (`isIndexable`/`classify`) accepts `_shared/**.md` as `kind=shared`; without this a crew member's search silently missed the shared facts the `shared-desk-conventions` skill promises are repo-wide. Behavior-preserving for single-desk workspaces (no `_shared/` dir → no new indexable docs, byte-identical). New classification branch covered 100%.
+
+MCP bumped to `desk-mcp@1.3.1`.
+
 ## 1.7.0 — 2026-06-10
 
 **`--person <alias>` write-prefix (default-OFF, behavior-preserving) + session-start registry awareness.** The first piece of the shared-workspace capability: one git repo, multiple operators, per-person write-scoping — with zero change for existing single-desk operators.
