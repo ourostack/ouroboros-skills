@@ -58,7 +58,7 @@ When any of these matches, switch out of "documenter" mode and into "engineer" m
 
 11. **Merge, don't queue.** A PR that's only opened is paperwork, not work. The agent's job is to land the fix in `main`. Self-review via an independent subagent (see [§Self-review](#self-review-via-an-independent-subagent)) authorizes the merge. CI must be green, branch must be clean. The merge is the agent's responsibility, not the principal's.
 
-12. **Deploy, don't strand main.** In a fully-agentic repo, `main` is not a parking lot. If the repo has auto-deploy, verify the exact deployment run/commit from the provider. If auto-deploy is absent, disabled, stale, or failed, run the repo's documented deploy path yourself unless that would require one of the two hard exceptions. After deploy or install, run the production/consuming-surface smoke that proves the change is live.
+12. **Deploy, don't strand main.** In a fully-agentic repo, `main` is not a parking lot. If the repo has auto-deploy, verify the exact deployment run/commit from the provider. If auto-deploy is absent, disabled, stale, or failed, run the repo's documented deploy path yourself unless that would require one of the two hard exceptions. A failed auto-deploy run is not a reason to return control while a manual deploy path you can run exists; deploy with the fallback, smoke the fallback deployment, and record the provider/credential failure as residual operational evidence. After deploy or install, run the production/consuming-surface smoke that proves the change is live.
 
 ## Never wait for human review — sub-agent review IS confirmation
 
@@ -115,7 +115,7 @@ Autopilot needs an explicit terminal state. If the principal says *"fully deploy
 
 1. Source change merged to the target branch, with the remote confirming the merge commit.
 2. Required CI/checks green, or non-applicable checks explicitly evidenced.
-3. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the deployment provider's run for the merged commit; do not assume push-to-main deployed it. If no deploy path exists, explicitly mark it not applicable with evidence from repo docs/scripts.
+3. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the deployment provider's run for the merged commit; do not assume push-to-main deployed it. If auto-deploy fails and a documented manual deploy path is available, run it, smoke that exact deployment, and report the auto-deploy failure separately instead of treating it as the shipped state. If no deploy path exists, explicitly mark it not applicable with evidence from repo docs/scripts.
 4. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
 5. Smoke test through the deployed, installed, or otherwise consuming surface, not only repository-local validation. For web apps, this means production smoke unless the user explicitly scoped the work to non-production.
 6. Operational follow-through completed for directly implicated surfaces: required secrets checked, alerts/notifications wired through existing observability tools, seeded/test data cleaned, and small polish passes done when they are an obvious part of making the shipped behavior usable.

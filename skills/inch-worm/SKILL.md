@@ -9,7 +9,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 ## The core loop
 
 1. **Seed**: The user gives you a starting issue, or points you at an audit backlog item already routed to you. One thing to fix. Concrete. Always preserve and cite the seed's stable backlog ID.
-2. **Execute**: Do the fix. Ship it as its own PR, merge it, and verify the repo's deploy/publish/install plus consuming-surface smoke when the repo has such a path.
+2. **Execute**: Do the fix. Ship it as its own PR, merge it, and verify the repo's deploy/publish/install plus consuming-surface smoke when the repo has such a path. If auto-deploy fails but a manual deploy path exists, run the fallback and smoke that exact deployed result before moving to the next seed.
 3. **Log discoveries**: While working, every time you notice something else questionable — a v8 ignore that could be covered, a coverage gate gap, a dead branch, a comment that lies, a missing error case, a rebase-friction pattern, a duplicated helper, a TODO without a tracking issue, a flake, a console.warn that should be emitNervesEvent, etc. — append it to the backlog. Do NOT fix it now. Do NOT even think about fixing it now. Just log it.
 4. **Review**: When the seed fix is merged and its terminal state is verified, read the backlog. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
@@ -138,7 +138,7 @@ When the terminal condition is an empty backlog or no remaining sensible items:
 
 1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
 2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Confirm before starting.
-3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR, merge it, verify deploy/publish/install and consuming-surface smoke when applicable, and clean up stale work from the iteration.
+3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR, merge it, verify deploy/publish/install and consuming-surface smoke when applicable, including manual fallback deploys when auto-deploy fails, and clean up stale work from the iteration.
 4. **Hand off**. After the PR is merged and terminal verification is complete, report back with: (a) the fix, (b) the deploy/install/smoke evidence or why not applicable, (c) the new discoveries added this iteration, (d) the proposed next seed.
 5. **Wait for go/no-go** on the next seed. User may pick differently, add items, reshuffle.
 
