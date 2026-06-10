@@ -119,6 +119,24 @@ async function walk(deskRoot, dir, out) {
  * but is still semantically valuable for historical recall.
  */
 export function isIndexable(relPath) {
+  // Shared-workspace read-across: every `.md` under `_shared/` (the
+  // team-neutral facts in `_shared/landscape/` + agreed decisions in
+  // `_shared/decisions/`) is indexable regardless of filename. These docs
+  // have arbitrary names (`glossary.md`, `nova-and-twa.md`) that don't match
+  // the task-doc vocabulary, but they're the shared brain every agent reads —
+  // so `desk_search` must span them. Behavior-preserving: single-desk
+  // workspaces have no `_shared/` dir, so this is purely additive. Checked
+  // against the raw relPath (NOT the person-stripped remainder) because
+  // `_shared/` always lives at the repo root, never under `desks/<alias>/`.
+  const rawSegments = relPath.split(path.sep)
+  if (
+    rawSegments[0] === "_shared" &&
+    rawSegments.length > 1 &&
+    rawSegments[rawSegments.length - 1].endsWith(".md")
+  ) {
+    return true
+  }
+
   // Remap-transparency: classify the desk-relative remainder, ignoring any
   // leading `desks/<alias>/` write-prefix.
   const segments = stripPersonPrefix(relPath).split(path.sep)
@@ -162,6 +180,15 @@ export function isIndexable(relPath) {
  * @returns {{ kind: string, track: string|null, task_slug: string|null }}
  */
 export function classify(relPath) {
+  // Shared-workspace facts/decisions: `_shared/**.md` is team-neutral content
+  // (read by everyone, owned by no single desk). Report kind=shared,
+  // track-less. Checked against the raw relPath because `_shared/` lives at
+  // the repo root, not under any `desks/<alias>/` prefix.
+  const rawSegments = relPath.split(path.sep)
+  if (rawSegments[0] === "_shared" && rawSegments.length > 1) {
+    return { kind: "shared", track: null, task_slug: null }
+  }
+
   // Remap-transparency: attribute against the desk-relative remainder, so a
   // doc at `desks/<alias>/<track>/<slug>/task.md` reports track=<track>, not
   // "desks". OFF-mode top-level paths pass through unchanged.
