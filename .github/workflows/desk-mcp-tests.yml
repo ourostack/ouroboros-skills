@@ -1,0 +1,45 @@
+name: desk MCP tests
+
+# Runs the desk MCP server test suite (plugins/desk/mcp `npm test`).
+# Skill-manifest validation lives in validate-skills.yml and does NOT exercise
+# the MCP code, so without this job desk-core changes can merge untested.
+# Path-filtered to the MCP package (and this workflow file) to keep unrelated
+# skill/docs edits from triggering a Node build they don't need.
+
+on:
+  pull_request:
+    paths:
+      - "plugins/desk/mcp/**"
+      - ".github/workflows/desk-mcp-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "plugins/desk/mcp/**"
+      - ".github/workflows/desk-mcp-tests.yml"
+
+jobs:
+  desk-mcp-tests:
+    name: desk MCP test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 22 (matches validate-skills.yml; current LTS). The test script
+          # uses a `**` glob in `node --test`, which only resolves on Node >= 21,
+          # so do NOT drop below 22 here even though engines floor is >= 20.
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: plugins/desk/mcp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: plugins/desk/mcp
+        run: npm ci
+
+      - name: Run desk MCP test suite
+        working-directory: plugins/desk/mcp
+        run: npm test
