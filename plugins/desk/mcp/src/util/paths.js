@@ -63,3 +63,45 @@ export function expandHome(p) {
   if (p === "~") return os.homedir()
   return p
 }
+
+// ── Shared-workspace write-prefix ─────────────────────────────────────────────
+//
+// `--person <alias>` scopes a session's WRITES to `<deskRoot>/desks/<alias>/`
+// while reads/search still span the whole repo. This single helper is the seam
+// every write-path builder routes through, so the default-OFF path stays
+// byte-identical to today.
+//
+//   personPrefix(deskRoot, person)
+//     person null / undefined / "" / whitespace-only → deskRoot  (OFF)
+//     valid alias                                     → join(deskRoot, "desks", alias)
+//     alias with "..", "/" , "\", or absolute         → throws    (path-traversal reject)
+//
+// Validation rule: a valid alias is a single path segment with no traversal.
+// We reject anything that, when treated as a path, would escape the `desks/`
+// dir or split into multiple segments — i.e. it must contain no separators,
+// no "..", and must not be "." or absolute.
+
+export function personPrefix(deskRoot, person) {
+  // OFF: null / undefined / empty / whitespace-only → no remap.
+  if (person == null) return deskRoot
+  if (typeof person !== "string") return deskRoot
+  const alias = person.trim()
+  if (alias === "") return deskRoot
+
+  // Reject path-traversal and multi-segment aliases.
+  if (
+    alias === "." ||
+    alias === ".." ||
+    alias.includes("..") ||
+    alias.includes("/") ||
+    alias.includes("\\") ||
+    path.isAbsolute(alias)
+  ) {
+    throw new Error(
+      `desk-mcp: invalid --person alias ${JSON.stringify(person)} — ` +
+        `an alias must be a single path segment with no ".." or path separators.`,
+    )
+  }
+
+  return path.join(deskRoot, "desks", alias)
+}
