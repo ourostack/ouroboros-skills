@@ -34,6 +34,14 @@ test("personPrefix treats whitespace-only person as OFF", () => {
   assert.equal(personPrefix(ROOT, "\t\n"), ROOT)
 })
 
+test("personPrefix treats a non-string truthy person as OFF (defensive)", () => {
+  // person should always be a string|null from the dispatch layer, but the
+  // helper must not throw on an unexpected type — it degrades to OFF.
+  assert.equal(personPrefix(ROOT, 42), ROOT)
+  assert.equal(personPrefix(ROOT, {}), ROOT)
+  assert.equal(personPrefix(ROOT, true), ROOT)
+})
+
 // ── ON branch (valid alias) ───────────────────────────────────────────────────
 
 test("personPrefix joins desks/<alias> for a valid alias", () => {
