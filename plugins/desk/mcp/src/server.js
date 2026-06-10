@@ -38,7 +38,8 @@ export { TOOL_NAMES, TOOL_DESCRIPTIONS }
 export { ensureIndex }
 
 // Map tool name → implementation. Every tool now has a real body.
-const TOOL_IMPLS = {
+// Exported so tests can register a probe impl to assert dispatch threading.
+export const TOOL_IMPLS = {
   task_create,
   task_update,
   task_archive,
@@ -58,7 +59,7 @@ const TOOL_IMPLS = {
  * Dispatch a single MCP call. Pulled out from startServer so tests can
  * exercise the dispatch table directly (no stdio transport needed).
  */
-export async function callTool({ deskRoot, name, input }) {
+export async function callTool({ deskRoot, name, input, person = null }) {
   if (!TOOL_NAMES.includes(name)) {
     return {
       content: [{ type: "text", text: `unknown tool: ${name}` }],
@@ -84,7 +85,7 @@ export async function callTool({ deskRoot, name, input }) {
     }
   }
   try {
-    const result = await impl({ deskRoot, input: input ?? {} })
+    const result = await impl({ deskRoot, input: input ?? {}, person })
     return {
       content: [{ type: "text", text: JSON.stringify(result) }],
     }
@@ -105,7 +106,7 @@ export async function callTool({ deskRoot, name, input }) {
   }
 }
 
-export async function startServer({ deskRoot }) {
+export async function startServer({ deskRoot, person = null }) {
   // Build (or refresh) the index synchronously before accepting traffic, so
   // the search tools (now wired in Unit 5) see a consistent view.
   try {
@@ -117,7 +118,7 @@ export async function startServer({ deskRoot }) {
   const server = new Server(
     {
       name: "desk-mcp",
-      version: "1.2.2",
+      version: "1.3.0",
     },
     {
       capabilities: { tools: {} },
@@ -135,7 +136,7 @@ export async function startServer({ deskRoot }) {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const name = request.params?.name
     const input = request.params?.arguments ?? {}
-    return callTool({ deskRoot, name, input })
+    return callTool({ deskRoot, name, input, person })
   })
 
   const transport = new StdioServerTransport()

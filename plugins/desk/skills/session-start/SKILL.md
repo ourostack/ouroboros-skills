@@ -113,9 +113,47 @@ cd $DESK && git pull --rebase origin main
 ```
 if the pull fails (conflict, no remote), warn the operator but proceed — don't block.
 
+## Step 2.6 — Desk-registry awareness (shared-workspace mode)
+
+after sync, check whether this workspace carries a committed desk registry: `$DESK/_meta/desks.md`. **default-tolerant — absent → behave exactly as today (single-desk, no shared-workspace awareness).** the file is plain markdown that travels with the repo (no machine-local fork), so reading it is a cheap existence-check + parse.
+
+```bash
+test -f "$DESK/_meta/desks.md" && cat "$DESK/_meta/desks.md"
+```
+
+when present, it tells the agent two things:
+
+1. **the desk-set** — every desk this workspace knows about (the operator's own, plus any peers' desks in a shared crew repo). surface the count in the Step 5 status block ("crew workspace: N desks — ari, bob, …").
+2. **"which desk am I"** — match the session's own person-binding (the `--person <alias>` the runtime launched the desk MCP with, derived from the operator's identity) against the registry rows. the matching row is *this* agent's home desk; its `write_subtree` is where this session's writes land (`desks/<alias>/`). if no `--person` is set (OFF mode), the agent writes at the workspace root as today, and the registry is read-only context.
+
+### `_meta/desks.md` schema
+
+one table, one row per desk. keep it human-readable — a non-agent teammate must be able to read it as plain markdown:
+
+```markdown
+# Desks
+
+| alias | path | repo | worker_variant | write_subtree |
+|-------|------|------|----------------|---------------|
+| ari   | desks/ari   | teams-microsoft/smb-workflows | workflows | desks/ari |
+| bob   | desks/bob   | teams-microsoft/smb-workflows | workflows | desks/bob |
+```
+
+- **alias** — the operator's short handle (derived from their identity; for MS crews, the EMU login minus the `_microsoft` suffix).
+- **path** — the desk's subtree within this workspace repo (`desks/<alias>`), OR an absolute/`~`-tilde path for a desk that lives in a *different* repo (a multi-desk operator whose personal desk is a separate clone).
+- **repo** — the git repo the desk lives in (so a personal `worker` can route "that lives in the crew repo" and read the right clone).
+- **worker_variant** — which worker overlay is bound to this desk (`worker` for a plain personal desk, `workflows` / a crew variant for a shared crew desk).
+- **write_subtree** — the path prefix this desk's agent scopes its writes to. equals `path` for an in-repo person desk; for a single-desk OFF-mode workspace there is no registry, so this column never describes the workspace root.
+
+a workspace with a single OFF-mode desk simply has **no `_meta/desks.md`** — its absence *is* the "single-desk, behave as today" signal. don't synthesize a registry; don't warn about its absence.
+
+### remap-tolerance note
+
+`desks/<alias>/**/task.md` globs already match nested paths, so Step 3's active-task scan picks up person-scoped task cards without change — this step only adds the *awareness* layer (the desk-set + which-desk-am-I framing). the scan itself is remap-transparent.
+
 ## Step 3 — Scan for active tasks
 
-glob `$DESK/**/task.md` excluding `_archive/`. parse each card's YAML frontmatter. filter to non-terminal status (NOT `done`, NOT `cancelled`). group by track, sort by `updated` descending. this is the look across the drawers to see what's still open.
+glob `$DESK/**/task.md` excluding `_archive/`. parse each card's YAML frontmatter. filter to non-terminal status (NOT `done`, NOT `cancelled`). group by track, sort by `updated` descending. this is the look across the drawers to see what's still open. **in a shared crew workspace** (registry present from Step 2.6), the glob naturally spans every `desks/<alias>/` subtree — surface peers' open tasks as theirs (attributed by desk), and this session's own desk first.
 
 ## Step 4 — Scan code repos
 
@@ -185,6 +223,14 @@ N active tasks across M tracks. Uncommitted changes in K repos.
 resume one, or start new?
 ```
 
+**shared-workspace addendum** (only when a `_meta/desks.md` registry was found in Step 2.6): prepend a one-line desk-set banner so the operator sees which crew desk they're sitting at and who else is in the repo:
+
+```
+crew workspace: P desks (you: <alias> → desks/<alias>) · peers: <a>, <b>
+```
+
+omit this line entirely in single-desk (OFF) mode — no registry, no banner, byte-identical to today's output.
+
 if the operator picks a task to resume → hand off to the `session-resumption` skill.
 if the operator says "start new" → follow the `dual-input` skill.
 if the operator wants the fuller dashboard → invoke the `status` skill.
@@ -215,6 +261,6 @@ neither.
 
 ## Never skip, never route around
 
-every step in this skill — Step 0 plus the Step 1 through Step 5 chain (including the `.x` sub-steps for 2.5, 4.5, 4.6, 4.7) — runs every session. the host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
+every step in this skill — Step 0 plus the Step 1 through Step 5 chain (including the `.x` sub-steps for 2.5, 2.6, 4.5, 4.6, 4.7) — runs every session. Step 2.6 (desk-registry awareness) is a cheap existence-check that is silent on the single-desk happy path (no `_meta/desks.md` → no-op). the host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
 
 **auto-mode is license for action, not for skipping safety checks.** a prereq-probe failure is like a compile error: fix it, don't proceed. if the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to the workspace state repo = state won't sync across machines") and require an explicit override.
