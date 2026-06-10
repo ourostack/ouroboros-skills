@@ -723,7 +723,7 @@ Confirm the merge commit is visible on main.
 Before reporting completion, always verify and record the terminal state. For full-delivery/autopilot mandates, the whole terminal state must be complete, not merely PR-merged:
 
 1. Required CI/checks are green, or non-applicable checks are explicitly evidenced.
-2. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the provider's deployment run for the merged commit; do not assume push-to-main deployed it. If auto-deploy is absent, stale, disabled, or failed, run the documented deploy path yourself unless a hard exception applies.
+2. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the provider's deployment run for the merged commit; do not assume push-to-main deployed it. If auto-deploy is absent, stale, disabled, or failed, run the documented deploy path yourself unless a hard exception applies. A failed provider run plus a successful manual fallback is a residual operations finding, not a completion state until the fallback deployment has been smoke-tested.
 3. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
 4. Smoke test ran through the deployed/installed/consuming surface, not only repository-local validation. For web apps, production smoke is the default unless the user explicitly scoped the task away from production.
 5. Direct operational follow-through is complete: implicated secrets/config are verified, built-in observability/alerting is wired and tested where the task added a new failure mode, disposable/test data is cleaned, and obvious polish passes required for a usable shipped experience are done.
@@ -786,6 +786,6 @@ In non-autopilot mode, STOP after surfacing and wait for the user. Under autopil
 13. **Atomic commits** -- one logical change per commit.
 14. **Preserve both intents** -- when resolving conflicts, both agents' work must be present in the result.
 15. **Never skip CI** -- even if you are confident the code is correct. CI is the gate.
-16. **Never strand main** -- after merge, verify deploy/publish/install/production-smoke or prove it is not applicable before reporting completion.
+16. **Never strand main** -- after merge, verify deploy/publish/install/production-smoke or prove it is not applicable before reporting completion. If auto-deploy fails but a manual deploy path exists, run it and smoke it before reporting; keep the auto-deploy failure visible as a follow-up only after users are no longer behind `main`.
 17. **Derive agent from branch** -- parse `<agent>` from the first path segment of the branch name. Never hardcode agent names.
 18. **Probe before drafting the PR description** -- before writing a single section of the PR body, run Step 2a's three probes (template file, last 2-3 merged PRs, operator-authored prior PRs). The default 5-section narrative is a *fallback* for greenfield repos, not a mandate. Custom shape in a repo with conventions = "wrong template" feedback; that mistake is what this rule exists to prevent.
