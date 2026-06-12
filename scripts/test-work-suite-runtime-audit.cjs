@@ -24,12 +24,39 @@ function run(args) {
   });
 }
 
-function makeSkillRoot() {
+function latestCommit(name) {
+  const result = spawnSync("git", ["log", "-1", "--format=%H", "--", `skills/${name}/SKILL.md`], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout.trim();
+}
+
+function makeRegistry(overrides = {}) {
+  const installed = "2026-06-12T00:00:00.000Z";
+  const registry = {};
+  for (const name of WORK_SUITE_SKILLS) {
+    registry[name] = {
+      source: `https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/${name}/SKILL.md`,
+      commit: latestCommit(name),
+      installed,
+      selfAuthored: false,
+      ...(overrides[name] ?? {}),
+    };
+  }
+  return registry;
+}
+
+function makeSkillRoot(options = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "work-suite-runtime-audit-"));
   for (const name of WORK_SUITE_SKILLS) {
     const targetDir = path.join(root, name);
     fs.mkdirSync(targetDir, { recursive: true });
     fs.copyFileSync(path.join("skills", name, "SKILL.md"), path.join(targetDir, "SKILL.md"));
+  }
+  if (options.registry !== false) {
+    fs.writeFileSync(path.join(root, "_registry.json"), `${JSON.stringify(makeRegistry(options.registryOverrides), null, 2)}\n`, "utf8");
   }
   return root;
 }
@@ -79,6 +106,81 @@ const strictMissingJson = JSON.parse(strictMissing.stdout);
 assert.equal(strictMissingJson.status, "fail");
 assert.equal(strictMissingJson.installedRoots[0].status, "fail");
 assert.match(strictMissing.stdout, /missing autopilot\/SKILL\.md/);
+
+const missingRegistryRoot = makeSkillRoot({ registry: false });
+const missingRegistry = run([
+  "--repo-root",
+  ".",
+  "--skill-root",
+  missingRegistryRoot,
+  "--strict-installed",
+  "--json",
+]);
+assert.notEqual(missingRegistry.status, 0);
+const missingRegistryJson = JSON.parse(missingRegistry.stdout);
+assert.equal(missingRegistryJson.status, "fail");
+assert.equal(missingRegistryJson.installedRoots[0].status, "warn");
+assert.match(missingRegistry.stdout, /missing _registry\.json/);
+
+const staleRegistryRoot = makeSkillRoot({
+  registryOverrides: {
+    autopilot: {
+      commit: "0000000000000000000000000000000000000000",
+    },
+  },
+});
+const staleRegistry = run([
+  "--repo-root",
+  ".",
+  "--skill-root",
+  staleRegistryRoot,
+  "--strict-installed",
+  "--json",
+]);
+assert.notEqual(staleRegistry.status, 0);
+const staleRegistryJson = JSON.parse(staleRegistry.stdout);
+assert.equal(staleRegistryJson.status, "fail");
+assert.equal(staleRegistryJson.installedRoots[0].status, "warn");
+assert.match(staleRegistry.stdout, /autopilot\.commit is 0000000000000000000000000000000000000000/);
+
+const missingSelfAuthoredRoot = makeSkillRoot({
+  registryOverrides: {
+    autopilot: {
+      commit: "0000000000000000000000000000000000000000",
+      selfAuthored: undefined,
+    },
+  },
+});
+const missingSelfAuthored = run([
+  "--repo-root",
+  ".",
+  "--skill-root",
+  missingSelfAuthoredRoot,
+  "--strict-installed",
+  "--json",
+]);
+assert.notEqual(missingSelfAuthored.status, 0);
+const missingSelfAuthoredJson = JSON.parse(missingSelfAuthored.stdout);
+assert.equal(missingSelfAuthoredJson.status, "fail");
+assert.equal(missingSelfAuthoredJson.installedRoots[0].status, "warn");
+assert.match(missingSelfAuthored.stdout, /autopilot\.selfAuthored is missing/);
+assert.match(missingSelfAuthored.stdout, /autopilot\.commit is 0000000000000000000000000000000000000000/);
+
+const nonGitRepo = makeRepoCopy();
+const nonGitRoot = makeSkillRoot();
+const nonGitStrict = run([
+  "--repo-root",
+  nonGitRepo,
+  "--skill-root",
+  nonGitRoot,
+  "--strict-installed",
+  "--json",
+]);
+assert.notEqual(nonGitStrict.status, 0);
+const nonGitStrictJson = JSON.parse(nonGitStrict.stdout);
+assert.equal(nonGitStrictJson.status, "fail");
+assert.equal(nonGitStrictJson.installedRoots[0].status, "warn");
+assert.match(nonGitStrict.stdout, /cannot verify _registry\.json autopilot\.commit/);
 
 const activeMissing = run([
   "--repo-root",
