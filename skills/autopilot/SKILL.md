@@ -102,7 +102,7 @@ Autopilot completion is a loop boundary, not a turn boundary. After every termin
    - **hard exception** — blocked by a human-only credential/capability, or by an unrecoverable destructive shared-state action with no safe staged path;
    - **deferred by scope** — valuable but not a continuation of the current mandate.
 5. **Start the highest-value ready item immediately.** Announce the chosen seed in one short progress update, update durable state with the next action, invoke the right skill (`work-planner`, `work-doer`, `work-merger`, `inch-worm`, or a domain skill), and repeat the terminal-state verification when it lands.
-6. **If no item is ready but an item needs a reviewer gate**, spawn the reviewer/fixer for the highest-value candidate. Use that verdict to reclassify it as ready, hard-exception, or deferred-by-scope, then continue the loop.
+6. **If no item is ready but an item needs a reviewer gate**, spawn the reviewer/fixer for the highest-value candidate. Use that verdict to reclassify it as ready, hard exception, or deferred by scope, then continue the loop.
 
 **Tip-of-tongue rule.** If I can name concrete next tasks from memory, a backlog, or a status note, I have not run out of sensible work. The next ready task becomes the next seed unless the durable scan reveals a higher-value ready item. Do not return a menu of options unless the principal explicitly asked for a status-only list.
 
@@ -121,6 +121,37 @@ Before sending any final response under an autopilot/no-human-gates mandate, run
 3. **Continuation scan is written down**: the durable state includes the post-terminal candidate list with each item classified as `ready`, `needs reviewer gate`, `hard exception`, or `deferred by scope`.
 4. **No ready work remains**: if any candidate is `ready`, start it immediately. If any candidate is `needs reviewer gate`, spawn that reviewer/fixer and reclassify it before responding.
 5. **The draft response contains no optional next-step menu**: delete phrases like "want me to", "should I", "next you should", or "ready for review" unless the principal explicitly asked for status-only.
+
+When the `ouroboros-skills` repo tooling is available, this preflight is executable, not just reflective:
+
+```bash
+node scripts/audit-autopilot-state.cjs --state-file <path-to-AUTOPILOT-STATE.md>
+```
+
+The state file must include this minimum shape before a final response:
+
+```markdown
+## Current Item
+
+- Current branch/PR/release/deploy/install state.
+
+## Terminal Evidence
+
+- merged/checks/deploy/install/smoke evidence, or explicit non-applicable notes.
+
+## Continuation Scan
+
+| candidate | classification | evidence | disposition |
+| --- | --- | --- | --- |
+| example cleanup | hard exception | why it cannot be done by the agent now | no next action |
+| unrelated idea | deferred by scope | why it is outside this mandate | backlog only |
+
+## Stop Condition
+
+Hard no: no ready work remains; only hard exceptions or out-of-scope items remain.
+```
+
+If `audit-autopilot-state.cjs` fails because a row is `ready` or `needs reviewer gate`, the final response is forbidden. Start the ready work or spawn the reviewer gate, update the state file, and re-run the audit after that item reaches terminal state.
 
 This is the dogfood point for the whole work suite. The final answer is allowed only after the durable scan proves the queue is empty or blocked by true hard exceptions. If the agent has "next" on the tip of its tongue, the preflight has failed.
 

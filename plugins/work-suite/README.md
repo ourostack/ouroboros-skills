@@ -39,6 +39,16 @@ node scripts/audit-work-suite-runtime.cjs --repo-root /path/to/ouroboros-skills 
 
 Use it when a skill was installed or updated but the current host menu may be stale. Source drift is a hard failure. Installed-root drift and active-menu gaps are explicit runtime evidence: read the installed `SKILL.md` directly for the current run, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
 
+### Autopilot state audit
+
+Before a final response under autopilot, run the durable-state preflight when this repo tooling is available:
+
+```bash
+node scripts/audit-autopilot-state.cjs --state-file /path/to/AUTOPILOT-STATE.md
+```
+
+The state file must record `Current Item`, `Terminal Evidence`, `Continuation Scan`, and `Stop Condition`. The continuation scan table uses `candidate`, `classification`, `evidence`, and `disposition`; final-state audits fail while any candidate remains `ready` or `needs reviewer gate`.
+
 ## Install
 
 Pick the command for your engine:

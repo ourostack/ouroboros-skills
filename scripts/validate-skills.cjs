@@ -140,6 +140,13 @@ function validatePluginMetadata() {
 }
 
 function runRuntimeAudit() {
+  const autopilotStateResult = spawnSync(process.execPath, ["scripts/test-autopilot-state-audit.cjs"], {
+    stdio: "inherit",
+  });
+  if ((autopilotStateResult.status ?? 1) !== 0) {
+    throw new Error("autopilot state audit tests failed");
+  }
+
   const testResult = spawnSync(process.execPath, ["scripts/test-work-suite-runtime-audit.cjs"], {
     stdio: "inherit",
   });

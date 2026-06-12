@@ -104,3 +104,13 @@ node scripts/audit-work-suite-runtime.cjs --repo-root . \
 ```
 
 The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
+
+### Autopilot State Audit
+
+Use `scripts/audit-autopilot-state.cjs` before a final response under autopilot. It checks the durable `AUTOPILOT-STATE.md` proof and fails if the continuation scan still has `ready` or `needs reviewer gate` work:
+
+```bash
+node scripts/audit-autopilot-state.cjs --state-file /path/to/AUTOPILOT-STATE.md
+```
+
+The required table columns are `candidate`, `classification`, `evidence`, and `disposition`. Valid classifications are `ready`, `needs reviewer gate`, `hard exception`, and `deferred by scope`; terminal final-state audits only pass when every listed candidate is a hard exception or deferred by scope.
