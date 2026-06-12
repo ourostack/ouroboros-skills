@@ -58,6 +58,33 @@ const valid = run(validState);
 assert.equal(valid.status, 0, valid.stderr || valid.stdout);
 assert.equal(parse(valid).status, "pass");
 
+const validNoneState = writeState(`# Autopilot State
+
+## Current Item
+
+- PR #123 merged and installed for the current runtime change.
+
+## Terminal Evidence
+
+- merged: PR #123
+- checks: node scripts/validate-skills.cjs passed
+- smoke: installed-root audit verified the consuming runtime copy
+
+## Continuation Scan
+
+| candidate | classification | evidence | disposition |
+| --- | --- | --- | --- |
+| no candidates found | none | PRs, issues, branches, backlog files, and validation surfaces were checked | no next action |
+
+## Stop Condition
+
+Hard no: no ready work remains; the queue is empty.
+`);
+
+const validNone = run(validNoneState);
+assert.equal(validNone.status, 0, validNone.stderr || validNone.stdout);
+assert.equal(parse(validNone).status, "pass");
+
 const readyState = writeState(`# Autopilot State
 
 ## Current Item
@@ -109,6 +136,33 @@ const reviewerGate = run(reviewerGateState);
 assert.notEqual(reviewerGate.status, 0);
 assert.equal(parse(reviewerGate).status, "fail");
 assert.match(reviewerGate.stdout, /needs reviewer gate/);
+
+const mixedNoneState = writeState(`# Autopilot State
+
+## Current Item
+
+- PR #123 merged.
+
+## Terminal Evidence
+
+- checks: test suite passed.
+
+## Continuation Scan
+
+| candidate | classification | evidence | disposition |
+| --- | --- | --- | --- |
+| no candidates found | none | queues checked | no action |
+| unrelated design idea | deferred by scope | outside this runtime-fix mandate | backlog only |
+
+## Stop Condition
+
+Hard no: no ready work remains.
+`);
+
+const mixedNone = run(mixedNoneState);
+assert.notEqual(mixedNone.status, 0);
+assert.equal(parse(mixedNone).status, "fail");
+assert.match(mixedNone.stdout, /'none' classification must be the only row/);
 
 const laterReadyTableState = writeState(`# Autopilot State
 
@@ -304,7 +358,7 @@ const missingSectionState = writeState(`# Autopilot State
 
 | candidate | classification | evidence | disposition |
 | --- | --- | --- | --- |
-| none | hard exception | queues empty | nothing to start |
+| no candidates found | none | queues empty | nothing to start |
 `);
 
 const missingSection = run(missingSectionState);

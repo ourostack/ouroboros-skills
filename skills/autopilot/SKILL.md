@@ -118,7 +118,7 @@ Before sending any final response under an autopilot/no-human-gates mandate, run
 
 1. **Current item is terminal**: branch merged, CI/checks green or explicitly non-applicable, deploy/publish/install verified, consuming surface smoked, disposable data cleaned, and no stale PR/branch/worktree remains from the run.
 2. **Durable state is fresh**: Arc / Flight Recorder / `AUTOPILOT-STATE.md` (or the repo's equivalent task state) records the current item, merge/deploy/smoke evidence, residual hard exceptions, and the exact next action.
-3. **Continuation scan is written down**: the durable state includes the post-terminal candidate list with each item classified as `ready`, `needs reviewer gate`, `hard exception`, or `deferred by scope`.
+3. **Continuation scan is written down**: the durable state includes the post-terminal candidate list with each item classified as `ready`, `needs reviewer gate`, `hard exception`, or `deferred by scope`. If the scan finds no candidates at all, use a single sentinel row classified as `none`.
 4. **No ready work remains**: if any candidate is `ready`, start it immediately. If any candidate is `needs reviewer gate`, spawn that reviewer/fixer and reclassify it before responding.
 5. **The draft response contains no optional next-step menu**: delete phrases like "want me to", "should I", "next you should", or "ready for review" unless the principal explicitly asked for status-only.
 
@@ -143,8 +143,7 @@ The state file must include this minimum shape before a final response:
 
 | candidate | classification | evidence | disposition |
 | --- | --- | --- | --- |
-| example cleanup | hard exception | why it cannot be done by the agent now | no next action |
-| unrelated idea | deferred by scope | why it is outside this mandate | backlog only |
+| no candidates found | none | queues, PRs, branches, docs, and validation surfaces checked | no next action |
 
 ## Stop Condition
 

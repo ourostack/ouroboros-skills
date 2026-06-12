@@ -113,4 +113,4 @@ Use `scripts/audit-autopilot-state.cjs` before a final response under autopilot.
 node scripts/audit-autopilot-state.cjs --state-file /path/to/AUTOPILOT-STATE.md
 ```
 
-The required table columns are `candidate`, `classification`, `evidence`, and `disposition`. Valid classifications are `ready`, `needs reviewer gate`, `hard exception`, and `deferred by scope`; terminal final-state audits only pass when every listed candidate is a hard exception or deferred by scope.
+The required table columns are `candidate`, `classification`, `evidence`, and `disposition`. Valid classifications are `ready`, `needs reviewer gate`, `hard exception`, `deferred by scope`, and `none`. Use `none` only as a single sentinel row when the scan found no candidates at all; terminal final-state audits fail while any listed candidate is `ready` or `needs reviewer gate`.

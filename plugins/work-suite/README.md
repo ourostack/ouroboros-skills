@@ -47,7 +47,7 @@ Before a final response under autopilot, run the durable-state preflight when th
 node scripts/audit-autopilot-state.cjs --state-file /path/to/AUTOPILOT-STATE.md
 ```
 
-The state file must record `Current Item`, `Terminal Evidence`, `Continuation Scan`, and `Stop Condition`. The continuation scan table uses `candidate`, `classification`, `evidence`, and `disposition`; final-state audits fail while any candidate remains `ready` or `needs reviewer gate`.
+The state file must record `Current Item`, `Terminal Evidence`, `Continuation Scan`, and `Stop Condition`. The continuation scan table uses `candidate`, `classification`, `evidence`, and `disposition`; final-state audits fail while any candidate remains `ready` or `needs reviewer gate`. Use a single `none` sentinel row when the scan found no candidates at all.
 
 ## Install
 
