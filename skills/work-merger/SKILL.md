@@ -727,10 +727,12 @@ Before reporting completion, always verify and record the terminal state. For fu
 3. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
 4. Smoke test ran through the deployed/installed/consuming surface, not only repository-local validation. For web apps, production smoke is the default unless the user explicitly scoped the task away from production.
 5. Direct operational follow-through is complete: implicated secrets/config are verified, built-in observability/alerting is wired and tested where the task added a new failure mode, disposable/test data is cleaned, and obvious polish passes required for a usable shipped experience are done.
-6. The agent has explicitly asked itself "anything obvious next?" and completed any safe, in-scope answer before reporting.
+6. The agent has run the autopilot durable continuation scan. If it found a ready item, do not report completion; start that item and loop. If it found no ready item, record the empty/hard-exception/out-of-scope result before reporting.
 7. No dirty worktree, no open PR from this run, no stale local/remote branch from this run, and no disposable worktree from this run left behind.
 
 Update Arc / `AUTOPILOT-STATE.md` after PR creation, each CI repair loop, merge, release/publish/deploy, install/runtime refresh, smoke validation, and cleanup. The continuity record must include current branch/PR, merge commit, terminal-state checklist, next action, and any hard blocker classification.
+
+If the continuation scan finds a ready next item, the merge is not the end of the turn. Start the next item with the appropriate skill (`work-planner`, `work-doer`, `inch-worm`, or the relevant domain skill), update durable state with the chosen seed, and loop back through review, merge, deploy/install, smoke, and cleanup. Return control only after the scan is empty or every remaining candidate is a hard exception or explicitly out of scope.
 
 ---
 

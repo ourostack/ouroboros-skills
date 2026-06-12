@@ -136,11 +136,12 @@ When the terminal condition is an empty backlog or no remaining sensible items:
 
 ## Starting a new inch-worm session
 
-1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
-2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Confirm before starting.
+1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, use the current workspace's durable state/backlog location under autopilot/no-human-gates; in non-autopilot mode, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
+2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Under autopilot/no-human-gates, announce the seed and begin; the human can interrupt. In non-autopilot mode, confirm before starting.
 3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR, merge it, verify deploy/publish/install and consuming-surface smoke when applicable, including manual fallback deploys when auto-deploy fails, and clean up stale work from the iteration.
-4. **Hand off**. After the PR is merged and terminal verification is complete, report back with: (a) the fix, (b) the deploy/install/smoke evidence or why not applicable, (c) the new discoveries added this iteration, (d) the proposed next seed.
-5. **Wait for go/no-go** on the next seed. User may pick differently, add items, reshuffle.
+4. **Continue or hand off by mode**. After the PR is merged and terminal verification is complete, update the backlog with the fix, deploy/install/smoke evidence, new discoveries, and the next candidate seed.
+5. **Autopilot/no-human-gates**: do not wait for go/no-go. Re-read the backlog, pick the highest-value ready leaf, update durable state, and start the next fix unless the remaining work hits a hard exception or the active queue is empty.
+6. **Non-autopilot**: report the fix and proposed next seed, then wait for the user to choose, add, or reshuffle.
 
 ## Practical note
 
@@ -162,7 +163,7 @@ You can pause and resume an inch-worm session across agent sessions. To resume:
 3. Identify unresolved entries.
 4. Make sure this is still the canonical backlog for the campaign.
 5. Revalidate audit-seeded candidates at current `HEAD`.
-6. Ask the user which one to pick as the next seed, or propose the highest-value leaf.
+6. In autopilot/no-human-gates mode, pick the highest-value ready leaf and continue. In non-autopilot mode, ask the user which one to pick as the next seed, or propose the highest-value leaf.
 
 Never silently reuse a stale log on resume. If a backlog has no open items, close it out instead of treating it as active. If a repo-local backlog exists without explicit user designation, propose deleting it or moving the active entries into the agent bundle task area before continuing.
 
@@ -172,4 +173,4 @@ The inch-worm only moves forward on work that would have happened anyway. If you
 
 ## Stay in turn during a campaign
 
-An inch-worm campaign is a chain of fix-PR-merge-deploy-smoke cycles. The wrong shape is to launch each PR's CI in the background, ScheduleWakeup, and end the turn — the operator becomes the orchestrator. Equally wrong: merge to `main`, list deploy/smoke/alerting/polish as suggested next steps, and stop. The right shape is to use foreground `Bash` for single-PR waits, or a driver script + `Monitor` for processing a backlog of items serially through merge, deploy/install verification, consuming-surface smoke, cleanup, and the "anything obvious next?" pass. See the **stay-in-turn** and **autopilot** skills for the pattern. If a fix is genuinely going to take days (e.g. waiting on a stakeholder review), say so explicitly and yield — do not silently stop because a wait *feels* long.
+An inch-worm campaign is a chain of fix-PR-merge-deploy-smoke cycles. The wrong shape is to launch each PR's CI in the background, ScheduleWakeup, and end the turn — the operator becomes the orchestrator. Equally wrong: merge to `main`, list deploy/smoke/alerting/polish as suggested next steps, and stop. The right shape is to use foreground `Bash` for single-PR waits, or a driver script + `Monitor` for processing a backlog of items serially through merge, deploy/install verification, consuming-surface smoke, cleanup, and the autopilot durable continuation scan. See the **stay-in-turn** and **autopilot** skills for the pattern. If a fix is genuinely going to take days (e.g. waiting on a stakeholder review), record the wait and run the continuation scan for another ready backlog item; yield only when the scan proves no ready work remains or the wait is a hard exception.
