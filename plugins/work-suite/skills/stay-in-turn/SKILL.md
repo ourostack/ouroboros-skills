@@ -39,7 +39,7 @@ This is the standard for any task >2 minutes of expected wall-clock work.
 | Scenario | Tool |
 | --- | --- |
 | Foreground command <2 min, you need the output now | `Bash` (no background) |
-| One-shot wait for a specific completion ("tell me when build finishes") | `Bash run_in_background: true` with an `until <condition>; do sleep 30; done` body — completion = single notification |
+| One-shot wait for a specific completion ("tell me when build finishes") | `Bash run_in_background: true` with an `until <condition>; do sleep 30; done` body — completion = single notification. Stay in the same turn until the notification arrives, then run terminal verification and the continuation scan before responding. |
 | Recurring events, eventual end (per-PR result, per-test pass/fail, per-deploy result, per-smoke result, per-file processed) | `Monitor` with a driver script that emits one line per event |
 | Indefinite watch (every error in a log, "tell me whenever an event happens") | `Monitor persistent: true` |
 | **Genuine "come back days from now"** (cron-like, not in-turn waiting) | `ScheduleWakeup` — and only this case |
@@ -96,6 +96,8 @@ When a `FAIL` event lands:
 When an `OK` event lands: nothing to do — the chain continues. You can still react to it (e.g. update progress in a task list) but don't write to the operator unless the user asked for milestone announcements.
 
 When `DRIVER_END` lands: treat it as the driver finishing its current queue, not proof that the overall mandate is done. Under autopilot/no-human-gates, run the autopilot durable continuation scan before summarizing; if it finds a ready next item, start that item instead of yielding. Outside autopilot, summarize and yield naturally.
+
+For work-suite dogfooding, the driver end-marker is not allowed to mean "tell the operator what is next." The end-marker means "run terminal verification, update durable state, run the autopilot exit preflight, and either launch the next ready seed or prove the queue is empty." If the next action is already obvious enough to mention in the summary, it is obvious enough to start.
 
 ## When the operator says "do not return control until X is done"
 

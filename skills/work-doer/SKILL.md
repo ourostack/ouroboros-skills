@@ -171,6 +171,15 @@ If the unit (or the reviewer's findings) touches voice-and-relationships / durab
 
 ### 6. Continue to next unit
 
+When all units are complete, **do not report the branch as done under autopilot/no-human-gates**. Completion of the doing doc is a handoff boundary, not a turn boundary. Immediately:
+
+1. Verify and commit the doing doc progress log and acceptance criteria.
+2. Dispatch the final cold unit/branch review if the last substantive change has not already converged.
+3. Invoke `work-merger` for the current branch, or run the repo's documented terminal path if there is no PR/merge workflow.
+4. Keep control through merge, CI, deploy/publish/install verification, consuming-surface smoke, cleanup, and the autopilot exit preflight.
+
+Only non-autopilot mode may stop after saying the doing units are complete.
+
 ---
 
 ## Code Coverage Requirements

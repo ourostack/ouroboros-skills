@@ -107,6 +107,18 @@ Autopilot completion is a loop boundary, not a turn boundary. After every termin
 
 **Valid stops.** Stop only when the durable scan proves the active queue is empty, every remaining candidate is a hard exception or explicitly out of scope, the principal explicitly asks for pause/status-only, or there is no repository/runtime/source-of-truth surface left to update. Record that stop condition in Arc / `AUTOPILOT-STATE.md` before reporting.
 
+## Exit preflight
+
+Before sending any final response under an autopilot/no-human-gates mandate, run this preflight in order. If any item fails, do the work instead of responding.
+
+1. **Current item is terminal**: branch merged, CI/checks green or explicitly non-applicable, deploy/publish/install verified, consuming surface smoked, disposable data cleaned, and no stale PR/branch/worktree remains from the run.
+2. **Durable state is fresh**: Arc / Flight Recorder / `AUTOPILOT-STATE.md` (or the repo's equivalent task state) records the current item, merge/deploy/smoke evidence, residual hard exceptions, and the exact next action.
+3. **Continuation scan is written down**: the durable state includes the post-terminal candidate list with each item classified as `ready`, `needs reviewer gate`, `hard exception`, or `deferred by scope`.
+4. **No ready work remains**: if any candidate is `ready`, start it immediately. If any candidate is `needs reviewer gate`, spawn that reviewer/fixer and reclassify it before responding.
+5. **The draft response contains no optional next-step menu**: delete phrases like "want me to", "should I", "next you should", or "ready for review" unless the principal explicitly asked for status-only.
+
+This is the dogfood point for the whole work suite. The final answer is allowed only after the durable scan proves the queue is empty or blocked by true hard exceptions. If the agent has "next" on the tip of its tongue, the preflight has failed.
+
 **Mode boundaries and hard exceptions.**
 
 - Explicitly interactive mandates (*"plan with me"*, *"let me think this through"*, *"what do you think"*) are not autopilot mandates. Use the ordinary collaboration flow until the principal delegates execution.

@@ -510,7 +510,7 @@ If the doing doc contains an `Upstream Work Items` section and the referenced ba
 2. Add the PR URL and/or merge commit to `Linked work`
 3. Do not silently leave stale `open` items behind
 
-If updating the backlog artifact would require an extra repo PR or otherwise violate project workflow, do not fake it. Instead, call out the required status change explicitly in your final handoff so the trail is still visible.
+If updating the backlog artifact would require an extra repo PR or otherwise violate project workflow, do not fake it. In non-autopilot mode, call out the required status change explicitly in your final handoff so the trail is still visible. Under autopilot/no-human-gates, treat that backlog update as the next ready continuation item and drive it through the correct repo workflow unless it is a true hard exception or explicitly out of scope.
 
 ---
 
@@ -664,7 +664,7 @@ The user wants visibility even when no intervention is needed. Never retry silen
 ### When to break the retry loop
 
 - **Success**: PR merges cleanly after CI passes. Continue to Post-Merge Cleanup and Full-Delivery Terminal Verification before reporting completion.
-- **Escalate in non-autopilot mode**: A conflict cannot be resolved from task docs (genuinely ambiguous, both agents changed the same logic with incompatible intents). Under autopilot/no-human-gates, spawn a conflict-resolution reviewer/fixer before surfacing; surface only if the residual is genuinely unknowable or destructive. See **Escalation**.
+- **Escalate in non-autopilot mode**: A conflict cannot be resolved from task docs (genuinely ambiguous, both agents changed the same logic with incompatible intents). Under autopilot/no-human-gates, spawn a conflict-resolution reviewer/fixer, use planner escalation or a safe staged path when needed, and continue other ready work while the conflict is being resolved. Surface only for a true human-only credential/capability or a genuinely unrecoverable destructive shared-state action. See **Escalation**.
 
 Do NOT break the retry loop for:
 - Repeated CI failures (that is CI Failure Self-Repair, not a race condition)
@@ -734,13 +734,23 @@ Update Arc / `AUTOPILOT-STATE.md` after PR creation, each CI repair loop, merge,
 
 If the continuation scan finds a ready next item, the merge is not the end of the turn. Start the next item with the appropriate skill (`work-planner`, `work-doer`, `inch-worm`, or the relevant domain skill), update durable state with the chosen seed, and loop back through review, merge, deploy/install, smoke, and cleanup. Return control only after the scan is empty or every remaining candidate is a hard exception or explicitly out of scope.
 
+### Exit preflight before reporting
+
+Under autopilot/no-human-gates, run the `autopilot` exit preflight after post-merge cleanup. In practice this means a final response from `work-merger` is forbidden until the durable state shows:
+
+- the merged commit and provider/deploy/install evidence for that exact commit;
+- the consuming-surface smoke result;
+- cleanup evidence for local/remote branches, PRs, and disposable worktrees from this run;
+- a freshly written continuation scan; and
+- either the next ready seed already started, or a recorded stop condition proving that every remaining candidate is a hard exception or out of scope.
+
 ---
 
 ## Escalation
 
 ### When to surface a blocker
 
-- **Ambiguous conflict (non-autopilot)**: Both agents changed the same code with incompatible intents, and the doing docs do not clarify how to combine them. Under autopilot/no-human-gates, spawn a fresh conflict-resolution reviewer/fixer before surfacing; stop only if the residual is genuinely unknowable or destructive.
+- **Ambiguous conflict (non-autopilot)**: Both agents changed the same code with incompatible intents, and the doing docs do not clarify how to combine them. Under autopilot/no-human-gates, spawn a fresh conflict-resolution reviewer/fixer, escalate to planner or a safe staged path when needed, and continue other ready work while resolving it. Surface only for a true human-only credential/capability or a genuinely unrecoverable destructive shared-state action.
 - **Repeated CI failure (non-autopilot)**: After two self-repair attempts on the same failure. Under autopilot/no-human-gates, spawn a fresh failure-analysis sub-agent and keep repairing until the blocker is proven to require a human-only credential/capability or a genuinely unrecoverable destructive shared-state action.
 - **Authentication/credential issues**: `gh auth` problems that require human login after usable existing credentials or alternate authenticated routes have been exhausted
 - **Missing remote**: No GitHub remote configured and no repo URL can be inferred from existing remotes, PR targets, or repo metadata
