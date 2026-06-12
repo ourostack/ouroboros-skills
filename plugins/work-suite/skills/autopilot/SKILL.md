@@ -108,6 +108,8 @@ Autopilot completion is a loop boundary, not a turn boundary. After every termin
 
 **Dogfood rule.** If the current work changes workflow skills, plugins, prompts, task harnesses, or other agent-facing runtime behavior, the item is not terminal until the consuming runtime has been refreshed or proven current, and a live task has used the new contract at least once. If the host does not refresh the active skill menu mid-session, treat the repo/source copy as authoritative for the current run, record that in durable state, and still finish the merge/install/smoke path for future sessions.
 
+For work-suite changes, run `scripts/audit-work-suite-runtime.cjs` from the `ouroboros-skills` repo when available. The audit separates three facts the agent must not blur: source/plugin copy integrity, installed-root freshness, and active host-menu visibility. If a skill is installed on disk but absent from the active host menu, read the installed `SKILL.md` directly, record the mismatch in durable state, and continue under the source-of-truth contract until the host can be refreshed.
+
 **Valid stops.** Stop only when the durable scan proves the active queue is empty, every remaining candidate is a hard exception or explicitly out of scope, the principal explicitly asks for pause/status-only, or there is no repository/runtime/source-of-truth surface left to update. Record that stop condition in Arc / `AUTOPILOT-STATE.md` before reporting.
 
 ## Exit preflight

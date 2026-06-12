@@ -26,6 +26,19 @@ When the principal says "do not return control until everything is done," "fully
 - skill/plugin changes must be runtime-refreshed and dogfooded on a live task before they count as done, even if the current host session has to read the installed file directly because its active skill menu will only refresh in a new session;
 - Arc / Flight Recorder / `AUTOPILOT-STATE.md` continuity must stay current so a fresh agent can resume after context loss.
 
+### Runtime visibility audit
+
+The work-suite contract includes a small source/runtime audit:
+
+```bash
+node scripts/audit-work-suite-runtime.cjs --repo-root /path/to/ouroboros-skills \
+  --skill-root ~/.agents/skills \
+  --skill-root ~/.codex/skills \
+  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm
+```
+
+Use it when a skill was installed or updated but the current host menu may be stale. Source drift is a hard failure. Installed-root drift and active-menu gaps are explicit runtime evidence: read the installed `SKILL.md` directly for the current run, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
+
 ## Install
 
 Pick the command for your engine:

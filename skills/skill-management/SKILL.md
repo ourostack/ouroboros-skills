@@ -100,8 +100,15 @@ Installing a skill on disk is not always enough for the current host session to 
 
 1. Refresh every active skills root that the runtime consumes (`~/.agents/skills`, host-managed Codex skills, plugin bundle copies, or the explicit bundle path the user named).
 2. Re-read the installed `SKILL.md` from disk and treat it as the source of truth for the current run even if the host menu will not refresh until a new session.
-3. Record the refresh in durable state when an autopilot/no-human-gates mandate is active.
-4. Dogfood the updated behavior on the next real task before claiming the skill change is done.
+3. When working with work-suite skills, run the runtime visibility audit from the `ouroboros-skills` repo when available:
+   ```bash
+   node scripts/audit-work-suite-runtime.cjs --repo-root /path/to/ouroboros-skills \
+     --skill-root ~/.agents/skills \
+     --skill-root ~/.codex/skills \
+     --active-skills <comma-separated active host-menu skill names>
+   ```
+4. Record the refresh and any active-menu mismatch in durable state when an autopilot/no-human-gates mandate is active.
+5. Dogfood the updated behavior on the next real task before claiming the skill change is done.
 
 ---
 
