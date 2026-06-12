@@ -79,6 +79,7 @@ jobs:
           const expectedSkillNames = [
             "autopilot",
             "inch-worm",
+            "stay-in-turn",
             "work-doer",
             "work-ideator",
             "work-merger",
@@ -111,4 +112,53 @@ jobs:
           }
 
           console.log(`Validated ${expectedSkillNames.length} work-suite plugin skill copies.`);
+          NODE
+
+      - name: Validate plugin metadata
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const pluginsDir = "plugins";
+          const pluginNames = fs.readdirSync(pluginsDir)
+            .filter((name) => fs.statSync(path.join(pluginsDir, name)).isDirectory())
+            .sort();
+
+          for (const name of pluginNames) {
+            const claudePath = path.join(pluginsDir, name, ".claude-plugin", "plugin.json");
+            const codexPath = path.join(pluginsDir, name, ".codex-plugin", "plugin.json");
+            if (!fs.existsSync(claudePath) || !fs.existsSync(codexPath)) {
+              continue;
+            }
+            const claude = JSON.parse(fs.readFileSync(claudePath, "utf8"));
+            const codex = JSON.parse(fs.readFileSync(codexPath, "utf8"));
+            if (claude.name !== codex.name) {
+              throw new Error(`${name}: Claude plugin name ${claude.name} does not match Codex plugin name ${codex.name}`);
+            }
+            if (claude.version !== codex.version) {
+              throw new Error(`${name}: Claude plugin version ${claude.version} does not match Codex plugin version ${codex.version}`);
+            }
+          }
+
+          const marketplacePath = path.join(".claude-plugin", "marketplace.json");
+          const marketplace = JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
+          for (const plugin of marketplace.plugins ?? []) {
+            if (typeof plugin.source !== "string") {
+              continue;
+            }
+            const pluginPath = path.join(plugin.source, ".claude-plugin", "plugin.json");
+            if (!fs.existsSync(pluginPath)) {
+              throw new Error(`${plugin.name}: marketplace source is missing ${pluginPath}`);
+            }
+            const manifest = JSON.parse(fs.readFileSync(pluginPath, "utf8"));
+            if (plugin.name !== manifest.name) {
+              throw new Error(`${plugin.name}: marketplace name does not match ${pluginPath} name ${manifest.name}`);
+            }
+            if (plugin.version !== manifest.version) {
+              throw new Error(`${plugin.name}: marketplace version ${plugin.version} does not match ${pluginPath} version ${manifest.version}`);
+            }
+          }
+
+          console.log("Validated plugin metadata.");
           NODE

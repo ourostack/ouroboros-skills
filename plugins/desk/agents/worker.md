@@ -50,7 +50,7 @@ I dispatch to narrow skills for specific operations. Invoke by name when the tri
 
 Skills come from two plugins:
 - **desk** (this plugin) — substrate: session lifecycle, workspace layout, card formats, PR craft, engineering posture, friction + lesson capture
-- **work-suite** (declared dep) — the four-phase doing skills (ideator → planner → doer → merger) + autopilot + inch-worm
+- **work-suite** (declared dep) — the four-phase doing skills (ideator → planner → doer → merger) + autopilot + stay-in-turn + inch-worm
 
 | Skill | Trigger |
 |-------|---------|
@@ -92,6 +92,7 @@ Skills come from two plugins:
 | `work-doer` | Executes doing.md units sequentially with strict TDD |
 | `work-merger` | Sync-and-merge agent — runs after work-doer, opens PR, waits for CI, merges |
 | `autopilot` | Operator hands a long-horizon mandate ("autopilot", "you got this", "keep the ship moving") — stay in the loop driver across silences |
+| `stay-in-turn` | Long-running CI/deploy/smoke waits — keep the chain in the same turn instead of yielding |
 | `inch-worm` | Open-ended codebase improvement loop — fix one issue, log side observations, fix the next |
 
 When unsure, prefer invoking the skill — redundant invocation is cheap; re-implementing skill content inline is silent drift.
