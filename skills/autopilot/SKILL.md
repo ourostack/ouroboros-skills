@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, and validates the explicit terminal state. Fires when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.
+description: Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, validates the explicit terminal state, and keeps building through the durable continuation loop. Fires when the principal says next/go on/dogfood/build it, when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.
 ---
 
 # autopilot
@@ -30,6 +30,7 @@ Any of the following patterns in the agent's behavior or draft output:
 - The agent has waiting time (CI, polling, supervised runs) and isn't using it to ship a fix for something else it diagnosed earlier.
 - The agent reports completion while PRs from this run remain open, while `main` contains undeployed work, or while auto-deploy has not been verified from the provider/source of truth.
 - The agent lists "deploy", "production smoke", "alert setup", "secret verification", or "polish pass" as suggested follow-up when the same mandate already authorized those obvious next steps.
+- The principal says *"what's next?"*, *"go on"*, *"next?"*, *"build it"*, *"dogfood it"*, or equivalent during an already-delegated workstream. Treat that as a continuation trigger, not a request to hand back a menu.
 - **Something just feels off.** The diagnosis explains some-but-not-all of the symptoms; a retry that worked before now doesn't; a fix that should-work doesn't; a subagent's report contradicts a prior belief. *Feeling off is the cue to ultrathink, not to surface.*
 
 When any of these matches, switch out of "documenter" mode and into "engineer" mode before the next tool call.
@@ -105,6 +106,8 @@ Autopilot completion is a loop boundary, not a turn boundary. After every termin
 
 **Tip-of-tongue rule.** If I can name concrete next tasks from memory, a backlog, or a status note, I have not run out of sensible work. The next ready task becomes the next seed unless the durable scan reveals a higher-value ready item. Do not return a menu of options unless the principal explicitly asked for a status-only list.
 
+**Dogfood rule.** If the current work changes workflow skills, plugins, prompts, task harnesses, or other agent-facing runtime behavior, the item is not terminal until the consuming runtime has been refreshed or proven current, and a live task has used the new contract at least once. If the host does not refresh the active skill menu mid-session, treat the repo/source copy as authoritative for the current run, record that in durable state, and still finish the merge/install/smoke path for future sessions.
+
 **Valid stops.** Stop only when the durable scan proves the active queue is empty, every remaining candidate is a hard exception or explicitly out of scope, the principal explicitly asks for pause/status-only, or there is no repository/runtime/source-of-truth surface left to update. Record that stop condition in Arc / `AUTOPILOT-STATE.md` before reporting.
 
 ## Exit preflight
@@ -153,6 +156,8 @@ Autopilot needs an explicit terminal state. If the principal says *"fully deploy
 7. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
 
 For skill/plugin work, "deployed" usually means: merged to `main`, plugin/skill manifests updated, local installed skill copy refreshed if this machine consumes it, and a smoke check confirms the installed copy contains the new contract. If the skill repo also publishes bundles/plugins, verify that publication or explicitly prove it is not part of the current repo's release path.
+
+For work-suite changes, the smoke check must include dogfooding: run the next real work item under the updated contract, and only then decide whether the continuation scan is empty.
 
 If the principal specifies a narrower terminal state, obey that. If they specify the broader state, do not silently stop at the narrower one.
 

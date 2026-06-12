@@ -94,6 +94,15 @@ After install, confirm:
 - `<skills-dir>/<skill-name>/SKILL.md` exists and is non-empty.
 - `_registry.json` has an entry for the skill.
 
+### Runtime Refresh After Install Or Update
+
+Installing a skill on disk is not always enough for the current host session to list it in the active skill menu. After installing or updating any skill that affects the current workstream:
+
+1. Refresh every active skills root that the runtime consumes (`~/.agents/skills`, host-managed Codex skills, plugin bundle copies, or the explicit bundle path the user named).
+2. Re-read the installed `SKILL.md` from disk and treat it as the source of truth for the current run even if the host menu will not refresh until a new session.
+3. Record the refresh in durable state when an autopilot/no-human-gates mandate is active.
+4. Dogfood the updated behavior on the next real task before claiming the skill change is done.
+
 ---
 
 ## 3. Track Provenance: Maintain _registry.json
@@ -179,6 +188,7 @@ Compare locally installed skills against the latest versions in the repo.
    - Fetch the new SKILL.md content.
    - Overwrite the local file.
    - Update `commit` and `installed` in `_registry.json`.
+6. If the update affects the current workflow and autopilot/no-human-gates is active, apply the Runtime Refresh steps above instead of returning control with "restart to pick this up" as the only outcome.
 
 ### Freshness Check (Quick)
 

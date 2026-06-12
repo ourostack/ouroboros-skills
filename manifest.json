@@ -9,7 +9,7 @@
     {
       "name": "autopilot",
       "path": "skills/autopilot/SKILL.md",
-      "description": "Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, and validates the explicit terminal state. Fires when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.",
+      "description": "Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, validates the explicit terminal state, and keeps building through the durable continuation loop. Fires when the principal says next/go on/dogfood/build it, when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.",
       "tags": ["meta", "workflow", "execution", "long-horizon"]
     },
     {

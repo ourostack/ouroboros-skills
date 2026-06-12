@@ -308,7 +308,7 @@ Lens — deception:
 
 ### STOP POINT
 
-After all passes converge, output:
+After all passes converge in non-autopilot mode, output:
 ```
 doing doc ready. planning doc kept.
 status: READY_FOR_EXECUTION
@@ -317,7 +317,7 @@ hand to work-doer.
 ```
 Return control to caller. Caller (parent agent or user) dispatches work-doer.
 
-Under autopilot/full-delivery, "caller" means the orchestrating agent, not the principal. The orchestrator continues directly into work-doer after reviewer convergence; it does not surface a human handoff unless a hard human-only/destructive exception is present.
+Under autopilot/full-delivery, a final/status response is forbidden at this boundary. "Caller" means the orchestrating agent, never the principal. The planner must hand the doing doc to `work-doer` in the same run after reviewer convergence, or, if the runtime truly cannot dispatch/continue, record a hard capability blocker in durable state and run the autopilot continuation scan for any independent ready work. It does not surface a human handoff unless a hard human-only/destructive exception is present.
 
 **Do NOT begin implementation. work-planner only creates docs.**
 

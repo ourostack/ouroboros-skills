@@ -23,6 +23,7 @@ When the principal says "do not return control until everything is done," "fully
 - CI/deploy/smoke waits stay in-turn via the `stay-in-turn` pattern instead of background wakeup handoffs;
 - after every terminal-state verification, the durable continuation scan re-reads state/backlogs/feedback, classifies remaining work, and starts the next ready item instead of returning a menu of suggestions;
 - before any final response, the autopilot exit preflight must prove that terminal verification is complete, durable state is fresh, the continuation scan has been written down, and no ready/reviewer-gated item remains unstarted;
+- skill/plugin changes must be runtime-refreshed and dogfooded on a live task before they count as done, even if the current host session has to read the installed file directly because its active skill menu will only refresh in a new session;
 - Arc / Flight Recorder / `AUTOPILOT-STATE.md` continuity must stay current so a fresh agent can resume after context loss.
 
 ## Install
