@@ -103,7 +103,7 @@ node scripts/audit-work-suite-runtime.cjs --repo-root . \
   --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm
 ```
 
-The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
+The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. With `--strict-installed`, installed roots must also have `_registry.json` provenance whose shared work-suite skill commits match the latest source commits; run from a real git checkout so commit provenance can be proven. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
 
 ### Autopilot State Audit
 

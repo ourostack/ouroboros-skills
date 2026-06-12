@@ -4,6 +4,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const WORK_SUITE_SKILLS = [
   "autopilot",
@@ -104,6 +105,23 @@ function sha256(text) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
+function gitLastCommit(repoRoot, relativePath) {
+  const result = spawnSync("git", ["-C", repoRoot, "log", "-1", "--format=%H", "--", relativePath], {
+    encoding: "utf8",
+  });
+  if ((result.status ?? 1) !== 0) {
+    return {
+      commit: null,
+      error: (result.stderr || result.stdout || "git log failed").trim(),
+    };
+  }
+  const commit = result.stdout.trim() || null;
+  return {
+    commit,
+    error: commit ? null : "git log returned no commit",
+  };
+}
+
 function normalizeActiveNames(value) {
   if (Array.isArray(value)) {
     return value.flatMap(normalizeActiveNames);
@@ -178,19 +196,22 @@ function auditSource(repoRoot) {
     const entry = entries.get(name);
     const canonicalPath = path.join(repoRoot, "skills", name, "SKILL.md");
     const pluginPath = path.join(repoRoot, "plugins", "work-suite", "skills", name, "SKILL.md");
+    const canonicalRelative = path.relative(repoRoot, canonicalPath);
+    const pluginRelative = path.relative(repoRoot, pluginPath);
     const canonical = readTextIfExists(canonicalPath);
     const pluginCopy = readTextIfExists(pluginPath);
     const frontmatter = canonical?.match(/^---\n([\s\S]*?)\n---/);
     const frontmatterName = frontmatter?.[1].match(/^name:\s*"?([^"\n]+)"?\s*$/m)?.[1] ?? null;
+    const latestCommit = canonical ? gitLastCommit(repoRoot, canonicalRelative) : { commit: null, error: "canonical skill is missing" };
 
     if (!entry) {
       issues.push(`${name}: missing manifest entry`);
     }
     if (!canonical) {
-      issues.push(`${name}: missing canonical ${path.relative(repoRoot, canonicalPath)}`);
+      issues.push(`${name}: missing canonical ${canonicalRelative}`);
     }
     if (!pluginCopy) {
-      issues.push(`${name}: missing work-suite plugin copy ${path.relative(repoRoot, pluginPath)}`);
+      issues.push(`${name}: missing work-suite plugin copy ${pluginRelative}`);
     }
     if (entry && entry.path !== `skills/${name}/SKILL.md`) {
       issues.push(`${name}: manifest path is ${entry.path}`);
@@ -204,11 +225,13 @@ function auditSource(repoRoot) {
 
     sourceSkills[name] = {
       manifest: Boolean(entry),
-      canonicalPath: path.relative(repoRoot, canonicalPath),
-      pluginPath: path.relative(repoRoot, pluginPath),
+      canonicalPath: canonicalRelative,
+      pluginPath: pluginRelative,
       canonicalHash: canonical ? sha256(canonical) : null,
       pluginHash: pluginCopy ? sha256(pluginCopy) : null,
       frontmatterName,
+      latestCommit: latestCommit.commit,
+      latestCommitError: latestCommit.error,
     };
   }
 
@@ -228,11 +251,17 @@ function auditSkillRoot(repoRoot, skillRootInput, source) {
   const issues = [];
   const warnings = [];
 
+  if (!registry) {
+    warnings.push(`${skillRootInput}: missing _registry.json`);
+  }
+
   for (const name of WORK_SUITE_SKILLS) {
     const installedPath = path.join(skillRoot, name, "SKILL.md");
     const installed = readTextIfExists(installedPath);
     const installedHash = installed ? sha256(installed) : null;
     const sourceHash = source.skills[name]?.canonicalHash ?? null;
+    const expectedCommit = source.skills[name]?.latestCommit ?? null;
+    const expectedCommitError = source.skills[name]?.latestCommitError ?? null;
     const registryEntry = registry?.[name] ?? null;
     const matchesSource = Boolean(installedHash && sourceHash && installedHash === sourceHash);
 
@@ -244,12 +273,24 @@ function auditSkillRoot(repoRoot, skillRootInput, source) {
     if (registry && !registryEntry) {
       warnings.push(`${skillRootInput}: _registry.json lacks ${name}`);
     }
+    if (registryEntry) {
+      if (registryEntry.selfAuthored !== false) {
+        warnings.push(`${skillRootInput}: _registry.json ${name}.selfAuthored is ${registryEntry.selfAuthored ?? "missing"}, expected false for shared work-suite skills`);
+      }
+      if (!expectedCommit) {
+        warnings.push(`${skillRootInput}: cannot verify _registry.json ${name}.commit because source commit is unavailable: ${expectedCommitError ?? "unknown git error"}`);
+      } else if (registryEntry.commit !== expectedCommit) {
+        warnings.push(`${skillRootInput}: _registry.json ${name}.commit is ${registryEntry.commit ?? "missing"}, expected ${expectedCommit}`);
+      }
+    }
 
     skills[name] = {
       installed: Boolean(installed),
       path: path.relative(skillRoot, installedPath),
       hash: installedHash,
       matchesSource,
+      expectedCommit,
+      expectedCommitError,
       registry: registryEntry ? {
         source: registryEntry.source ?? null,
         commit: registryEntry.commit ?? null,
