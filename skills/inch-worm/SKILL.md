@@ -14,7 +14,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 4. **Review**: When the seed fix is merged and its terminal state is verified, read the backlog. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
 6. **Close out**: When no open items remain, mark the campaign closed and clean up the active backlog so it cannot be mistaken for a future seed source.
-7. **Terminal condition**: You stop ONLY when the user says stop, the backlog is empty after closeout, you're clearly burning budget without delivering value, or the remaining observed issues look intentional/contract-like/ambiguous rather than accidental friction. Scope creep is NOT a terminal condition — that's the whole point of this skill. A merged-but-not-deployed PR, a deployed-but-not-smoked change, or an obvious directly implied follow-up is NOT a terminal condition. When you hit a real stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
+7. **Terminal condition**: In non-autopilot mode, stop when the user says stop, the backlog is empty after closeout, or the remaining observed issues have been explicitly marked `deferred`, `superseded`, or out of scope with evidence. Under autopilot/no-human-gates, stop only after the durable scan proves every remaining item is fixed, superseded, explicitly out of scope, or a true hard exception with evidence. Scope creep is NOT a terminal condition — that's the whole point of this skill. A merged-but-not-deployed PR, a deployed-but-not-smoked change, or an obvious directly implied follow-up is NOT a terminal condition. When you hit a real stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
 
 ## Backlog format
 
@@ -126,9 +126,10 @@ When the user asks "what's on the list" — read the file verbatim to them. When
 
 ### 9. Close finished campaigns
 
-When the terminal condition is an empty backlog or no remaining sensible items:
+When the terminal condition is an empty backlog or, in non-autopilot mode only, no remaining sensible items:
 
-- Ensure every entry is `fixed`, `superseded`, or `deferred`; no `open` or `in-progress` items remain.
+- In non-autopilot mode, ensure every entry is `fixed`, `superseded`, or `deferred`; no `open` or `in-progress` items remain.
+- Under autopilot/no-human-gates, ensure every entry is `fixed`, `superseded`, explicitly `deferred by scope` / out of scope with evidence, or a true `hard exception` with durable-scan evidence; no ready or reviewer-gated entries remain.
 - Record final PR/commit links in the doing doc or campaign header.
 - If the backlog file is repo-local, delete it before merging the final cleanup PR.
 - If the backlog file lives in the agent bundle, mark the campaign `closed` so future agents know it is historical evidence, not an active seed source.
@@ -142,6 +143,10 @@ When the terminal condition is an empty backlog or no remaining sensible items:
 4. **Continue or hand off by mode**. After the PR is merged and terminal verification is complete, update the backlog with the fix, deploy/install/smoke evidence, new discoveries, and the next candidate seed.
 5. **Autopilot/no-human-gates**: do not wait for go/no-go. Re-read the backlog, pick the highest-value ready leaf, update durable state, and start the next fix unless the remaining work hits a hard exception or the active queue is empty.
 6. **Non-autopilot**: report the fix and proposed next seed, then wait for the user to choose, add, or reshuffle.
+
+## Autopilot exit preflight
+
+Before ending an inch-worm turn under autopilot/no-human-gates, run the same exit preflight as `autopilot`: the current seed must be merged, deployed/published/installed if applicable, smoked through the consuming surface, cleaned up, and recorded in durable state. Then read the canonical backlog plus repo/task queues. If any entry is `open` and ready, start it. If an entry needs a reviewer gate, spawn that gate and reclassify it. Only stop when the backlog is closed or every remaining entry is `fixed`, `superseded`, explicitly `deferred by scope` / out of scope with evidence, or a true `hard exception` with durable-scan evidence.
 
 ## Practical note
 
