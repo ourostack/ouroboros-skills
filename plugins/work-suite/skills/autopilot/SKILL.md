@@ -81,12 +81,31 @@ Under autopilot, **human gates are disabled** except for the two hard exceptions
 4. **Address all fix-needed items** as follow-up commits on the same branch; push.
 5. **Re-spawn a smaller verification sub-agent** if the fix was substantive.
 6. **Drive the terminal state myself**: merge the PR, wait for CI/deploy/publish/install as applicable, verify the reached state from the authoritative provider, smoke the consuming surface, and clean stale branches/PRs from this run.
-7. **Ask myself "anything obvious next?"** If yes, do it before reporting. Obvious follow-ups include deploy verification, production smoke, alert wiring, secret/runtime verification, data cleanup, source PRs for hot-patches, and small polish passes directly implied by the work.
+7. **Run the durable continuation scan** from [§Keep-building loop](#keep-building-loop). This is the concrete form of "anything obvious next?": re-read state/backlogs/feedback, classify candidates, pick the next ready item, and keep going.
 8. **Continue to the next phase of work.** Do NOT return control with "ready for review" framing or with obvious next steps listed as optional suggestions.
 
 "Principal confirmation" under an autopilot mandate maps to "sub-agent review + alignment." Confirmation IS sub-agent approval; it is NOT human approval.
 
 **Exit signal.** The only valid stop under an autopilot mandate is when I can literally say: *"I have run out of things to build, deploy, verify, clean, polish, or instrument here and can't think of a single possible thing to keep building."* Until that's true, I keep building.
+
+## Keep-building loop
+
+Autopilot completion is a loop boundary, not a turn boundary. After every terminal-state verification, after every merged PR, after every deploy/install/smoke cleanup, and whenever the principal says *"what's next?"*, *"next?"*, *"go on"*, *"sweet, next?"*, or similar, run this scan before drafting any response:
+
+1. **Re-read durable state**: Arc / Flight Recorder if available, otherwise `AUTOPILOT-STATE.md` or the hosting-context equivalent. If no durable state exists for a long-running mandate, create it before doing more work.
+2. **Re-read authoritative queues**: active planning/doing docs, repo-local backlog files, task trackers, `feedback/`, PR comments, smoke logs, and any project-specific cleanup or QA scripts. Update stale statuses created by the just-shipped work before selecting the next item.
+3. **List candidates from records, not memory**. Include obvious bookkeeping, direct continuations, deploy/observability/secret/data-cleanup work, polish required for the shipped UX, and small source-of-truth skill/docs fixes revealed by the run.
+4. **Classify each candidate** as one of:
+   - **ready** — safe, scoped, and doable under the current mandate;
+   - **needs reviewer gate** — ambiguous but resolvable by sub-agent review under autopilot;
+   - **hard exception** — blocked by a human-only credential/capability, or by an unrecoverable destructive shared-state action with no safe staged path;
+   - **deferred by scope** — valuable but not a continuation of the current mandate.
+5. **Start the highest-value ready item immediately.** Announce the chosen seed in one short progress update, update durable state with the next action, invoke the right skill (`work-planner`, `work-doer`, `work-merger`, `inch-worm`, or a domain skill), and repeat the terminal-state verification when it lands.
+6. **If no item is ready but an item needs a reviewer gate**, spawn the reviewer/fixer for the highest-value candidate. Use that verdict to reclassify it as ready, hard-exception, or deferred-by-scope, then continue the loop.
+
+**Tip-of-tongue rule.** If I can name concrete next tasks from memory, a backlog, or a status note, I have not run out of sensible work. The next ready task becomes the next seed unless the durable scan reveals a higher-value ready item. Do not return a menu of options unless the principal explicitly asked for a status-only list.
+
+**Valid stops.** Stop only when the durable scan proves the active queue is empty, every remaining candidate is a hard exception or explicitly out of scope, the principal explicitly asks for pause/status-only, or there is no repository/runtime/source-of-truth surface left to update. Record that stop condition in Arc / `AUTOPILOT-STATE.md` before reporting.
 
 **Mode boundaries and hard exceptions.**
 
@@ -136,10 +155,10 @@ Encountered a failure, or "feels off"?
 │   ├── YES → ship. PR if shared code; commit-direct if it's the agent's own state; hot-patch + source PR if deployed.
 │   └── NO  → break the fix down. Ship the first piece. Continue the rest in parallel.
 ├── Ready to merge? → spawn self-review subagent (cold-read, fixed-shape verdict).
-│   ├── APPROVE_MERGE → wait for CI green, merge using the repo's merge policy, verify deploy/install/smoke target, ask "anything obvious next?", do it, then clean branches.
+│   ├── APPROVE_MERGE → wait for CI green, merge using the repo's merge policy, verify deploy/install/smoke target, clean stale branches/worktrees from that shipped item, then run the durable continuation scan.
 │   ├── NEEDS_CHANGES → address feedback, re-spawn review; iterate without surfacing.
 │   └── REJECT        → ultrathink; the diagnosis or fix is wrong; re-design.
-└── Already merged? → verify deploy/install/smoke for the merge commit, then return to the next fired trigger or to scheduled monitoring.
+└── Already merged? → verify deploy/install/smoke for the merge commit, clean stale state from that shipped item, then run the durable continuation scan and start the next ready item.
 ```
 
 **There is no branch in this tree that lands on "ask the principal."** The agent makes scope calls, approach calls, sequence calls, review calls, merge calls. The principal reviews finished, merged work.
@@ -285,7 +304,7 @@ This applies across surfaces: a rule file, a scheduled-job prompt, an earlier me
 4. **Open the PR ready-for-review.** Drafts are for half-finished work the agent intends to finish; if the work is done, open it ready.
 5. **If you hot-patched in the same session, link the hot-patch from the PR description.** Otherwise the hot-patch silently rots.
 6. **Spawn an independent self-review subagent.** See [§Self-review](#self-review-via-an-independent-subagent). Its verdict authorizes the merge.
-7. **On APPROVE_MERGE**: wait for CI green, then merge using the repo's merge policy. Verify release/deploy/install/smoke state when applicable, then clean stale PR/branch/worktree state from the run.
+7. **On APPROVE_MERGE**: wait for CI green, then merge using the repo's merge policy. Verify release/deploy/install/smoke state when applicable, clean stale PR/branch/worktree state from the run, then run the durable continuation scan before drafting any completion response.
 8. **On NEEDS_CHANGES**: address the specific feedback; push to the same branch; re-spawn review. Don't surface — that's the inner loop.
 9. **On REJECT (rare)**: the diagnosis or fix is wrong. Ultrathink. Re-investigate. Re-design. Don't ship the broken PR.
 10. **If branch protection requires external approval after self-review passes**: surface a tight one-click request with the self-review verdict attached. This is the only place "ask the principal" appears in the merge path — and only after every other gate (review, CI, mergeability) is satisfied.

@@ -68,3 +68,47 @@ jobs:
 
           console.log(`Validated ${manifest.skills.length} skills.`);
           NODE
+
+      - name: Validate work-suite plugin copies
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const pluginSkillsDir = "plugins/work-suite/skills";
+          const expectedSkillNames = [
+            "autopilot",
+            "inch-worm",
+            "work-doer",
+            "work-ideator",
+            "work-merger",
+            "work-planner",
+          ];
+          const pluginSkillNames = fs.readdirSync(pluginSkillsDir)
+            .filter((name) => fs.statSync(path.join(pluginSkillsDir, name)).isDirectory())
+            .sort();
+
+          const missing = expectedSkillNames.filter((name) => !pluginSkillNames.includes(name));
+          const extra = pluginSkillNames.filter((name) => !expectedSkillNames.includes(name));
+          if (missing.length > 0 || extra.length > 0) {
+            throw new Error(`work-suite skill set mismatch: missing=[${missing.join(", ")}] extra=[${extra.join(", ")}]`);
+          }
+
+          for (const name of expectedSkillNames) {
+            const canonicalPath = path.join("skills", name, "SKILL.md");
+            const pluginPath = path.join(pluginSkillsDir, name, "SKILL.md");
+            if (!fs.existsSync(canonicalPath)) {
+              throw new Error(`work-suite skill ${name}: missing canonical ${canonicalPath}`);
+            }
+            if (!fs.existsSync(pluginPath)) {
+              throw new Error(`work-suite skill ${name}: missing plugin copy ${pluginPath}`);
+            }
+            const canonical = fs.readFileSync(canonicalPath, "utf8");
+            const pluginCopy = fs.readFileSync(pluginPath, "utf8");
+            if (canonical !== pluginCopy) {
+              throw new Error(`work-suite skill ${name}: ${pluginPath} is out of sync with ${canonicalPath}`);
+            }
+          }
+
+          console.log(`Validated ${expectedSkillNames.length} work-suite plugin skill copies.`);
+          NODE
