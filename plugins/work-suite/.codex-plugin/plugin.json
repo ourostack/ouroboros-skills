@@ -1,6 +1,6 @@
 {
   "name": "work-suite",
-  "version": "1.4.8",
+  "version": "1.4.9",
   "description": "The workflow primitive for orchestrator agents: ideate, plan, execute, merge, stay in turn while waiting, and run no-human-gates full-delivery autopilot loops.",
   "author": {
     "name": "ourostack",

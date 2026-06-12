@@ -17,6 +17,7 @@ const ALLOWED_CLASSIFICATIONS = new Set([
   "needs reviewer gate",
   "hard exception",
   "deferred by scope",
+  "none",
 ]);
 
 const BLOCKING_CLASSIFICATIONS = new Set([
@@ -219,11 +220,15 @@ function auditState(markdown, stateFile) {
   const continuationScan = sections.get(normalizeHeading("Continuation Scan")) ?? "";
   const parsedScan = continuationScan ? parseContinuationTables(continuationScan) : { tableCount: 0, rows: [] };
   const candidates = parsedScan.rows;
+  const noneRows = candidates.filter((candidate) => candidate.classification === "none");
   if (parsedScan.tableCount === 0) {
     issues.push("Continuation Scan must include a markdown table with candidate, classification, evidence, and disposition columns");
   } else if (candidates.length === 0) {
-    issues.push("Continuation Scan table must include at least one row, even when the row records that no candidates remain");
+    issues.push("Continuation Scan table must include at least one row. Use a single 'none' sentinel row when no candidates remain");
   } else {
+    if (noneRows.length > 0 && candidates.length > 1) {
+      issues.push("Continuation Scan 'none' classification must be the only row because it means no candidates remain");
+    }
     for (const candidate of candidates) {
       const label = candidate.candidate || "(unnamed candidate)";
       if (!candidate.candidate.trim()) {

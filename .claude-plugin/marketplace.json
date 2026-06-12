@@ -22,7 +22,7 @@
       "name": "work-suite",
       "source": "./plugins/work-suite",
       "description": "The workflow primitive used by orchestrator agents: work-ideator (explore), work-planner (scope), work-doer (execute with TDD), work-merger (PR + merge) — plus autopilot (no-human-gates full-delivery and continuation discipline), stay-in-turn (CI/deploy wait discipline), and inch-worm (open-ended improvement loop). Vendor-neutral; companion to desk.",
-      "version": "1.4.8",
+      "version": "1.4.9",
       "category": "workflow",
       "tags": ["tdd", "planning", "autopilot", "engineering"]
     }
