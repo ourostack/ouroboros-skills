@@ -9,6 +9,7 @@ A portable plugin bundle of the core workflow skills from `ouroboros-skills`:
 | `work-doer` | Execute doing-doc units sequentially with strict TDD and unit review |
 | `work-merger` | Fetch / merge / PR / wait for CI / merge-to-main cleanup |
 | `autopilot` | Long-horizon full-delivery mode: no human gates, harsh reviewer gates, explicit terminal validation |
+| `stay-in-turn` | Keep CI, deploy, smoke, and multi-PR waits inside the same turn instead of yielding |
 | `inch-worm` | Open-ended improvement loop: seed → fix → log side discoveries → repeat |
 
 ## Autopilot mode
@@ -19,6 +20,7 @@ When the principal says "do not return control until everything is done," "fully
 - sub-agent reviewer gates are mandatory and harsh;
 - planning/doer/merger "human-judgment categories" become reviewer lenses, not human stops;
 - terminal state must be explicit: merged, checks green, release/publish/deploy/install/smoke validation completed when applicable, and no stale PR/branch/worktree from the run;
+- CI/deploy/smoke waits stay in-turn via the `stay-in-turn` pattern instead of background wakeup handoffs;
 - after every terminal-state verification, the durable continuation scan re-reads state/backlogs/feedback, classifies remaining work, and starts the next ready item instead of returning a menu of suggestions;
 - Arc / Flight Recorder / `AUTOPILOT-STATE.md` continuity must stay current so a fresh agent can resume after context loss.
 

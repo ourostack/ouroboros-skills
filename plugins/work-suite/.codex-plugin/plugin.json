@@ -1,7 +1,7 @@
 {
   "name": "work-suite",
-  "version": "1.4.3",
-  "description": "The workflow primitive for orchestrator agents: ideate, plan, execute, merge, and run no-human-gates full-delivery autopilot loops.",
+  "version": "1.4.4",
+  "description": "The workflow primitive for orchestrator agents: ideate, plan, execute, merge, stay in turn while waiting, and run no-human-gates full-delivery autopilot loops.",
   "author": {
     "name": "ourostack",
     "url": "https://github.com/ourostack/ouroboros-skills"
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "Work Suite",
     "shortDescription": "Ideation, planning, doing, merging, and autonomous execution skills.",
-    "longDescription": "Work Suite packages the canonical Ourostack workflow skills for Codex and other agent runtimes: work-ideator, work-planner, work-doer, work-merger, autopilot, and inch-worm. Autopilot mode means no human gates, harsh sub-agent reviewer gates, explicit terminal deployment/validation state, Arc/resume continuity for context loss, and a durable continuation scan that keeps selecting ready follow-up work until the queue is truly empty.",
+    "longDescription": "Work Suite packages the canonical Ourostack workflow skills for Codex and other agent runtimes: work-ideator, work-planner, work-doer, work-merger, autopilot, stay-in-turn, and inch-worm. Autopilot mode means no human gates, harsh sub-agent reviewer gates, explicit terminal deployment/validation state, in-turn CI/deploy wait discipline, Arc/resume continuity for context loss, and a durable continuation scan that keeps selecting ready follow-up work until the queue is truly empty.",
     "developerName": "ourostack",
     "category": "Engineering",
     "capabilities": [

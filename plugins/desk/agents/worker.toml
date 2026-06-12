@@ -59,7 +59,7 @@ The desk plugin (this plugin's home) registers the following skill categories wi
 
 The work-suite plugin (declared dep) registers the four-phase doing skills:
 
-- `work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot`, `inch-worm`
+- `work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot`, `stay-in-turn`, `inch-worm`
 
 When unsure, prefer invoking the skill — redundant invocation is cheap; re-implementing skill content inline is silent drift.
 

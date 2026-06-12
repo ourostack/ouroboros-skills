@@ -37,7 +37,7 @@ At the **start of every session, before other work**, invoke the **`session-star
 
 ## Skills
 
-Dispatch to narrow skills by name when their trigger matches — prefer invoking a skill over re-implementing it inline (that's silent drift). Substrate skills come from **desk**; the four-phase doing skills (`work-ideator` → `work-planner` → `work-doer` → `work-merger`) plus `autopilot` and `inch-worm` come from **work-suite**. Key entry points: `session-start`, `start-task`, `task-lifecycle`, `work-orchestration`, `track-card-format`, `task-card-format`, `friction-management`, `lesson-capture`, `status`. The full operating manual is the `desk:worker` agent definition + `principles.md` in this plugin — review `principles.md` before non-trivial work; its invariants apply to every skill.
+Dispatch to narrow skills by name when their trigger matches — prefer invoking a skill over re-implementing it inline (that's silent drift). Substrate skills come from **desk**; the four-phase doing skills (`work-ideator` → `work-planner` → `work-doer` → `work-merger`) plus `autopilot`, `stay-in-turn`, and `inch-worm` come from **work-suite**. Key entry points: `session-start`, `start-task`, `task-lifecycle`, `work-orchestration`, `track-card-format`, `task-card-format`, `friction-management`, `lesson-capture`, `status`. The full operating manual is the `desk:worker` agent definition + `principles.md` in this plugin — review `principles.md` before non-trivial work; its invariants apply to every skill.
 
 ## Operator preferences
 
