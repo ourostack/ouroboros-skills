@@ -29,7 +29,7 @@ The shape:
 2. Launch the driver via Bash run_in_background: true.
 3. Start a Monitor that tails the driver's stdout, filtered to event lines.
 4. React to each event in-turn. Continue the same turn until the driver emits its end-marker (e.g. "DRIVER_END") or all expected events arrive.
-5. Only then summarize and yield.
+5. Only then either run the autopilot durable continuation scan, or, outside autopilot, summarize and yield.
 ```
 
 This is the standard for any task >2 minutes of expected wall-clock work.
@@ -89,21 +89,21 @@ Critical details:
 
 When a `FAIL` event lands:
 1. **Inspect** — read the per-item log to understand the cause.
-2. **Decide** — is this auto-fixable (e.g. add an exempt-list entry, widen a v8-ignore block, retry after a flake) or substantive (real bug, needs operator input)?
+2. **Decide** — is this auto-fixable (e.g. add an exempt-list entry, widen a v8-ignore block, retry after a flake) or substantive? Under autopilot/no-human-gates, route substantive failures through reviewer/fixer support and the hard-exception test before considering operator input.
 3. **Act in-turn** — apply the fix, re-launch the driver from the failed item if applicable.
-4. **Or surface** — if the failure needs operator input, summarize the failure with enough context that the operator can decide, and ask. Do NOT yield silently.
+4. **Or surface** — only when the failure is a true human-only credential/capability blocker or an unrecoverable destructive shared-state action with no safe staged path. Summarize the failure with enough context that the operator can decide, and ask. Do NOT yield silently.
 
 When an `OK` event lands: nothing to do — the chain continues. You can still react to it (e.g. update progress in a task list) but don't write to the operator unless the user asked for milestone announcements.
 
-When `DRIVER_END` lands: summarize and yield naturally.
+When `DRIVER_END` lands: treat it as the driver finishing its current queue, not proof that the overall mandate is done. Under autopilot/no-human-gates, run the autopilot durable continuation scan before summarizing; if it finds a ready next item, start that item instead of yielding. Outside autopilot, summarize and yield naturally.
 
 ## When the operator says "do not return control until X is done"
 
 This phrase is your cue to use this pattern. The operator is asking for an autonomous chain. The Monitor pattern lets you deliver it. ScheduleWakeup-then-yield does NOT — the operator's experience is that you stopped.
 
-The chain ends at the terminal state, not at the first green checkpoint. For fully-agentic repos, keep the driver or foreground loop alive through PR merge, deploy/publish/install verification, consuming-surface smoke, cleanup, and the "anything obvious next?" pass. A driver that emits `OK pr=123 merged` and then exits before deploy/smoke is encoding the same premature handoff this skill exists to prevent.
+The chain ends at the terminal state, not at the first green checkpoint. For fully-agentic repos, keep the driver or foreground loop alive through PR merge, deploy/publish/install verification, consuming-surface smoke, cleanup, and the autopilot durable continuation scan. A driver that emits `OK pr=123 merged` and then exits before deploy/smoke is encoding the same premature handoff this skill exists to prevent.
 
-If the chain genuinely cannot run autonomously (e.g. needs operator approval mid-way), say so up front, get the approval, then run autonomously the rest of the way.
+If the chain genuinely cannot run autonomously, first apply the autopilot hard-exception test: spawn reviewer/fixer support for ambiguity, try safe staged paths, and run the durable continuation scan for other ready work. Surface operator input only for a true human-only credential/capability or an unrecoverable destructive shared-state action with no safe staged path; after that input is resolved, run autonomously the rest of the way.
 
 ## Anti-patterns
 
