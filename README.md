@@ -90,3 +90,17 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 Work-suite autopilot includes an exit preflight: before an agent reports done, it must verify terminal merge/deploy/install/smoke state, refresh durable state, write down the continuation scan, and start any ready or reviewer-gated next item. This keeps "what's next?" from becoming a manual operator loop.
 
 For skill or plugin changes, "done" also requires runtime refresh and dogfooding: sync the consuming skill/plugin copy, prove the installed copy contains the new contract, and run the next real task under that contract. If the current host will not refresh its active skill menu until a new session, the agent should read the installed file directly, record that fact, and keep working from the source-of-truth copy.
+
+### Runtime Visibility Audit
+
+Use `scripts/audit-work-suite-runtime.cjs` to prove the work-suite contract across source, installed roots, and the active host menu snapshot:
+
+```bash
+node scripts/audit-work-suite-runtime.cjs --repo-root .
+node scripts/audit-work-suite-runtime.cjs --repo-root . \
+  --skill-root ~/.agents/skills \
+  --skill-root ~/.codex/skills \
+  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm
+```
+
+The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
