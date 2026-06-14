@@ -35,7 +35,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
 - [ ] Activation declares host permissions/capabilities and cannot silently elevate beyond the host plugin model.
 - [ ] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
-- [ ] Claude packaging declares Work Suite as a dependency where supported by the host format.
+- [ ] Claude packaging declares Work Suite as a dependency when the support matrix marks dependency metadata native for the host format.
 - [ ] Claude Agent View/background-session inheritance is validated or explicitly documented as unsupported for the current host version.
 - [ ] Copilot packaging exposes the expected worker agent through native agent/plugin metadata.
 - [ ] Copilot packaging has a flattened dependency strategy for hosts without transitive dependency resolution.
@@ -54,7 +54,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual native-dependency installation.
-- [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared in a host-appropriate writable data/cache location.
+- [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared using this writable cache precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`.
 - [ ] Desk MCP launch works from arbitrary current working directories and resolves plugin-relative paths explicitly.
 - [ ] Desk MCP startup does not mutate immutable plugin source/cache directories.
 - [ ] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
@@ -69,7 +69,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Desk MCP health/status reports document-vector coverage.
 - [ ] Desk MCP health/status reports query embedding availability separately from document-vector availability.
 - [ ] Desk MCP health/status reports lexical index availability.
-- [ ] A registered `desk_status` or `desk_health` MCP tool exposes the health/status schema.
+- [ ] A registered `desk_status` MCP tool exposes the health/status schema.
 - [ ] Session-start context can surface concise health/status without running expensive repair work.
 - [ ] Missing local `.state/desk-index.sqlite` is treated as a normal first-run state.
 - [ ] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
@@ -98,8 +98,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] A local DB can be rebuilt from docs plus vector packs with the embedding endpoint disabled when all chunks are covered.
 - [ ] Live document embedding generation happens only for chunk keys missing from shared packs.
 - [ ] Ordinary healthy startup never dirties the Git worktree by writing vector packs or snapshots.
-- [ ] Explicit artifact publication can write new vector packs only through MCP maintenance tools or existing package/release scripts.
-- [ ] Explicit snapshot build/verify can run through MCP maintenance tools or existing package/release scripts.
+- [ ] Explicit artifact publication can write new vector packs only through MCP maintenance tools or `plugins/desk/mcp/package.json` scripts.
+- [ ] Explicit snapshot build/verify can run through MCP maintenance tools or `plugins/desk/mcp/package.json` scripts.
 - [ ] Public or sensitive repo policy can disable embedding/snapshot publication.
 - [ ] Documentation states that embeddings and snapshots are derivative data and may carry privacy risk.
 - [ ] Health output, logs, snapshot errors, and vector-pack validation errors avoid dumping chunk text or sensitive document content.
@@ -165,18 +165,18 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **CRITICAL: Every unit header MUST start with status emoji (⬜ for new units).**
 
 ### ⬜ Unit 0: Setup/Research
-**What**: Read the planning doc, story matrix, current plugin manifests, MCP server/indexer code, and CI workflows. Create concise implementation notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/` covering current host surfaces, current MCP launch assumptions, and the chosen performance-budget fixture source.  
-**Output**: A setup note in the artifacts directory naming the exact files and commands to use for this task.  
+**What**: Read the planning doc, story matrix, current plugin manifests, MCP server/indexer code, and CI workflows. Create `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md` covering current host surfaces, current MCP launch assumptions, exact commands, and the chosen performance-budget fixture source.  
+**Output**: `setup-notes.md` in the artifacts directory.  
 **Acceptance**: Notes exist, cited source paths exist at HEAD, and no production code changed in this unit.
 
 ### ⬜ Unit 1a: Activation Contract - Tests
 **What**: Write failing tests for a versioned activation manifest/schema and validator. Cover dependency ID, semver/pin, provenance/lock fields, host support/fallback fields, permissions/capabilities, `desk:worker`, overlay agents, MCP requirements, desk-root binding, embedding policy, snapshot policy, unknown schema versions, deterministic dependency order, and unsupported-host diagnostics.  
-**Output**: Failing tests under a repo-appropriate test location such as `plugins/desk/__tests__/activation/` or a root `scripts/` validation test if no package harness exists yet.  
-**Acceptance**: Tests fail because the schema/validator/fixtures do not exist or do not satisfy the expected contract.
+**Output**: `plugins/desk/mcp/__tests__/activation/activation_contract.test.js`.  
+**Acceptance**: Tests fail because `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/mcp/src/activation/support-matrix.js`, and canonical activation fixtures do not exist or do not satisfy the expected contract.
 
 ### ⬜ Unit 1b: Activation Contract - Implementation
 **What**: Add the activation schema, canonical Desk activation manifest, validator, fixture manifests, and generated/validated support-matrix data. Keep the contract host-neutral and avoid a user-facing Desk CLI.  
-**Output**: New activation contract files under `plugins/desk/activation/` or an equivalent documented plugin-owned path, plus validation code wired into tests.  
+**Output**: `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/desk.activation.json`, `plugins/desk/activation/README.md`, and `plugins/desk/activation/support-matrix.json`.  
 **Acceptance**: Unit 1a tests pass, unsupported or unknown schemas fail closed with actionable diagnostics, and dependency ordering is deterministic.
 
 ### ⬜ Unit 1c: Activation Contract - Coverage & Refactor
@@ -199,94 +199,334 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened Codex adapter implementation and tests.  
 **Acceptance**: 100% coverage on new Codex adapter code, repeated activation is idempotent, and all Codex adapter tests pass.
 
-### ⬜ Unit 3a: Host Packaging And Support Matrix - Tests
-**What**: Write failing tests for Claude, Copilot/root plugin, Ouroboros/autonomous-agent bundle, generic stdio MCP, and flattened-bundle support-matrix disposition. Cover manifest version drift, Work Suite dependency declarations where supported, unsupported primitive diagnostics, no hand-edited JSON/TOML requirement, and host permission/capability boundaries.  
-**Output**: Failing manifest/support-matrix tests that inspect `plugins/desk/plugin.json`, `plugins/desk/.claude-plugin/plugin.json`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/*`, and generated host fixtures.  
-**Acceptance**: Tests fail on current manifest drift and missing dependency/support-matrix data.
+### ⬜ Unit 3a: Support Matrix Generator - Tests
+**What**: Write failing tests for a generated support matrix with one row each for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.  
+**Output**: `plugins/desk/mcp/__tests__/activation/support_matrix.test.js` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
+**Acceptance**: Tests fail until the generated matrix validates against the evidence artifact, and the evidence artifact has one row per host with exact source paths and disposition `native`, `flattened`, or `unsupported`.
 
-### ⬜ Unit 3b: Host Packaging And Support Matrix - Implementation
-**What**: Update host manifests, support-matrix generation/validation, flattened-bundle metadata, and host docs so native support, flattened fallback, and unsupported status are explicit and evidence-backed.  
-**Output**: Updated manifests, generated support matrix, and host packaging metadata.  
-**Acceptance**: Unit 3a tests pass, version drift is eliminated or intentionally recorded, and unsupported primitives produce explicit diagnostics.
+### ⬜ Unit 3b: Support Matrix Generator - Implementation
+**What**: Implement support-matrix generation and validation from activation metadata plus the evidence artifact.  
+**Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/support-matrix.json`, and `host-capability-evidence.md`.  
+**Acceptance**: Unit 3a tests pass and generated support matrix matches the evidence artifact exactly.
 
-### ⬜ Unit 3c: Host Packaging And Support Matrix - Coverage & Refactor
-**What**: Refactor host packaging validation for clarity and add missing edge cases for missing dependencies, invalid versions, and unsupported host features.  
-**Output**: Clean host validation/generation code.  
-**Acceptance**: 100% coverage on new host validation/generation code, all host packaging tests pass, and generated docs/fixtures are stable.
+### ⬜ Unit 3c: Support Matrix Generator - Coverage & Refactor
+**What**: Add edge-case coverage for unknown hosts, missing evidence rows, unsupported primitive diagnostics, and conflicting native/flattened dispositions.  
+**Output**: Hardened support-matrix validation.  
+**Acceptance**: 100% coverage on new support-matrix code and all support-matrix tests pass.
 
-### ⬜ Unit 4a: MCP Status And Runtime Bootstrap - Tests
-**What**: Write failing tests for `desk_status` or `desk_health` registration in `plugins/desk/mcp/src/tool-names.js` and `server.js`, health schema fields, root resolution, cwd-independent launch, immutable plugin-dir protection, offline startup, bounded startup, deferred repair surfacing, and diagnostic non-leak behavior.  
-**Output**: Failing tests under `plugins/desk/mcp/__tests__/tools/`, `plugins/desk/mcp/__tests__/db/`, or `plugins/desk/mcp/__tests__/runtime/`.  
-**Acceptance**: Tests fail because the health tool/runtime bootstrap fields and launch guarantees do not exist yet.
+### ⬜ Unit 4a: Claude And Work Suite Packaging - Tests
+**What**: Write failing tests for Claude plugin metadata, Work Suite dependency declaration when host metadata supports it, Agent View/background-session support disposition, manifest version consistency, and permission/capability boundaries.  
+**Output**: `plugins/desk/mcp/__tests__/activation/claude_packaging.test.js`.  
+**Acceptance**: Tests fail on missing or stale Claude/Work Suite dependency and support metadata.
 
-### ⬜ Unit 4b: MCP Status And Runtime Bootstrap - Implementation
-**What**: Implement registered health/status tooling, root/runtime resolution helpers, cwd-independent plugin path resolution, safe writable runtime/cache behavior for native dependencies, bounded startup/deferred repair state, and session-start-friendly health summaries.  
-**Output**: Updated MCP server helpers, tool registration, runtime helpers, and health output schema.  
-**Acceptance**: Unit 4a tests pass, health output separates document-vector availability from query embedding availability, and errors do not dump chunk text.
+### ⬜ Unit 4b: Claude And Work Suite Packaging - Implementation
+**What**: Update Claude-facing Desk and Work Suite metadata plus support-matrix rows to match the Claude disposition recorded in `host-capability-evidence.md`.  
+**Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, and support matrix data.  
+**Acceptance**: Unit 4a tests pass and unsupported Claude primitives are documented instead of claimed.
 
-### ⬜ Unit 4c: MCP Status And Runtime Bootstrap - Coverage & Refactor
-**What**: Add branch coverage for missing root, missing local DB, unavailable embedding endpoint, failed runtime bootstrap, arbitrary cwd, repeated startup, and disabled repair.  
-**Output**: Hardened MCP startup/status implementation.  
-**Acceptance**: 100% coverage on new MCP status/bootstrap code, all MCP status/bootstrap tests pass, and no warnings.
+### ⬜ Unit 4c: Claude And Work Suite Packaging - Coverage & Refactor
+**What**: Add edge-case tests for missing Work Suite dependency, stale version, missing worker agent exposure, and unsupported Agent View assumptions.  
+**Output**: Hardened Claude packaging validation.  
+**Acceptance**: 100% coverage on new Claude packaging validation code and all Claude packaging tests pass.
 
-### ⬜ Unit 5a: Shared Vector Packs - Tests
-**What**: Write failing tests for deterministic chunk keys, embedding spec IDs, vector-pack row schema, pack checksums, row validation, wrong spec/dimension/hash rejection, malformed vector encodings, idempotent import, multiple append-only packs, inactive-spec ignore, no live embedding calls when packs fully cover chunks, and missing-vector live generation with a mocked endpoint.  
-**Output**: Failing vector-pack tests under `plugins/desk/mcp/__tests__/indexer/` and fixtures under that test tree.  
-**Acceptance**: Tests fail because vector-pack import/export/chunk-key support does not yet exist.
+### ⬜ Unit 5a: Copilot Root Packaging - Tests
+**What**: Write failing tests for `plugins/desk/plugin.json`, `plugins/work-suite` metadata, root agent exposure, flattened dependency support, no hand-edited JSON/TOML, and manifest version consistency.  
+**Output**: `plugins/desk/mcp/__tests__/activation/copilot_packaging.test.js`.  
+**Acceptance**: Tests fail on current root manifest drift or missing flattened dependency metadata.
 
-### ⬜ Unit 5b: Shared Vector Packs - Implementation
-**What**: Implement embedding spec handling, deterministic chunk keys, vector-pack import, validation, idempotent dedupe, inactive-spec ignore, no-live-embedding covered rebuilds, and missing-vector generation order.  
-**Output**: New or updated indexer modules, DB schema/migrations for chunk keys/spec metadata, and test fixtures.  
-**Acceptance**: Unit 5a tests pass, local DB rebuild works from docs plus vector packs with embedding endpoint disabled when chunks are covered, and missing vectors are generated only after pack import.
+### ⬜ Unit 5b: Copilot Root Packaging - Implementation
+**What**: Update root/Copilot plugin metadata and generated flattened-bundle metadata for Desk plus Work Suite.  
+**Output**: Updated `plugins/desk/plugin.json`, generated flattened-bundle metadata, and support matrix data.  
+**Acceptance**: Unit 5a tests pass and Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode.
 
-### ⬜ Unit 5c: Shared Vector Packs - Coverage & Refactor
-**What**: Add coverage for empty packs, duplicate rows, checksum mismatch, bad base64/float encodings, stale spec directories, and pack merge/no-conflict simulation.  
-**Output**: Hardened vector-pack modules.  
-**Acceptance**: 100% coverage on new vector-pack code, all vector-pack tests pass, and search scope/refs behavior remains unchanged.
+### ⬜ Unit 5c: Copilot Root Packaging - Coverage & Refactor
+**What**: Add edge-case tests for missing agents path, missing skills path, missing MCP declaration, stale version, and missing flattened dependency closure.  
+**Output**: Hardened Copilot/root packaging validation.  
+**Acceptance**: 100% coverage on new Copilot packaging validation code and all Copilot packaging tests pass.
 
-### ⬜ Unit 6a: Snapshot Restore And Build - Tests
-**What**: Write failing tests for snapshot manifest schema, compressed artifact handling, restore-copy-then-mutate behavior, checksum validation, DB schema/spec/chunker/runtime validation, absolute/unexpected source path rejection, compatibility versus freshness, newest-compatible selection, inactive-spec ignore, corruption fallback to vector packs, stale snapshot reconcile, and snapshot build/verify surfaces.  
-**Output**: Failing snapshot tests under `plugins/desk/mcp/__tests__/indexer/` or `plugins/desk/mcp/__tests__/snapshots/` with fixture snapshots.  
-**Acceptance**: Tests fail because snapshot restore/build/verify support does not yet exist.
+### ⬜ Unit 6a: Ouroboros And Generic Stdio Packaging - Tests
+**What**: Write failing tests for the Ouroboros/autonomous-agent bundle disposition and generic stdio MCP launch disposition. Cover `bundle.json` expectation docs, `$DESK` preamble binding, and flattened or unsupported status.  
+**Output**: `plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js`.  
+**Acceptance**: Tests fail until support-matrix rows and docs give explicit dispositions for Ouroboros/autonomous-agent and generic stdio paths.
 
-### ⬜ Unit 6b: Snapshot Restore And Build - Implementation
-**What**: Implement snapshot manifest parsing/validation, compressed artifact restore into `.state/`, freshness classification, fallback to vector packs, stale reconcile, build/verify maintenance surfaces, and protection against in-place repo snapshot mutation.  
-**Output**: Snapshot modules, MCP maintenance/package-script surfaces, and fixtures.  
-**Acceptance**: Unit 6a tests pass, corrupt or incompatible snapshots are cache misses, stale compatible snapshots restore then reconcile, and repo snapshots are never opened in place for mutation.
+### ⬜ Unit 6b: Ouroboros And Generic Stdio Packaging - Implementation
+**What**: Add support-matrix and docs entries for Ouroboros/autonomous-agent bundle wiring and generic stdio MCP launch.  
+**Output**: Updated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
+**Acceptance**: Unit 6a tests pass and the docs no longer leave the Ouroboros path out of the activation story.
 
-### ⬜ Unit 6c: Snapshot Restore And Build - Coverage & Refactor
-**What**: Add coverage for missing manifest fields, checksum mismatch, sqlite-vec/runtime mismatch, document tree mismatch, source commit mismatch, missing pack IDs, repeated restore, and performance-budget fixture cases.  
-**Output**: Hardened snapshot modules and budget tests.  
-**Acceptance**: 100% coverage on new snapshot code, all snapshot tests pass, and startup/rebuild budget tests fail when configured thresholds are exceeded.
+### ⬜ Unit 6c: Ouroboros And Generic Stdio Packaging - Coverage & Refactor
+**What**: Add edge-case tests for missing `$DESK` binding, missing bundle metadata, and generic stdio launch without host dependency support.  
+**Output**: Hardened Ouroboros/generic stdio validation.  
+**Acceptance**: 100% coverage on new validation code and all Ouroboros/generic stdio packaging tests pass.
 
-### ⬜ Unit 7a: Privacy, Redaction, And Publication Policy - Tests
-**What**: Write failing tests for public/sensitive repo publication defaults, explicit policy approval before artifact writes, gitignored secret exclusion, sensitive-path exclusion, tombstone invalidation, pruning or rotation cleanup, active artifact exclusion of deleted/redacted docs, and diagnostics that report file/row/key without dumping text.  
-**Output**: Failing privacy/redaction tests with fixture desks containing deleted, redacted, gitignored, and sensitive-path content.  
-**Acceptance**: Tests fail because policy, tombstones, cleanup, and non-leak validation are not implemented yet.
+### ⬜ Unit 7a: MCP Status Tool - Tests
+**What**: Write failing tests for registered `desk_status`, tool description, dispatch from `server.js`, health schema fields, document-vector availability separated from query embedding availability, and session-start-safe summary output.  
+**Output**: `plugins/desk/mcp/__tests__/tools/status.test.js`.  
+**Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired in `plugins/desk/mcp/src/server.js`, and implemented.
 
-### ⬜ Unit 7b: Privacy, Redaction, And Publication Policy - Implementation
-**What**: Implement repo/org publication policy checks, artifact write approval gates, gitignore-aware exclusion behavior, tombstone invalidation, pruning or artifact rotation surfaces, and non-leaking diagnostics for health/logs/pack/snapshot errors.  
-**Output**: Policy modules, redaction/tombstone handling, cleanup surfaces, and updated diagnostics.  
-**Acceptance**: Unit 7a tests pass, deleted/redacted docs are not represented in active vector packs or snapshots, and error output avoids sensitive text.
+### ⬜ Unit 7b: MCP Status Tool - Implementation
+**What**: Implement `desk_status` and status helper functions without running expensive repair work.  
+**Output**: `plugins/desk/mcp/src/tools/status.js`, updated `tool-names.js`, updated `server.js`, and any helper module required by the tests.  
+**Acceptance**: Unit 7a tests pass and `desk_status` reports root, runtime version, DB schema, embedding spec, snapshot state, vector-pack state, document-vector coverage, query embedding availability, lexical availability, and degraded modes.
 
-### ⬜ Unit 7c: Privacy, Redaction, And Publication Policy - Coverage & Refactor
-**What**: Add edge-case coverage for nested gitignore rules, archived redactions, repeated tombstones, missing policy files, public repo detection failures, and cleanup after pack compaction or snapshot rotation.  
-**Output**: Hardened privacy/redaction implementation.  
-**Acceptance**: 100% coverage on new privacy/redaction code, all privacy tests pass, and no sensitive text appears in diagnostic snapshots.
+### ⬜ Unit 7c: MCP Status Tool - Coverage & Refactor
+**What**: Add coverage for missing DB, stale DB, missing embedding endpoint, missing vector packs, malformed snapshot manifest, and no desk root.  
+**Output**: Hardened status implementation.  
+**Acceptance**: 100% coverage on new status code and all status tests pass.
 
-### ⬜ Unit 8a: Integration, Docs, And CI - Tests
-**What**: Write failing integration/CI checks for full cold start, snapshot restore, vector-pack rebuild without embeddings, missing-vector live generation with mocked endpoint, active/archived scope preservation, refs graph preservation, repeated startup idempotence, generated artifact freshness, worker-content drift, manifest drift, and host support-matrix freshness.  
-**Output**: Failing integration tests and CI validation scripts/workflow updates.  
-**Acceptance**: Tests fail on current repo state or stale generated artifacts.
+### ⬜ Unit 8a: Runtime Cache And Path Bootstrap - Tests
+**What**: Write failing tests for cwd-independent launch, plugin-relative path resolution, immutable plugin directory protection, and runtime cache precedence.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/cache_and_paths.test.js`.  
+**Acceptance**: Tests fail until runtime cache resolution uses activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`, and startup never writes under `plugins/desk/`, `.codex-plugin/`, `.claude-plugin/`, or host plugin cache/source dirs.
 
-### ⬜ Unit 8b: Integration, Docs, And CI - Implementation
-**What**: Wire integration tests, generated-artifact freshness checks, host support docs, healthy-path setup docs, artifact privacy docs, package/release scripts, and CI workflow updates. Remove or demote obsolete manual-install docs to troubleshooting/developer notes.  
-**Output**: Updated docs, scripts, generated files, and CI workflows.  
-**Acceptance**: Unit 8a tests pass, docs no longer present manual Desk install as the healthy path, and release/CI can build and verify vector packs and snapshots without a user-facing Desk CLI.
+### ⬜ Unit 8b: Runtime Cache And Path Bootstrap - Implementation
+**What**: Implement runtime cache/path helpers and wire MCP startup to use them.  
+**Output**: `plugins/desk/mcp/src/runtime/cache.js`, `plugins/desk/mcp/src/runtime/paths.js`, and updated MCP entry/startup code.  
+**Acceptance**: Unit 8a tests pass from arbitrary current working directories and immutable plugin/source dirs remain untouched.
 
-### ⬜ Unit 8c: Final Verification And Handoff
-**What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and any new coverage commands. Update planning/doing checklists only for criteria with evidence.  
-**Output**: Verification notes in the artifacts directory and updated task docs.  
+### ⬜ Unit 8c: Runtime Cache And Path Bootstrap - Coverage & Refactor
+**What**: Add edge-case coverage for unset home/cache env vars, relative activation cache dirs, unwritable cache dirs, and repeated startup.  
+**Output**: Hardened runtime path/cache modules.  
+**Acceptance**: 100% coverage on new runtime path/cache code and all runtime cache tests pass.
+
+### ⬜ Unit 9a: Bounded Startup And Deferred Repair - Tests
+**What**: Write failing tests for healthy startup avoiding network calls, startup budget enforcement, long repair deferral, explicit repair state, and offline startup with snapshot/vector-pack/lexical fallback.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.  
+**Acceptance**: Tests fail until startup/rebuild budget values are read from test config or release policy and repair does not silently block session start.
+
+### ⬜ Unit 9b: Bounded Startup And Deferred Repair - Implementation
+**What**: Implement bounded startup behavior and repair-state reporting in `ensureIndex`/server startup without removing explicit repair paths.  
+**Output**: Updated `plugins/desk/mcp/src/server-helpers.js`, startup helpers, and test budget fixture.  
+**Acceptance**: Unit 9a tests pass, healthy warm start performs no embedding network calls, and long repairs are deferred or explicitly surfaced.
+
+### ⬜ Unit 9c: Bounded Startup And Deferred Repair - Coverage & Refactor
+**What**: Add coverage for stale DB, missing DB, missing snapshot, present snapshot, missing vector packs, disabled embeddings, and slow repair simulation.  
+**Output**: Hardened bounded startup implementation.  
+**Acceptance**: 100% coverage on new startup-budget code and all startup tests pass.
+
+### ⬜ Unit 10a: Diagnostic Non-Leak - Tests
+**What**: Write failing tests that health output, logs, snapshot errors, vector-pack validation errors, and MCP error payloads report file/row/key/manifest fields without dumping chunk text or sensitive document content.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/diagnostic_privacy.test.js`.  
+**Acceptance**: Tests fail until diagnostic paths redact text content and expose only safe identifiers.
+
+### ⬜ Unit 10b: Diagnostic Non-Leak - Implementation
+**What**: Implement diagnostic redaction helpers and apply them to status, snapshot, vector-pack, and MCP error paths.  
+**Output**: `plugins/desk/mcp/src/runtime/diagnostics.js` and updated callers.  
+**Acceptance**: Unit 10a tests pass and diagnostic payloads avoid sensitive text while remaining actionable.
+
+### ⬜ Unit 10c: Diagnostic Non-Leak - Coverage & Refactor
+**What**: Add coverage for nested error causes, validation arrays, long paths, missing chunk keys, and exceptions thrown by validators.  
+**Output**: Hardened diagnostic helpers.  
+**Acceptance**: 100% coverage on new diagnostic code and all diagnostic privacy tests pass.
+
+### ⬜ Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
+**What**: Write failing tests for deterministic chunk keys, embedding spec IDs, chunker version, normalized text identity, DB schema/migrations for chunk keys/spec metadata, and inactive-spec ignore.  
+**Output**: `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js` and migration assertions in existing DB/indexer tests.  
+**Acceptance**: Tests fail until chunks and index metadata can record stable keys and active specs.
+
+### ⬜ Unit 11b: Chunk Keys And Embedding Spec Schema - Implementation
+**What**: Implement embedding spec loading, chunk-key computation, schema migrations, and active-spec metadata.  
+**Output**: Updated `plugins/desk/mcp/src/indexer/chunk.js`, new spec module, updated `schema.sql`/migrations, and indexer writes.  
+**Acceptance**: Unit 11a tests pass and unchanged chunks get stable keys across runs.
+
+### ⬜ Unit 11c: Chunk Keys And Embedding Spec Schema - Coverage & Refactor
+**What**: Add coverage for empty text, heading changes, normalization changes, spec changes, and migration from older indexes.  
+**Output**: Hardened chunk key/spec implementation.  
+**Acceptance**: 100% coverage on new chunk/spec code and all chunk-key tests pass.
+
+### ⬜ Unit 12a: Vector Pack Validation And Import - Tests
+**What**: Write failing tests for vector-pack row schema, file checksums, wrong spec/dimension/hash rejection, malformed vector encodings, idempotent import, duplicate rows, and multiple append-only packs.  
+**Output**: `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` with fixtures under `plugins/desk/mcp/__tests__/fixtures/vector-packs/`.  
+**Acceptance**: Tests fail until vector-pack validation/import exists.
+
+### ⬜ Unit 12b: Vector Pack Validation And Import - Implementation
+**What**: Implement vector-pack parser, checksum verification, row validation, idempotent import, duplicate handling, and multi-pack import.  
+**Output**: `plugins/desk/mcp/src/indexer/vector-packs.js` and fixture data.  
+**Acceptance**: Unit 12a tests pass, bad packs fail with non-leaking diagnostics, and repeated imports are idempotent.
+
+### ⬜ Unit 12c: Vector Pack Validation And Import - Coverage & Refactor
+**What**: Add coverage for empty packs, missing checksum, corrupt JSONL, duplicate chunk keys across packs, and inactive spec packs.  
+**Output**: Hardened vector-pack validation/import code.  
+**Acceptance**: 100% coverage on new vector-pack import code and all vector-pack validation tests pass.
+
+### ⬜ Unit 13a: Vector Rebuild And Missing Generation - Tests
+**What**: Write failing tests for rebuilding a local DB from docs plus vector packs with embedding endpoint disabled, zero live embedding calls when packs fully cover chunks, and live generation only for missing chunk keys with a mocked endpoint.  
+**Output**: `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js`.  
+**Acceptance**: Tests fail until rebuild imports packs before live embedding generation.
+
+### ⬜ Unit 13b: Vector Rebuild And Missing Generation - Implementation
+**What**: Update `rebuildIndex` and related helpers to import shared vectors before embedding and to generate only missing vectors.  
+**Output**: Updated `plugins/desk/mcp/src/indexer/index.js`, embedding helpers, and tests.  
+**Acceptance**: Unit 13a tests pass and covered chunks do not trigger embedding endpoint calls.
+
+### ⬜ Unit 13c: Vector Rebuild And Missing Generation - Coverage & Refactor
+**What**: Add coverage for partial pack coverage, embedding endpoint failure after import, stale local DB, and force rebuild.  
+**Output**: Hardened rebuild/import flow.  
+**Acceptance**: 100% coverage on new rebuild flow code and all vector rebuild tests pass.
+
+### ⬜ Unit 14a: Vector Compaction And Search Preservation - Tests
+**What**: Write failing tests for compaction semantic equivalence, active/archived search scope preservation, refs graph preservation, pack merge/no-conflict simulation, and query/document-vector diagnostic separation after compaction.  
+**Output**: `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js`.  
+**Acceptance**: Tests fail until compaction and preservation checks exist.
+
+### ⬜ Unit 14b: Vector Compaction And Search Preservation - Implementation
+**What**: Implement compaction or compaction validation hooks and preserve search/ref behavior across import/rebuild/compaction.  
+**Output**: Vector-pack compaction helpers or explicit compaction validation stubs, plus updated search/indexer behavior.  
+**Acceptance**: Unit 14a tests pass and semantic equivalence checks protect compaction before enablement.
+
+### ⬜ Unit 14c: Vector Compaction And Search Preservation - Coverage & Refactor
+**What**: Add coverage for archived docs, removed docs, duplicate chunk keys, and refs graph recomputation after compaction.  
+**Output**: Hardened compaction/preservation implementation.  
+**Acceptance**: 100% coverage on new compaction/preservation code and all related tests pass.
+
+### ⬜ Unit 15a: Snapshot Manifest And Validation - Tests
+**What**: Write failing tests for snapshot manifest fields: source commit or source tree hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, provenance, DB schema, embedding spec, chunker ID, and artifact format.  
+**Output**: `plugins/desk/mcp/__tests__/snapshots/manifest.test.js`.  
+**Acceptance**: Tests fail until snapshot manifest parsing and validation exists.
+
+### ⬜ Unit 15b: Snapshot Manifest And Validation - Implementation
+**What**: Implement snapshot manifest parser and validation. Treat schema/spec/runtime/path failures as compatibility failures.  
+**Output**: `plugins/desk/mcp/src/snapshots/manifest.js` and fixtures.  
+**Acceptance**: Unit 15a tests pass and invalid manifests fail with non-leaking diagnostics.
+
+### ⬜ Unit 15c: Snapshot Manifest And Validation - Coverage & Refactor
+**What**: Add coverage for missing fields, wrong types, checksum mismatch, sqlite-vec/runtime mismatch, unexpected source paths, and absolute paths.  
+**Output**: Hardened snapshot manifest validation.  
+**Acceptance**: 100% coverage on new snapshot manifest code and all manifest tests pass.
+
+### ⬜ Unit 16a: Snapshot Restore Select And Copy - Tests
+**What**: Write failing tests for newest-compatible selection, inactive-spec ignore, compressed artifact handling, copy into `.state/`, no in-place repo mutation, and repeated restore idempotence.  
+**Output**: `plugins/desk/mcp/__tests__/snapshots/restore.test.js`.  
+**Acceptance**: Tests fail until snapshot selection and restore-copy behavior exists.
+
+### ⬜ Unit 16b: Snapshot Restore Select And Copy - Implementation
+**What**: Implement snapshot discovery, newest-compatible selection, decompression/copy into local `.state/`, and restore idempotence.  
+**Output**: `plugins/desk/mcp/src/snapshots/restore.js` and fixtures.  
+**Acceptance**: Unit 16a tests pass and repo snapshot artifacts are never opened for mutation.
+
+### ⬜ Unit 16c: Snapshot Restore Select And Copy - Coverage & Refactor
+**What**: Add coverage for missing snapshot directories, corrupt compressed files, unwritable `.state/`, and multiple compatible snapshots.  
+**Output**: Hardened snapshot restore code.  
+**Acceptance**: 100% coverage on new restore code and all restore tests pass.
+
+### ⬜ Unit 17a: Snapshot Fallback And Stale Reconcile - Tests
+**What**: Write failing tests for corrupt snapshot fallback to vector packs, incompatible snapshot fallback, source/document tree mismatch as freshness only, stale compatible restore-then-reconcile, and refs/search preservation after reconcile.  
+**Output**: `plugins/desk/mcp/__tests__/snapshots/fallback_reconcile.test.js`.  
+**Acceptance**: Tests fail until fallback and freshness/reconcile semantics exist.
+
+### ⬜ Unit 17b: Snapshot Fallback And Stale Reconcile - Implementation
+**What**: Wire snapshot restore into index startup/rebuild with vector-pack fallback and stale reconcile.  
+**Output**: Updated `server-helpers.js`, indexer startup flow, and snapshot helpers.  
+**Acceptance**: Unit 17a tests pass, incompatible snapshots are cache misses, and stale compatible snapshots restore then reconcile.
+
+### ⬜ Unit 17c: Snapshot Fallback And Stale Reconcile - Coverage & Refactor
+**What**: Add coverage for stale docs, deleted docs, archived docs, missing packs, and embedding endpoint disabled during fallback.  
+**Output**: Hardened snapshot fallback/reconcile flow.  
+**Acceptance**: 100% coverage on new fallback/reconcile code and all fallback tests pass.
+
+### ⬜ Unit 18a: Artifact Scripts And Performance Budgets - Tests
+**What**: Write failing tests for exact `plugins/desk/mcp/package.json` scripts: `artifact:vector-pack:build`, `artifact:snapshot:build`, `artifact:snapshot:verify`, and `artifact:validate`. Cover CI invocation and startup/rebuild budget thresholds from test config or release policy.  
+**Output**: `plugins/desk/mcp/__tests__/artifacts/scripts_and_budgets.test.js`.  
+**Acceptance**: Tests fail until the package scripts and budget config exist.
+
+### ⬜ Unit 18b: Artifact Scripts And Performance Budgets - Implementation
+**What**: Implement package scripts and script entrypoints for vector-pack build, snapshot build, snapshot verify, artifact validation, and budget enforcement. Keep scripts as maintenance/release surfaces, not user setup commands.  
+**Output**: Updated `plugins/desk/mcp/package.json`, scripts under `plugins/desk/mcp/scripts/`, and budget config.  
+**Acceptance**: Unit 18a tests pass and scripts can be invoked by CI without adding a user-facing Desk CLI.
+
+### ⬜ Unit 18c: Artifact Scripts And Performance Budgets - Coverage & Refactor
+**What**: Add coverage for script failures, missing artifacts, stale generated files, and exceeded startup/rebuild budgets.  
+**Output**: Hardened artifact scripts and budget checks.  
+**Acceptance**: 100% coverage on new script helper code and all artifact script tests pass.
+
+### ⬜ Unit 19a: Publication Policy And Approval - Tests
+**What**: Write failing tests for public/sensitive repo publication defaults, explicit repo/org policy approval, ordinary startup not writing artifacts, and artifact write attempts without approval.  
+**Output**: `plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js`.  
+**Acceptance**: Tests fail until artifact publication policy checks exist.
+
+### ⬜ Unit 19b: Publication Policy And Approval - Implementation
+**What**: Implement publication policy checks and approval requirements for vector-pack and snapshot writes.  
+**Output**: `plugins/desk/mcp/src/artifacts/policy.js` and updated artifact write paths.  
+**Acceptance**: Unit 19a tests pass, public/sensitive repos default to no publication, and ordinary startup never dirties the worktree.
+
+### ⬜ Unit 19c: Publication Policy And Approval - Coverage & Refactor
+**What**: Add coverage for missing policy, explicit allow, explicit deny, unknown repo sensitivity, and organization policy override.  
+**Output**: Hardened publication policy module.  
+**Acceptance**: 100% coverage on new policy code and all publication policy tests pass.
+
+### ⬜ Unit 20a: Indexing Exclusions - Tests
+**What**: Write failing tests for gitignored secret exclusion, sensitive-path exclusion, archived sensitive-path handling, and artifact publication respecting exclusions.  
+**Output**: `plugins/desk/mcp/__tests__/indexer/exclusions.test.js`.  
+**Acceptance**: Tests fail until discovery/artifact flows honor gitignore and sensitive-path policy.
+
+### ⬜ Unit 20b: Indexing Exclusions - Implementation
+**What**: Implement exclusion handling in discovery and artifact publication flows without breaking existing desk discovery behavior.  
+**Output**: Updated `plugins/desk/mcp/src/indexer/discover.js`, new `plugins/desk/mcp/src/indexer/exclusions.js`, and publication policy wiring.  
+**Acceptance**: Unit 20a tests pass and gitignored secret files are excluded from indexing and artifacts by default.
+
+### ⬜ Unit 20c: Indexing Exclusions - Coverage & Refactor
+**What**: Add coverage for nested gitignore files, negated gitignore rules, symlinks, hidden files, and person-prefix/shared-landscape discovery.  
+**Output**: Hardened exclusion/discovery code.  
+**Acceptance**: 100% coverage on new exclusion code and all existing discovery tests remain green.
+
+### ⬜ Unit 21a: Tombstones And Redaction Cleanup - Tests
+**What**: Write failing tests for tombstone invalidation, active artifact exclusion of deleted/redacted docs, pruning or artifact rotation, repeated tombstones, and deleted archived docs.  
+**Output**: `plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js`.  
+**Acceptance**: Tests fail until tombstone and cleanup behavior exists.
+
+### ⬜ Unit 21b: Tombstones And Redaction Cleanup - Implementation
+**What**: Implement tombstone metadata, artifact invalidation, and pruning or rotation cleanup for vector packs and snapshots.  
+**Output**: Redaction/tombstone modules and artifact cleanup integration.  
+**Acceptance**: Unit 21a tests pass and deleted/redacted docs are not represented in active vector packs or snapshots.
+
+### ⬜ Unit 21c: Tombstones And Redaction Cleanup - Coverage & Refactor
+**What**: Add coverage for missing tombstone files, corrupt tombstones, cleanup after compaction, cleanup after snapshot rotation, and stale local DB rebuild after redaction.  
+**Output**: Hardened redaction cleanup implementation.  
+**Acceptance**: 100% coverage on new redaction cleanup code and all cleanup tests pass.
+
+### ⬜ Unit 22a: Healthy-Path Docs - Tests
+**What**: Write failing docs/freshness checks that reject healthy-path manual Desk install wording, manual `codex mcp add`, manual `npm install`, uncontrolled `AGENTS.md` append/copy, and missing privacy notes.  
+**Output**: `scripts/test-desk-docs.cjs` invoked by the root validation workflow.  
+**Acceptance**: Tests fail until Desk docs frame setup as dependency activation and move manual steps to troubleshooting/developer notes.
+
+### ⬜ Unit 22b: Healthy-Path Docs - Implementation
+**What**: Update `plugins/desk/README.md`, `plugins/desk/agents/README.md`, `plugins/desk/mcp/README.md`, activation docs, and story/planning references to reflect dependency activation, global Codex personal default, opt-outs, privacy, and no bespoke CLI.  
+**Output**: Updated documentation and docs validation script.  
+**Acceptance**: Unit 22a tests pass and docs no longer present manual Desk install as the healthy path.
+
+### ⬜ Unit 22c: Healthy-Path Docs - Coverage & Refactor
+**What**: Add docs validation coverage for Codex, Claude, Copilot/root, Ouroboros/autonomous-agent, generic stdio, vector packs, snapshots, redaction, and publication policy.  
+**Output**: Hardened docs validation.  
+**Acceptance**: All docs validation tests pass and generated docs remain stable.
+
+### ⬜ Unit 23a: CI And Generated Artifact Freshness - Tests
+**What**: Write failing checks for activation support matrix freshness, host manifest drift, worker-content drift, artifact script availability, and generated fixture freshness.  
+**Output**: New or updated root validation scripts and CI workflow expectations.  
+**Acceptance**: Tests fail on stale generated artifacts or current manifest drift.
+
+### ⬜ Unit 23b: CI And Generated Artifact Freshness - Implementation
+**What**: Wire validation scripts into `.github/workflows/desk-mcp-tests.yml`. Include artifact scripts and support-matrix checks.  
+**Output**: Updated CI workflow(s), root scripts, and generated-artifact checks.  
+**Acceptance**: Unit 23a tests pass and CI fails when generated artifacts are stale.
+
+### ⬜ Unit 23c: CI And Generated Artifact Freshness - Coverage & Refactor
+**What**: Add coverage for stale generated support matrix, missing artifact scripts, manifest version drift, and worker-format drift.  
+**Output**: Hardened CI/freshness validation.  
+**Acceptance**: All CI/freshness tests pass locally.
+
+### ⬜ Unit 24a: Full Integration Tests - Tests
+**What**: Write failing integration checks for full cold start, snapshot restore, vector-pack rebuild without embeddings, missing-vector live generation with mocked endpoint, active/archived scope preservation, refs graph preservation, repeated startup idempotence, and degraded semantic mode.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Tests fail until the end-to-end flow is fully wired.
+
+### ⬜ Unit 24b: Full Integration Tests - Implementation
+**What**: Wire missing integration behavior across activation, startup, vector packs, snapshots, status, and degraded search.  
+**Output**: Integration fixes across previously added modules.  
+**Acceptance**: Unit 24a tests pass and full cold start works from snapshot, vector packs, and lexical fallback modes.
+
+### ⬜ Unit 24c: Final Verification And Handoff
+**What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and new coverage commands. Update planning/doing checklists only for criteria with evidence.  
+**Output**: Verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/final-verification.md` and updated task docs.  
 **Acceptance**: All tests pass, coverage requirements are met for new code, no warnings remain, branch is clean except intentional task-doc updates, and results are committed and pushed.
 
 ## Execution
@@ -300,3 +540,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ## Progress Log
 - 2026-06-14 14:11 Created from planning doc
+- pending commit Addressed granularity and ambiguity pass findings by splitting broad units and fixing exact paths/tool names/scripts
