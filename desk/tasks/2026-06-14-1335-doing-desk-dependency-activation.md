@@ -646,3 +646,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:44 Addressed scrutiny findings: dependency-light MCP bootstrap, Codex smoke, activation config, root packaging, artifact ownership/deactivation, search result modes, and coverage gate
 - 2026-06-14 14:44 Committed scrutiny fixes as `74832d5`
 - 2026-06-14 14:45 Clarified support-matrix ownership: host units update evidence, generator owns generated matrix output
+- 2026-06-14 14:45 Committed support-matrix ownership cleanup as `2ac1d80`
