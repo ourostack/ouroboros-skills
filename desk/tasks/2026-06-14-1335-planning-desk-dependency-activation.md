@@ -15,7 +15,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### In Scope
 - Define a versioned Desk activation contract that can express Desk as a dependency, Work Suite as a dependency, the `desk:worker` activation target, required MCP servers, desk-root binding, embedding artifact policy, and snapshot artifact policy.
-- Add host-specific packaging/adapters for the repo's supported host surfaces: Claude plugin metadata, Codex plugin/config materialization metadata, Copilot/root plugin metadata, and flattened-bundle support where native transitive dependencies are unavailable.
+- Add host-specific packaging/adapters for the repo's supported host surfaces: Claude plugin metadata, Codex plugin/config materialization metadata, Copilot/root plugin metadata, Ouroboros/autonomous-agent bundle metadata, and flattened-bundle support where native transitive dependencies are unavailable.
 - Keep the user-facing surface host-native. Do not introduce a bespoke everyday Desk CLI.
 - Prove host activation with schema validation or smoke tests, not only generated manifest files. In particular, Codex App and Codex CLI must have a clean activation path where a new thread/session sees worker behavior and Desk MCP tools without manual `codex mcp add`, AGENTS appends, or copied agent files.
 - Make the Desk MCP startup path self-prepare the local runtime index: resolve root, restore a compatible snapshot, import shared vector packs, reconcile changed docs, and degrade to lexical search when semantic query embeddings are unavailable.
@@ -55,6 +55,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Unknown activation schema versions fail closed with actionable diagnostics.
 - [ ] Plugin dependency order and activation order are deterministic.
 - [ ] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
+- [ ] Activation declares host permissions/capabilities and cannot silently elevate beyond the host plugin model.
 - [ ] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
 - [ ] Claude packaging declares Work Suite as a dependency where supported by the host format.
 - [ ] Claude Agent View/background-session inheritance is validated or explicitly documented as unsupported for the current host version.
@@ -66,10 +67,13 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Codex App and Codex CLI smoke tests prove that a new thread/session sees worker behavior and Desk MCP tools after activation.
 - [ ] Codex smoke tests prove there is no healthy-path `codex mcp add`, copied agent file, or AGENTS append/copy step.
 - [ ] Host adapters preserve and merge user-authored instructions/config safely instead of overwriting them.
+- [ ] Host adapters document and test their permission/capability boundary.
+- [ ] Generated activation artifacts respect host permission/capability boundaries.
 - [ ] Host adapters never require healthy-path manual MCP registration.
 - [ ] Host adapters never require healthy-path manual `npm install` inside plugin directories.
 - [ ] Host adapters never require healthy-path hand-editing of JSON or TOML.
 - [ ] Host support matrix is generated from real schema validation or smoke evidence.
+- [ ] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual native-dependency installation.
 - [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared in a host-appropriate writable data/cache location.
@@ -92,10 +96,13 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Missing local `.state/desk-index.sqlite` is treated as a normal first-run state.
 - [ ] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
 - [ ] Long-running repairs are deferred, explicitly surfaced, or explicitly invoked rather than silently blocking session start.
+- [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
 - [ ] Compatible snapshots are copied into `.state/` before mutation.
-- [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, and artifact format.
+- [ ] Snapshot manifest includes source commit or source tree hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
+- [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, source/document hashes, included pack IDs, and artifact format.
 - [ ] Snapshot restore treats source tree or document tree mismatch as freshness information, not compatibility failure.
 - [ ] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
+- [ ] Snapshot restore rejects or skips artifacts with unexpected source paths.
 - [ ] Snapshot artifacts are compressed or otherwise size-managed.
 - [ ] Runtime chooses the newest compatible snapshot for the active embedding spec and ignores inactive-spec snapshots.
 - [ ] Snapshot restore corruption is treated as a cache miss.
@@ -117,6 +124,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Explicit snapshot build/verify can run through MCP maintenance tools or existing package/release scripts.
 - [ ] Public or sensitive repo policy can disable embedding/snapshot publication.
 - [ ] Documentation states that embeddings and snapshots are derivative data and may carry privacy risk.
+- [ ] Health output, logs, snapshot errors, and vector-pack validation errors avoid dumping chunk text or sensitive document content.
+- [ ] Vector-pack validation errors report file, row, and chunk key without dumping full text.
 - [ ] Gitignored secret files are excluded from indexing and artifact publication by default.
 - [ ] Artifact publication requires explicit approval when repository or organization policy requires it.
 - [ ] Deleted/redacted documents are invalidated through tombstones, pruning, or artifact rotation.
@@ -145,6 +154,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover project-local/global Codex activation policy.
 - [ ] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
+- [ ] Tests cover permission/capability boundaries for generated activation artifacts.
+- [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
+- [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify vector packs and snapshots without introducing a user-facing Desk CLI.
 - [ ] 100% test coverage on all new code
@@ -163,6 +175,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Confirm before conversion/execution: shared embedding/snapshot publication should default off for public or sensitive repositories and require explicit policy approval before writing repo artifacts.
 - [ ] Confirm before conversion/execution: redaction cleanup should use tombstones for immediate invalidation plus artifact pruning/rotation for durable cleanup.
 - [ ] Confirm before conversion/execution: unsupported host primitives should be handled by flattened host-specific bundles or documented unsupported status rather than claiming native support.
+- [ ] Confirm before conversion/execution: concrete startup/rebuild performance budget thresholds should be set in test configuration or release policy before implementation begins.
 
 ## Decisions Made
 - Desk must be a dependency substrate, not a separately installed user prerequisite. Dependent plugins and custom agents carry Desk through host-native dependency or flattened packaging.
@@ -176,6 +189,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - MCP health will be exposed as a named registered tool, provisionally `desk_status`, unless implementation discovers a stronger local naming convention.
 - Snapshot compatibility excludes source/document freshness. Freshness mismatch should restore then reconcile; schema/spec/runtime/path mismatch should reject or skip.
 - Redaction safety cannot remain "policy only"; implementation must provide a concrete invalidation mechanism and tests.
+- Diagnostics are part of the privacy surface. They may identify files, rows, keys, and manifest fields, but must not dump chunk text or sensitive document content.
 - The initial implementation should prefer deterministic, testable primitives over host-specific magic: activation manifest, adapter output, MCP health, vector packs, snapshot manifests, and CI fixtures.
 
 ## Context / References
@@ -196,6 +210,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - `plugins/desk/mcp/__tests__/` — current MCP test suite to extend.
 - `plugins/work-suite/README.md` — Work Suite dependency and cross-host packaging context.
 - `plugins/work-suite/.codex-plugin/plugin.json` and `plugins/work-suite/.claude-plugin/plugin.json` — Work Suite host metadata.
+- `plugins/desk/README.md` Ouroboros install section — current autonomous-agent/bundle path that must receive a support-matrix disposition.
 
 ## Notes
 Ideator synthesis: the product surface is dependency activation, not setup. The implementation must make the healthy path boring: install/open the dependent plugin or agent, the host activates Desk, the MCP self-prepares, and search is useful immediately from snapshot or bundled vectors. The weak areas to plan around are Codex App default activation, native MCP dependency bootstrapping, vector privacy/redaction, host dependency flattening, and snapshot portability.
@@ -203,3 +218,4 @@ Ideator synthesis: the product surface is dependency activation, not setup. The 
 ## Progress Log
 - 2026-06-14 13:36 Created
 - 2026-06-14 13:42 Addressed Round 1 reviewer findings: Codex smoke proof, MCP runtime ownership, bounded startup, artifact integrity, redaction, dependency versions, host support evidence, and health tool visibility
+- pending commit Addressed Round 2 reviewer findings: performance budget explicitness, permission boundaries, diagnostic privacy, snapshot manifest fields, and Ouroboros/autonomous-agent support disposition
