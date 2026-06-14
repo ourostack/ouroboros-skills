@@ -63,7 +63,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Copilot packaging has a flattened dependency strategy for hosts without transitive dependency resolution.
 - [ ] Codex packaging exposes Desk skills through Codex plugin metadata.
 - [ ] Codex packaging exposes Desk MCP through Codex plugin metadata.
-- [ ] Codex activation implements project-local materialization by default, with global default/profile behavior only through explicit opt-in.
+- [ ] Codex activation implements global personal worker+Desk default behavior as the primary happy path, with project-local and manual-only invocation modes available as opt-outs.
 - [ ] Codex App and Codex CLI smoke tests prove that a new thread/session sees worker behavior and Desk MCP tools after activation.
 - [ ] Codex smoke tests prove there is no healthy-path `codex mcp add`, copied agent file, or AGENTS append/copy step.
 - [ ] Host adapters preserve and merge user-authored instructions/config safely instead of overwriting them.
@@ -151,7 +151,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover gitignored secret exclusion as product behavior.
 - [ ] Tests cover repeated startup idempotence.
 - [ ] Tests cover deactivation/uninstall artifact ownership.
-- [ ] Tests cover project-local/global Codex activation policy.
+- [ ] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
 - [ ] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
 - [ ] Tests cover permission/capability boundaries for generated activation artifacts.
@@ -171,7 +171,6 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Edge cases: null, empty, boundary values
 
 ## Open Questions
-- [ ] Confirm before conversion/execution: Codex activation should default to project-local materialization, with global default/profile behavior only by explicit opt-in.
 - [ ] Confirm before conversion/execution: shared embedding/snapshot publication should default off for public or sensitive repositories and require explicit policy approval before writing repo artifacts.
 - [ ] Confirm before conversion/execution: redaction cleanup should use tombstones for immediate invalidation plus artifact pruning/rotation for durable cleanup.
 - [ ] Confirm before conversion/execution: unsupported host primitives should be handled by flattened host-specific bundles or documented unsupported status rather than claiming native support.
@@ -186,6 +185,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Query embedding availability is separate from document embedding availability. Bundled document vectors do not remove the need for query embeddings for semantic query ranking.
 - Publication of embedding/snapshot artifacts must be explicit and policy-controlled, especially for public or sensitive repositories.
 - Codex is treated as the highest-risk host adapter because plugin MCP/skills do not automatically imply default app worker identity; the implementation must prove a durable Codex activation/materialization path.
+- For personal Codex use, global worker+Desk default behavior is the desired happy path because Desk is the durable-context backbone. Project-local and manual-only modes are opt-outs for operators who do not want every session to inherit worker+Desk behavior.
 - MCP health will be exposed as a named registered tool, provisionally `desk_status`, unless implementation discovers a stronger local naming convention.
 - Snapshot compatibility excludes source/document freshness. Freshness mismatch should restore then reconcile; schema/spec/runtime/path mismatch should reject or skip.
 - Redaction safety cannot remain "policy only"; implementation must provide a concrete invalidation mechanism and tests.
