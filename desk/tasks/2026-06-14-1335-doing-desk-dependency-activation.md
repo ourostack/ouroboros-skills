@@ -685,3 +685,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:54 Addressed second scrutiny findings: early coverage gate, explicit artifact paths, native runtime prebuild ownership, post-status Codex smoke, privacy-before-publication ordering, root precedence, host launch fixtures, and red-test semantics
 - 2026-06-14 14:54 Committed second scrutiny fixes as `376ddc7`
 - 2026-06-14 15:00 Addressed third scrutiny findings: support-matrix regeneration after evidence changes, Codex ownership unit ordering, native prebuild-only bootstrap semantics, and interleaved integration red/green units
+- 2026-06-14 15:00 Committed third scrutiny fixes as `240fc70`
