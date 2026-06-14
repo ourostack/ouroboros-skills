@@ -189,7 +189,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Notes exist, cited source paths exist at HEAD, and no production code changed in this unit.
 
-### ⬜ Unit 0a: Coverage Gate Baseline - Tests
+### ✅ Unit 0a: Coverage Gate Baseline - Tests
 **What**: Write failing checks for coverage commands that enforce 100% coverage on new Desk MCP files, MCP scripts, and root validation scripts added by this task. Include fixtures for uncovered new files, missing reports, excluded files, root `scripts/*.cjs`, and CI/local command mismatch.  
 **Output**: `plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js` and expected coverage command documentation in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Tests fail until coverage tooling, thresholds, and the `test:coverage` command exist.
@@ -735,3 +735,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:28 Committed eighth scrutiny fix as `f7393c5`
 - 2026-06-14 15:30 Final Tinfoil Hat and Stranger With Candy scrutiny gates converged; doing doc marked READY_FOR_EXECUTION
 - 2026-06-14 15:40 Unit 0 complete: setup research notes written, baseline command failures recorded, and unit review skipped (reason: docs-only research artifact)
+- 2026-06-14 15:44 Unit 0a complete: coverage-gate red tests and setup-notes command contract committed; targeted red run saved to `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/unit-0a-coverage-gate-red.log`
