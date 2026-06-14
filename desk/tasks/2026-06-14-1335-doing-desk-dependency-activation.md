@@ -19,19 +19,19 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - None
 
 ## Completion Criteria
-- [ ] A versioned Desk activation manifest/schema exists and is documented.
-- [ ] The activation schema can declare Desk as a substrate dependency.
-- [ ] The activation schema can declare Work Suite as a dependency.
-- [ ] Dependency entries include dependency ID, semver range or exact pin, resolved provenance/lock data, and incompatible-version diagnostics.
-- [ ] The activation schema can declare `desk:worker` as a provided activation target.
-- [ ] The activation schema can declare overlay agents that depend on Desk without launching as `desk:worker`.
-- [ ] The activation schema can declare required MCP servers.
-- [ ] The activation schema can declare desk-root binding policy.
-- [ ] The activation schema can declare shared embedding artifact policy.
-- [ ] The activation schema can declare snapshot artifact policy.
-- [ ] The activation schema can declare host support, host fallbacks, and flattened bundle requirements.
-- [ ] Unknown activation schema versions fail closed with actionable diagnostics.
-- [ ] Plugin dependency order and activation order are deterministic.
+- [x] A versioned Desk activation manifest/schema exists and is documented.
+- [x] The activation schema can declare Desk as a substrate dependency.
+- [x] The activation schema can declare Work Suite as a dependency.
+- [x] Dependency entries include dependency ID, semver range or exact pin, resolved provenance/lock data, and incompatible-version diagnostics.
+- [x] The activation schema can declare `desk:worker` as a provided activation target.
+- [x] The activation schema can declare overlay agents that depend on Desk without launching as `desk:worker`.
+- [x] The activation schema can declare required MCP servers.
+- [x] The activation schema can declare desk-root binding policy.
+- [x] The activation schema can declare shared embedding artifact policy.
+- [x] The activation schema can declare snapshot artifact policy.
+- [x] The activation schema can declare host support, host fallbacks, and flattened bundle requirements.
+- [x] Unknown activation schema versions fail closed with actionable diagnostics.
+- [x] Plugin dependency order and activation order are deterministic.
 - [ ] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
 - [ ] Activation declares host permissions/capabilities and cannot silently elevate beyond the host plugin model.
 - [ ] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
@@ -141,9 +141,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [ ] 100% test coverage on all new code
-- [ ] All tests pass
-- [ ] No warnings
+- [x] 100% test coverage on all new code
+- [x] All tests pass
+- [x] No warnings
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**
@@ -209,7 +209,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/activation_contract.test.js`.  
 **Acceptance**: Tests fail because `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, and canonical activation fixtures do not exist or do not satisfy the expected contract.
 
-### ⬜ Unit 1b: Activation Contract - Implementation
+### ✅ Unit 1b: Activation Contract - Implementation
 **What**: Add the activation schema, canonical Desk activation manifest, validator, and fixture manifests. Keep the contract host-neutral and avoid a user-facing Desk CLI.  
 **Output**: `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/activation/desk.activation.json`, and `plugins/desk/activation/README.md`.  
 **Acceptance**: Unit 1a tests pass, unsupported or unknown schemas fail closed with actionable diagnostics, and dependency ordering is deterministic.
@@ -746,3 +746,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 16:42 Unit 1a reviewer fix: Einstein found the red contract under-specified dependency validation, nested policy validation, `desk:worker`/overlay relationship integrity, and schema required-field ordering; strengthened `activation_contract.test.js` with negative cases for IDs, semver ranges, exact pins, lock mismatches, incompatible locks, MCP/root/artifact/host/permission fields, missing/default/duplicate `desk:worker`, unknown dependencies/inherits, shuffled deterministic ordering, and order-insensitive schema required-field checks; refreshed `unit-1a-activation-contract-red.log`
 - 2026-06-14 16:44 Unit 1a Round 2 reviewer fix: added missing negative cases for `host_support[].capabilities`, `permissions.requested_capabilities`, and `permissions.generated_artifacts`; refreshed `unit-1a-activation-contract-red.log`
 - 2026-06-14 16:46 Unit 1a cold reviewer gate converged with no findings
+- 2026-06-14 16:51 Unit 1b complete: activation schema, validator, canonical Desk activation manifest, and docs landed in `820a08e`; corrected Unit 1a fixture overrides that could not actually remove nested fields, added defensive/range branch coverage to reach 100% line/branch/function coverage for new activation code, saved `unit-1b-activation-contract-green.log`, `unit-1b-test-coverage-green.log`, and `unit-1b-npm-test-green.log`, and verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
