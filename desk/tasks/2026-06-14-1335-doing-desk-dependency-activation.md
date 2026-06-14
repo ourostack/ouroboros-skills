@@ -172,11 +172,11 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 ### ⬜ Unit 1a: Activation Contract - Tests
 **What**: Write failing tests for a versioned activation manifest/schema and validator. Cover dependency ID, semver/pin, provenance/lock fields, host support/fallback fields, permissions/capabilities, `desk:worker`, overlay agents, MCP requirements, desk-root binding, embedding policy, snapshot policy, unknown schema versions, deterministic dependency order, and unsupported-host diagnostics.  
 **Output**: `plugins/desk/mcp/__tests__/activation/activation_contract.test.js`.  
-**Acceptance**: Tests fail because `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/mcp/src/activation/support-matrix.js`, and canonical activation fixtures do not exist or do not satisfy the expected contract.
+**Acceptance**: Tests fail because `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, and canonical activation fixtures do not exist or do not satisfy the expected contract.
 
 ### ⬜ Unit 1b: Activation Contract - Implementation
-**What**: Add the activation schema, canonical Desk activation manifest, validator, fixture manifests, and generated/validated support-matrix data. Keep the contract host-neutral and avoid a user-facing Desk CLI.  
-**Output**: `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/desk.activation.json`, `plugins/desk/activation/README.md`, and `plugins/desk/activation/support-matrix.json`.  
+**What**: Add the activation schema, canonical Desk activation manifest, validator, and fixture manifests. Keep the contract host-neutral and avoid a user-facing Desk CLI.  
+**Output**: `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, `plugins/desk/activation/desk.activation.json`, and `plugins/desk/activation/README.md`.  
 **Acceptance**: Unit 1a tests pass, unsupported or unknown schemas fail closed with actionable diagnostics, and dependency ordering is deterministic.
 
 ### ⬜ Unit 1c: Activation Contract - Coverage & Refactor
@@ -186,12 +186,12 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 2a: Codex Global Activation - Tests
 **What**: Write failing tests for Codex global personal worker+Desk default activation, project-local opt-out, manual-only opt-out, safe merge/preservation of user-authored config, no uncontrolled `AGENTS.md` append/copy, no manual `codex mcp add`, and permission/capability boundaries.  
-**Output**: `plugins/desk/mcp/__tests__/activation/codex_activation.test.js` and fixtures under `plugins/desk/mcp/__tests__/fixtures/activation/codex/{global-personal,project-local,manual-only}/`.  
+**Output**: `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/.codex-plugin/plugin.json`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Tests fail because Codex activation materialization does not yet exist or still relies on manual setup assumptions.
 
 ### ⬜ Unit 2b: Codex Global Activation - Implementation
 **What**: Implement the Codex adapter/materialization path for global personal default worker+Desk activation, plus project-local and manual-only opt-outs. Ensure generated artifacts are owned/tracked and preserve user-authored config.  
-**Output**: `plugins/desk/mcp/src/activation/adapters/codex.js` and fixture output under `plugins/desk/mcp/__tests__/fixtures/activation/codex/{global-personal,project-local,manual-only}/`.  
+**Output**: `plugins/desk/mcp/src/activation/adapters/codex.js`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/.codex-plugin/plugin.json`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Unit 2a tests pass and generated output proves a new Codex App/CLI session can be configured without manual MCP registration or copied worker files.
 
 ### ⬜ Unit 2c: Codex Global Activation - Coverage & Refactor
@@ -277,7 +277,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 ### ⬜ Unit 8a: Runtime Cache And Path Bootstrap - Tests
 **What**: Write failing tests for cwd-independent launch, plugin-relative path resolution, immutable plugin directory protection, and runtime cache precedence.  
 **Output**: `plugins/desk/mcp/__tests__/runtime/cache_and_paths.test.js`.  
-**Acceptance**: Tests fail until runtime cache resolution uses activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`, and startup never writes under `plugins/desk/`, `plugins/desk/.codex-plugin/`, `plugins/desk/.claude-plugin/`, or temp host cache/source fixture dirs created by the test.
+**Acceptance**: Tests fail until runtime cache resolution uses activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`, and startup never writes under `plugins/desk/`, `plugins/desk/.codex-plugin/`, `plugins/desk/.claude-plugin/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/plugin-source/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/host-cache-source/`, or `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/readonly-plugin-cache/`.
 
 ### ⬜ Unit 8b: Runtime Cache And Path Bootstrap - Implementation
 **What**: Implement runtime cache/path helpers and wire MCP startup to use them.  
@@ -290,13 +290,13 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new runtime path/cache code and all runtime cache tests pass.
 
 ### ⬜ Unit 9a: Bounded Startup And Deferred Repair - Tests
-**What**: Write failing tests for healthy startup avoiding network calls, startup budget enforcement, long repair deferral, explicit repair state, and offline startup with snapshot/vector-pack/lexical fallback.  
+**What**: Write failing tests for healthy startup avoiding network calls, startup budget enforcement from `plugins/desk/mcp/config/performance-budgets.json`, long repair deferral, explicit repair state, and offline startup with snapshot/vector-pack/lexical fallback.  
 **Output**: `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.  
-**Acceptance**: Tests fail until startup/rebuild budget values are read from test config or release policy and repair does not silently block session start.
+**Acceptance**: Tests fail until startup/rebuild budget values are read from `plugins/desk/mcp/config/performance-budgets.json` and repair does not silently block session start.
 
 ### ⬜ Unit 9b: Bounded Startup And Deferred Repair - Implementation
 **What**: Implement bounded startup behavior and repair-state reporting in `ensureIndex`/server startup without removing explicit repair paths.  
-**Output**: Updated `plugins/desk/mcp/src/server-helpers.js`, startup helpers, and test budget fixture.  
+**Output**: Updated `plugins/desk/mcp/src/server-helpers.js`, startup helpers, and `plugins/desk/mcp/config/performance-budgets.json`.  
 **Acceptance**: Unit 9a tests pass, healthy warm start performs no embedding network calls, and long repairs are deferred or explicitly surfaced.
 
 ### ⬜ Unit 9c: Bounded Startup And Deferred Repair - Coverage & Refactor
@@ -370,9 +370,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail until compaction and preservation checks exist.
 
 ### ⬜ Unit 14b: Vector Compaction And Search Preservation - Implementation
-**What**: Implement compaction or compaction validation hooks and preserve search/ref behavior across import/rebuild/compaction.  
-**Output**: Vector-pack compaction helpers or explicit compaction validation stubs, plus updated search/indexer behavior.  
-**Acceptance**: Unit 14a tests pass and semantic equivalence checks protect compaction before enablement.
+**What**: Implement compaction validation hooks only; do not enable pack rewriting in this unit. Preserve search/ref behavior across import/rebuild/validation.  
+**Output**: Vector-pack compaction validation helpers plus updated search/indexer behavior.  
+**Acceptance**: Unit 14a tests pass and semantic equivalence checks must pass before any future compaction rewrite can be enabled.
 
 ### ⬜ Unit 14c: Vector Compaction And Search Preservation - Coverage & Refactor
 **What**: Add coverage for archived docs, removed docs, duplicate chunk keys, and refs graph recomputation after compaction.  
@@ -425,7 +425,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new fallback/reconcile code and all fallback tests pass.
 
 ### ⬜ Unit 18a: Artifact Scripts And Performance Budgets - Tests
-**What**: Write failing tests for exact `plugins/desk/mcp/package.json` scripts: `artifact:vector-pack:build`, `artifact:snapshot:build`, `artifact:snapshot:verify`, and `artifact:validate`. Cover CI invocation and startup/rebuild budget thresholds from test config or release policy.  
+**What**: Write failing tests for exact `plugins/desk/mcp/package.json` scripts: `artifact:vector-pack:build`, `artifact:snapshot:build`, `artifact:snapshot:verify`, and `artifact:validate`. Cover CI invocation and startup/rebuild budget thresholds from `plugins/desk/mcp/config/performance-budgets.json`.  
 **Output**: `plugins/desk/mcp/__tests__/artifacts/scripts_and_budgets.test.js`.  
 **Acceptance**: Tests fail until the package scripts and budget config exist.
 
@@ -475,12 +475,12 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail until tombstone and cleanup behavior exists.
 
 ### ⬜ Unit 21b: Tombstones And Redaction Cleanup - Implementation
-**What**: Implement tombstone metadata, artifact invalidation, and pruning or rotation cleanup for vector packs and snapshots.  
-**Output**: Redaction/tombstone modules and artifact cleanup integration.  
+**What**: Implement tombstone metadata, artifact invalidation, and artifact rotation cleanup for vector packs and snapshots.  
+**Output**: Redaction/tombstone modules and artifact rotation cleanup integration.  
 **Acceptance**: Unit 21a tests pass and deleted/redacted docs are not represented in active vector packs or snapshots.
 
 ### ⬜ Unit 21c: Tombstones And Redaction Cleanup - Coverage & Refactor
-**What**: Add coverage for missing tombstone files, corrupt tombstones, cleanup after compaction, cleanup after snapshot rotation, and stale local DB rebuild after redaction.  
+**What**: Add coverage for missing tombstone files, corrupt tombstones, cleanup after compaction validation, cleanup after snapshot rotation, and stale local DB rebuild after redaction.  
 **Output**: Hardened redaction cleanup implementation.  
 **Acceptance**: 100% coverage on new redaction cleanup code and all cleanup tests pass.
 
@@ -490,7 +490,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail until Desk docs frame setup as dependency activation and move manual steps to troubleshooting/developer notes.
 
 ### ⬜ Unit 22b: Healthy-Path Docs - Implementation
-**What**: Update `plugins/desk/README.md`, `plugins/desk/agents/README.md`, `plugins/desk/mcp/README.md`, activation docs, and story/planning references to reflect dependency activation, global Codex personal default, opt-outs, privacy, and no bespoke CLI.  
+**What**: Update `plugins/desk/README.md`, `plugins/desk/agents/README.md`, `plugins/desk/mcp/README.md`, `plugins/desk/activation/README.md`, `plugins/desk/docs/dependency-activation-stories-and-criteria.md`, and `desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md` to reflect dependency activation, global Codex personal default, opt-outs, privacy, and no bespoke CLI.  
 **Output**: Updated documentation and docs validation script.  
 **Acceptance**: Unit 22a tests pass and docs no longer present manual Desk install as the healthy path.
 
@@ -514,35 +514,55 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened CI/freshness validation.  
 **Acceptance**: All CI/freshness tests pass locally.
 
-### ⬜ Unit 24a: Full Integration Tests - Tests
-**What**: Write failing integration checks for full cold start, snapshot restore, vector-pack rebuild without embeddings, missing-vector live generation with mocked endpoint, active/archived scope preservation, refs graph preservation, repeated startup idempotence, and degraded semantic mode.  
+### ⬜ Unit 24a1: Integration Tests - Cold Start And Snapshot Restore
+**What**: Write failing integration checks for full cold start and compatible snapshot restore.  
 **Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
-**Acceptance**: Tests fail until the end-to-end flow is fully wired.
+**Acceptance**: Cold-start snapshot restore tests fail until the paired Unit 24b1 implementation.
+
+### ⬜ Unit 24a2: Integration Tests - Vector-Pack Rebuild Without Embeddings
+**What**: Write failing integration checks for vector-pack rebuild with embedding endpoint disabled.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Vector-pack rebuild tests fail until the paired Unit 24b2 implementation.
+
+### ⬜ Unit 24a3: Integration Tests - Missing-Vector Live Generation
+**What**: Write failing integration checks for missing-vector live generation with a mocked embedding endpoint.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Missing-vector live generation tests fail until the paired Unit 24b3 implementation.
+
+### ⬜ Unit 24a4: Integration Tests - Scope And Refs Preservation
+**What**: Write failing integration checks for active/archived scope preservation and refs graph preservation.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Scope and refs preservation tests fail until the paired Unit 24b4 implementation.
+
+### ⬜ Unit 24a5: Integration Tests - Idempotence And Degraded Semantic Mode
+**What**: Write failing integration checks for repeated startup idempotence and degraded semantic mode.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Idempotence and degraded semantic tests fail until the paired Unit 24b5 implementation.
 
 ### ⬜ Unit 24b1: Integration - Cold Start And Snapshot Restore
 **What**: Wire the integration flow for cold start plus compatible snapshot restore.  
 **Output**: Updates to snapshot/startup modules required by `dependency_activation_flow.test.js` cold-start snapshot cases.  
-**Acceptance**: Only the cold-start snapshot restore subset of Unit 24a passes.
+**Acceptance**: Paired Unit 24a1 tests pass; earlier integration subsets remain green; later subsets may still fail.
 
 ### ⬜ Unit 24b2: Integration - Vector-Pack Rebuild Without Embeddings
 **What**: Wire the integration flow for rebuilding from docs plus vector packs with embedding endpoint disabled.  
 **Output**: Updates to vector-pack/indexer modules required by the no-embedding rebuild cases.  
-**Acceptance**: Only the vector-pack rebuild-without-embeddings subset of Unit 24a passes.
+**Acceptance**: Paired Unit 24a2 tests pass; earlier integration subsets remain green; later subsets may still fail.
 
 ### ⬜ Unit 24b3: Integration - Missing-Vector Live Generation
 **What**: Wire the integration flow for generating only missing vectors with a mocked embedding endpoint.  
 **Output**: Updates to vector-pack/indexer/embed modules required by missing-vector generation cases.  
-**Acceptance**: Only the missing-vector mocked live generation subset of Unit 24a passes.
+**Acceptance**: Paired Unit 24a3 tests pass; earlier integration subsets remain green; later subsets may still fail.
 
 ### ⬜ Unit 24b4: Integration - Scope And Refs Preservation
 **What**: Wire the integration flow for active/archived search scope and refs graph preservation after restore/import/rebuild.  
 **Output**: Updates to search/indexer/refs modules required by scope and refs preservation cases.  
-**Acceptance**: Only the active/archived scope and refs graph subset of Unit 24a passes.
+**Acceptance**: Paired Unit 24a4 tests pass; earlier integration subsets remain green; later subsets may still fail.
 
 ### ⬜ Unit 24b5: Integration - Idempotence And Degraded Semantic Mode
 **What**: Wire the integration flow for repeated startup idempotence and degraded semantic mode.  
 **Output**: Updates to startup/status/search modules required by idempotence and degraded semantic cases.  
-**Acceptance**: Only the repeated startup and degraded semantic subset of Unit 24a passes.
+**Acceptance**: Paired Unit 24a5 tests pass; earlier integration subsets remain green.
 
 ### ⬜ Unit 24c: Final Verification And Handoff
 **What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and new coverage commands. Update planning/doing checklists only for criteria with evidence.  
@@ -564,3 +584,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:25 Validation pass converged
 - 2026-06-14 14:25 Quality pass converged
 - 2026-06-14 14:28 Addressed Round 2 granularity and ambiguity findings: split final integration implementation and fixed remaining exact targets
+- pending commit Addressed final granularity and ambiguity findings: split integration tests, clarified ownership, and removed remaining alternatives
