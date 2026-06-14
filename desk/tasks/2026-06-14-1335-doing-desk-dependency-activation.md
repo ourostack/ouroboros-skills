@@ -245,8 +245,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail on missing or stale Claude/Work Suite dependency and support metadata.
 
 ### ⬜ Unit 4b: Claude And Work Suite Packaging - Implementation
-**What**: Update Claude-facing Desk and Work Suite metadata plus support-matrix rows to match the Claude disposition recorded in `host-capability-evidence.md`.  
-**Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, and support matrix data.  
+**What**: Update Claude-facing Desk and Work Suite metadata plus `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows to match the Claude disposition. Do not edit the generated support matrix directly.  
+**Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, and Claude evidence rows.  
 **Acceptance**: Unit 4a tests pass and unsupported Claude primitives are documented instead of claimed.
 
 ### ⬜ Unit 4c: Claude And Work Suite Packaging - Coverage & Refactor
@@ -260,8 +260,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail on current root manifest drift or missing flattened dependency metadata.
 
 ### ⬜ Unit 5b: Copilot Root Packaging - Implementation
-**What**: Update root/Copilot plugin metadata, add or update Work Suite root plugin metadata, and generate flattened-bundle metadata for Desk plus Work Suite.  
-**Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, and support matrix data.  
+**What**: Update root/Copilot plugin metadata, add or update Work Suite root plugin metadata, generate flattened-bundle metadata for Desk plus Work Suite, and update `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows. Do not edit the generated support matrix directly.  
+**Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, and Copilot/root evidence rows.  
 **Acceptance**: Unit 5a tests pass and Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode.
 
 ### ⬜ Unit 5c: Copilot Root Packaging - Coverage & Refactor
@@ -272,11 +272,11 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 ### ⬜ Unit 6a: Ouroboros And Generic Stdio Packaging - Tests
 **What**: Write failing tests for the Ouroboros/autonomous-agent bundle disposition and generic stdio MCP launch disposition. Cover `bundle.json` expectation docs, `$DESK` preamble binding, and flattened or unsupported status.  
 **Output**: `plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js`.  
-**Acceptance**: Tests fail until support-matrix rows and docs give explicit dispositions for Ouroboros/autonomous-agent and generic stdio paths.
+**Acceptance**: Tests fail until evidence rows, generated support-matrix output, and docs give explicit dispositions for Ouroboros/autonomous-agent and generic stdio paths.
 
 ### ⬜ Unit 6b: Ouroboros And Generic Stdio Packaging - Implementation
-**What**: Add support-matrix and docs entries for Ouroboros/autonomous-agent bundle wiring and generic stdio MCP launch.  
-**Output**: Updated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
+**What**: Add `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` and docs entries for Ouroboros/autonomous-agent bundle wiring and generic stdio MCP launch, then regenerate support-matrix output through the Unit 3 generator.  
+**Output**: Updated evidence rows, generated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
 **Acceptance**: Unit 6a tests pass and the docs no longer leave the Ouroboros path out of the activation story.
 
 ### ⬜ Unit 6c: Ouroboros And Generic Stdio Packaging - Coverage & Refactor
@@ -645,3 +645,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:36 Granularity and ambiguity reviewer gates converged
 - 2026-06-14 14:44 Addressed scrutiny findings: dependency-light MCP bootstrap, Codex smoke, activation config, root packaging, artifact ownership/deactivation, search result modes, and coverage gate
 - 2026-06-14 14:44 Committed scrutiny fixes as `74832d5`
+- 2026-06-14 14:45 Clarified support-matrix ownership: host units update evidence, generator owns generated matrix output
