@@ -342,7 +342,21 @@ test("activation validation requires MCP, root, artifact, host, and permission p
       patterns: [/host_support\[0\]\.dependency_resolution/, /host_support\[0\]\.fallback_behavior/],
     },
     {
-      name: "permission boundary",
+      name: "host capability declarations",
+      manifest: validManifest({
+        host_support: [
+          {
+            host: "codex",
+            status: "supported",
+            dependency_resolution: "flattened",
+            fallback_behavior: "materialize owned global/project activation artifacts",
+          },
+        ],
+      }),
+      patterns: [/host_support\[0\]\.capabilities/],
+    },
+    {
+      name: "permission boundary never deletes desk data",
       manifest: validManifest({
         permissions: {
           requested_capabilities: ["Read"],
@@ -350,6 +364,26 @@ test("activation validation requires MCP, root, artifact, host, and permission p
         },
       }),
       patterns: [/permissions\.never_delete.*desk-root-data/i],
+    },
+    {
+      name: "permission boundary declares requested host capabilities",
+      manifest: validManifest({
+        permissions: {
+          generated_artifacts: ["owned-host-config"],
+          never_delete: ["desk-root-data"],
+        },
+      }),
+      patterns: [/permissions\.requested_capabilities/],
+    },
+    {
+      name: "permission boundary declares generated artifacts",
+      manifest: validManifest({
+        permissions: {
+          requested_capabilities: ["Read"],
+          never_delete: ["desk-root-data"],
+        },
+      }),
+      patterns: [/permissions\.generated_artifacts/],
     },
   ]
 

@@ -2,7 +2,7 @@ TAP version 13
 # Subtest: activation schema exports the supported version and required top-level fields
 not ok 1 - activation schema exports the supported version and required top-level fields
   ---
-  duration_ms: 1.543708
+  duration_ms: 1.573542
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:160:1'
   failureType: 'testCodeFailure'
@@ -23,7 +23,7 @@ not ok 1 - activation schema exports the supported version and required top-leve
 # Subtest: valid activation manifests distinguish substrate dependencies from agent activations
 not ok 2 - valid activation manifests distinguish substrate dependencies from agent activations
   ---
-  duration_ms: 0.269458
+  duration_ms: 0.272292
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:181:1'
   failureType: 'testCodeFailure'
@@ -44,7 +44,7 @@ not ok 2 - valid activation manifests distinguish substrate dependencies from ag
 # Subtest: activation validation fails closed for unknown schema versions with actionable diagnostics
 not ok 3 - activation validation fails closed for unknown schema versions with actionable diagnostics
   ---
-  duration_ms: 0.476667
+  duration_ms: 0.488334
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:191:1'
   failureType: 'testCodeFailure'
@@ -65,7 +65,7 @@ not ok 3 - activation validation fails closed for unknown schema versions with a
 # Subtest: activation dependencies require version intent, provenance, and lock data
 not ok 4 - activation dependencies require version intent, provenance, and lock data
   ---
-  duration_ms: 0.312375
+  duration_ms: 0.315125
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:201:1'
   failureType: 'testCodeFailure'
@@ -86,7 +86,7 @@ not ok 4 - activation dependencies require version intent, provenance, and lock 
 # Subtest: activation dependencies reject bad identity, semver, pins, and incompatible locks
 not ok 5 - activation dependencies reject bad identity, semver, pins, and incompatible locks
   ---
-  duration_ms: 0.382583
+  duration_ms: 0.381708
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:219:1'
   failureType: 'testCodeFailure'
@@ -107,7 +107,7 @@ not ok 5 - activation dependencies reject bad identity, semver, pins, and incomp
 # Subtest: activation validation requires MCP, root, artifact, host, and permission policy fields
 not ok 6 - activation validation requires MCP, root, artifact, host, and permission policy fields
   ---
-  duration_ms: 0.319
+  duration_ms: 0.329792
   type: 'test'
   location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:294:1'
   failureType: 'testCodeFailure'
@@ -128,9 +128,9 @@ not ok 6 - activation validation requires MCP, root, artifact, host, and permiss
 # Subtest: dependency and activation ordering is deterministic
 not ok 7 - dependency and activation ordering is deterministic
   ---
-  duration_ms: 0.2865
+  duration_ms: 0.288459
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:361:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:395:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/schema.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -149,9 +149,9 @@ not ok 7 - dependency and activation ordering is deterministic
 # Subtest: activation validation enforces desk:worker and overlay relationship integrity
 not ok 8 - activation validation enforces desk:worker and overlay relationship integrity
   ---
-  duration_ms: 0.256917
+  duration_ms: 0.261833
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:401:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:435:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/schema.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -170,9 +170,9 @@ not ok 8 - activation validation enforces desk:worker and overlay relationship i
 # Subtest: unsupported hosts produce host-native fallback diagnostics
 not ok 9 - unsupported hosts produce host-native fallback diagnostics
   ---
-  duration_ms: 0.482125
+  duration_ms: 0.465917
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:468:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:502:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/schema.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -191,9 +191,9 @@ not ok 9 - unsupported hosts produce host-native fallback diagnostics
 # Subtest: canonical Desk activation manifest exists and validates
 not ok 10 - canonical Desk activation manifest exists and validates
   ---
-  duration_ms: 0.534959
+  duration_ms: 0.45925
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:480:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js:514:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/schema.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/activation_contract.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -217,4 +217,4 @@ not ok 10 - canonical Desk activation manifest exists and validates
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 86.881625
+# duration_ms 87.57475
