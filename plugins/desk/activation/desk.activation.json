@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "id": "desk",
+  "version": "1.7.3",
+  "dependencies": [
+    {
+      "id": "desk",
+      "kind": "substrate",
+      "version": "1.7.3",
+      "provenance": {
+        "source": "plugins/desk/.codex-plugin/plugin.json",
+        "package": "ourostack/desk"
+      },
+      "lock": {
+        "version": "1.7.3",
+        "integrity": "sha256-desk-activation-manifest-v1"
+      }
+    },
+    {
+      "id": "work-suite",
+      "kind": "plugin",
+      "version_range": "^1.4.0",
+      "provenance": {
+        "source": "plugins/work-suite/.codex-plugin/plugin.json",
+        "package": "ourostack/work-suite"
+      },
+      "lock": {
+        "version": "1.4.9",
+        "integrity": "sha256-work-suite-activation-manifest-v1"
+      }
+    }
+  ],
+  "provides": {
+    "activation_targets": [
+      {
+        "id": "desk:worker",
+        "kind": "agent",
+        "default": true,
+        "depends_on": [
+          "desk",
+          "work-suite"
+        ],
+        "entrypoints": {
+          "claude": "agents/worker.agent.md",
+          "codex": "agents/worker.toml",
+          "copilot": "agents/worker.md"
+        }
+      }
+    ],
+    "overlay_agents": []
+  },
+  "mcp_servers": [
+    {
+      "id": "desk",
+      "required": true,
+      "command": "node",
+      "args": [
+        "mcp/index.js"
+      ],
+      "launch": "host-native"
+    }
+  ],
+  "desk_root": {
+    "policy": "global-default",
+    "precedence": [
+      "activation",
+      "DESK",
+      "safe-default"
+    ],
+    "opt_out_modes": [
+      "project-local",
+      "manual-only"
+    ]
+  },
+  "artifacts": {
+    "embeddings": {
+      "shared": true,
+      "spec_id": "nomic-embed-text-v1-768",
+      "vector_packs": "read-and-import"
+    },
+    "snapshots": {
+      "restore": "newest-compatible",
+      "stale_reconcile": "incremental"
+    }
+  },
+  "host_support": [
+    {
+      "host": "codex",
+      "status": "supported",
+      "dependency_resolution": "flattened",
+      "fallback_behavior": "materialize owned global/project activation artifacts",
+      "capabilities": [
+        "skills",
+        "mcp",
+        "global-default-agent"
+      ],
+      "unsupported_primitives": []
+    },
+    {
+      "host": "claude",
+      "status": "supported",
+      "dependency_resolution": "native-or-flattened",
+      "fallback_behavior": "ship flattened bundle when transitive dependencies are unavailable",
+      "capabilities": [
+        "skills",
+        "mcp",
+        "agents",
+        "hooks"
+      ],
+      "unsupported_primitives": []
+    },
+    {
+      "host": "generic-stdio",
+      "status": "degraded",
+      "dependency_resolution": "manual-host",
+      "fallback_behavior": "start MCP with explicit root and no worker activation",
+      "capabilities": [
+        "mcp"
+      ],
+      "unsupported_primitives": [
+        "agent-defaults"
+      ]
+    }
+  ],
+  "permissions": {
+    "requested_capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "generated_artifacts": [
+      "owned-host-config",
+      "activation-ledger"
+    ],
+    "never_delete": [
+      "desk-root-data"
+    ]
+  }
+}
