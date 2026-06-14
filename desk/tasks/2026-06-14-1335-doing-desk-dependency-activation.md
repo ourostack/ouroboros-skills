@@ -13,7 +13,7 @@
 - **direct**: Execute units sequentially in current session (default)
 
 ## Objective
-Make Desk behave as an automatically resolved dependency of plugins and custom agents, not as a manually installed user prerequisite. Implement the repo-side primitives for host-native activation, self-preparing Desk MCP startup, shared vector packs, prebuilt snapshot restore, diagnostics, and verification.
+Make Desk behave as an automatically resolved dependency of plugins and custom agents, not as a manually installed user prerequisite. Implement the repo-side primitives for host-native activation, verified-prebuild Desk MCP startup, shared vector packs, prebuilt snapshot restore, diagnostics, and verification.
 
 ## Upstream Work Items
 - None
@@ -55,7 +55,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual native-dependency installation.
-- [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared using this writable cache precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<native-package-versions>/`.
+- [ ] Native MCP runtime dependencies are restored from verified native prebuild artifacts into a writable cache using this precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<native-package-versions>/`.
 - [ ] Native prebuild artifacts live at `plugins/desk/mcp/artifacts/native-runtime/<plugin-version>/<platform>-<arch>-node-<abi>/<native-package-versions>/native-runtime.tgz` with adjacent manifest and checksum files.
 - [ ] Desk MCP launch works from arbitrary current working directories and resolves plugin-relative paths explicitly.
 - [ ] Desk MCP startup does not mutate immutable plugin source/cache directories.
@@ -170,6 +170,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Local mutable state: `.state/` only; startup copies compatible repo artifacts into `.state/` before mutation
 - Coverage command: `npm --prefix plugins/desk/mcp run test:coverage`
 - Full Desk MCP command: `npm --prefix plugins/desk/mcp test`
+- Support matrix generation command: `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`
 
 ## Work Units
 
@@ -219,7 +220,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail because Codex activation materialization does not yet exist or still relies on manual setup assumptions.
 
 ### ⬜ Unit 2b: Codex Global Activation - Implementation
-**What**: Implement the Codex adapter/materialization path for global personal default worker+Desk activation, plus project-local and manual-only opt-outs. Ensure generated artifacts are owned/tracked and preserve user-authored config.  
+**What**: Implement the Codex adapter/materialization path for global personal default worker+Desk activation, plus project-local and manual-only opt-outs. Emit generated artifacts in a stable shape later consumed by Units 2d-2f for ownership/ledger tracking, and preserve user-authored config.  
 **Output**: `plugins/desk/mcp/src/activation/adapters/codex.js`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/.codex-plugin/plugin.json`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Unit 2a tests pass and generated output proves Codex activation config can be materialized without manual MCP registration or copied worker files; real session smoke proof waits for Units 10d-10f after `desk_status` exists.
 
@@ -250,8 +251,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 3b: Support Matrix Generator - Implementation
 **What**: Implement support-matrix generation and validation from activation metadata plus the evidence artifact.  
-**Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/support-matrix.json`, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
-**Acceptance**: Unit 3a tests pass and generated support matrix matches the evidence artifact exactly.
+**Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/mcp/scripts/generate-support-matrix.js`, `plugins/desk/mcp/package.json` script `activation:support-matrix:generate`, `plugins/desk/activation/support-matrix.json`, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
+**Acceptance**: Unit 3a tests pass, `npm --prefix plugins/desk/mcp run activation:support-matrix:generate` regenerates `plugins/desk/activation/support-matrix.json`, and generated support matrix matches the evidence artifact exactly.
 
 ### ⬜ Unit 3c: Support Matrix Generator - Coverage & Refactor
 **What**: Add edge-case coverage for unknown hosts, missing evidence rows, unsupported primitive diagnostics, and conflicting native/flattened dispositions.  
@@ -265,8 +266,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 4b: Claude And Work Suite Packaging - Implementation
 **What**: Update Claude-facing Desk and Work Suite metadata plus `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows to match the Claude disposition. Do not edit the generated support matrix directly.  
-**Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, and Claude evidence rows.  
-**Acceptance**: Unit 4a tests pass and unsupported Claude primitives are documented instead of claimed.
+**Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, Claude evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.  
+**Acceptance**: Unit 4a tests pass, unsupported Claude primitives are documented instead of claimed, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
 
 ### ⬜ Unit 4c: Claude And Work Suite Packaging - Coverage & Refactor
 **What**: Add edge-case tests for missing Work Suite dependency, stale version, missing worker agent exposure, and unsupported Agent View assumptions.  
@@ -280,8 +281,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 5b: Copilot Root Packaging - Implementation
 **What**: Update root/Copilot plugin metadata, add or update Work Suite root plugin metadata, generate flattened-bundle metadata for Desk plus Work Suite, and update `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows. Do not edit the generated support matrix directly.  
-**Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, and Copilot/root evidence rows.  
-**Acceptance**: Unit 5a tests pass and Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode.
+**Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, Copilot/root evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.  
+**Acceptance**: Unit 5a tests pass, Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
 
 ### ⬜ Unit 5c: Copilot Root Packaging - Coverage & Refactor
 **What**: Add edge-case tests for missing agents path, missing skills path, missing MCP declaration, stale version, and missing flattened dependency closure.  
@@ -296,7 +297,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 ### ⬜ Unit 6b: Ouroboros And Generic Stdio Packaging - Implementation
 **What**: Add `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` and docs entries for Ouroboros/autonomous-agent bundle wiring and generic stdio MCP launch, then regenerate support-matrix output through the Unit 3 generator.  
 **Output**: Updated evidence rows, generated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
-**Acceptance**: Unit 6a tests pass and the docs no longer leave the Ouroboros path out of the activation story.
+**Acceptance**: Unit 6a tests pass, the docs no longer leave the Ouroboros path out of the activation story, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
 
 ### ⬜ Unit 6c: Ouroboros And Generic Stdio Packaging - Coverage & Refactor
 **What**: Add edge-case tests for missing `$DESK` binding, missing bundle metadata, and generic stdio launch without host dependency support.  
@@ -324,12 +325,12 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `better-sqlite3`, or `sqlite-vec`.
 
 ### ⬜ Unit 7b: Dependency-Light MCP Entrypoint - Implementation
-**What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that prepares or verifies the writable runtime cache from native prebuild artifacts or self-prep, then dynamically imports `plugins/desk/mcp/src/server.js`.  
+**What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that restores or verifies the writable runtime cache from native prebuild artifacts, then dynamically imports `plugins/desk/mcp/src/server.js`. Unsupported platforms or missing prebuilds must fail with actionable diagnostics rather than attempting an implicit install.  
 **Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, and runtime bootstrap fixtures.  
 **Acceptance**: Unit 7a tests pass, missing native dependencies produce actionable non-leaking diagnostics, and no plugin source directory is mutated.
 
 ### ⬜ Unit 7c: Dependency-Light MCP Entrypoint - Coverage & Refactor
-**What**: Add coverage for absent cache, corrupt cache metadata, offline prebuilt unavailable, unsupported platform, native package version mismatch, and repeated startup.  
+**What**: Add coverage for absent cache, corrupt cache metadata, offline prebuilt unavailable, unsupported platform, native package version mismatch, implicit-install prevention, and repeated startup.  
 **Output**: Hardened dependency-light bootstrap implementation.  
 **Acceptance**: 100% coverage on new bootstrap code and all dependency-light entrypoint tests pass.
 
@@ -385,8 +386,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 10e: Codex CLI/App Smoke - Implementation
 **What**: Implement the Codex smoke harness and support-matrix evidence updates. Use only temp Codex homes/profiles/sessions and never the user's real Codex config.  
-**Output**: Updated smoke harness, `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md`, and Codex support-matrix evidence rows.  
-**Acceptance**: Unit 10d tests/evidence pass, CLI activation sees worker instructions and `desk_status`, and Codex App is either smoke-proven or explicitly unsupported with fallback evidence.
+**Output**: Updated smoke harness, `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md`, Codex support-matrix evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.  
+**Acceptance**: Unit 10d tests/evidence pass, CLI activation sees worker instructions and `desk_status`, Codex App is either smoke-proven or explicitly unsupported with fallback evidence, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
 
 ### ⬜ Unit 10f: Codex CLI/App Smoke - Coverage & Refactor
 **What**: Add coverage for missing Codex binary/app support, stale generated config, failed MCP launch, manual-only opt-out, project-local opt-out, and cleanup of temp profiles.  
@@ -608,50 +609,50 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
 **Acceptance**: Cold-start snapshot restore tests fail until the paired Unit 24b1 implementation.
 
-### ⬜ Unit 24a2: Integration Tests - Vector-Pack Rebuild Without Embeddings
-**What**: Write failing integration checks for vector-pack rebuild with embedding endpoint disabled.  
-**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
-**Acceptance**: Vector-pack rebuild tests fail until the paired Unit 24b2 implementation.
-
-### ⬜ Unit 24a3: Integration Tests - Missing-Vector Live Generation
-**What**: Write failing integration checks for missing-vector live generation with a mocked embedding endpoint.  
-**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
-**Acceptance**: Missing-vector live generation tests fail until the paired Unit 24b3 implementation.
-
-### ⬜ Unit 24a4: Integration Tests - Scope And Refs Preservation
-**What**: Write failing integration checks for active/archived scope preservation and refs graph preservation.  
-**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
-**Acceptance**: Scope and refs preservation tests fail until the paired Unit 24b4 implementation.
-
-### ⬜ Unit 24a5: Integration Tests - Idempotence And Degraded Semantic Mode
-**What**: Write failing integration checks for repeated startup idempotence and degraded semantic mode.  
-**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
-**Acceptance**: Idempotence and degraded semantic tests fail until the paired Unit 24b5 implementation.
-
 ### ⬜ Unit 24b1: Integration - Cold Start And Snapshot Restore
 **What**: Wire the integration flow for cold start plus compatible snapshot restore.  
 **Output**: Updates to snapshot/startup modules required by `dependency_activation_flow.test.js` cold-start snapshot cases.  
-**Acceptance**: Paired Unit 24a1 tests pass; earlier integration subsets remain green; later subsets may still fail.
+**Acceptance**: Paired Unit 24a1 tests pass, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+
+### ⬜ Unit 24a2: Integration Tests - Vector-Pack Rebuild Without Embeddings
+**What**: Write failing integration checks for vector-pack rebuild with embedding endpoint disabled.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Vector-pack rebuild tests fail until the paired Unit 24b2 implementation, while Unit 24a1 coverage remains green.
 
 ### ⬜ Unit 24b2: Integration - Vector-Pack Rebuild Without Embeddings
 **What**: Wire the integration flow for rebuilding from docs plus vector packs with embedding endpoint disabled.  
 **Output**: Updates to vector-pack/indexer modules required by the no-embedding rebuild cases.  
-**Acceptance**: Paired Unit 24a2 tests pass; earlier integration subsets remain green; later subsets may still fail.
+**Acceptance**: Paired Unit 24a2 tests pass, Unit 24a1 remains green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+
+### ⬜ Unit 24a3: Integration Tests - Missing-Vector Live Generation
+**What**: Write failing integration checks for missing-vector live generation with a mocked embedding endpoint.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Missing-vector live generation tests fail until the paired Unit 24b3 implementation, while Units 24a1-24a2 coverage remains green.
 
 ### ⬜ Unit 24b3: Integration - Missing-Vector Live Generation
 **What**: Wire the integration flow for generating only missing vectors with a mocked embedding endpoint.  
 **Output**: Updates to vector-pack/indexer/embed modules required by missing-vector generation cases.  
-**Acceptance**: Paired Unit 24a3 tests pass; earlier integration subsets remain green; later subsets may still fail.
+**Acceptance**: Paired Unit 24a3 tests pass, Units 24a1-24a2 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+
+### ⬜ Unit 24a4: Integration Tests - Scope And Refs Preservation
+**What**: Write failing integration checks for active/archived scope preservation and refs graph preservation.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Scope and refs preservation tests fail until the paired Unit 24b4 implementation, while Units 24a1-24a3 coverage remains green.
 
 ### ⬜ Unit 24b4: Integration - Scope And Refs Preservation
 **What**: Wire the integration flow for active/archived search scope and refs graph preservation after restore/import/rebuild.  
 **Output**: Updates to search/indexer/refs modules required by scope and refs preservation cases.  
-**Acceptance**: Paired Unit 24a4 tests pass; earlier integration subsets remain green; later subsets may still fail.
+**Acceptance**: Paired Unit 24a4 tests pass, Units 24a1-24a3 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+
+### ⬜ Unit 24a5: Integration Tests - Idempotence And Degraded Semantic Mode
+**What**: Write failing integration checks for repeated startup idempotence and degraded semantic mode.  
+**Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
+**Acceptance**: Idempotence and degraded semantic tests fail until the paired Unit 24b5 implementation, while Units 24a1-24a4 coverage remains green.
 
 ### ⬜ Unit 24b5: Integration - Idempotence And Degraded Semantic Mode
 **What**: Wire the integration flow for repeated startup idempotence and degraded semantic mode.  
 **Output**: Updates to startup/status/search modules required by idempotence and degraded semantic cases.  
-**Acceptance**: Paired Unit 24a5 tests pass; earlier integration subsets remain green.
+**Acceptance**: Paired Unit 24a5 tests pass, Units 24a1-24a4 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
 
 ### ⬜ Unit 24c: Final Verification And Handoff
 **What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and new coverage commands. Update planning/doing checklists only for criteria with evidence.  
@@ -683,3 +684,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:45 Committed support-matrix ownership cleanup as `2ac1d80`
 - 2026-06-14 14:54 Addressed second scrutiny findings: early coverage gate, explicit artifact paths, native runtime prebuild ownership, post-status Codex smoke, privacy-before-publication ordering, root precedence, host launch fixtures, and red-test semantics
 - 2026-06-14 14:54 Committed second scrutiny fixes as `376ddc7`
+- 2026-06-14 15:00 Addressed third scrutiny findings: support-matrix regeneration after evidence changes, Codex ownership unit ordering, native prebuild-only bootstrap semantics, and interleaved integration red/green units
