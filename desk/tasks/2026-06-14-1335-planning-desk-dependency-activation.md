@@ -1,7 +1,7 @@
 # Planning: Desk Dependency Activation
 
 **Status**: drafting
-**Created**: pending initial commit
+**Created**: 2026-06-14 13:36
 
 ## Goal
 Make Desk behave as an automatically resolved dependency of plugins and custom agents, not as a manually installed user prerequisite. Implement the repo-side primitives for host-native activation, self-preparing Desk MCP startup, shared vector packs, prebuilt snapshot restore, diagnostics, and verification.
@@ -160,4 +160,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 Ideator synthesis: the product surface is dependency activation, not setup. The implementation must make the healthy path boring: install/open the dependent plugin or agent, the host activates Desk, the MCP self-prepares, and search is useful immediately from snapshot or bundled vectors. The weak areas to plan around are Codex App default activation, native MCP dependency bootstrapping, vector privacy/redaction, host dependency flattening, and snapshot portability.
 
 ## Progress Log
-- pending initial commit Created
+- 2026-06-14 13:36 Created
