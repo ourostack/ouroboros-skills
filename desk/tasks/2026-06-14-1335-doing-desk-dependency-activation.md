@@ -194,7 +194,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js` and expected coverage command documentation in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Tests fail until coverage tooling, thresholds, and the `test:coverage` command exist.
 
-### ⬜ Unit 0b: Coverage Gate Baseline - Implementation
+### ✅ Unit 0b: Coverage Gate Baseline - Implementation
 **What**: Add coverage tooling and CI wiring before feature work begins, with 100% thresholds for new Desk MCP files, MCP scripts, and root validation scripts introduced by this task.  
 **Output**: Updated `plugins/desk/mcp/package.json`, coverage configuration, `.github/workflows/desk-mcp-tests.yml`, validation scripts, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Unit 0a tests pass, `npm --prefix plugins/desk/mcp run test:coverage` exists, and CI fails when new code coverage drops below 100%.
@@ -736,3 +736,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:30 Final Tinfoil Hat and Stranger With Candy scrutiny gates converged; doing doc marked READY_FOR_EXECUTION
 - 2026-06-14 15:40 Unit 0 complete: setup research notes written, baseline command failures recorded, and unit review skipped (reason: docs-only research artifact)
 - 2026-06-14 15:44 Unit 0a complete: coverage-gate red tests and setup-notes command contract committed; targeted red run saved to `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/unit-0a-coverage-gate-red.log`
+- 2026-06-14 16:03 Unit 0b complete: coverage gate implementation, `test:coverage` script, CI wiring, and coverage config landed; `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, and `node scripts/validate-skills.cjs` pass; green logs saved under the task artifact directory
