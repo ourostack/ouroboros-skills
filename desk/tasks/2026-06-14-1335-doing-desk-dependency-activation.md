@@ -732,3 +732,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:25 Addressed seventh scrutiny findings: Unit 10 source-mirror wording, explicit artifact freshness hash scope, and runtime-pack regeneration rule for prod dependency changes
 - 2026-06-14 15:25 Committed seventh scrutiny fixes as `bc16ab6`
 - 2026-06-14 15:28 Addressed eighth scrutiny finding: Unit 24 implementation units must refresh production vector/snapshot artifacts when artifact source-scope or indexed inputs change
+- 2026-06-14 15:28 Committed eighth scrutiny fix as `f7393c5`
