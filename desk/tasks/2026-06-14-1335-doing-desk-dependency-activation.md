@@ -644,3 +644,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:34 Resolved final redaction cleanup wording to tombstone metadata plus artifact rotation cleanup
 - 2026-06-14 14:36 Granularity and ambiguity reviewer gates converged
 - 2026-06-14 14:44 Addressed scrutiny findings: dependency-light MCP bootstrap, Codex smoke, activation config, root packaging, artifact ownership/deactivation, search result modes, and coverage gate
+- 2026-06-14 14:44 Committed scrutiny fixes as `74832d5`
