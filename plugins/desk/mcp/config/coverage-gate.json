@@ -6,11 +6,5 @@
     "functions": 100,
     "statements": 100
   },
-  "exclusions": [
-    {
-      "path": "plugins/desk/mcp/scripts/run-coverage.js",
-      "owner": "Unit 0 coverage gate",
-      "reason": "Bootstrap runner for the coverage command; verified by static runner-contract tests and excluded from self-recursive command coverage."
-    }
-  ]
+  "exclusions": []
 }

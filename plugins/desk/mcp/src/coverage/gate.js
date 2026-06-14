@@ -97,8 +97,7 @@ export function collectCoverageRequiredFiles({ repoRoot }) {
     ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp", "src"), ".js")
       .filter(isProductionJs),
     ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp", "scripts"), ".js")
-      .filter(isProductionJs)
-      .filter((file) => normalizeRelative(repoRoot, file) !== "plugins/desk/mcp/scripts/run-coverage.js"),
+      .filter(isProductionJs),
     ...collectFiles(path.join(repoRoot, "scripts"), ".cjs")
       .filter(isProductionCjs),
   ].map((file) => normalizeRelative(repoRoot, file)))

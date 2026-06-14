@@ -11,12 +11,14 @@ on:
   pull_request:
     paths:
       - "plugins/desk/mcp/**"
+      - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
   push:
     branches:
       - main
     paths:
       - "plugins/desk/mcp/**"
+      - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
 
 jobs:

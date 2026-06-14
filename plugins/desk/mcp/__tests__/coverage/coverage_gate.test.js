@@ -23,6 +23,10 @@ async function loadGate() {
   return import(pathToFileURL(path.join(mcpRoot, "src", "coverage", "gate.js")))
 }
 
+async function loadRunner() {
+  return import(pathToFileURL(path.join(mcpRoot, "src", "coverage", "runner.js")))
+}
+
 function makeTempDir() {
   return mkdtempSync(path.join(tmpdir(), "desk-coverage-gate-"))
 }
@@ -55,6 +59,20 @@ function writeFixture(dir, name, text) {
 
 function normalizePaths(paths) {
   return [...paths].map((file) => file.replaceAll(path.sep, "/")).sort()
+}
+
+function coverageTable(rows) {
+  return [
+    "# start of coverage report",
+    "# --------------------------------------------------------------",
+    "# file          | line % | branch % | funcs % | uncovered lines",
+    "# --------------------------------------------------------------",
+    ...rows,
+    "# --------------------------------------------------------------",
+    "# all files     | 100.00 |   100.00 |  100.00 | ",
+    "# --------------------------------------------------------------",
+    "# end of coverage report",
+  ].join("\n")
 }
 
 test("coverage gate reports a missing coverage report as a hard failure", async () => {
@@ -301,6 +319,323 @@ test("coverage command parity rejects CI/local drift", async () => {
   }
 })
 
+test("coverage runner discovers changed files from git state and falls back from origin/main to main", async () => {
+  const { collectChangedFiles, collectChangedCoverageFiles, changedSinceMergeBase } = await loadRunner()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    const included = [
+      "plugins/desk/mcp/src/coverage/gate.js",
+      "plugins/desk/mcp/src/coverage/runner.js",
+      "plugins/desk/mcp/scripts/run-coverage.js",
+      "scripts/validate-desk-activation.cjs",
+    ]
+    for (const file of included) writeFixture(fixtureRoot, file, "export {}\n")
+
+    const spawn = (_cmd, args) => {
+      const key = args.join(" ")
+      if (key === "merge-base origin/main HEAD") {
+        return { status: 1, stdout: "", stderr: "no origin/main" }
+      }
+      if (key === "merge-base main HEAD") {
+        return { status: 0, stdout: "base-main\n", stderr: "" }
+      }
+      if (key === "diff --name-only --diff-filter=AM base-main..HEAD") {
+        return {
+          status: 0,
+          stdout: [
+            "plugins/desk/mcp/src/coverage/gate.js",
+            "scripts/validate-desk-activation.cjs",
+          ].join("\n"),
+          stderr: "",
+        }
+      }
+      if (key === "diff --name-only --diff-filter=AM") {
+        return { status: 0, stdout: "plugins/desk/mcp/src/coverage/runner.js\n", stderr: "" }
+      }
+      if (key === "diff --cached --name-only --diff-filter=AM") {
+        return { status: 0, stdout: "plugins/desk/mcp/scripts/run-coverage.js\n", stderr: "" }
+      }
+      if (key === "ls-files --others --exclude-standard") {
+        return { status: 0, stdout: "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js\n", stderr: "" }
+      }
+      throw new Error(`unexpected git args: ${key}`)
+    }
+
+    assert.deepEqual(
+      normalizePaths(changedSinceMergeBase({ repoRoot: fixtureRoot, spawn })),
+      [
+        "plugins/desk/mcp/src/coverage/gate.js",
+        "scripts/validate-desk-activation.cjs",
+      ],
+    )
+    assert.deepEqual(
+      normalizePaths(collectChangedFiles({ repoRoot: fixtureRoot, spawn })),
+      [
+        "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js",
+        "plugins/desk/mcp/scripts/run-coverage.js",
+        "plugins/desk/mcp/src/coverage/gate.js",
+        "plugins/desk/mcp/src/coverage/runner.js",
+        "scripts/validate-desk-activation.cjs",
+      ],
+    )
+    assert.deepEqual(
+      normalizePaths(collectChangedCoverageFiles({ repoRoot: fixtureRoot, spawn })),
+      included.sort(),
+    )
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("coverage runner reports no merge-base diff when neither main ref resolves", async () => {
+  const { changedSinceMergeBase } = await loadRunner()
+  const spawn = () => ({ status: 1, stdout: "", stderr: "missing ref" })
+  assert.deepEqual(changedSinceMergeBase({ repoRoot, spawn }), [])
+})
+
+test("coverage runner invokes node coverage with include filters and child no-op environment", async () => {
+  const { runNodeCoverage } = await loadRunner()
+  let captured = null
+  const spawn = (cmd, args, options) => {
+    captured = { cmd, args, options }
+    return { status: 0, stdout: "ok", stderr: "" }
+  }
+
+  const result = runNodeCoverage({
+    repoRoot: "/fixture/repo",
+    requiredFiles: [
+      "plugins/desk/mcp/src/coverage/gate.js",
+      "plugins/desk/mcp/scripts/run-coverage.js",
+    ],
+    spawn,
+    env: { CUSTOM_ENV: "1" },
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(captured.cmd, process.execPath)
+  assert.ok(captured.args.includes("--experimental-test-coverage"))
+  assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/src/coverage/gate.js"))
+  assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/scripts/run-coverage.js"))
+  assert.equal(captured.options.cwd, "/fixture/repo")
+  assert.equal(captured.options.env.CUSTOM_ENV, "1")
+  assert.equal(captured.options.env.DESK_COVERAGE_RUNNER_CHILD, "1")
+})
+
+test("coverage runner parses Node's tree coverage report", async () => {
+  const { parseNodeCoverageReport } = await loadRunner()
+  const report = parseNodeCoverageReport(coverageTable([
+    "# malformed coverage row",
+    "# malformed | row",
+    "# plugins       |        |          |         | ",
+    "#  desk         |        |          |         | ",
+    "#   mcp         |        |          |         | ",
+    "#    src        |        |          |         | ",
+    "#     coverage  |        |          |         | ",
+    "#      gate.js  | 100.00 |   100.00 |  100.00 | ",
+    "#      runner.js |  98.50 |    75.00 |  100.00 | 12",
+    "#      weird.js  | NaN    |   100.00 |  100.00 | ",
+  ]))
+
+  assert.equal(report["plugins/desk/mcp/src/coverage/gate.js"].lines.pct, 100)
+  assert.equal(report["plugins/desk/mcp/src/coverage/runner.js"].branches.pct, 75)
+  assert.equal(report["plugins/desk/mcp/src/coverage/runner.js"].statements.pct, 98.5)
+  assert.equal(report["plugins/desk/mcp/src/coverage/weird.js"].lines.pct, null)
+  assert.equal(report.total.lines.pct, 100)
+})
+
+test("coverage runner returns child status, coverage failures, and success codes", async () => {
+  const { runCoverageCommand } = await loadRunner()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    const configPath = writeFixture(
+      fixtureRoot,
+      "plugins/desk/mcp/config/coverage-gate.json",
+      JSON.stringify({
+        thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+        exclusions: [],
+      }),
+    )
+    const packageJsonPath = writeFixture(
+      fixtureRoot,
+      "plugins/desk/mcp/package.json",
+      JSON.stringify({ scripts: { "test:coverage": "node scripts/run-coverage.js" } }),
+    )
+    const workflowPath = writeFixture(
+      fixtureRoot,
+      ".github/workflows/desk-mcp-tests.yml",
+      "run: npm run test:coverage\n",
+    )
+    writeFixture(fixtureRoot, "plugins/desk/mcp/src/coverage/gate.js", "export {}\n")
+
+    const makeSpawn = (coverageRows, testStatus = 0) => (_cmd, args) => {
+      const key = args.join(" ")
+      if (args[0] === "--test") {
+        return { status: testStatus, stdout: coverageTable(coverageRows), stderr: "" }
+      }
+      if (key === "merge-base origin/main HEAD") return { status: 0, stdout: "base\n", stderr: "" }
+      if (key === "diff --name-only --diff-filter=AM base..HEAD") {
+        return { status: 0, stdout: "plugins/desk/mcp/src/coverage/gate.js\n", stderr: "" }
+      }
+      return { status: 0, stdout: "", stderr: "" }
+    }
+    const makeIo = () => {
+      const writes = { stdout: "", stderr: "" }
+      return {
+        writes,
+        io: {
+          stdout: { write: (text) => { writes.stdout += text } },
+          stderr: { write: (text) => { writes.stderr += text } },
+        },
+      }
+    }
+    const fsOps = {
+      makeTempDir: () => path.join(tmp, `run-${Date.now()}-${Math.random()}`),
+      removeDir: (dir) => rmSync(dir, { recursive: true, force: true }),
+      readText: (file) => readFileSync(file, "utf8"),
+      writeText: (file, text) => writeFixture(path.dirname(file), path.basename(file), text),
+    }
+    const paths = {
+      repoRoot: fixtureRoot,
+      mcpRoot: path.join(fixtureRoot, "plugins/desk/mcp"),
+      configPath,
+      packageJsonPath,
+      workflowPath,
+    }
+
+    const spawnMissingChildStatus = (_cmd, args) => {
+      if (args[0] === "--test") return {}
+      return makeSpawn([], 0)(_cmd, args)
+    }
+    assert.equal(
+      runCoverageCommand({
+        paths,
+        spawn: spawnMissingChildStatus,
+        fsOps,
+        io: makeIo().io,
+        env: {},
+      }),
+      1,
+    )
+
+    const failingChild = runCoverageCommand({
+      paths,
+      spawn: makeSpawn([], 7),
+      fsOps,
+      io: makeIo().io,
+      env: {},
+    })
+    assert.equal(failingChild, 7)
+
+    const missingCoverageReport = runCoverageCommand({
+      paths,
+      spawn: (_cmd, args) => {
+        if (args[0] === "--test") return { status: 0 }
+        return makeSpawn([], 0)(_cmd, args)
+      },
+      fsOps,
+      io: makeIo().io,
+      env: {},
+    })
+    assert.equal(missingCoverageReport, 1)
+
+    const badCoverageIo = makeIo()
+    const badCoverage = runCoverageCommand({
+      paths,
+      spawn: makeSpawn([
+        "# plugins       |        |          |         | ",
+        "#  desk         |        |          |         | ",
+        "#   mcp         |        |          |         | ",
+        "#    src        |        |          |         | ",
+        "#     coverage  |        |          |         | ",
+        "#      gate.js  |  90.00 |   100.00 |  100.00 | 1",
+      ]),
+      fsOps,
+      io: badCoverageIo.io,
+      env: {},
+    })
+    assert.equal(badCoverage, 1)
+    assert.match(badCoverageIo.writes.stderr, /coverage-gate.*failed/i)
+    assert.match(badCoverageIo.writes.stderr, /gate\.js lines coverage 90/i)
+
+    const successIo = makeIo()
+    const success = runCoverageCommand({
+      paths,
+      spawn: makeSpawn([
+        "# plugins       |        |          |         | ",
+        "#  desk         |        |          |         | ",
+        "#   mcp         |        |          |         | ",
+        "#    src        |        |          |         | ",
+        "#     coverage  |        |          |         | ",
+        "#      gate.js  | 100.00 |   100.00 |  100.00 | ",
+      ]),
+      fsOps,
+      io: successIo.io,
+      env: {},
+    })
+    assert.equal(success, 0)
+    assert.match(successIo.writes.stdout, /passed for 1 changed production file/)
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("coverage runner default wiring uses repo paths, temp files, and stdio", async () => {
+  const { runCoverageCommand } = await loadRunner()
+  const spawn = (_cmd, args) => {
+    const key = args.join(" ")
+    if (args[0] === "--test") {
+      return {
+        status: 0,
+        stdout: coverageTable([
+          "# plugins              |        |          |         | ",
+          "#  desk                |        |          |         | ",
+          "#   mcp                |        |          |         | ",
+          "#    scripts           |        |          |         | ",
+          "#     run-coverage.js  | 100.00 |   100.00 |  100.00 | ",
+          "#    src               |        |          |         | ",
+          "#     coverage         |        |          |         | ",
+          "#      runner.js       | 100.00 |   100.00 |  100.00 | ",
+        ]),
+        stderr: "",
+      }
+    }
+    if (key === "merge-base origin/main HEAD") return { status: 0, stdout: "base\n", stderr: "" }
+    if (key === "diff --name-only --diff-filter=AM base..HEAD") {
+      return {
+        status: 0,
+        stdout: [
+          "plugins/desk/mcp/scripts/run-coverage.js",
+          "plugins/desk/mcp/src/coverage/runner.js",
+        ].join("\n"),
+        stderr: "",
+      }
+    }
+    return { status: 0, stdout: "", stderr: "" }
+  }
+
+  assert.equal(runCoverageCommand({ spawn, env: {} }), 0)
+})
+
+test("coverage runner no-ops when imported by the child coverage process", async () => {
+  const { runCoverageCommand } = await loadRunner()
+  assert.equal(
+    runCoverageCommand({ env: { DESK_COVERAGE_RUNNER_CHILD: "1" } }),
+    0,
+  )
+
+  const previous = process.env.DESK_COVERAGE_RUNNER_CHILD
+  process.env.DESK_COVERAGE_RUNNER_CHILD = "1"
+  try {
+    assert.equal(runCoverageCommand(), 0)
+    await import(`${pathToFileURL(path.join(mcpRoot, "scripts", "run-coverage.js")).href}?child-noop=${Date.now()}`)
+  } finally {
+    if (previous == null) delete process.env.DESK_COVERAGE_RUNNER_CHILD
+    else process.env.DESK_COVERAGE_RUNNER_CHILD = previous
+  }
+})
+
 test("coverage required-file discovery includes production targets and excludes tests", async () => {
   const { collectCoverageRequiredFiles } = await loadGate()
   const tmp = makeTempDir()
@@ -342,6 +677,7 @@ test("coverage required-file discovery includes production targets and excludes 
 
 test("coverage runner exists and delegates to the coverage gate", () => {
   const runnerPath = path.join(mcpRoot, "scripts", "run-coverage.js")
+  const runnerModulePath = path.join(mcpRoot, "src", "coverage", "runner.js")
 
   assert.ok(
     existsSync(runnerPath),
@@ -349,25 +685,31 @@ test("coverage runner exists and delegates to the coverage gate", () => {
   )
 
   const runner = readFileSync(runnerPath, "utf8")
+  const runnerModule = readFileSync(runnerModulePath, "utf8")
   assert.match(
     runner,
-    /(?:from\s+["'][^"']*src\/coverage\/gate\.js["']|import\([^)]*src\/coverage\/gate\.js[^)]*\))/,
-    "coverage runner must import the coverage gate module",
+    /from\s+["'][^"']*src\/coverage\/runner\.js["']/,
+    "coverage runner script must delegate to the tested runner module",
   )
   assert.match(
-    runner,
+    runnerModule,
+    /(?:from\s+["'][^"']*\.\/gate\.js["']|import\([^)]*\.\/gate\.js[^)]*\))/,
+    "coverage runner module must import the coverage gate module",
+  )
+  assert.match(
+    runnerModule,
     /\bcollectCoverageRequiredFiles\s*\(/,
-    "coverage runner must discover required files through the gate",
+    "coverage runner module must discover required files through the gate",
   )
   assert.match(
-    runner,
+    runnerModule,
     /\bevaluateCoverageReport\s*\(/,
-    "coverage runner must evaluate the generated coverage report through the gate",
+    "coverage runner module must evaluate the generated coverage report through the gate",
   )
   assert.match(
-    runner,
+    runnerModule,
     /\bassertCoverageCommandParity\s*\(/,
-    "coverage runner must keep local and CI coverage commands in parity through the gate",
+    "coverage runner module must keep local and CI coverage commands in parity through the gate",
   )
   assert.doesNotMatch(
     runner,

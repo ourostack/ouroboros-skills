@@ -143,7 +143,8 @@ Unit 0b implementation notes:
 - Coverage thresholds and bootstrap exclusions live in `plugins/desk/mcp/config/coverage-gate.json`.
 - The local runner discovers changed production files from the branch diff, staged/unstaged changes, and untracked files, then intersects them with `collectCoverageRequiredFiles`.
 - The local runner uses Node's built-in `--experimental-test-coverage` output and evaluates only changed/new production files from the configured coverage classes.
-- `plugins/desk/mcp/scripts/run-coverage.js` is excluded as the bootstrap runner itself; its delegation contract is covered by `plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js`.
+- `plugins/desk/mcp/scripts/run-coverage.js` is itself covered by importing the script under `DESK_COVERAGE_RUNNER_CHILD=1`; runner behavior lives in `plugins/desk/mcp/src/coverage/runner.js` and is covered by direct tests.
+- `.github/workflows/desk-mcp-tests.yml` includes `scripts/*.cjs` path filters so root validation-script changes trigger the coverage gate.
 - Unit 0b green evidence is saved in `unit-0b-test-coverage-green.log` and `unit-0b-npm-test-green.log`.
 
 Expected future artifact commands, implemented as package scripts or MCP maintenance tools rather than a user-facing Desk CLI:
