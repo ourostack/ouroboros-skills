@@ -165,7 +165,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Task evidence/logs: `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/`
 - Vector packs: `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl`, `<pack-id>.manifest.json`, and `<pack-id>.sha256`
 - Snapshots: `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst`, `<snapshot-id>.manifest.json`, and `<snapshot-id>.sha256`
-- Runtime dependency packs: `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256`; archive expands inside the runtime cache to a cache-resident executable tree with `server-bundle/index.mjs`, production dependency closure, `package.json`, and manifest metadata so ESM bare imports resolve from the cache, not from plugin source `node_modules`
+- Runtime dependency packs: `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256`; archive expands inside the runtime cache to production `node_modules`, `package.json`, lock metadata, and manifest metadata only. Startup syncs current plugin MCP source into a runtime-cache `source-mirror/<source-hash>/` and imports from that mirror so ESM bare imports resolve against cache dependencies without freezing server source into the committed pack.
 - Artifact publication policy: `plugins/desk/artifacts/publication-policy.json` validated by `plugins/desk/artifacts/publication-policy.schema.json`; required fields are `schema_version`, `default_publication`, `repo_visibility`, `sensitive_repo`, `approved_artifact_types`, `approval_required`, `approvals`, and `updated_at`
 - Artifact tombstones: `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`; each row requires `schema_version`, `document_path`, `document_hash`, `reason`, `redacted_at`, `effective_from`, `artifact_rotation_id`, and `actor`
 - Artifact fixtures: `plugins/desk/mcp/__tests__/fixtures/artifacts/`
@@ -309,47 +309,47 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new validation code and all Ouroboros/generic stdio packaging tests pass.
 
 ### ⬜ Unit 6d: Runtime Dependency Pack Artifacts - Tests
-**What**: Write failing tests for runtime dependency pack artifact discovery, manifest schema, `plugins/desk/mcp/package-lock.json` provenance, prod dependency lock hash, platform/arch/Node ABI matrix, cache-resident executable tree shape, checksum verification, unsupported platform diagnostics, missing non-native dependency detection, and CI build/verify script declarations.  
+**What**: Write failing tests for runtime dependency pack artifact discovery, manifest schema, `plugins/desk/mcp/package-lock.json` provenance, prod dependency lock hash, platform/arch/Node ABI matrix, dependency-only archive shape, checksum verification, unsupported platform diagnostics, missing non-native dependency detection, and CI build/verify script declarations.  
 **Output**: `plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js`, fixtures under `plugins/desk/mcp/__tests__/fixtures/runtime/runtime-deps/`, and expected artifact paths under `plugins/desk/mcp/artifacts/runtime-deps/`.  
-**Acceptance**: Tests fail until runtime dependency packs have exact paths, manifests, checksums, a cache-resident `server-bundle/index.mjs` entrypoint, and verification scripts for every production dependency required to start the real MCP server, including non-native dependencies and native packages such as `better-sqlite3` and `sqlite-vec`.
+**Acceptance**: Tests fail until runtime dependency packs have exact paths, manifests, checksums, no bundled server source, and verification scripts for every production dependency required to start the real MCP server, including non-native dependencies and native packages such as `better-sqlite3` and `sqlite-vec`.
 
 ### ⬜ Unit 6e: Runtime Dependency Pack Artifacts - Implementation
-**What**: Implement runtime dependency pack metadata, cache-resident executable server bundle creation, build/verify scripts, and artifact consumption helpers. Scripts are release/CI maintenance surfaces, not user setup commands.  
+**What**: Implement runtime dependency pack metadata, dependency-only pack creation, build/verify scripts, and artifact consumption helpers. Scripts are release/CI maintenance surfaces, not user setup commands.  
 **Output**: `plugins/desk/mcp/src/runtime/runtime-deps.js`, `plugins/desk/mcp/scripts/build-runtime-deps-pack.js`, `plugins/desk/mcp/scripts/verify-runtime-deps-pack.js`, `plugins/desk/mcp/artifacts/runtime-deps/README.md`, package scripts `runtime:deps-pack:build` and `runtime:deps-pack:verify`, and CI wiring.  
-**Acceptance**: Unit 6d tests pass and the runtime dependency pack builder can create an archive whose manifest proves cache-resident executable contents, production dependency versions, package-lock hash, platform/arch/ABI, checksums, and build provenance.
+**Acceptance**: Unit 6d tests pass and the runtime dependency pack builder can create an archive whose manifest proves production dependency closure, production dependency versions, package-lock hash, platform/arch/ABI, checksums, and build provenance without bundling mutable server source.
 
 ### ⬜ Unit 6f: Runtime Dependency Pack Artifacts - Coverage & Refactor
-**What**: Add coverage for absent archive, corrupt archive, checksum mismatch, unsupported ABI, missing cache-resident bundle entrypoint, missing non-native dependency, package-lock mismatch, stale lock metadata, missing CI job, and repeated verification.  
+**What**: Add coverage for absent archive, corrupt archive, checksum mismatch, unsupported ABI, accidentally bundled server source, missing non-native dependency, package-lock mismatch, stale lock metadata, missing CI job, and repeated verification.  
 **Output**: Hardened runtime dependency pack code and scripts.  
 **Acceptance**: 100% coverage on new runtime dependency pack code and scripts, and all runtime dependency pack tests pass.
 
 ### ⬜ Unit 6g: Production Runtime Dependency Pack Publication - Tests
-**What**: Write failing checks that require the current production runtime dependency pack to be committed under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` with archive, manifest, checksum, package-lock provenance, cache-resident executable bundle, and freshness metadata.  
+**What**: Write failing checks that require the current production runtime dependency pack to be committed under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` with archive, manifest, checksum, package-lock provenance, dependency-only archive shape, and freshness metadata.  
 **Output**: `plugins/desk/mcp/__tests__/runtime/production_runtime_pack.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.  
 **Acceptance**: Tests fail until production `runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256` exist under the canonical path, not only fixtures.
 
 ### ⬜ Unit 6h: Production Runtime Dependency Pack Publication - Implementation
-**What**: Generate, verify, and commit the current production runtime dependency pack with `plugins/desk/mcp/node_modules` absent from the launch fixture, no network, no `npm install`, and no plugin-source mutation. Record exact commands, manifest/checksum, package-lock hash, platform/arch/ABI, and cache-resident entrypoint path.  
+**What**: Generate, verify, and commit the current production runtime dependency pack with `plugins/desk/mcp/node_modules` absent from the launch fixture, no network, no `npm install`, no bundled server source, and no plugin-source mutation. Record exact commands, manifest/checksum, package-lock hash, and platform/arch/ABI.  
 **Output**: Production files under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.  
-**Acceptance**: Unit 6g tests pass, generated runtime dependency pack artifacts are committed, and the pack can start the real MCP server from the runtime cache without `plugins/desk/mcp/node_modules`.
+**Acceptance**: Unit 6g tests pass, generated runtime dependency pack artifacts are committed, and the dependency pack can support a runtime-cache current-source mirror without `plugins/desk/mcp/node_modules`.
 
 ### ⬜ Unit 6i: Production Runtime Dependency Pack Publication - Coverage & Refactor
-**What**: Add coverage for missing production pack, stale package-lock hash, missing cache-resident entrypoint, checksum mismatch, stale platform/arch/ABI, fixture-only false positives, and production pack freshness drift.  
+**What**: Add coverage for missing production pack, stale package-lock hash, accidentally bundled server source, checksum mismatch, stale platform/arch/ABI, fixture-only false positives, and production pack freshness drift.  
 **Output**: Hardened production runtime pack freshness checks.  
 **Acceptance**: Production runtime pack checks pass locally, and fixtures alone cannot satisfy the no-manual-install completion criteria.
 
 ### ⬜ Unit 7a: Dependency-Light MCP Entrypoint - Tests
-**What**: Write failing tests proving `plugins/desk/mcp/index.js` can start dependency preparation without pre-bootstrap imports of plugin-source `src/server.js` or any production/server dependencies. Cover `plugins/desk/mcp/node_modules` absent, no network access, no `npm install`, native ABI mismatch, offline restore from `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, and MCP initialize/list-tools from the cache-resident server bundle after restore.  
+**What**: Write failing tests proving `plugins/desk/mcp/index.js` can start dependency preparation without pre-bootstrap imports of plugin-source `src/server.js` or any production/server dependencies. Cover `plugins/desk/mcp/node_modules` absent, no network access, no `npm install`, native ABI mismatch, offline restore from `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, source hash change causing runtime-cache `source-mirror/<source-hash>/` resync, and MCP initialize/list-tools from the synced source mirror after restore.  
 **Output**: `plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js`.  
 **Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `gray-matter`, `better-sqlite3`, `sqlite-vec`, or any production dependency outside the restored runtime cache.
 
 ### ⬜ Unit 7b: Dependency-Light MCP Entrypoint - Implementation
-**What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that restores or verifies the writable runtime cache from production runtime dependency pack artifacts, then dynamically imports the cache-resident `server-bundle/index.mjs`. Unsupported platforms or missing packs must fail with actionable diagnostics rather than attempting an implicit install.  
-**Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, and runtime bootstrap fixtures.  
+**What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that restores or verifies the writable runtime cache from production runtime dependency pack artifacts, syncs current plugin MCP source into runtime-cache `source-mirror/<source-hash>/`, and dynamically imports from that mirror so bare imports resolve against cached dependencies. Unsupported platforms or missing packs must fail with actionable diagnostics rather than attempting an implicit install.  
+**Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, current-source mirror helpers, and runtime bootstrap fixtures.  
 **Acceptance**: Unit 7a tests pass, the real server can start with `plugins/desk/mcp/node_modules` absent, missing runtime dependencies produce actionable non-leaking diagnostics, and no plugin source directory is mutated.
 
 ### ⬜ Unit 7c: Dependency-Light MCP Entrypoint - Coverage & Refactor
-**What**: Add coverage for absent cache, corrupt cache metadata, offline runtime pack unavailable, unsupported platform, production dependency mismatch, native package version mismatch, implicit-install prevention, and repeated startup.  
+**What**: Add coverage for absent cache, corrupt cache metadata, offline runtime pack unavailable, unsupported platform, production dependency mismatch, native package version mismatch, source mirror stale after source change, source mirror cleanup, implicit-install prevention, and repeated startup.  
 **Output**: Hardened dependency-light bootstrap implementation.  
 **Acceptance**: 100% coverage on new bootstrap code and all dependency-light entrypoint tests pass.
 
@@ -386,7 +386,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 ### ⬜ Unit 10a: Early `desk_status` Skeleton - Tests
 **What**: Write failing tests for registered `desk_status`, tool description, dispatch from the cache-resident runtime server bundle, root/runtime/local DB fields, root-source diagnostics, and session-start-safe summary output that does not require vector-pack or snapshot modules yet.  
 **Output**: `plugins/desk/mcp/__tests__/tools/status.test.js`.  
-**Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired into the runtime server bundle, starts through the Unit 7 runtime cache path, and returns early health fields without expensive repair work.
+**Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired into current plugin source, starts through the Unit 7 runtime-cache source mirror path, and returns early health fields without expensive repair work.
 
 ### ⬜ Unit 10b: Early `desk_status` Skeleton - Implementation
 **What**: Implement `desk_status` with early health fields only: root, root source, runtime version, DB existence/schema when available, lexical index availability when cheap, and placeholders marked `not_available_until_artifact_modules` for snapshot/vector-pack/spec fields.  
@@ -593,21 +593,6 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened artifact scripts and budget checks.  
 **Acceptance**: 100% coverage on new script helper code and all artifact script tests pass.
 
-### ⬜ Unit 21d: Production Shared Artifact Publication - Tests
-**What**: Write failing checks that require at least one current production vector pack and one current production snapshot committed under the canonical repo paths, with manifests, checksums, publication-policy approval, exclusion/tombstone validation, and freshness metadata tied to the current source/document tree.  
-**Output**: `plugins/desk/mcp/__tests__/artifacts/production_artifacts.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
-**Acceptance**: Tests fail until production artifacts exist under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, not only fixtures.
-
-### ⬜ Unit 21e: Production Shared Artifact Publication - Implementation
-**What**: Generate, verify, and commit initial production shared vector-pack and snapshot artifacts using the Unit 21 scripts after publication policy, exclusions, and tombstones are active. Record exact commands, manifests, checksums, source/document hashes, and approval state.  
-**Output**: Production files under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, manifests/checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
-**Acceptance**: Unit 21d tests pass, generated artifacts are committed, no gitignored/sensitive/redacted content is represented, and CI freshness checks fail if the committed artifacts drift from the documented source/document tree.
-
-### ⬜ Unit 21f: Production Shared Artifact Publication - Coverage & Refactor
-**What**: Add coverage for missing production pack, missing production snapshot, stale source tree, stale document tree, checksum mismatch, policy denial, tombstoned document presence, and fixture-only false positives.  
-**Output**: Hardened production artifact freshness checks.  
-**Acceptance**: Production artifact checks pass locally, and fixtures alone cannot satisfy the shared-artifact completion criteria.
-
 ### ⬜ Unit 22a: Healthy-Path Docs - Tests
 **What**: Write failing docs/freshness checks that reject healthy-path manual Desk install wording, manual `codex mcp add`, manual `npm install`, uncontrolled `AGENTS.md` append/copy, and missing privacy notes.  
 **Output**: `scripts/test-desk-docs.cjs`, `.github/workflows/validate-skills.yml`, and `.github/workflows/desk-mcp-tests.yml` updates that invoke the docs validation.  
@@ -622,6 +607,21 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **What**: Add docs validation coverage for Codex, Claude, Copilot/root, Ouroboros/autonomous-agent, generic stdio, vector packs, snapshots, redaction, and publication policy.  
 **Output**: Hardened docs validation.  
 **Acceptance**: All docs validation tests pass, generated docs remain stable, and new or modified root docs validation scripts meet the Unit 0 coverage gate.
+
+### ⬜ Unit 22d: Production Shared Artifact Publication - Tests
+**What**: Write failing checks that require at least one current production vector pack and one current production snapshot committed under the canonical repo paths after healthy-path docs are updated, with manifests, checksums, publication-policy approval, exclusion/tombstone validation, and freshness metadata tied to the current source/document tree.  
+**Output**: `plugins/desk/mcp/__tests__/artifacts/production_artifacts.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Tests fail until production artifacts exist under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, not only fixtures.
+
+### ⬜ Unit 22e: Production Shared Artifact Publication - Implementation
+**What**: Generate, verify, and commit initial production shared vector-pack and snapshot artifacts using the Unit 21 scripts after publication policy, exclusions, tombstones, and healthy-path docs are active. Record exact commands, manifests, checksums, source/document hashes, and approval state.  
+**Output**: Production files under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, manifests/checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Unit 22d tests pass, generated artifacts are committed, no gitignored/sensitive/redacted content is represented, and CI freshness checks fail if the committed artifacts drift from the documented source/document tree.
+
+### ⬜ Unit 22f: Production Shared Artifact Publication - Coverage & Refactor
+**What**: Add coverage for missing production pack, missing production snapshot, stale source tree, stale document tree, checksum mismatch, policy denial, tombstoned document presence, docs-changing-after-publication detection, and fixture-only false positives.  
+**Output**: Hardened production artifact freshness checks.  
+**Acceptance**: Production artifact checks pass locally, and fixtures alone cannot satisfy the shared-artifact completion criteria.
 
 ### ⬜ Unit 23a: CI And Generated Artifact Freshness - Tests
 **What**: Write failing checks for activation support matrix freshness, host manifest drift, worker-content drift, artifact script availability, generated fixture freshness, production runtime dependency pack freshness, and production vector/snapshot artifact freshness.  
@@ -722,5 +722,6 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:00 Committed third scrutiny fixes as `240fc70`
 - 2026-06-14 15:08 Addressed fourth scrutiny findings: full runtime dependency packs, production shared vector/snapshot artifact publication, root-script coverage, explicit policy/tombstone schemas, and runtime-cache versus desk-state separation
 - 2026-06-14 15:08 Committed fourth scrutiny fixes as `2e164ec`
-- 2026-06-14 15:13 Addressed fifth scrutiny findings: cache-resident executable runtime bundle, production runtime pack publication, Unit 7 list-tools proof before `desk_status`, policy/tombstone required fields, and vector import versus snapshot copy semantics
+- 2026-06-14 15:13 Addressed fifth scrutiny findings: dependency-only runtime pack with current-source mirror, production runtime pack publication, Unit 7 list-tools proof before `desk_status`, policy/tombstone required fields, and vector import versus snapshot copy semantics
 - 2026-06-14 15:13 Committed fifth scrutiny fixes as `98d244c`
+- 2026-06-14 15:21 Addressed sixth scrutiny findings: dependency pack avoids frozen server source and docs land before production vector/snapshot publication to prevent freshness churn
