@@ -141,6 +141,35 @@ test("coverage gate fails when a required new file is absent from the report", a
   }
 })
 
+test("coverage gate accepts relative report keys and flags missing metric blocks", async () => {
+  const { evaluateCoverageReport } = await loadGate()
+  const tmp = makeTempDir()
+  try {
+    const relativeFile = "plugins/desk/mcp/src/activation/schema.js"
+    const missingMetricFile = "plugins/desk/mcp/src/activation/validate.js"
+    const reportPath = writeCoverageSummary(tmp, {
+      [relativeFile]: metrics(),
+      [missingMetricFile]: {
+        lines: { pct: 100 },
+        branches: { pct: 100 },
+        functions: { pct: 100 },
+      },
+    })
+
+    const result = evaluateCoverageReport({
+      repoRoot,
+      reportPath,
+      requiredFiles: [relativeFile, missingMetricFile],
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.issues.join("\n"), /validate\.js.*statements.*undefined/i)
+    assert.deepEqual(result.checkedFiles, [relativeFile, missingMetricFile].sort())
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
 test("coverage exclusions require an explicit owner and reason", async () => {
   const { evaluateCoverageReport } = await loadGate()
   const tmp = makeTempDir()
@@ -173,6 +202,36 @@ test("coverage exclusions require an explicit owner and reason", async () => {
     })
     assert.equal(undocumented.ok, false)
     assert.match(undocumented.issues.join("\n"), /exclusion.*owner.*reason/i)
+
+    const missingReason = evaluateCoverageReport({
+      repoRoot,
+      reportPath,
+      requiredFiles: [generatedFile],
+      exclusions: [{ path: generatedFile, owner: "Unit 0 coverage gate" }],
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+    })
+    assert.equal(missingReason.ok, false)
+    assert.match(missingReason.issues.join("\n"), /exclusion.*owner.*reason/i)
+
+    const blankOwner = evaluateCoverageReport({
+      repoRoot,
+      reportPath,
+      requiredFiles: [generatedFile],
+      exclusions: [{ path: generatedFile, owner: " ", reason: "blank owner fixture" }],
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+    })
+    assert.equal(blankOwner.ok, false)
+    assert.match(blankOwner.issues.join("\n"), /exclusion.*owner.*reason/i)
+
+    const missingPathExclusion = evaluateCoverageReport({
+      repoRoot,
+      reportPath,
+      requiredFiles: [generatedFile],
+      exclusions: [{ owner: "Unit 0 coverage gate", reason: "missing path fixture" }],
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+    })
+    assert.equal(missingPathExclusion.ok, false)
+    assert.match(missingPathExclusion.issues.join("\n"), /missing coverage/i)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -221,6 +280,22 @@ test("coverage command parity rejects CI/local drift", async () => {
     assert.equal(bad.ok, false)
     assert.match(bad.issues.join("\n"), /test:coverage/i)
     assert.match(bad.issues.join("\n"), /npm test/i)
+
+    const badPackageJsonPath = writeFixture(
+      tmp,
+      "bad-package.json",
+      JSON.stringify({
+        scripts: {
+          "test:coverage": "npm test",
+        },
+      }, null, 2),
+    )
+    const badPackage = assertCoverageCommandParity({
+      packageJsonPath: badPackageJsonPath,
+      workflowPath: goodWorkflowPath,
+    })
+    assert.equal(badPackage.ok, false)
+    assert.match(badPackage.issues.join("\n"), /node scripts\/run-coverage\.js/i)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -241,17 +316,24 @@ test("coverage required-file discovery includes production targets and excludes 
       "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js",
       "plugins/desk/mcp/src/activation/validate.test.js",
       "plugins/desk/mcp/scripts/activation-support-matrix.test.js",
+      "plugins/desk/mcp/scripts/test-helper.js",
       "scripts/test-desk-activation.cjs",
     ]
 
     for (const file of [...included, ...excluded]) {
       writeFixture(fixtureRoot, file, "export {}\n")
     }
+    writeFixture(fixtureRoot, "plugins/desk/mcp/src/activation/README.md", "docs\n")
 
     assert.equal(typeof collectCoverageRequiredFiles, "function")
     assert.deepEqual(
       normalizePaths(collectCoverageRequiredFiles({ repoRoot: fixtureRoot })),
       included.sort(),
+    )
+
+    assert.deepEqual(
+      collectCoverageRequiredFiles({ repoRoot: path.join(tmp, "empty-repo") }),
+      [],
     )
   } finally {
     rmSync(tmp, { recursive: true, force: true })
