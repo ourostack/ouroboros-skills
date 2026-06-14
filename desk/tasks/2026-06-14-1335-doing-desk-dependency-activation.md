@@ -682,3 +682,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:45 Clarified support-matrix ownership: host units update evidence, generator owns generated matrix output
 - 2026-06-14 14:45 Committed support-matrix ownership cleanup as `2ac1d80`
 - 2026-06-14 14:54 Addressed second scrutiny findings: early coverage gate, explicit artifact paths, native runtime prebuild ownership, post-status Codex smoke, privacy-before-publication ordering, root precedence, host launch fixtures, and red-test semantics
+- 2026-06-14 14:54 Committed second scrutiny fixes as `376ddc7`
