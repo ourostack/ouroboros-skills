@@ -725,3 +725,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:13 Addressed fifth scrutiny findings: dependency-only runtime pack with current-source mirror, production runtime pack publication, Unit 7 list-tools proof before `desk_status`, policy/tombstone required fields, and vector import versus snapshot copy semantics
 - 2026-06-14 15:13 Committed fifth scrutiny fixes as `98d244c`
 - 2026-06-14 15:21 Addressed sixth scrutiny findings: dependency pack avoids frozen server source and docs land before production vector/snapshot publication to prevent freshness churn
+- 2026-06-14 15:21 Committed sixth scrutiny fixes as `6156f6a`
