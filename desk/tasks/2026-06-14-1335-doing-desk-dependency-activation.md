@@ -723,3 +723,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:08 Addressed fourth scrutiny findings: full runtime dependency packs, production shared vector/snapshot artifact publication, root-script coverage, explicit policy/tombstone schemas, and runtime-cache versus desk-state separation
 - 2026-06-14 15:08 Committed fourth scrutiny fixes as `2e164ec`
 - 2026-06-14 15:13 Addressed fifth scrutiny findings: cache-resident executable runtime bundle, production runtime pack publication, Unit 7 list-tools proof before `desk_status`, policy/tombstone required fields, and vector import versus snapshot copy semantics
+- 2026-06-14 15:13 Committed fifth scrutiny fixes as `98d244c`
