@@ -129,10 +129,13 @@ npm --prefix plugins/desk/mcp run activation:support-matrix:generate
 Coverage command contract for Unit 0b:
 
 - `plugins/desk/mcp/package.json` should expose `"test:coverage": "node scripts/run-coverage.js"`.
-- `plugins/desk/mcp/scripts/run-coverage.js` should be the single local entrypoint that invokes the Node test runner with coverage enabled and 100% line, branch, function, and statement/file gate semantics.
-- `plugins/desk/mcp/src/coverage/gate.js` should export `evaluateCoverageReport` and `assertCoverageCommandParity` for direct tests.
+- `plugins/desk/mcp/scripts/run-coverage.js` should exist as the single local entrypoint that invokes the Node test runner with coverage enabled and 100% line, branch, function, and statement/file gate semantics.
+- `plugins/desk/mcp/scripts/run-coverage.js` should import and call the coverage gate exports directly rather than recursively shelling back into `npm run test:coverage`.
+- `plugins/desk/mcp/src/coverage/gate.js` should export `evaluateCoverageReport`, `collectCoverageRequiredFiles`, and `assertCoverageCommandParity` for direct tests and the local runner.
 - `.github/workflows/desk-mcp-tests.yml` should call `npm run test:coverage`, not a divergent `npm test` command.
-- The gate should cover new Desk MCP source files, new `plugins/desk/mcp/scripts/*.js` files, and new root `scripts/*.cjs` validation scripts introduced by this task.
+- The gate should discover coverage-required files from repo paths instead of relying on manually supplied required-file lists.
+- Required-file discovery should include new Desk MCP source files, new `plugins/desk/mcp/scripts/*.js` files, and new root `scripts/*.cjs` validation scripts introduced by this task.
+- Required-file discovery should exclude tests, including `plugins/desk/mcp/__tests__/**`, `*.test.js`, and root `scripts/test-*.cjs`.
 - Exclusions should be rare, explicit, and require both an owner and reason.
 
 Expected future artifact commands, implemented as package scripts or MCP maintenance tools rather than a user-facing Desk CLI:

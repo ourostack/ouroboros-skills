@@ -3,6 +3,8 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import {
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -46,8 +48,13 @@ function writeCoverageSummary(dir, entries) {
 
 function writeFixture(dir, name, text) {
   const file = path.join(dir, name)
+  mkdirSync(path.dirname(file), { recursive: true })
   writeFileSync(file, text, "utf8")
   return file
+}
+
+function normalizePaths(paths) {
+  return [...paths].map((file) => file.replaceAll(path.sep, "/")).sort()
 }
 
 test("coverage gate reports a missing coverage report as a hard failure", async () => {
@@ -217,6 +224,74 @@ test("coverage command parity rejects CI/local drift", async () => {
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
+})
+
+test("coverage required-file discovery includes production targets and excludes tests", async () => {
+  const { collectCoverageRequiredFiles } = await loadGate()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    const included = [
+      "plugins/desk/mcp/src/activation/schema.js",
+      "plugins/desk/mcp/src/activation/validate.js",
+      "plugins/desk/mcp/scripts/activation-support-matrix.js",
+      "scripts/validate-desk-activation.cjs",
+    ]
+    const excluded = [
+      "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js",
+      "plugins/desk/mcp/src/activation/validate.test.js",
+      "plugins/desk/mcp/scripts/activation-support-matrix.test.js",
+      "scripts/test-desk-activation.cjs",
+    ]
+
+    for (const file of [...included, ...excluded]) {
+      writeFixture(fixtureRoot, file, "export {}\n")
+    }
+
+    assert.equal(typeof collectCoverageRequiredFiles, "function")
+    assert.deepEqual(
+      normalizePaths(collectCoverageRequiredFiles({ repoRoot: fixtureRoot })),
+      included.sort(),
+    )
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("coverage runner exists and delegates to the coverage gate", () => {
+  const runnerPath = path.join(mcpRoot, "scripts", "run-coverage.js")
+
+  assert.ok(
+    existsSync(runnerPath),
+    "scripts/run-coverage.js must exist as the non-recursive local coverage entrypoint",
+  )
+
+  const runner = readFileSync(runnerPath, "utf8")
+  assert.match(
+    runner,
+    /(?:from\s+["'][^"']*src\/coverage\/gate\.js["']|import\([^)]*src\/coverage\/gate\.js[^)]*\))/,
+    "coverage runner must import the coverage gate module",
+  )
+  assert.match(
+    runner,
+    /\bcollectCoverageRequiredFiles\s*\(/,
+    "coverage runner must discover required files through the gate",
+  )
+  assert.match(
+    runner,
+    /\bevaluateCoverageReport\s*\(/,
+    "coverage runner must evaluate the generated coverage report through the gate",
+  )
+  assert.match(
+    runner,
+    /\bassertCoverageCommandParity\s*\(/,
+    "coverage runner must keep local and CI coverage commands in parity through the gate",
+  )
+  assert.doesNotMatch(
+    runner,
+    /\bnpm\s+(?:run\s+)?test:coverage\b/,
+    "coverage runner must not recursively invoke npm run test:coverage",
+  )
 })
 
 test("Desk MCP package exposes the local test:coverage command contract", () => {

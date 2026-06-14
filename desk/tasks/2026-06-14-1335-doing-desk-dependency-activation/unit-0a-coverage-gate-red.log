@@ -2,9 +2,9 @@ TAP version 13
 # Subtest: coverage gate reports a missing coverage report as a hard failure
 not ok 1 - coverage gate reports a missing coverage report as a hard failure
   ---
-  duration_ms: 1.64675
+  duration_ms: 1.687542
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:53:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:60:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -23,9 +23,9 @@ not ok 1 - coverage gate reports a missing coverage report as a hard failure
 # Subtest: coverage gate requires 100% coverage for new MCP source, MCP scripts, and root scripts
 not ok 2 - coverage gate requires 100% coverage for new MCP source, MCP scripts, and root scripts
   ---
-  duration_ms: 0.304167
+  duration_ms: 0.299792
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:71:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:78:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -44,9 +44,9 @@ not ok 2 - coverage gate requires 100% coverage for new MCP source, MCP scripts,
 # Subtest: coverage gate fails when a required new file is absent from the report
 not ok 3 - coverage gate fails when a required new file is absent from the report
   ---
-  duration_ms: 0.251042
+  duration_ms: 0.250208
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:112:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:119:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -65,9 +65,9 @@ not ok 3 - coverage gate fails when a required new file is absent from the repor
 # Subtest: coverage exclusions require an explicit owner and reason
 not ok 4 - coverage exclusions require an explicit owner and reason
   ---
-  duration_ms: 0.178042
+  duration_ms: 0.177042
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:137:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:144:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -86,9 +86,9 @@ not ok 4 - coverage exclusions require an explicit owner and reason
 # Subtest: coverage command parity rejects CI/local drift
 not ok 5 - coverage command parity rejects CI/local drift
   ---
-  duration_ms: 0.450958
+  duration_ms: 0.313625
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:174:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:181:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -104,12 +104,55 @@ not ok 5 - coverage command parity rejects CI/local drift
     ModuleLoader.import (node:internal/modules/esm/loader:663:21)
     defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
   ...
-# Subtest: Desk MCP package exposes the local test:coverage command contract
-not ok 6 - Desk MCP package exposes the local test:coverage command contract
+# Subtest: coverage required-file discovery includes production targets and excludes tests
+not ok 6 - coverage required-file discovery includes production targets and excludes tests
   ---
-  duration_ms: 0.834458
+  duration_ms: 0.336583
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:222:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:229:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/coverage/gate.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: coverage runner exists and delegates to the coverage gate
+not ok 7 - coverage runner exists and delegates to the coverage gate
+  ---
+  duration_ms: 0.749875
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:261:1'
+  failureType: 'testCodeFailure'
+  error: 'scripts/run-coverage.js must exist as the non-recursive local coverage entrypoint'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:264:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Desk MCP package exposes the local test:coverage command contract
+not ok 8 - Desk MCP package exposes the local test:coverage command contract
+  ---
+  duration_ms: 0.602417
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:297:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -123,7 +166,7 @@ not ok 6 - Desk MCP package exposes the local test:coverage command contract
   expected: 'node scripts/run-coverage.js'
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:227:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:302:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -132,11 +175,11 @@ not ok 6 - Desk MCP package exposes the local test:coverage command contract
     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: Desk MCP CI uses the same local coverage command
-not ok 7 - Desk MCP CI uses the same local coverage command
+not ok 9 - Desk MCP CI uses the same local coverage command
   ---
-  duration_ms: 1.096083
+  duration_ms: 1.234166
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:233:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:308:1'
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /npm run test:coverage/. Input:
@@ -239,7 +282,7 @@ not ok 7 - Desk MCP CI uses the same local coverage command
     
   operator: 'match'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:239:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js:314:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -247,12 +290,12 @@ not ok 7 - Desk MCP CI uses the same local coverage command
     Test.run (node:internal/test_runner/test:1101:12)
     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
-1..7
-# tests 7
+1..9
+# tests 9
 # suites 0
 # pass 0
-# fail 7
+# fail 9
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 94.46625
+# duration_ms 96.250834
