@@ -106,7 +106,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Vector-pack validation errors report file, row, and chunk key without dumping full text.
 - [ ] Gitignored secret files are excluded from indexing and artifact publication by default.
 - [ ] Artifact publication requires explicit approval when repository or organization policy requires it.
-- [ ] Deleted/redacted documents are invalidated through tombstones, pruning, or artifact rotation.
+- [ ] Deleted/redacted documents are invalidated through tombstone metadata plus artifact rotation cleanup.
 - [ ] CI validates that deleted/redacted docs are no longer represented in active vector packs or snapshots.
 - [ ] Existing active/archived search scope behavior is preserved after snapshot restore and vector import.
 - [ ] Existing refs graph behavior is preserved after snapshot restore and vector import.
@@ -470,7 +470,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new exclusion code and all existing discovery tests remain green.
 
 ### ⬜ Unit 21a: Tombstones And Redaction Cleanup - Tests
-**What**: Write failing tests for tombstone invalidation, active artifact exclusion of deleted/redacted docs, pruning or artifact rotation, repeated tombstones, and deleted archived docs.  
+**What**: Write failing tests for tombstone invalidation, active artifact exclusion of deleted/redacted docs, artifact rotation cleanup, repeated tombstones, and deleted archived docs.  
 **Output**: `plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js`.  
 **Acceptance**: Tests fail until tombstone and cleanup behavior exists.
 
@@ -585,3 +585,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:25 Quality pass converged
 - 2026-06-14 14:28 Addressed Round 2 granularity and ambiguity findings: split final integration implementation and fixed remaining exact targets
 - 2026-06-14 14:32 Addressed final granularity and ambiguity findings: split integration tests, clarified ownership, and removed remaining alternatives
+- pending commit Resolved final redaction cleanup wording to tombstone metadata plus artifact rotation cleanup
