@@ -54,7 +54,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual native-dependency installation.
-- [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared using this writable cache precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`.
+- [ ] Native MCP runtime dependencies are bundled, prebuilt, or self-prepared using this writable cache precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<native-package-versions>/`.
 - [ ] Desk MCP launch works from arbitrary current working directories and resolves plugin-relative paths explicitly.
 - [ ] Desk MCP startup does not mutate immutable plugin source/cache directories.
 - [ ] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
@@ -186,7 +186,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 2a: Codex Global Activation - Tests
 **What**: Write failing tests for Codex global personal worker+Desk default activation, project-local opt-out, manual-only opt-out, safe merge/preservation of user-authored config, no uncontrolled `AGENTS.md` append/copy, no manual `codex mcp add`, and permission/capability boundaries.  
-**Output**: `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/.codex-plugin/plugin.json`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
+**Output**: `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Tests fail because Codex activation materialization does not yet exist or still relies on manual setup assumptions.
 
 ### ⬜ Unit 2b: Codex Global Activation - Implementation
@@ -199,6 +199,31 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened `plugins/desk/mcp/src/activation/adapters/codex.js` and `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`.  
 **Acceptance**: 100% coverage on new Codex adapter code, repeated activation is idempotent, and all Codex adapter tests pass.
 
+### ⬜ Unit 2d: Activation Artifact Ownership - Tests
+**What**: Write failing tests for an owned-artifact ledger, generated artifact upgrade replacement, deactivation cleanup, preservation of user-authored config, and never deleting desk data.  
+**Output**: `plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js` and fixtures under `plugins/desk/mcp/__tests__/fixtures/activation/ownership/`.  
+**Acceptance**: Tests fail until activation writes an ownership ledger and deactivation removes only owned generated artifacts.
+
+### ⬜ Unit 2e: Activation Artifact Ownership - Implementation
+**What**: Implement ownership ledger creation, upgrade replacement, deactivation cleanup, and user-config preservation for generated activation artifacts.  
+**Output**: `plugins/desk/mcp/src/activation/artifact-ledger.js`, updates to `plugins/desk/mcp/src/activation/adapters/codex.js`, and ownership fixtures.  
+**Acceptance**: Unit 2d tests pass, generated artifacts can be updated or removed safely, and desk data is never deleted.
+
+### ⬜ Unit 2f: Activation Artifact Ownership - Coverage & Refactor
+**What**: Add coverage for missing ledger, corrupt ledger, user-edited generated files, repeated deactivate, and partial activation failure.  
+**Output**: Hardened activation artifact ownership implementation.  
+**Acceptance**: 100% coverage on new artifact ownership code and all ownership tests pass.
+
+### ⬜ Unit 2g: Codex CLI/App Smoke - Tests
+**What**: Write failing smoke tests or evidence harness for a temp Codex profile/session that activates Desk, starts a new Codex CLI session, records the Codex App support disposition, and asserts worker instructions plus a `desk_status` MCP call are visible where the host exposes that capability.  
+**Output**: `plugins/desk/mcp/__tests__/activation/codex_smoke.test.js` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md`.  
+**Acceptance**: Tests/evidence fail until Codex CLI smoke proves worker+Desk activation and Codex App is either proven or explicitly marked with support-matrix evidence.
+
+### ⬜ Unit 2h: Codex CLI/App Smoke - Implementation
+**What**: Implement the Codex smoke harness and support-matrix evidence updates. Use a temp Codex home/profile and avoid touching the user's real Codex config.  
+**Output**: Updated smoke harness, `codex-smoke-evidence.md`, and Codex support-matrix evidence rows.  
+**Acceptance**: Unit 2g tests/evidence pass, CLI activation sees worker instructions and `desk_status`, and Codex App has a proven or explicitly unsupported disposition.
+
 ### ⬜ Unit 3a: Support Matrix Generator - Tests
 **What**: Write failing tests for a generated support matrix with one row each for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.  
 **Output**: `plugins/desk/mcp/__tests__/activation/support_matrix.test.js` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
@@ -206,7 +231,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 3b: Support Matrix Generator - Implementation
 **What**: Implement support-matrix generation and validation from activation metadata plus the evidence artifact.  
-**Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/support-matrix.json`, and `host-capability-evidence.md`.  
+**Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/activation/support-matrix.json`, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
 **Acceptance**: Unit 3a tests pass and generated support matrix matches the evidence artifact exactly.
 
 ### ⬜ Unit 3c: Support Matrix Generator - Coverage & Refactor
@@ -230,13 +255,13 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new Claude packaging validation code and all Claude packaging tests pass.
 
 ### ⬜ Unit 5a: Copilot Root Packaging - Tests
-**What**: Write failing tests for `plugins/desk/plugin.json`, `plugins/work-suite` metadata, root agent exposure, flattened dependency support, no hand-edited JSON/TOML, and manifest version consistency.  
+**What**: Write failing tests for `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, Work Suite metadata, root agent exposure, flattened dependency support, no hand-edited JSON/TOML, and manifest version consistency.  
 **Output**: `plugins/desk/mcp/__tests__/activation/copilot_packaging.test.js`.  
 **Acceptance**: Tests fail on current root manifest drift or missing flattened dependency metadata.
 
 ### ⬜ Unit 5b: Copilot Root Packaging - Implementation
-**What**: Update root/Copilot plugin metadata and generated flattened-bundle metadata for Desk plus Work Suite.  
-**Output**: Updated `plugins/desk/plugin.json`, generated flattened-bundle metadata, and support matrix data.  
+**What**: Update root/Copilot plugin metadata, add or update Work Suite root plugin metadata, and generate flattened-bundle metadata for Desk plus Work Suite.  
+**Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, and support matrix data.  
 **Acceptance**: Unit 5a tests pass and Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode.
 
 ### ⬜ Unit 5c: Copilot Root Packaging - Coverage & Refactor
@@ -259,65 +284,65 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened Ouroboros/generic stdio validation.  
 **Acceptance**: 100% coverage on new validation code and all Ouroboros/generic stdio packaging tests pass.
 
-### ⬜ Unit 7a: MCP Status Tool - Tests
-**What**: Write failing tests for registered `desk_status`, tool description, dispatch from `server.js`, health schema fields, document-vector availability separated from query embedding availability, and session-start-safe summary output.  
+### ⬜ Unit 7a: Dependency-Light MCP Entrypoint - Tests
+**What**: Write failing tests proving `plugins/desk/mcp/index.js` can start dependency preparation before importing `src/server.js` or any native/server dependencies. Cover missing `node_modules`, native ABI mismatch, offline prebuilt restore, and no healthy-path manual `npm install`.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js`.  
+**Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `better-sqlite3`, or `sqlite-vec`.
+
+### ⬜ Unit 7b: Dependency-Light MCP Entrypoint - Implementation
+**What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that prepares or verifies the writable runtime cache, then dynamically imports `plugins/desk/mcp/src/server.js`.  
+**Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, and runtime bootstrap fixtures.  
+**Acceptance**: Unit 7a tests pass, missing native dependencies produce actionable non-leaking diagnostics, and no plugin source directory is mutated.
+
+### ⬜ Unit 7c: Dependency-Light MCP Entrypoint - Coverage & Refactor
+**What**: Add coverage for absent cache, corrupt cache metadata, offline prebuilt unavailable, unsupported platform, native package version mismatch, and repeated startup.  
+**Output**: Hardened dependency-light bootstrap implementation.  
+**Acceptance**: 100% coverage on new bootstrap code and all dependency-light entrypoint tests pass.
+
+### ⬜ Unit 8a: Activation Config And Root Resolution - Tests
+**What**: Write failing tests for activation-config loading, root binding precedence, malformed config diagnostics, root source reporting, and shared use of the existing root resolver.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/activation_config.test.js`.  
+**Acceptance**: Tests fail until activation config root binding precedes `$DESK` and home fallbacks, and `plugins/desk/mcp/index.js`, server startup, and activation config use the same resolver in `plugins/desk/mcp/src/util/paths.js`.
+
+### ⬜ Unit 8b: Activation Config And Root Resolution - Implementation
+**What**: Extend `plugins/desk/mcp/src/util/paths.js` as the canonical path/root module. Add activation-config loading and root-source diagnostics without creating a competing runtime paths module.  
+**Output**: Updated `plugins/desk/mcp/src/util/paths.js` and activation config helpers used by `index.js` and status/startup code.  
+**Acceptance**: Unit 8a tests pass and root resolution order is activation config, explicit `--root`, `$DESK`, then existing home fallbacks unless a test documents a different explicit override.
+
+### ⬜ Unit 8c: Activation Config And Root Resolution - Coverage & Refactor
+**What**: Add coverage for missing config, invalid JSON, nonexistent root, tilde expansion, relative roots, and diagnostic output listing every source attempted.  
+**Output**: Hardened activation config/root resolution implementation.  
+**Acceptance**: 100% coverage on new root/config code and all activation-config tests pass.
+
+### ⬜ Unit 9a: Runtime Cache And Host MCP Launch - Tests
+**What**: Write failing tests for cwd-independent launch, host MCP declarations launched from a temp cwd, plugin-relative or absolute installed paths, immutable plugin directory protection, runtime cache precedence, and native cache key compatibility.  
+**Output**: `plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js`.  
+**Acceptance**: Tests fail until runtime cache resolution uses activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<native-package-versions>/`, startup rejects incompatible cached native artifacts, host MCP declarations do not rely on caller cwd, and startup never writes under `plugins/desk/`, `plugins/desk/.codex-plugin/`, `plugins/desk/.claude-plugin/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/plugin-source/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/host-cache-source/`, or `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/readonly-plugin-cache/`.
+
+### ⬜ Unit 9b: Runtime Cache And Host MCP Launch - Implementation
+**What**: Implement runtime cache helpers, native cache key metadata, host MCP declaration path fixes, and cwd-independent launch behavior.  
+**Output**: `plugins/desk/mcp/src/runtime/cache.js`, updated `.mcp.json`/host adapter MCP declarations, updated `index.js`, and cache metadata fixtures.  
+**Acceptance**: Unit 9a tests pass from arbitrary current working directories, incompatible native caches are rejected, and immutable plugin/source dirs remain untouched.
+
+### ⬜ Unit 9c: Runtime Cache And Host MCP Launch - Coverage & Refactor
+**What**: Add edge-case coverage for unset home/cache env vars, relative activation cache dirs, unwritable cache dirs, platform/arch/Node ABI mismatch, native package version mismatch, and repeated startup.  
+**Output**: Hardened runtime cache and host launch implementation.  
+**Acceptance**: 100% coverage on new runtime cache/launch code and all runtime cache tests pass.
+
+### ⬜ Unit 10a: Early `desk_status` Skeleton - Tests
+**What**: Write failing tests for registered `desk_status`, tool description, dispatch from `server.js`, root/runtime/local DB fields, root-source diagnostics, and session-start-safe summary output that does not require vector-pack or snapshot modules yet.  
 **Output**: `plugins/desk/mcp/__tests__/tools/status.test.js`.  
-**Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired in `plugins/desk/mcp/src/server.js`, and implemented.
+**Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired in `plugins/desk/mcp/src/server.js`, and returns early health fields without expensive repair work.
 
-### ⬜ Unit 7b: MCP Status Tool - Implementation
-**What**: Implement `desk_status` and status helper functions without running expensive repair work.  
-**Output**: `plugins/desk/mcp/src/tools/status.js`, updated `tool-names.js`, updated `server.js`, and any helper module required by the tests.  
-**Acceptance**: Unit 7a tests pass and `desk_status` reports root, runtime version, DB schema, embedding spec, snapshot state, vector-pack state, document-vector coverage, query embedding availability, lexical availability, and degraded modes.
+### ⬜ Unit 10b: Early `desk_status` Skeleton - Implementation
+**What**: Implement `desk_status` with early health fields only: root, root source, runtime version, DB existence/schema when available, lexical index availability when cheap, and placeholders marked `not_available_until_artifact_modules` for snapshot/vector-pack/spec fields.  
+**Output**: `plugins/desk/mcp/src/tools/status.js`, updated `tool-names.js`, updated `server.js`, and helper code.  
+**Acceptance**: Unit 10a tests pass and `desk_status` does not run snapshot restore, vector-pack import, or embedding probes.
 
-### ⬜ Unit 7c: MCP Status Tool - Coverage & Refactor
-**What**: Add coverage for missing DB, stale DB, missing embedding endpoint, missing vector packs, malformed snapshot manifest, and no desk root.  
-**Output**: Hardened status implementation.  
-**Acceptance**: 100% coverage on new status code and all status tests pass.
-
-### ⬜ Unit 8a: Runtime Cache And Path Bootstrap - Tests
-**What**: Write failing tests for cwd-independent launch, plugin-relative path resolution, immutable plugin directory protection, and runtime cache precedence.  
-**Output**: `plugins/desk/mcp/__tests__/runtime/cache_and_paths.test.js`.  
-**Acceptance**: Tests fail until runtime cache resolution uses activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/`, and startup never writes under `plugins/desk/`, `plugins/desk/.codex-plugin/`, `plugins/desk/.claude-plugin/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/plugin-source/`, `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/host-cache-source/`, or `plugins/desk/mcp/__tests__/fixtures/runtime/immutable/readonly-plugin-cache/`.
-
-### ⬜ Unit 8b: Runtime Cache And Path Bootstrap - Implementation
-**What**: Implement runtime cache/path helpers and wire MCP startup to use them.  
-**Output**: `plugins/desk/mcp/src/runtime/cache.js`, `plugins/desk/mcp/src/runtime/paths.js`, and updated MCP entry/startup code.  
-**Acceptance**: Unit 8a tests pass from arbitrary current working directories and immutable plugin/source dirs remain untouched.
-
-### ⬜ Unit 8c: Runtime Cache And Path Bootstrap - Coverage & Refactor
-**What**: Add edge-case coverage for unset home/cache env vars, relative activation cache dirs, unwritable cache dirs, and repeated startup.  
-**Output**: Hardened runtime path/cache modules.  
-**Acceptance**: 100% coverage on new runtime path/cache code and all runtime cache tests pass.
-
-### ⬜ Unit 9a: Bounded Startup And Deferred Repair - Tests
-**What**: Write failing tests for healthy startup avoiding network calls, startup budget enforcement from `plugins/desk/mcp/config/performance-budgets.json`, long repair deferral, explicit repair state, and offline startup with snapshot/vector-pack/lexical fallback.  
-**Output**: `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.  
-**Acceptance**: Tests fail until startup/rebuild budget values are read from `plugins/desk/mcp/config/performance-budgets.json` and repair does not silently block session start.
-
-### ⬜ Unit 9b: Bounded Startup And Deferred Repair - Implementation
-**What**: Implement bounded startup behavior and repair-state reporting in `ensureIndex`/server startup without removing explicit repair paths.  
-**Output**: Updated `plugins/desk/mcp/src/server-helpers.js`, startup helpers, and `plugins/desk/mcp/config/performance-budgets.json`.  
-**Acceptance**: Unit 9a tests pass, healthy warm start performs no embedding network calls, and long repairs are deferred or explicitly surfaced.
-
-### ⬜ Unit 9c: Bounded Startup And Deferred Repair - Coverage & Refactor
-**What**: Add coverage for stale DB, missing DB, missing snapshot, present snapshot, missing vector packs, disabled embeddings, and slow repair simulation.  
-**Output**: Hardened bounded startup implementation.  
-**Acceptance**: 100% coverage on new startup-budget code and all startup tests pass.
-
-### ⬜ Unit 10a: Diagnostic Non-Leak - Tests
-**What**: Write failing tests that health output, logs, snapshot errors, vector-pack validation errors, and MCP error payloads report file/row/key/manifest fields without dumping chunk text or sensitive document content.  
-**Output**: `plugins/desk/mcp/__tests__/runtime/diagnostic_privacy.test.js`.  
-**Acceptance**: Tests fail until diagnostic paths redact text content and expose only safe identifiers.
-
-### ⬜ Unit 10b: Diagnostic Non-Leak - Implementation
-**What**: Implement diagnostic redaction helpers and apply them to status, snapshot, vector-pack, and MCP error paths.  
-**Output**: `plugins/desk/mcp/src/runtime/diagnostics.js` and updated callers.  
-**Acceptance**: Unit 10a tests pass and diagnostic payloads avoid sensitive text while remaining actionable.
-
-### ⬜ Unit 10c: Diagnostic Non-Leak - Coverage & Refactor
-**What**: Add coverage for nested error causes, validation arrays, long paths, missing chunk keys, and exceptions thrown by validators.  
-**Output**: Hardened diagnostic helpers.  
-**Acceptance**: 100% coverage on new diagnostic code and all diagnostic privacy tests pass.
+### ⬜ Unit 10c: Early `desk_status` Skeleton - Coverage & Refactor
+**What**: Add coverage for missing DB, stale DB, no desk root, malformed root config, unavailable embedding endpoint, and no artifact modules installed.  
+**Output**: Hardened early status implementation.  
+**Acceptance**: 100% coverage on new early status code and all early status tests pass.
 
 ### ⬜ Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
 **What**: Write failing tests for deterministic chunk keys, embedding spec IDs, chunker version, normalized text identity, DB schema/migrations for chunk keys/spec metadata, and inactive-spec ignore.  
@@ -365,12 +390,12 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new rebuild flow code and all vector rebuild tests pass.
 
 ### ⬜ Unit 14a: Vector Compaction And Search Preservation - Tests
-**What**: Write failing tests for compaction semantic equivalence, active/archived search scope preservation, refs graph preservation, pack merge/no-conflict simulation, and query/document-vector diagnostic separation after compaction.  
+**What**: Write failing tests for compaction semantic equivalence, active/archived search scope preservation, refs graph preservation, pack merge/no-conflict simulation, `result_mode` or `search_mode` assertions for `desk_search` and `desk_timeline`, and query/document-vector diagnostic separation after compaction.  
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js`.  
 **Acceptance**: Tests fail until compaction and preservation checks exist.
 
 ### ⬜ Unit 14b: Vector Compaction And Search Preservation - Implementation
-**What**: Implement compaction validation hooks only; do not enable pack rewriting in this unit. Preserve search/ref behavior across import/rebuild/validation.  
+**What**: Implement compaction validation hooks only; do not enable pack rewriting in this unit. Preserve search/ref behavior across import/rebuild/validation and add explicit `result_mode` or `search_mode` fields to search responses.  
 **Output**: Vector-pack compaction validation helpers plus updated search/indexer behavior.  
 **Acceptance**: Unit 14a tests pass and semantic equivalence checks must pass before any future compaction rewrite can be enabled.
 
@@ -423,6 +448,21 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **What**: Add coverage for stale docs, deleted docs, archived docs, missing packs, and embedding endpoint disabled during fallback.  
 **Output**: Hardened snapshot fallback/reconcile flow.  
 **Acceptance**: 100% coverage on new fallback/reconcile code and all fallback tests pass.
+
+### ⬜ Unit 17d: Full Status And Offline Fallback - Tests
+**What**: Write failing tests that extend `desk_status` and startup fallback after vector-pack and snapshot modules exist. Cover embedding spec, snapshot state, vector-pack state, document-vector coverage, query embedding availability, lexical availability, degraded modes, and offline startup with snapshot/vector-pack/lexical fallback.  
+**Output**: `plugins/desk/mcp/__tests__/tools/status_artifacts.test.js` and extended `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.  
+**Acceptance**: Tests fail until full artifact-aware status and offline fallback are wired after Units 11-17.
+
+### ⬜ Unit 17e: Full Status And Offline Fallback - Implementation
+**What**: Wire snapshot, vector-pack, and embedding-spec modules into `desk_status` and bounded startup fallback without making status run expensive repair work.  
+**Output**: Updated `plugins/desk/mcp/src/tools/status.js`, `plugins/desk/mcp/src/server-helpers.js`, and artifact helper integration.  
+**Acceptance**: Unit 17d tests pass, full status fields are populated when modules exist, and offline startup falls back through snapshot, vector packs, then lexical indexing.
+
+### ⬜ Unit 17f: Full Status And Offline Fallback - Coverage & Refactor
+**What**: Add coverage for missing snapshot, incompatible snapshot, missing vector packs, partial vector coverage, unavailable query embedding endpoint, and stale local DB.  
+**Output**: Hardened full status/fallback integration.  
+**Acceptance**: 100% coverage on new full status/fallback code and all status/fallback tests pass.
 
 ### ⬜ Unit 18a: Artifact Scripts And Performance Budgets - Tests
 **What**: Write failing tests for exact `plugins/desk/mcp/package.json` scripts: `artifact:vector-pack:build`, `artifact:snapshot:build`, `artifact:snapshot:verify`, and `artifact:validate`. Cover CI invocation and startup/rebuild budget thresholds from `plugins/desk/mcp/config/performance-budgets.json`.  
@@ -514,6 +554,21 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened CI/freshness validation.  
 **Acceptance**: All CI/freshness tests pass locally.
 
+### ⬜ Unit 23d: Coverage Gate - Tests
+**What**: Write failing checks for a coverage command that enforces 100% coverage on new Desk MCP files and scripts added by this task.  
+**Output**: `plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js` and expected coverage command documentation in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
+**Acceptance**: Tests fail until coverage tooling and thresholds exist.
+
+### ⬜ Unit 23e: Coverage Gate - Implementation
+**What**: Add coverage tooling and CI wiring for new Desk MCP code, with 100% thresholds on new files introduced by this task.  
+**Output**: Updated `plugins/desk/mcp/package.json`, coverage configuration, `.github/workflows/desk-mcp-tests.yml`, and validation scripts.  
+**Acceptance**: Unit 23d tests pass and CI fails when new code coverage drops below 100%.
+
+### ⬜ Unit 23f: Coverage Gate - Coverage & Refactor
+**What**: Add edge-case coverage for missing coverage reports, uncovered new files, files intentionally excluded by policy, and CI/local command mismatch.  
+**Output**: Hardened coverage gate implementation.  
+**Acceptance**: Coverage gate tests pass locally and the final verification command list includes the coverage command.
+
 ### ⬜ Unit 24a1: Integration Tests - Cold Start And Snapshot Restore
 **What**: Write failing integration checks for full cold start and compatible snapshot restore.  
 **Output**: `plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js`.  
@@ -571,8 +626,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ## Execution
 - **TDD strictly enforced**: tests → red → implement → green → refactor
-- Commit after each phase (1a, 1b, 1c)
-- Push after each unit complete
+- For `a` test units, save red-run output under `./2026-06-14-1335-doing-desk-dependency-activation/` and commit the failing tests with an explicit red-state message.
+- For paired `b`/implementation and `c`/coverage-refactor units, commit only after the relevant tests are green.
+- Push after each green implementation/refactor unit; push red-test commits only when needed for collaboration or audit continuity.
 - Run full test suite before marking unit done
 - **All artifacts**: Save outputs, logs, data to `./2026-06-14-1335-doing-desk-dependency-activation/` directory
 - **Fixes/blockers**: Spawn sub-agent immediately — don't ask, just do it
@@ -587,3 +643,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 14:32 Addressed final granularity and ambiguity findings: split integration tests, clarified ownership, and removed remaining alternatives
 - 2026-06-14 14:34 Resolved final redaction cleanup wording to tombstone metadata plus artifact rotation cleanup
 - 2026-06-14 14:36 Granularity and ambiguity reviewer gates converged
+- 2026-06-14 14:44 Addressed scrutiny findings: dependency-light MCP bootstrap, Codex smoke, activation config, root packaging, artifact ownership/deactivation, search result modes, and coverage gate
