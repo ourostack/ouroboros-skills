@@ -2,7 +2,7 @@
 
 **Status**: drafting
 **Execution Mode**: direct
-**Created**: pending initial commit
+**Created**: 2026-06-14 14:11
 **Planning**: ./2026-06-14-1335-planning-desk-dependency-activation.md
 **Artifacts**: ./2026-06-14-1335-doing-desk-dependency-activation/
 
@@ -299,4 +299,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - **Decisions made**: Update docs immediately, commit right away
 
 ## Progress Log
-- pending initial commit Created from planning doc
+- 2026-06-14 14:11 Created from planning doc
