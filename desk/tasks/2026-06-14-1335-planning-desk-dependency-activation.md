@@ -224,4 +224,4 @@ Ideator synthesis: the product surface is dependency activation, not setup. The 
 - 2026-06-14 13:42 Addressed Round 1 reviewer findings: Codex smoke proof, MCP runtime ownership, bounded startup, artifact integrity, redaction, dependency versions, host support evidence, and health tool visibility
 - 2026-06-14 13:46 Addressed Round 2 reviewer findings: performance budget explicitness, permission boundaries, diagnostic privacy, snapshot manifest fields, and Ouroboros/autonomous-agent support disposition
 - 2026-06-14 14:07 Set Codex personal activation to global worker+Desk default, with project-local/manual-only opt-outs
-- pending commit Approved planning and resolved remaining best-judgment decisions before doing-doc conversion
+- 2026-06-14 14:08 Approved planning and resolved remaining best-judgment decisions before doing-doc conversion
