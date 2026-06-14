@@ -204,7 +204,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened coverage gate implementation.  
 **Acceptance**: Coverage gate tests pass locally, and every later `c` unit can run `npm --prefix plugins/desk/mcp run test:coverage` without inventing a command.
 
-### ⬜ Unit 1a: Activation Contract - Tests
+### ✅ Unit 1a: Activation Contract - Tests
 **What**: Write failing tests for a versioned activation manifest/schema and validator. Cover dependency ID, semver/pin, provenance/lock fields, host support/fallback fields, permissions/capabilities, `desk:worker`, overlay agents, MCP requirements, desk-root binding, embedding policy, snapshot policy, unknown schema versions, deterministic dependency order, and unsupported-host diagnostics.  
 **Output**: `plugins/desk/mcp/__tests__/activation/activation_contract.test.js`.  
 **Acceptance**: Tests fail because `plugins/desk/mcp/src/activation/schema.js`, `plugins/desk/mcp/src/activation/validate.js`, and canonical activation fixtures do not exist or do not satisfy the expected contract.
@@ -742,3 +742,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 16:27 Unit 0c complete: added red/green coverage for CI path-filter parity so `scripts/*.cjs` changes cannot skip the coverage gate; saved `unit-0c-coverage-gate-red.log`, `unit-0c-test-coverage-green.log`, and `unit-0c-npm-test-green.log`; verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
 - 2026-06-14 16:29 Unit 0c reviewer fix: Hooke found the path-filter parity check accepted `scripts/*.cjs` anywhere in workflow text; added red evidence in `unit-0c-review-fix-red.log`, replaced the loose string check with `on.pull_request.paths`/`on.push.paths` extraction, covered false positives and one-event-only placement, refreshed green logs, and re-verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, and `node scripts/validate-skills.cjs`
 - 2026-06-14 16:31 Unit 0c Round 2 cold reviewer gate converged with no findings
+- 2026-06-14 16:35 Unit 1a complete: activation-contract red tests added in `plugins/desk/mcp/__tests__/activation/activation_contract.test.js`; targeted red run saved to `unit-1a-activation-contract-red.log` and fails because `plugins/desk/mcp/src/activation/schema.js` and `plugins/desk/mcp/src/activation/validate.js` do not exist yet
