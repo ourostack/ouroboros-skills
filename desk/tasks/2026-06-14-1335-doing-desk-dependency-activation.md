@@ -706,3 +706,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:00 Addressed third scrutiny findings: support-matrix regeneration after evidence changes, Codex ownership unit ordering, runtime dependency pack bootstrap semantics, and interleaved integration red/green units
 - 2026-06-14 15:00 Committed third scrutiny fixes as `240fc70`
 - 2026-06-14 15:08 Addressed fourth scrutiny findings: full runtime dependency packs, production shared vector/snapshot artifact publication, root-script coverage, explicit policy/tombstone schemas, and runtime-cache versus desk-state separation
+- 2026-06-14 15:08 Committed fourth scrutiny fixes as `2e164ec`
