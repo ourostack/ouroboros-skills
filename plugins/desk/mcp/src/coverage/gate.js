@@ -85,6 +85,9 @@ export function assertCoverageCommandParity({ packageJsonPath, workflowPath }) {
   if (/run:\s*npm test\b/.test(workflow)) {
     issues.push("desk MCP CI still runs npm test instead of npm run test:coverage")
   }
+  if (!workflow.includes("scripts/*.cjs")) {
+    issues.push("desk MCP CI must include scripts/*.cjs in path filters")
+  }
 
   return {
     ok: issues.length === 0,

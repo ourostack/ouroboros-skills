@@ -199,7 +199,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated `plugins/desk/mcp/package.json`, coverage configuration, `.github/workflows/desk-mcp-tests.yml`, validation scripts, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Unit 0a tests pass, `npm --prefix plugins/desk/mcp run test:coverage` exists, and CI fails when new code coverage drops below 100%.
 
-### ⬜ Unit 0c: Coverage Gate Baseline - Coverage & Refactor
+### ✅ Unit 0c: Coverage Gate Baseline - Coverage & Refactor
 **What**: Add edge-case coverage for missing coverage reports, uncovered new files, uncovered root validation scripts, files intentionally excluded by policy, root/MCP command mismatch, and CI/local command drift.  
 **Output**: Hardened coverage gate implementation.  
 **Acceptance**: Coverage gate tests pass locally, and every later `c` unit can run `npm --prefix plugins/desk/mcp run test:coverage` without inventing a command.
@@ -739,3 +739,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 16:03 Unit 0b complete: coverage gate implementation, `test:coverage` script, CI wiring, and coverage config landed; `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, and `node scripts/validate-skills.cjs` pass; green logs saved under the task artifact directory
 - 2026-06-14 16:16 Unit 0b reviewer fix committed as `6d7d5d8`: removed the runner self-exclusion by moving implementation into covered `plugins/desk/mcp/src/coverage/runner.js`, kept `plugins/desk/mcp/scripts/run-coverage.js` as a covered child-no-op entrypoint, added `scripts/*.cjs` CI path filters, refreshed green logs, and re-verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
 - 2026-06-14 16:18 Unit 0b Round 2 cold reviewer gate converged with no findings
+- 2026-06-14 16:27 Unit 0c complete: added red/green coverage for CI path-filter parity so `scripts/*.cjs` changes cannot skip the coverage gate; saved `unit-0c-coverage-gate-red.log`, `unit-0c-test-coverage-green.log`, and `unit-0c-npm-test-green.log`; verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`

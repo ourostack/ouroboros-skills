@@ -4,8 +4,9 @@ name: desk MCP tests
 # (plugins/desk/mcp `npm run test:coverage`).
 # Skill-manifest validation lives in validate-skills.yml and does NOT exercise
 # the MCP code, so without this job desk-core changes can merge untested.
-# Path-filtered to the MCP package (and this workflow file) to keep unrelated
-# skill/docs edits from triggering a Node build they don't need.
+# Path-filtered to the MCP package, root validation scripts, and this workflow
+# file to keep unrelated skill/docs edits from triggering a Node build they
+# don't need.
 
 on:
   pull_request:

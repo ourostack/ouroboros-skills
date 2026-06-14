@@ -272,6 +272,12 @@ test("coverage command parity rejects CI/local drift", async () => {
       tmp,
       "good.yml",
       [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
         "jobs:",
         "  desk-mcp-tests:",
         "    steps:",
@@ -314,6 +320,29 @@ test("coverage command parity rejects CI/local drift", async () => {
     })
     assert.equal(badPackage.ok, false)
     assert.match(badPackage.issues.join("\n"), /node scripts\/run-coverage\.js/i)
+
+    const missingRootScriptPathFilter = writeFixture(
+      tmp,
+      "missing-root-scripts.yml",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Run Desk MCP coverage",
+        "        run: npm run test:coverage",
+      ].join("\n"),
+    )
+    const badPathFilter = assertCoverageCommandParity({
+      packageJsonPath,
+      workflowPath: missingRootScriptPathFilter,
+    })
+    assert.equal(badPathFilter.ok, false)
+    assert.match(badPathFilter.issues.join("\n"), /scripts\/\*\.cjs/i)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -465,7 +494,18 @@ test("coverage runner returns child status, coverage failures, and success codes
     const workflowPath = writeFixture(
       fixtureRoot,
       ".github/workflows/desk-mcp-tests.yml",
-      "run: npm run test:coverage\n",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - run: npm run test:coverage",
+      ].join("\n"),
     )
     writeFixture(fixtureRoot, "plugins/desk/mcp/src/coverage/gate.js", "export {}\n")
 
@@ -736,5 +776,6 @@ test("Desk MCP CI uses the same local coverage command", () => {
   )
 
   assert.match(workflow, /npm run test:coverage/)
+  assert.match(workflow, /scripts\/\*\.cjs/)
   assert.doesNotMatch(workflow, /run:\s*npm test\b/)
 })
