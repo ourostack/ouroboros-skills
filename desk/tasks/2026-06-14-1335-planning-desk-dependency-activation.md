@@ -1,6 +1,6 @@
 # Planning: Desk Dependency Activation
 
-**Status**: NEEDS_REVIEW
+**Status**: approved
 **Created**: 2026-06-14 13:36
 
 ## Goal
@@ -171,10 +171,10 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Edge cases: null, empty, boundary values
 
 ## Open Questions
-- [ ] Confirm before conversion/execution: shared embedding/snapshot publication should default off for public or sensitive repositories and require explicit policy approval before writing repo artifacts.
-- [ ] Confirm before conversion/execution: redaction cleanup should use tombstones for immediate invalidation plus artifact pruning/rotation for durable cleanup.
-- [ ] Confirm before conversion/execution: unsupported host primitives should be handled by flattened host-specific bundles or documented unsupported status rather than claiming native support.
-- [ ] Confirm before conversion/execution: concrete startup/rebuild performance budget thresholds should be set in test configuration or release policy before implementation begins.
+- [x] Resolved: shared embedding/snapshot publication defaults off for public or sensitive repositories and requires explicit policy approval before writing repo artifacts.
+- [x] Resolved: redaction cleanup uses tombstones for immediate invalidation plus artifact pruning/rotation for durable cleanup.
+- [x] Resolved: unsupported host primitives are handled by flattened host-specific bundles or documented unsupported status rather than claiming native support.
+- [x] Resolved: concrete startup/rebuild performance budget thresholds are set in test configuration or release policy before the implementation units that assert those budgets.
 
 ## Decisions Made
 - Desk must be a dependency substrate, not a separately installed user prerequisite. Dependent plugins and custom agents carry Desk through host-native dependency or flattened packaging.
@@ -190,6 +190,10 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Snapshot compatibility excludes source/document freshness. Freshness mismatch should restore then reconcile; schema/spec/runtime/path mismatch should reject or skip.
 - Redaction safety cannot remain "policy only"; implementation must provide a concrete invalidation mechanism and tests.
 - Diagnostics are part of the privacy surface. They may identify files, rows, keys, and manifest fields, but must not dump chunk text or sensitive document content.
+- Shared embedding/snapshot publication defaults off for public or sensitive repositories and requires explicit repo or organization policy approval before writing artifacts.
+- Redaction cleanup uses tombstones for immediate invalidation plus pruning or artifact rotation for durable cleanup.
+- Unsupported host primitives must produce flattened host-specific bundles or an explicit unsupported/support-matrix diagnostic, never fake native support.
+- Startup and rebuild performance thresholds should be explicit implementation fixtures or release-policy values before budget assertions are added.
 - The initial implementation should prefer deterministic, testable primitives over host-specific magic: activation manifest, adapter output, MCP health, vector packs, snapshot manifests, and CI fixtures.
 
 ## Context / References
@@ -220,3 +224,4 @@ Ideator synthesis: the product surface is dependency activation, not setup. The 
 - 2026-06-14 13:42 Addressed Round 1 reviewer findings: Codex smoke proof, MCP runtime ownership, bounded startup, artifact integrity, redaction, dependency versions, host support evidence, and health tool visibility
 - 2026-06-14 13:46 Addressed Round 2 reviewer findings: performance budget explicitness, permission boundaries, diagnostic privacy, snapshot manifest fields, and Ouroboros/autonomous-agent support disposition
 - 2026-06-14 14:07 Set Codex personal activation to global worker+Desk default, with project-local/manual-only opt-outs
+- pending commit Approved planning and resolved remaining best-judgment decisions before doing-doc conversion
