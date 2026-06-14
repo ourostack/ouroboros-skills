@@ -729,3 +729,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:21 Addressed sixth scrutiny findings: dependency pack avoids frozen server source and docs land before production vector/snapshot publication to prevent freshness churn
 - 2026-06-14 15:21 Committed sixth scrutiny fixes as `6156f6a`
 - 2026-06-14 15:25 Addressed seventh scrutiny findings: Unit 10 source-mirror wording, explicit artifact freshness hash scope, and runtime-pack regeneration rule for prod dependency changes
+- 2026-06-14 15:25 Committed seventh scrutiny fixes as `bc16ab6`
