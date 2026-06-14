@@ -145,24 +145,36 @@ function mergeManifest(base, overrides) {
   return out
 }
 
+function diagnostics(result) {
+  return result.errors
+    .map((error) => `${error.path}: ${error.code}: ${error.message}: ${error.action ?? ""}`)
+    .join("\n")
+}
+
+function assertInvalid(result, patterns) {
+  assert.equal(result.ok, false)
+  const text = diagnostics(result)
+  for (const pattern of patterns) assert.match(text, pattern)
+}
+
 test("activation schema exports the supported version and required top-level fields", async () => {
   const { ACTIVATION_SCHEMA_VERSION, activationManifestSchema } = await loadActivationContract()
 
   assert.equal(ACTIVATION_SCHEMA_VERSION, 1)
   assert.deepEqual(
-    activationManifestSchema.required,
+    [...activationManifestSchema.required].sort(),
     [
-      "schema_version",
-      "id",
-      "version",
-      "dependencies",
-      "provides",
-      "mcp_servers",
-      "desk_root",
       "artifacts",
+      "dependencies",
+      "desk_root",
       "host_support",
+      "id",
+      "mcp_servers",
       "permissions",
-    ],
+      "provides",
+      "schema_version",
+      "version",
+    ].sort(),
   )
 })
 
@@ -198,24 +210,258 @@ test("activation dependencies require version intent, provenance, and lock data"
   }))
 
   assert.equal(result.ok, false)
-  const diagnostics = result.errors.map((error) => `${error.path}: ${error.code}: ${error.message}`).join("\n")
-  assert.match(diagnostics, /dependencies\[0\].*(version|version_range)/)
-  assert.match(diagnostics, /dependencies\[0\]\.provenance/)
-  assert.match(diagnostics, /dependencies\[0\]\.lock/)
+  const text = diagnostics(result)
+  assert.match(text, /dependencies\[0\].*(version|version_range)/)
+  assert.match(text, /dependencies\[0\]\.provenance/)
+  assert.match(text, /dependencies\[0\]\.lock/)
+})
+
+test("activation dependencies reject bad identity, semver, pins, and incompatible locks", async () => {
+  const { validateActivationManifest } = await loadActivationContract()
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        {
+          ...validManifest().dependencies[0],
+          id: "Desk With Spaces",
+        },
+      ],
+    })),
+    [/dependencies\[0\]\.id.*invalid_dependency_id/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        {
+          ...validManifest().dependencies[1],
+          version_range: "latest",
+        },
+      ],
+    })),
+    [/dependencies\[0\]\.version_range.*invalid_semver_range/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        {
+          ...validManifest().dependencies[0],
+          version: "v1",
+        },
+      ],
+    })),
+    [/dependencies\[0\]\.version.*invalid_semver/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        {
+          ...validManifest().dependencies[0],
+          version: "1.7.3",
+          lock: {
+            version: "1.7.2",
+            integrity: "sha256-desk-fixture",
+          },
+        },
+      ],
+    })),
+    [/dependencies\[0\]\.lock\.version.*lock_version_mismatch/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        {
+          ...validManifest().dependencies[1],
+          version_range: "^1.4.0",
+          lock: {
+            version: "2.0.0",
+            integrity: "sha256-work-suite-fixture",
+          },
+        },
+      ],
+    })),
+    [
+      /dependencies\[0\]\.lock\.version.*incompatible_dependency_version/i,
+      /upgrade|pin|regenerate/i,
+    ],
+  )
+})
+
+test("activation validation requires MCP, root, artifact, host, and permission policy fields", async () => {
+  const { validateActivationManifest } = await loadActivationContract()
+  const cases = [
+    {
+      name: "required MCP launch fields",
+      manifest: validManifest({
+        mcp_servers: [{ id: "desk", required: true, command: "node" }],
+      }),
+      patterns: [/mcp_servers\[0\]\.args/, /mcp_servers\[0\]\.launch/],
+    },
+    {
+      name: "desk root binding policy and precedence",
+      manifest: validManifest({
+        desk_root: { policy: "global-default", precedence: ["DESK"] },
+      }),
+      patterns: [/desk_root\.precedence.*activation/i, /desk_root\.opt_out_modes/],
+    },
+    {
+      name: "embedding artifact policy",
+      manifest: validManifest({
+        artifacts: {
+          embeddings: { shared: true, vector_packs: "read-and-import" },
+          snapshots: validManifest().artifacts.snapshots,
+        },
+      }),
+      patterns: [/artifacts\.embeddings\.spec_id/],
+    },
+    {
+      name: "snapshot artifact policy",
+      manifest: validManifest({
+        artifacts: {
+          embeddings: validManifest().artifacts.embeddings,
+          snapshots: { restore: "whatever" },
+        },
+      }),
+      patterns: [/artifacts\.snapshots\.restore.*newest-compatible/i, /artifacts\.snapshots\.stale_reconcile/],
+    },
+    {
+      name: "host support fallback fields",
+      manifest: validManifest({
+        host_support: [
+          {
+            host: "codex",
+            status: "supported",
+            capabilities: ["skills"],
+          },
+        ],
+      }),
+      patterns: [/host_support\[0\]\.dependency_resolution/, /host_support\[0\]\.fallback_behavior/],
+    },
+    {
+      name: "permission boundary",
+      manifest: validManifest({
+        permissions: {
+          requested_capabilities: ["Read"],
+          generated_artifacts: ["owned-host-config"],
+        },
+      }),
+      patterns: [/permissions\.never_delete.*desk-root-data/i],
+    },
+  ]
+
+  for (const entry of cases) {
+    assertInvalid(validateActivationManifest(entry.manifest), entry.patterns)
+  }
 })
 
 test("dependency and activation ordering is deterministic", async () => {
   const { orderActivationDependencies } = await loadActivationContract()
+  const target = validManifest().provides.activation_targets[0]
+  const overlay = validManifest().provides.overlay_agents[0]
   const ordered = orderActivationDependencies(validManifest({
     dependencies: [
       validManifest().dependencies[1],
       validManifest().dependencies[0],
     ],
+    provides: {
+      activation_targets: [
+        {
+          ...target,
+          id: "desk:helper",
+          default: false,
+          depends_on: ["desk"],
+        },
+        target,
+      ],
+      overlay_agents: [
+        {
+          ...overlay,
+          id: "zeta:worker",
+          launch_as: "zeta:worker",
+        },
+        {
+          ...overlay,
+          id: "alpha:worker",
+          launch_as: "alpha:worker",
+        },
+      ],
+    },
   }))
 
   assert.deepEqual(
     ordered.map((entry) => entry.id),
-    ["desk", "work-suite", "desk:worker", "example:worker"],
+    ["desk", "work-suite", "desk:helper", "desk:worker", "alpha:worker", "zeta:worker"],
+  )
+})
+
+test("activation validation enforces desk:worker and overlay relationship integrity", async () => {
+  const { validateActivationManifest } = await loadActivationContract()
+  const target = validManifest().provides.activation_targets[0]
+  const overlay = validManifest().provides.overlay_agents[0]
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [
+          { ...target, id: "desk:helper", default: false },
+        ],
+        overlay_agents: [overlay],
+      },
+    })),
+    [/provides\.activation_targets.*desk:worker/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [
+          { ...target, default: false },
+        ],
+        overlay_agents: [overlay],
+      },
+    })),
+    [/desk:worker.*default/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [
+          { ...target, id: "desk:worker" },
+          { ...target, id: "desk:worker" },
+        ],
+        overlay_agents: [overlay],
+      },
+    })),
+    [/duplicate.*desk:worker/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [
+          { ...target, depends_on: ["missing-substrate"] },
+        ],
+        overlay_agents: [overlay],
+      },
+    })),
+    [/desk:worker.*depends_on.*missing-substrate/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: ["missing:worker"] },
+        ],
+      },
+    })),
+    [/example:worker.*inherits.*missing:worker/i],
   )
 })
 
