@@ -646,8 +646,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 24b1: Integration - Cold Start And Snapshot Restore
 **What**: Wire the integration flow for cold start plus compatible snapshot restore.  
-**Output**: Updates to snapshot/startup modules required by `dependency_activation_flow.test.js` cold-start snapshot cases.  
-**Acceptance**: Paired Unit 24a1 tests pass, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+**Output**: Updates to snapshot/startup modules required by `dependency_activation_flow.test.js` cold-start snapshot cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Paired Unit 24a1 tests pass, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
 ### ⬜ Unit 24a2: Integration Tests - Vector-Pack Rebuild Without Embeddings
 **What**: Write failing integration checks for vector-pack rebuild from committed production vector packs under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` with embedding endpoint disabled, not only test fixtures.  
@@ -656,8 +656,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 24b2: Integration - Vector-Pack Rebuild Without Embeddings
 **What**: Wire the integration flow for rebuilding from docs plus vector packs with embedding endpoint disabled.  
-**Output**: Updates to vector-pack/indexer modules required by the no-embedding rebuild cases.  
-**Acceptance**: Paired Unit 24a2 tests pass, Unit 24a1 remains green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+**Output**: Updates to vector-pack/indexer modules required by the no-embedding rebuild cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Paired Unit 24a2 tests pass, Unit 24a1 remains green, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
 ### ⬜ Unit 24a3: Integration Tests - Missing-Vector Live Generation
 **What**: Write failing integration checks for missing-vector live generation with a mocked embedding endpoint.  
@@ -666,8 +666,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 24b3: Integration - Missing-Vector Live Generation
 **What**: Wire the integration flow for generating only missing vectors with a mocked embedding endpoint.  
-**Output**: Updates to vector-pack/indexer/embed modules required by missing-vector generation cases.  
-**Acceptance**: Paired Unit 24a3 tests pass, Units 24a1-24a2 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+**Output**: Updates to vector-pack/indexer/embed modules required by missing-vector generation cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Paired Unit 24a3 tests pass, Units 24a1-24a2 remain green, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
 ### ⬜ Unit 24a4: Integration Tests - Scope And Refs Preservation
 **What**: Write failing integration checks for active/archived scope preservation and refs graph preservation.  
@@ -676,8 +676,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 24b4: Integration - Scope And Refs Preservation
 **What**: Wire the integration flow for active/archived search scope and refs graph preservation after restore/import/rebuild.  
-**Output**: Updates to search/indexer/refs modules required by scope and refs preservation cases.  
-**Acceptance**: Paired Unit 24a4 tests pass, Units 24a1-24a3 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+**Output**: Updates to search/indexer/refs modules required by scope and refs preservation cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Paired Unit 24a4 tests pass, Units 24a1-24a3 remain green, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
 ### ⬜ Unit 24a5: Integration Tests - Idempotence And Degraded Semantic Mode
 **What**: Write failing integration checks for repeated startup idempotence and degraded semantic mode.  
@@ -686,8 +686,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ### ⬜ Unit 24b5: Integration - Idempotence And Degraded Semantic Mode
 **What**: Wire the integration flow for repeated startup idempotence and degraded semantic mode.  
-**Output**: Updates to startup/status/search modules required by idempotence and degraded semantic cases.  
-**Acceptance**: Paired Unit 24a5 tests pass, Units 24a1-24a4 remain green, the full Desk MCP suite passes, and `npm --prefix plugins/desk/mcp run test:coverage` passes.
+**Output**: Updates to startup/status/search modules required by idempotence and degraded semantic cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
+**Acceptance**: Paired Unit 24a5 tests pass, Units 24a1-24a4 remain green, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
 ### ⬜ Unit 24c: Final Verification And Handoff
 **What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and new coverage commands. Update planning/doing checklists only for criteria with evidence.  
@@ -701,6 +701,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Push after each green implementation/refactor unit; push red-test commits only when needed for collaboration or audit continuity.
 - Run the full Desk MCP suite and `npm --prefix plugins/desk/mcp run test:coverage` before marking each green `b`/`c` unit complete; `a` units require only the targeted red run and saved evidence.
 - Any unit that changes `plugins/desk/mcp/package.json`, `plugins/desk/mcp/package-lock.json`, production dependency metadata, or runtime dependency lock inputs must regenerate, verify, and recommit the production runtime dependency pack in the same unit, then run the Unit 6g-6i freshness checks.
+- Any unit that changes artifact source-scope files or indexed document inputs after Unit 22e must regenerate, verify, and recommit production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md` in the same unit, then run the Unit 22d-22f freshness checks.
 - **All task evidence artifacts**: Save outputs, logs, and data to `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/`
 - **Fixes/blockers**: Spawn sub-agent immediately — don't ask, just do it
 - **Decisions made**: Update docs immediately, commit right away
@@ -730,3 +731,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:21 Committed sixth scrutiny fixes as `6156f6a`
 - 2026-06-14 15:25 Addressed seventh scrutiny findings: Unit 10 source-mirror wording, explicit artifact freshness hash scope, and runtime-pack regeneration rule for prod dependency changes
 - 2026-06-14 15:25 Committed seventh scrutiny fixes as `bc16ab6`
+- 2026-06-14 15:28 Addressed eighth scrutiny finding: Unit 24 implementation units must refresh production vector/snapshot artifacts when artifact source-scope or indexed inputs change
