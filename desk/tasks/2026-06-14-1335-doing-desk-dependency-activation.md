@@ -1,6 +1,6 @@
 # Doing: Desk Dependency Activation
 
-**Status**: READY_FOR_EXECUTION
+**Status**: IN_PROGRESS
 **Execution Mode**: direct
 **Created**: 2026-06-14 14:11
 **Planning**: ./2026-06-14-1335-planning-desk-dependency-activation.md
@@ -184,7 +184,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 **CRITICAL: Every unit header MUST start with status emoji (⬜ for new units).**
 
-### ⬜ Unit 0: Setup/Research
+### ✅ Unit 0: Setup/Research
 **What**: Read the planning doc, story matrix, current plugin manifests, MCP server/indexer code, and CI workflows. Create `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md` covering current host surfaces, current MCP launch assumptions, exact commands, artifact layout, coverage command, and the chosen performance-budget fixture source.  
 **Output**: `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/setup-notes.md`.  
 **Acceptance**: Notes exist, cited source paths exist at HEAD, and no production code changed in this unit.
@@ -734,3 +734,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:28 Addressed eighth scrutiny finding: Unit 24 implementation units must refresh production vector/snapshot artifacts when artifact source-scope or indexed inputs change
 - 2026-06-14 15:28 Committed eighth scrutiny fix as `f7393c5`
 - 2026-06-14 15:30 Final Tinfoil Hat and Stranger With Candy scrutiny gates converged; doing doc marked READY_FOR_EXECUTION
+- 2026-06-14 15:40 Unit 0 complete: setup research notes written, baseline command failures recorded, and unit review skipped (reason: docs-only research artifact)
