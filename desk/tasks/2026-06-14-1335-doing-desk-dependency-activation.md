@@ -79,9 +79,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
 - [ ] Compatible snapshots are copied into `.state/` before mutation.
 - [ ] Snapshot artifacts live at `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` with adjacent manifest and checksum files.
-- [ ] Snapshot manifest includes source commit or source tree hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
-- [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, source/document hashes, included pack IDs, and artifact format.
-- [ ] Snapshot restore treats source tree or document tree mismatch as freshness information, not compatibility failure.
+- [ ] Snapshot manifest includes artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
+- [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, artifact source-scope/document hashes, included pack IDs, and artifact format.
+- [ ] Snapshot restore treats artifact source-scope or document tree mismatch as freshness information, not compatibility failure.
 - [ ] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
 - [ ] Snapshot restore rejects or skips artifacts with unexpected source paths.
 - [ ] Snapshot artifacts are compressed or otherwise size-managed.
@@ -168,6 +168,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - Runtime dependency packs: `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256`; archive expands inside the runtime cache to production `node_modules`, `package.json`, lock metadata, and manifest metadata only. Startup syncs current plugin MCP source into a runtime-cache `source-mirror/<source-hash>/` and imports from that mirror so ESM bare imports resolve against cache dependencies without freezing server source into the committed pack.
 - Artifact publication policy: `plugins/desk/artifacts/publication-policy.json` validated by `plugins/desk/artifacts/publication-policy.schema.json`; required fields are `schema_version`, `default_publication`, `repo_visibility`, `sensitive_repo`, `approved_artifact_types`, `approval_required`, `approvals`, and `updated_at`
 - Artifact tombstones: `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`; each row requires `schema_version`, `document_path`, `document_hash`, `reason`, `redacted_at`, `effective_from`, `artifact_rotation_id`, and `actor`
+- Artifact freshness scope: artifact source-scope hash includes `plugins/desk/mcp/src/indexer/`, `plugins/desk/mcp/src/snapshots/`, `plugins/desk/mcp/src/artifacts/`, artifact build/verify scripts in `plugins/desk/mcp/scripts/`, active embedding/chunker specs, `plugins/desk/mcp/schema.sql`, `plugins/desk/mcp/package.json`, and `plugins/desk/mcp/package-lock.json`; document tree hash includes indexed desk/document corpus after exclusions. Validation-only root scripts, CI workflows, task evidence under `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/`, and generated freshness-check code do not stale vector/snapshot artifacts unless they are also indexed document inputs.
 - Artifact fixtures: `plugins/desk/mcp/__tests__/fixtures/artifacts/`
 - Host launch fixtures: `plugins/desk/mcp/__tests__/fixtures/runtime/host-launch/`
 - Desk data mutable state: `<desk-root>/.state/` only; startup copies/decompresses compatible repo snapshots into `.state/`, while vector packs are read from `plugins/desk/artifacts/vector-packs/` and imported into the local DB under `.state/` without copying or mutating pack files
@@ -384,7 +385,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new runtime cache/launch code and all runtime cache tests pass.
 
 ### ⬜ Unit 10a: Early `desk_status` Skeleton - Tests
-**What**: Write failing tests for registered `desk_status`, tool description, dispatch from the cache-resident runtime server bundle, root/runtime/local DB fields, root-source diagnostics, and session-start-safe summary output that does not require vector-pack or snapshot modules yet.  
+**What**: Write failing tests for registered `desk_status`, tool description, dispatch through the Unit 7 runtime-cache source mirror, root/runtime/local DB fields, root-source diagnostics, and session-start-safe summary output that does not require vector-pack or snapshot modules yet.  
 **Output**: `plugins/desk/mcp/__tests__/tools/status.test.js`.  
 **Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired into current plugin source, starts through the Unit 7 runtime-cache source mirror path, and returns early health fields without expensive repair work.
 
@@ -474,7 +475,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: 100% coverage on new compaction/preservation code and all related tests pass.
 
 ### ⬜ Unit 15a: Snapshot Manifest And Validation - Tests
-**What**: Write failing tests for snapshot path `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` and manifest fields: source commit or source tree hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, provenance, DB schema, embedding spec, chunker ID, and artifact format.  
+**What**: Write failing tests for snapshot path `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` and manifest fields: artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, provenance, DB schema, embedding spec, chunker ID, and artifact format.  
 **Output**: `plugins/desk/mcp/__tests__/snapshots/manifest.test.js`.  
 **Acceptance**: Tests fail until snapshot manifest parsing and validation exists.
 
@@ -609,22 +610,22 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: All docs validation tests pass, generated docs remain stable, and new or modified root docs validation scripts meet the Unit 0 coverage gate.
 
 ### ⬜ Unit 22d: Production Shared Artifact Publication - Tests
-**What**: Write failing checks that require at least one current production vector pack and one current production snapshot committed under the canonical repo paths after healthy-path docs are updated, with manifests, checksums, publication-policy approval, exclusion/tombstone validation, and freshness metadata tied to the current source/document tree.  
+**What**: Write failing checks that require at least one current production vector pack and one current production snapshot committed under the canonical repo paths after healthy-path docs are updated, with manifests, checksums, publication-policy approval, exclusion/tombstone validation, and freshness metadata tied to the artifact source-scope hash and document tree hash.  
 **Output**: `plugins/desk/mcp/__tests__/artifacts/production_artifacts.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
 **Acceptance**: Tests fail until production artifacts exist under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, not only fixtures.
 
 ### ⬜ Unit 22e: Production Shared Artifact Publication - Implementation
-**What**: Generate, verify, and commit initial production shared vector-pack and snapshot artifacts using the Unit 21 scripts after publication policy, exclusions, tombstones, and healthy-path docs are active. Record exact commands, manifests, checksums, source/document hashes, and approval state.  
+**What**: Generate, verify, and commit initial production shared vector-pack and snapshot artifacts using the Unit 21 scripts after publication policy, exclusions, tombstones, and healthy-path docs are active. Record exact commands, manifests, checksums, artifact source-scope hash, document tree hash, and approval state.  
 **Output**: Production files under `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/` and `plugins/desk/artifacts/snapshots/<embedding-spec-id>/`, manifests/checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.  
 **Acceptance**: Unit 22d tests pass, generated artifacts are committed, no gitignored/sensitive/redacted content is represented, and CI freshness checks fail if the committed artifacts drift from the documented source/document tree.
 
 ### ⬜ Unit 22f: Production Shared Artifact Publication - Coverage & Refactor
-**What**: Add coverage for missing production pack, missing production snapshot, stale source tree, stale document tree, checksum mismatch, policy denial, tombstoned document presence, docs-changing-after-publication detection, and fixture-only false positives.  
+**What**: Add coverage for missing production pack, missing production snapshot, stale artifact source-scope hash, stale document tree, checksum mismatch, policy denial, tombstoned document presence, docs-changing-after-publication detection, and fixture-only false positives.  
 **Output**: Hardened production artifact freshness checks.  
 **Acceptance**: Production artifact checks pass locally, and fixtures alone cannot satisfy the shared-artifact completion criteria.
 
 ### ⬜ Unit 23a: CI And Generated Artifact Freshness - Tests
-**What**: Write failing checks for activation support matrix freshness, host manifest drift, worker-content drift, artifact script availability, generated fixture freshness, production runtime dependency pack freshness, and production vector/snapshot artifact freshness.  
+**What**: Write failing checks for activation support matrix freshness, host manifest drift, worker-content drift, artifact script availability, generated fixture freshness, production runtime dependency pack freshness, and production vector/snapshot artifact freshness using the explicit artifact source-scope/document tree hash rules.  
 **Output**: `scripts/test-desk-generated-artifacts.cjs`, `scripts/test-desk-host-manifests.cjs`, updates to `scripts/validate-skills.cjs`, `.github/workflows/validate-skills.yml`, and `.github/workflows/desk-mcp-tests.yml`.  
 **Acceptance**: Tests fail on stale generated artifacts or current manifest drift.
 
@@ -699,6 +700,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - For paired `b`/implementation and `c`/coverage-refactor units, commit only after the relevant tests are green.
 - Push after each green implementation/refactor unit; push red-test commits only when needed for collaboration or audit continuity.
 - Run the full Desk MCP suite and `npm --prefix plugins/desk/mcp run test:coverage` before marking each green `b`/`c` unit complete; `a` units require only the targeted red run and saved evidence.
+- Any unit that changes `plugins/desk/mcp/package.json`, `plugins/desk/mcp/package-lock.json`, production dependency metadata, or runtime dependency lock inputs must regenerate, verify, and recommit the production runtime dependency pack in the same unit, then run the Unit 6g-6i freshness checks.
 - **All task evidence artifacts**: Save outputs, logs, and data to `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/`
 - **Fixes/blockers**: Spawn sub-agent immediately — don't ask, just do it
 - **Decisions made**: Update docs immediately, commit right away
@@ -726,3 +728,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 15:13 Committed fifth scrutiny fixes as `98d244c`
 - 2026-06-14 15:21 Addressed sixth scrutiny findings: dependency pack avoids frozen server source and docs land before production vector/snapshot publication to prevent freshness churn
 - 2026-06-14 15:21 Committed sixth scrutiny fixes as `6156f6a`
+- 2026-06-14 15:25 Addressed seventh scrutiny findings: Unit 10 source-mirror wording, explicit artifact freshness hash scope, and runtime-pack regeneration rule for prod dependency changes
