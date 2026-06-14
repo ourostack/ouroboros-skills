@@ -2,6 +2,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import * as path from "node:path"
 
 const COVERAGE_SCRIPT = "node scripts/run-coverage.js"
+const REQUIRED_WORKFLOW_PATH_FILTER = "scripts/*.cjs"
+const REQUIRED_WORKFLOW_EVENTS = ["pull_request", "push"]
 const DEFAULT_THRESHOLDS = {
   lines: 100,
   branches: 100,
@@ -85,8 +87,14 @@ export function assertCoverageCommandParity({ packageJsonPath, workflowPath }) {
   if (/run:\s*npm test\b/.test(workflow)) {
     issues.push("desk MCP CI still runs npm test instead of npm run test:coverage")
   }
-  if (!workflow.includes("scripts/*.cjs")) {
-    issues.push("desk MCP CI must include scripts/*.cjs in path filters")
+  const pathFilters = extractWorkflowPathFilters(workflow)
+  for (const eventName of REQUIRED_WORKFLOW_EVENTS) {
+    const eventPaths = pathFilters.get(eventName) ?? []
+    if (!eventPaths.includes(REQUIRED_WORKFLOW_PATH_FILTER)) {
+      issues.push(
+        `desk MCP CI ${eventName}.paths must include ${REQUIRED_WORKFLOW_PATH_FILTER}`,
+      )
+    }
   }
 
   return {
@@ -130,6 +138,36 @@ function normalizeExclusions(exclusions) {
   return out
 }
 
+function extractWorkflowPathFilters(workflow) {
+  const filters = new Map()
+  const stack = []
+  for (const line of workflow.split("\n")) {
+    const clean = stripYamlComment(line)
+    if (!clean.trim()) continue
+    const indent = clean.match(/^ */)[0].length
+    const trimmed = clean.trim()
+
+    if (trimmed.startsWith("- ")) {
+      const keys = stack.map((entry) => entry.key)
+      if (keys.at(-1) === "paths" && keys.at(-3) === "on") {
+        const eventName = keys.at(-2)
+        if (REQUIRED_WORKFLOW_EVENTS.includes(eventName)) {
+          const existing = filters.get(eventName) ?? []
+          existing.push(unquoteYamlScalar(trimmed.slice(2).trim()))
+          filters.set(eventName, existing)
+        }
+      }
+      continue
+    }
+
+    const keyMatch = trimmed.match(/^(['"]?)([A-Za-z0-9_-]+)\1:\s*(?:.*)?$/)
+    if (!keyMatch) continue
+    while (stack.length && stack.at(-1).indent >= indent) stack.pop()
+    stack.push({ indent, key: keyMatch[2] })
+  }
+  return filters
+}
+
 function collectFiles(dir, extension) {
   if (!existsSync(dir)) return []
   const out = []
@@ -169,4 +207,26 @@ function normalizePath(file) {
 
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0
+}
+
+function stripYamlComment(line) {
+  let quote = null
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if ((char === "\"" || char === "'") && line[index - 1] !== "\\") {
+      quote = quote === char ? null : quote ?? char
+    }
+    if (char === "#" && !quote) return line.slice(0, index)
+  }
+  return line
+}
+
+function unquoteYamlScalar(value) {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1)
+  }
+  return value
 }

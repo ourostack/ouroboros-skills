@@ -278,11 +278,20 @@ test("coverage command parity rejects CI/local drift", async () => {
         "      - \"plugins/desk/mcp/**\"",
         "      - \"scripts/*.cjs\"",
         "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "  push:",
+        "    branches:",
+        "      - main",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
         "jobs:",
         "  desk-mcp-tests:",
         "    steps:",
         "      - name: Run Desk MCP coverage",
-        "        run: npm run test:coverage",
+        "        run: |",
+        "          echo preparing coverage gate",
+        "          npm run test:coverage",
       ].join("\n"),
     )
     const badWorkflowPath = writeFixture(
@@ -299,6 +308,33 @@ test("coverage command parity rejects CI/local drift", async () => {
 
     const good = assertCoverageCommandParity({ packageJsonPath, workflowPath: goodWorkflowPath })
     assert.equal(good.ok, true)
+
+    const quotedAndCommentedWorkflowPath = writeFixture(
+      tmp,
+      "quoted-and-commented.yml",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - plugins/desk/mcp/**",
+        "      - scripts/*.cjs # root validation scripts must trigger coverage",
+        "      - .github/workflows/desk-mcp-tests.yml",
+        "  push:",
+        "    paths:",
+        "      - plugins/desk/mcp/**",
+        "      - 'scripts/*.cjs'",
+        "      - .github/workflows/desk-mcp-tests.yml",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - run: npm run test:coverage",
+      ].join("\n"),
+    )
+    const quotedAndCommented = assertCoverageCommandParity({
+      packageJsonPath,
+      workflowPath: quotedAndCommentedWorkflowPath,
+    })
+    assert.equal(quotedAndCommented.ok, true)
 
     const bad = assertCoverageCommandParity({ packageJsonPath, workflowPath: badWorkflowPath })
     assert.equal(bad.ok, false)
@@ -343,6 +379,65 @@ test("coverage command parity rejects CI/local drift", async () => {
     })
     assert.equal(badPathFilter.ok, false)
     assert.match(badPathFilter.issues.join("\n"), /scripts\/\*\.cjs/i)
+
+    const falsePositiveMention = writeFixture(
+      tmp,
+      "false-positive-mention.yml",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "  push:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Mention root script glob",
+        "        run: echo 'scripts/*.cjs belongs in path filters'",
+        "      - name: Run Desk MCP coverage",
+        "        run: npm run test:coverage",
+      ].join("\n"),
+    )
+    const falsePositive = assertCoverageCommandParity({
+      packageJsonPath,
+      workflowPath: falsePositiveMention,
+    })
+    assert.equal(falsePositive.ok, false)
+    assert.match(falsePositive.issues.join("\n"), /pull_request.*scripts\/\*\.cjs/i)
+    assert.match(falsePositive.issues.join("\n"), /push.*scripts\/\*\.cjs/i)
+
+    const oneEventOnly = writeFixture(
+      tmp,
+      "one-event-only.yml",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "  push:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Run Desk MCP coverage",
+        "        run: npm run test:coverage",
+      ].join("\n"),
+    )
+    const partialPathFilter = assertCoverageCommandParity({
+      packageJsonPath,
+      workflowPath: oneEventOnly,
+    })
+    assert.equal(partialPathFilter.ok, false)
+    assert.doesNotMatch(partialPathFilter.issues.join("\n"), /pull_request.*scripts\/\*\.cjs/i)
+    assert.match(partialPathFilter.issues.join("\n"), /push.*scripts\/\*\.cjs/i)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -497,6 +592,11 @@ test("coverage runner returns child status, coverage failures, and success codes
       [
         "on:",
         "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "  push:",
         "    paths:",
         "      - \"plugins/desk/mcp/**\"",
         "      - \"scripts/*.cjs\"",
