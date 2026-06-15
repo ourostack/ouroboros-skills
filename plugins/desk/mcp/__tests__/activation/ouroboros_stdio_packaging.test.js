@@ -608,12 +608,36 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     ["Generic stdio docs must not claim worker activation"],
   )
 
+  const launchingWorkerActivation = clone(currentOuroborosStdioPackagingInput())
+  launchingWorkerActivation.genericStdioReadmeSection +=
+    "\nGeneric stdio is launching worker activation automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(launchingWorkerActivation),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const bundlesWorkSuite = clone(currentOuroborosStdioPackagingInput())
   bundlesWorkSuite.genericStdioReadmeSection +=
     "\nGeneric stdio bundles Work Suite automatically.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(bundlesWorkSuite),
     ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const loadingWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  loadingWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio is loading Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(loadingWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const workerWithExternalDependency = clone(currentOuroborosStdioPackagingInput())
+  workerWithExternalDependency.genericStdioReadmeSection +=
+    "\nGeneric stdio starts worker activation with Work Suite dependency closure provided by a separate host.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(workerWithExternalDependency),
+    ["Generic stdio docs must not claim worker activation"],
   )
 
   const mixedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
@@ -876,6 +900,14 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     [],
   )
 
+  const adverbNegative = clone(currentOuroborosStdioPackagingInput())
+  adverbNegative.genericStdioReadmeSection +=
+    "\nGeneric stdio does not automatically activate worker.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(adverbNegative),
+    [],
+  )
+
   const postActionNegativeTarget = clone(currentOuroborosStdioPackagingInput())
   postActionNegativeTarget.genericStdioReadmeSection +=
     "\nGeneric stdio starts the MCP server, not worker activation.\n"
@@ -945,6 +977,14 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nWorker activation is not provided by generic stdio.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(workerActivationNotProvided),
+    [],
+  )
+
+  const workerActivationNotCurrentlyProvided = clone(currentOuroborosStdioPackagingInput())
+  workerActivationNotCurrentlyProvided.genericStdioReadmeSection +=
+    "\nWorker activation is not currently provided by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(workerActivationNotCurrentlyProvided),
     [],
   )
 
@@ -1052,6 +1092,30 @@ test("generic stdio packaging validation rejects fallback worker activation drif
 
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(fallbackWorkerClaim),
+    [
+      "Generic stdio fallback must not claim worker activation",
+      "Generic stdio evidence fallback must not claim worker activation",
+    ],
+  )
+
+  const fallbackProgressiveWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    fallbackProgressiveWorkerClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but is launching worker activation automatically"
+  findByField(
+    fallbackProgressiveWorkerClaim.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but is launching worker activation automatically"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(fallbackProgressiveWorkerClaim),
     [
       "Generic stdio fallback must not claim worker activation",
       "Generic stdio evidence fallback must not claim worker activation",
