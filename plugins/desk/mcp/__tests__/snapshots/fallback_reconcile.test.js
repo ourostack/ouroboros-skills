@@ -3,6 +3,7 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
+import { createRequire } from "node:module"
 import { promises as fs } from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -16,15 +17,26 @@ import {
   ACTIVE_EMBEDDING_SPEC,
   chunkIdentity,
 } from "../../src/indexer/spec.js"
-import { ensureIndex } from "../../src/server-helpers.js"
+import { ensureIndex, resolveEnsureIndexOptions } from "../../src/server-helpers.js"
+import { desk_reindex } from "../../src/tools/reindex.js"
 
+const require = createRequire(import.meta.url)
+const packageLock = require("../../package-lock.json")
 const SOURCE_SCOPE_HASH = `sha256:${"a".repeat(64)}`
 const STALE_SOURCE_SCOPE_HASH = `sha256:${"d".repeat(64)}`
 const CURRENT_DOCUMENT_TREE_HASH = `sha256:${"b".repeat(64)}`
 const STALE_DOCUMENT_TREE_HASH = `sha256:${"c".repeat(64)}`
 const DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
-const SQLITE_VEC = { package: "sqlite-vec", version: "0.1.6", table: "vec0" }
-const RUNTIME = { platform: "darwin", arch: "arm64", node_abi: "node-127" }
+const SQLITE_VEC = {
+  package: "sqlite-vec",
+  version: packageLock.packages["node_modules/sqlite-vec"].version,
+  table: "vec0",
+}
+const RUNTIME = {
+  platform: process.platform,
+  arch: process.arch,
+  node_abi: `node-${process.versions.modules}`,
+}
 
 async function tmpRoot(prefix) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix))
@@ -259,6 +271,32 @@ function assertVectorApprox(actual, expected) {
   }
 }
 
+async function withPluginRoot(pluginRoot, fn) {
+  const original = process.env.DESK_PLUGIN_ROOT
+  process.env.DESK_PLUGIN_ROOT = pluginRoot
+  try {
+    return await fn()
+  } finally {
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
+  }
+}
+
+test("resolveEnsureIndexOptions preserves explicit artifact opt-outs", () => {
+  for (const disabled of [false, null]) {
+    const resolved = resolveEnsureIndexOptions({
+      snapshots: disabled,
+      vectorPacks: disabled,
+    })
+
+    assert.equal(resolved.snapshots, undefined)
+    assert.equal(resolved.vectorPacks, undefined)
+  }
+})
+
 test("ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls", async () => {
   const deskRoot = await tmpRoot("desk-snapshot-fallback-desk-")
   const pluginRoot = await tmpRoot("desk-snapshot-fallback-plugin-")
@@ -361,6 +399,80 @@ test("ensureIndex reports corrupt snapshots without a fallback when vector packs
   assert.equal(ensured.snapshot.reason, "snapshot_corrupt")
   assert.equal(ensured.fallback, undefined)
   assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex auto-discovers snapshots from the runtime plugin root", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-default-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-default-plugin-")
+  const snapshotSourceRoot = await tmpRoot("desk-snapshot-default-source-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ndefault artifact restored body"
+  await writeFile(snapshotSourceRoot, docPath, body)
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "default-compatible",
+    sourceDeskRoot: snapshotSourceRoot,
+    rebuildOpts: {
+      embed: {
+        fetch: async () => ({
+          ok: true,
+          json: async () => ({ embedding: vector(3) }),
+        }),
+      },
+    },
+  })
+  await writeFile(deskRoot, docPath, body)
+  const old = new Date("2020-01-01T00:00:00.000Z")
+  await fs.utimes(path.join(deskRoot, docPath), old, old)
+
+  const ensured = await withPluginRoot(pluginRoot, () => ensureIndex(deskRoot))
+
+  assert.equal(ensured.built, false)
+  assert.equal(ensured.reason, "snapshot_restored")
+  assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+})
+
+test("desk_reindex uses runtime artifacts without artifact opts", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-reindex-default-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-reindex-default-plugin-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncovered by production artifact defaults"
+  await writeFile(deskRoot, docPath, body)
+  await writeCorruptSnapshot({ pluginRoot, snapshotId: "default-corrupt" })
+  await writePack({
+    pluginRoot,
+    packId: "default-fallback",
+    rows: [rowForDoc({ docPath, body, seed: 13 })],
+  })
+
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls += 1
+    throw new Error("artifact-covered production path should not call embeddings")
+  }
+  try {
+    const result = await withPluginRoot(pluginRoot, () => desk_reindex({
+      deskRoot,
+      input: {},
+    }))
+
+    assert.equal(calls, 0)
+    assert.equal(result.status, "ok")
+    assert.equal(result.built, true)
+    assert.equal(result.reason, "missing")
+    assert.equal(result.missing_vectors, 0)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(13))
+  } finally {
+    closeDb(db)
+  }
 })
 
 test("ensureIndex returns snapshot_restored when a restored snapshot is already fresh", async () => {

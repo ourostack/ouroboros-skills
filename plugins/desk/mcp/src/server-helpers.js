@@ -4,7 +4,9 @@
 // without creating an import cycle (server.js imports the search tools, the
 // search tools need ensureIndex, ensureIndex used to live in server.js).
 
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
+import * as path from "node:path"
+import { fileURLToPath } from "node:url"
 import { closeDb, indexDbPath, openDb } from "./db/init.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
@@ -15,6 +17,11 @@ const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
   reason: "embedding_generation_failed",
   message: "one or more document embeddings could not be generated during rebuild",
 }
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
+const DEFAULT_MCP_ROOT = path.resolve(MODULE_DIR, "..")
+const DEFAULT_PLUGIN_ROOT = path.resolve(DEFAULT_MCP_ROOT, "..")
+const SNAPSHOT_DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
+const SNAPSHOT_SQLITE_VEC_TABLE = "vec0"
 
 /**
  * Bring the on-disk index up to date for `deskRoot`. Idempotent: when the
@@ -35,13 +42,14 @@ const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
  *   `built=false` (fresh), `summary` is omitted — nothing was reindexed.
  */
 export async function ensureIndex(deskRoot, opts = {}) {
+  const effectiveOpts = resolveEnsureIndexOptions(opts)
   const dbPath = indexDbPath(deskRoot)
   let snapshot = null
   let dbExisted = existsSync(dbPath)
-  if (!dbExisted && opts.snapshots?.pluginRoot) {
+  if (!dbExisted && effectiveOpts.snapshots?.pluginRoot) {
     snapshot = await restoreSnapshotToState({
       deskRoot,
-      ...opts.snapshots,
+      ...effectiveOpts.snapshots,
     })
     dbExisted = existsSync(dbPath)
   }
@@ -61,7 +69,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
         const repair = await maybeRepairMissingEmbeddings(
           deskRoot,
           db,
-          opts,
+          effectiveOpts,
           semanticBefore,
         )
         if (repair) return withSnapshot(repair, snapshot)
@@ -70,10 +78,10 @@ export async function ensureIndex(deskRoot, opts = {}) {
           snapshot,
         )
       }
-      repairMissing = await shouldRepairMissingEmbeddings(opts, semanticBefore)
+      repairMissing = await shouldRepairMissingEmbeddings(effectiveOpts, semanticBefore)
     }
     const summary = await rebuildIndex(deskRoot, {
-      ...opts,
+      ...effectiveOpts,
       db,
       reembedMissing: repairMissing,
     })
@@ -91,12 +99,109 @@ export async function ensureIndex(deskRoot, opts = {}) {
         reconciled: true,
       }
     } else {
-      return withSnapshot(result, snapshot, fallbackFor(opts, snapshot))
+      return withSnapshot(result, snapshot, fallbackFor(effectiveOpts, snapshot))
     }
     return result
   } finally {
     closeDb(db)
   }
+}
+
+export function resolveEnsureIndexOptions(opts = {}) {
+  const pluginRoot = resolveArtifactPluginRoot(opts)
+  const effective = { ...opts }
+  effective.snapshots = resolveSnapshotOptions({ opts, pluginRoot })
+  effective.vectorPacks = resolveVectorPackOptions({ opts, pluginRoot })
+  return effective
+}
+
+function resolveSnapshotOptions({ opts, pluginRoot }) {
+  if (opts.snapshots === false || opts.snapshots === null) return undefined
+  if (opts.snapshots !== undefined) {
+    return {
+      ...defaultSnapshotCompatibilityContext(),
+      pluginRoot,
+      ...opts.snapshots,
+    }
+  }
+  if (!hasSnapshotArtifacts(pluginRoot)) return undefined
+  return {
+    pluginRoot,
+    ...defaultSnapshotCompatibilityContext(),
+  }
+}
+
+function resolveVectorPackOptions({ opts, pluginRoot }) {
+  if (opts.vectorPacks === false || opts.vectorPacks === null) return undefined
+  if (opts.vectorPacks !== undefined) {
+    return {
+      pluginRoot,
+      ...opts.vectorPacks,
+    }
+  }
+  if (!hasVectorPackArtifacts(pluginRoot)) return undefined
+  return { pluginRoot }
+}
+
+function resolveArtifactPluginRoot(opts) {
+  return path.resolve(
+    textOrNull(opts.snapshots?.pluginRoot) ??
+      textOrNull(opts.vectorPacks?.pluginRoot) ??
+      textOrNull(process.env.DESK_PLUGIN_ROOT) ??
+      DEFAULT_PLUGIN_ROOT,
+  )
+}
+
+function defaultSnapshotCompatibilityContext() {
+  return {
+    expectedDbSchema: SNAPSHOT_DB_SCHEMA,
+    expectedSqliteVec: {
+      package: "sqlite-vec",
+      version: sqliteVecVersion(),
+      table: SNAPSHOT_SQLITE_VEC_TABLE,
+    },
+    expectedRuntime: {
+      platform: process.platform,
+      arch: process.arch,
+      node_abi: `node-${process.versions.modules}`,
+    },
+  }
+}
+
+function sqliteVecVersion() {
+  const packageLock = JSON.parse(
+    readFileSync(path.join(DEFAULT_MCP_ROOT, "package-lock.json"), "utf8"),
+  )
+  return packageLock.packages?.["node_modules/sqlite-vec"]?.version
+}
+
+function hasSnapshotArtifacts(pluginRoot) {
+  return hasArtifactFiles(
+    path.join(pluginRoot, "artifacts", "snapshots", ACTIVE_EMBEDDING_SPEC.id),
+    ".sqlite.zst",
+  )
+}
+
+function hasVectorPackArtifacts(pluginRoot) {
+  return hasArtifactFiles(
+    path.join(pluginRoot, "artifacts", "vector-packs", ACTIVE_EMBEDDING_SPEC.id),
+    ".jsonl",
+  )
+}
+
+function hasArtifactFiles(dir, suffix) {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .some((entry) => entry.isFile() && entry.name.endsWith(suffix))
+  } catch {
+    return false
+  }
+}
+
+function textOrNull(value) {
+  return typeof value === "string" && value.trim().length > 0
+    ? value
+    : null
 }
 
 export function getSemanticCoverage(db) {
