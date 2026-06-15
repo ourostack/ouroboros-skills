@@ -15,6 +15,8 @@ import {
   ACTIVE_EMBEDDING_SPEC,
   chunkIdentity,
 } from "../../src/indexer/spec.js"
+import { ensureIndex } from "../../src/server-helpers.js"
+import { desk_reindex } from "../../src/tools/reindex.js"
 
 async function tmpRoot(prefix = "desk-vector-rebuild-") {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix))
@@ -212,6 +214,159 @@ test("rebuildIndex with disabled embeddings still succeeds when vector packs cov
   try {
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
     assertVectorApprox(storedVector(db, docPath, 0), vector(5))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nfresh lexical body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  await writePack({
+    pluginRoot,
+    packId: "fresh-repair",
+    rows: [rowForDoc({ docPath, body, seed: 13 })],
+  })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("covered vector pack repair should not probe embeddings")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    embed: { fetch: failIfCalled },
+  })
+  assert.equal(calls, 0)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.semantic.missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(13))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex calls embeddings only after vector-pack import leaves missing chunks", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncovered semantic body\n\n## Missing\n\nmissing semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  await writePack({
+    pluginRoot,
+    packId: "fresh-partial-repair",
+    rows: [rowForDoc({ docPath, body, chunkIndex: 0, seed: 17 })],
+  })
+
+  let calls = 0
+  const failingFetch = async () => {
+    calls += 1
+    throw new Error("embedding endpoint unavailable after vector import")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: failingFetch,
+    },
+  })
+  assert.equal(calls, 1)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.summary.semantic_warnings, 1)
+  assert.equal(ensured.semantic.vectors_indexed, 1)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(17))
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const oldBody = "---\nstatus: processing\n---\nold lexical body"
+  const newBody = "---\nstatus: processing\n---\nnew covered body"
+  await writeFile(deskRoot, docPath, oldBody)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  await writeFile(deskRoot, docPath, newBody)
+  const future = new Date(Date.now() + 5000)
+  await fs.utimes(path.join(deskRoot, docPath), future, future)
+  await writePack({
+    pluginRoot,
+    packId: "stale-repair",
+    rows: [rowForDoc({ docPath, body: newBody, seed: 23 })],
+  })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("stale covered vector pack repair should not call embeddings")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    embed: { fetch: failIfCalled },
+  })
+  assert.equal(calls, 0)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "stale")
+  assert.equal(ensured.summary.docs_indexed, 1)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(23))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("desk_reindex force rebuild restores vector packs with live embeddings disabled", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nforce covered body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  await writePack({
+    pluginRoot,
+    packId: "force-repair",
+    rows: [rowForDoc({ docPath, body, seed: 29 })],
+  })
+
+  const result = await desk_reindex({
+    deskRoot,
+    input: { force: true },
+    opts: {
+      vectorPacks: { pluginRoot },
+      skipEmbed: true,
+    },
+  })
+  assert.equal(result.built, true)
+  assert.equal(result.reason, "missing")
+  assert.equal(result.docs_indexed, 1)
+  assert.equal(result.missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(29))
   } finally {
     closeDb(db)
   }
