@@ -4,8 +4,10 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { promises as fs } from "node:fs"
 
 import { desk_search, desk_timeline } from "../../src/tools/search.js"
+import { openDb, closeDb } from "../../src/db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import {
   buildFixtureIndex,
@@ -420,6 +422,142 @@ test("validateCompactionPreservation rejects missing snapshots and tolerates abs
     }),
     { search_preserved: true, refs_preserved: true },
   )
+})
+
+test("captureCompactionPreservationSnapshot captures archived docs and removed docs", async () => {
+  const {
+    captureCompactionPreservationSnapshot,
+    validateCompactionPreservation,
+  } = await loadCompactionModule()
+  const root = await buildModeDesk()
+
+  let db = openDb(root)
+  let before
+  try {
+    before = captureCompactionPreservationSnapshot(db)
+  } finally {
+    closeDb(db)
+  }
+
+  assert.ok(before.search.active.some((row) =>
+    row.path === "trackA/task-active/task.md" && row.is_archived === 0
+  ))
+  assert.ok(before.search.archived.some((row) =>
+    row.path === "trackA/_archive/task-old/task.md" && row.is_archived === 1
+  ))
+  assert.ok(before.search.all.some((row) =>
+    row.path === "trackA/_archive/task-old/task.md"
+  ))
+
+  await fs.rm(`${root}/trackA/_archive/task-old/task.md`)
+  await buildFixtureIndex(root)
+
+  db = openDb(root)
+  try {
+    const after = captureCompactionPreservationSnapshot(db)
+    assert.equal(after.search.archived.length, 0)
+    assert.throws(
+      () => validateCompactionPreservation({ before, after }),
+      /archived search scope changed/u,
+    )
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("captureCompactionPreservationSnapshot preserves duplicate chunk-key multiplicity", async () => {
+  const {
+    captureCompactionPreservationSnapshot,
+    validateCompactionPreservation,
+  } = await loadCompactionModule()
+  const root = await buildModeDesk()
+  const db = openDb(root)
+  try {
+    const sourceChunk = db.prepare("SELECT * FROM chunks ORDER BY id LIMIT 1").get()
+    const inserted = db.prepare(
+      `INSERT INTO chunks (
+         doc_id, chunk_index, chunk_key, text_hash, embedding_spec_id,
+         chunker_id, normalization_id, text, heading, start_offset, end_offset
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      sourceChunk.doc_id,
+      999,
+      sourceChunk.chunk_key,
+      sourceChunk.text_hash,
+      sourceChunk.embedding_spec_id,
+      sourceChunk.chunker_id,
+      sourceChunk.normalization_id,
+      sourceChunk.text,
+      sourceChunk.heading,
+      sourceChunk.start_offset,
+      sourceChunk.end_offset,
+    )
+
+    const before = captureCompactionPreservationSnapshot(db)
+    const duplicateRows = before.chunks.filter((row) =>
+      row.chunk_key === sourceChunk.chunk_key
+    )
+    assert.equal(duplicateRows.length, 2)
+
+    db.prepare("DELETE FROM chunks WHERE id = ?").run(inserted.lastInsertRowid)
+    const after = captureCompactionPreservationSnapshot(db)
+    assert.throws(
+      () => validateCompactionPreservation({ before, after }),
+      /chunk identity changed/u,
+    )
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("captureCompactionPreservationSnapshot catches refs graph recomputation", async () => {
+  const {
+    captureCompactionPreservationSnapshot,
+    validateCompactionPreservation,
+  } = await loadCompactionModule()
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-ref/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha task content\n",
+  )
+  await writeFile(
+    root,
+    "trackA/task-ref/planning.md",
+    "alpha planning content\n",
+  )
+  await buildFixtureIndex(root)
+
+  let db = openDb(root)
+  let before
+  try {
+    before = captureCompactionPreservationSnapshot(db)
+    assert.deepEqual(
+      before.refs_graph.map((row) => row.ref_kind),
+      ["planning_of"],
+    )
+  } finally {
+    closeDb(db)
+  }
+
+  await fs.rm(`${root}/trackA/task-ref/planning.md`)
+  await buildFixtureIndex(root)
+
+  db = openDb(root)
+  try {
+    const after = captureCompactionPreservationSnapshot(db)
+    assert.deepEqual(after.refs_graph, [])
+    assert.throws(
+      () => validateCompactionPreservation({
+        before,
+        after: { ...before, refs_graph: after.refs_graph },
+      }),
+      /refs_graph changed/u,
+    )
+  } finally {
+    closeDb(db)
+  }
 })
 
 test("desk_search exposes hybrid vs lexical search_mode while preserving archive scopes", async () => {
