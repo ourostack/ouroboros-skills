@@ -9,6 +9,11 @@ const GENERIC_STDIO_UNSUPPORTED = [
   "agent-defaults",
   "plugin-dependency-resolution",
 ]
+const REQUIRED_GENERIC_STDIO_EVIDENCE_SOURCES = [
+  "plugins/desk/.mcp.json",
+  "plugins/desk/mcp/README.md",
+  "plugins/desk/activation/README.md",
+]
 
 export function validateOuroborosStdioPackagingContract(input) {
   const errors = []
@@ -95,6 +100,22 @@ function validateGenericStdioHost({ host, evidence, readmeSection, activationSec
 
   if (evidence === undefined) {
     errors.push("Generic stdio evidence row is required")
+  } else {
+    if (evidence.disposition !== "degraded-mcp-only") {
+      errors.push("Generic stdio evidence must record degraded-mcp-only disposition")
+    }
+    if (!includesAll(evidence.source_paths, REQUIRED_GENERIC_STDIO_EVIDENCE_SOURCES)) {
+      errors.push("Generic stdio evidence must reference MCP launch docs and activation docs")
+    }
+    if (!arrayIncludes(evidence.unsupported_primitives, GENERIC_STDIO_UNSUPPORTED[0])) {
+      errors.push("Generic stdio evidence must mark agent-defaults unsupported")
+    }
+    if (!arrayIncludes(evidence.unsupported_primitives, GENERIC_STDIO_UNSUPPORTED[1])) {
+      errors.push("Generic stdio evidence must mark plugin-dependency-resolution unsupported")
+    }
+    if (!/no worker activation/u.test(evidence.fallback_behavior ?? "")) {
+      errors.push("Generic stdio evidence fallback must state no worker activation")
+    }
   }
 
   if (!/--root/u.test(readmeSection)) {

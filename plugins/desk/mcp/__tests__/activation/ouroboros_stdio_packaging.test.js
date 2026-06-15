@@ -896,6 +896,18 @@ test("generic stdio packaging validation rejects evidence row support drift", ()
       "Generic stdio evidence fallback must state no worker activation",
     ],
   )
+
+  const missingEvidenceFallback = clone(currentOuroborosStdioPackagingInput())
+  delete findByField(
+    missingEvidenceFallback.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingEvidenceFallback),
+    ["Generic stdio evidence fallback must state no worker activation"],
+  )
 })
 
 test("generic stdio packaging validation rejects missing agent-defaults fallback marker", () => {
