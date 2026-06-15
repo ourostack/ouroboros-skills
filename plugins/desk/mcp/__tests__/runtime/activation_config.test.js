@@ -5,8 +5,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
@@ -581,8 +583,44 @@ test("entrypoint stdio startup lets host/session root override activation config
   }
 })
 
+test("entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup", {
+  skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${process.platform}-${process.arch}-node-${process.versions.modules}`,
+}, async () => {
+  const fixture = makeFixture()
+  try {
+    const activationCacheRelative = "activation-runtime-cache"
+    const activationCache = path.join(fixture.root, activationCacheRelative)
+    const envCache = path.join(fixture.root, "env-cache-should-not-win")
+    mkdirSync(envCache, { recursive: true })
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: activationCacheRelative,
+    })
+
+    const first = await runTaskCreateThroughEntrypoint(fixture, {
+      envOverrides: { DESK_RUNTIME_CACHE_DIR: envCache },
+      track: "relative-cache-first",
+    })
+    assert.equal(first.initialize.error, undefined, first.stderr || first.stdout)
+    assert.equal(first.created.error, undefined, first.stderr || first.stdout)
+
+    const second = await runTaskCreateThroughEntrypoint(fixture, {
+      envOverrides: { DESK_RUNTIME_CACHE_DIR: envCache },
+      track: "relative-cache-second",
+    })
+    assert.equal(second.initialize.error, undefined, second.stderr || second.stdout)
+    assert.equal(second.created.error, undefined, second.stderr || second.stdout)
+
+    assert.equal(hasRuntimeDeps(activationCache), true, "relative activation runtimeCacheDir should receive runtime dependencies")
+    assert.equal(hasRuntimeDeps(envCache), false, "DESK_RUNTIME_CACHE_DIR must not receive runtime dependencies when activation config supplies runtimeCacheDir")
+    assert.equal(sourceMirrorCount(activationCache), 1, "repeated startup should reuse the same source mirror for unchanged MCP source")
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 async function runTaskCreateThroughEntrypoint(fixture, {
   args = ["--activation-config", fixture.configPath],
+  envOverrides = {},
   track = "activation-check",
 } = {}) {
   const child = spawn(process.execPath, [
@@ -596,6 +634,7 @@ async function runTaskCreateThroughEntrypoint(fixture, {
       DESK_RUNTIME_CACHE_DIR: fixture.runtimeCache,
       HOME: fixture.home,
       XDG_CACHE_HOME: fixture.xdgCache,
+      ...envOverrides,
     },
     stdio: ["pipe", "pipe", "pipe"],
   })
@@ -689,4 +728,21 @@ function waitForResponse({ closed, id, responses, stderr, stdout, timeoutMs = 10
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+}
+
+function hasRuntimeDeps(cacheDir) {
+  return existsSync(path.join(cacheDir, "node_modules"))
+    && existsSync(path.join(cacheDir, "package.json"))
+    && existsSync(path.join(cacheDir, "package-lock.json"))
+}
+
+function sourceMirrorCount(cacheDir) {
+  const mirrorRoot = path.join(cacheDir, "source-mirror")
+  if (!existsSync(mirrorRoot)) {
+    return 0
+  }
+  return readdirSync(mirrorRoot)
+    .map((entry) => path.join(mirrorRoot, entry))
+    .filter((entry) => statSync(entry).isDirectory())
+    .length
 }

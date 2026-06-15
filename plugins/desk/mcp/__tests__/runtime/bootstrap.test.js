@@ -354,6 +354,15 @@ test("runtime cache resolution honors configured, environment, XDG, and HOME fal
     )
     assert.equal(
       resolveRuntimeCacheDir({
+        env: { HOME: undefined, XDG_CACHE_HOME: "", DESK_RUNTIME_CACHE_DIR: "" },
+        packageJson,
+        target,
+        prodDependencyLockHash,
+      }),
+      path.join(homedir(), ".cache", "ouroboros-skills", "desk", packageJson.version, target, prodDependencyLockHash),
+    )
+    assert.equal(
+      resolveRuntimeCacheDir({
         configuredRuntimeCacheDir: "   ",
         env: { HOME: home, DESK_RUNTIME_CACHE_DIR: "   " },
         packageJson,
@@ -496,6 +505,34 @@ test("restoreRuntimeDependencies repairs corrupt or incomplete cache markers", a
   }
 })
 
+test("restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory", async () => {
+  const { restoreRuntimeDependencies } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  const runtimeCacheDir = path.join(fixture.root, "runtime-cache-file")
+  try {
+    const pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeText(runtimeCacheDir, "not a directory\n")
+
+    assert.throws(
+      () => restoreRuntimeDependencies({
+        mcpRoot: fixture.mcpRoot,
+        packageJson: pack.packageJson,
+        packageLockPath: pack.packageLockPath,
+        packPaths: pack.packPaths,
+        runtimeCacheDir,
+        target: pack.target,
+        platform: fixturePlatform,
+        arch: fixtureArch,
+        nodeAbi: fixtureNodeAbi,
+      }),
+      /EEXIST|ENOTDIR|not a directory|file already exists/u,
+    )
+    assert.equal(readFileSync(runtimeCacheDir, "utf8"), "not a directory\n")
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test("source hashing ignores nested node_modules and mirrors clean up staging directories", async () => {
   const { hashCurrentSource, sourceFilesForHash, syncSourceMirror } = await loadBootstrap()
   const fixture = makeMcpFixture()
@@ -555,6 +592,18 @@ test("bootstrap pack verifier rejects missing metadata, drift, corrupt archives,
           "runtime-deps.manifest.json",
         ],
       },
+    )
+    assert.match(
+      verifyBootstrapRuntimeDependencyPack({
+        packageJson: valid.packageJson,
+        packageLockPath: valid.packageLockPath,
+        packPaths: valid.packPaths,
+        target: "other-os-other-arch-node-000",
+        platform: "other-os",
+        arch: "other-arch",
+        nodeAbi: "000",
+      }).errors.join("\n"),
+      /platform must match other-os-other-arch-node-000/u,
     )
     const longName = "node_modules/fixture-package/deep/from-long-name.js"
     const paxName = "node_modules/fixture-package/deep/from-pax-name.js"
