@@ -169,7 +169,7 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
   const activeNewer = await writeSnapshot({
     pluginRoot,
-    snapshotId: "zz-active-newer",
+    snapshotId: "m-active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
   })
   const invalidRuntime = await writeSnapshot({
@@ -196,12 +196,18 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
   })
   const activeOlder = await writeSnapshot({
     pluginRoot,
-    snapshotId: "aa-active-older",
+    snapshotId: "a-active-older",
     createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  const activeNewestNameOnly = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "z-active-name-only",
+    createdAt: "2026-06-14T23:00:00.000Z",
   })
   await setSnapshotMtime(activeNewer, new Date("2026-06-15T00:00:00.000Z"))
   await setSnapshotMtime(invalidRuntime, new Date("2026-06-15T03:00:00.000Z"))
   await setSnapshotMtime(activeOlder, new Date("2026-06-15T04:00:00.000Z"))
+  await setSnapshotMtime(activeNewestNameOnly, new Date("2026-06-15T05:00:00.000Z"))
 
   const discovered = await discoverSnapshotArtifacts({
     pluginRoot,
@@ -214,12 +220,12 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
 
   assert.deepEqual(
     new Set(discovered.compatible.map((candidate) => candidate.snapshot_id)),
-    new Set(["aa-active-older", "zz-active-newer"]),
+    new Set(["a-active-older", "m-active-newer", "z-active-name-only"]),
   )
   assert.equal(ignoredById.get("inactive-newest"), "inactive_embedding_spec")
   assert.equal(ignoredById.get("active-invalid-runtime"), "incompatible_manifest")
   assert.equal(ignoredById.get("active-invalid-checksum"), "incompatible_manifest")
-  assert.equal(selected.snapshot_id, "zz-active-newer")
+  assert.equal(selected.snapshot_id, "m-active-newer")
   assert.equal(selected.manifest.created_at, "2026-06-15T01:00:00.000Z")
 })
 
@@ -229,7 +235,7 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
   const newer = await writeSnapshot({
     pluginRoot,
-    snapshotId: "zz-active-newer",
+    snapshotId: "m-active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
     sqliteBytes: Buffer.from("newer sqlite bytes", "utf8"),
   })
@@ -242,14 +248,21 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   })
   const older = await writeSnapshot({
     pluginRoot,
-    snapshotId: "aa-active-older",
+    snapshotId: "a-active-older",
     createdAt: "2026-06-15T00:00:00.000Z",
     sqliteBytes: Buffer.from("older sqlite bytes", "utf8"),
+  })
+  const newestNameOnly = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "z-active-name-only",
+    createdAt: "2026-06-14T23:00:00.000Z",
+    sqliteBytes: Buffer.from("name-only sqlite bytes", "utf8"),
   })
   await setSnapshotMtime(newer, new Date("2026-06-15T00:00:00.000Z"))
   await setSnapshotMtime(invalidNewest, new Date("2026-06-15T03:00:00.000Z"))
   await setSnapshotMtime(older, new Date("2026-06-15T04:00:00.000Z"))
-  const repoArtifactPaths = artifactPaths(older, invalidNewest, newer)
+  await setSnapshotMtime(newestNameOnly, new Date("2026-06-15T05:00:00.000Z"))
+  const repoArtifactPaths = artifactPaths(older, invalidNewest, newestNameOnly, newer)
   await Promise.all(repoArtifactPaths.map((targetPath) => fs.chmod(targetPath, 0o444)))
   const before = await fingerprint(repoArtifactPaths)
 
@@ -261,7 +274,7 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
 
   assert.equal(result.restored, true)
   assert.equal(result.reason, "snapshot_restored")
-  assert.equal(result.snapshot_id, "zz-active-newer")
+  assert.equal(result.snapshot_id, "m-active-newer")
   assert.equal(result.state_db_path, indexDbPath(deskRoot))
   assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), newer.sqliteBytes)
   assert.deepEqual(await fingerprint(repoArtifactPaths), before)
