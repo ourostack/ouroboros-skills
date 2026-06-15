@@ -715,6 +715,46 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     validateOuroborosStdioPackagingContract(neitherSetupDependencyClaim),
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
+
+  const asDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  asDependencyClaim.genericStdioReadmeSection +=
+    "\nNo manual setup is needed as generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(asDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const soDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  soDependencyClaim.genericStdioReadmeSection +=
+    "\nNo manual setup is needed so generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(soDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const dashDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  dashDependencyClaim.genericStdioReadmeSection +=
+    "\nNo manual setup is needed - generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(dashDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const asWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  asWorkerClaim.genericStdioReadmeSection +=
+    "\nNo manual install is needed as this path starts worker activation automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(asWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const dashWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  dashWorkerClaim.genericStdioReadmeSection +=
+    "\nNo extra command is needed - desk:worker is activated by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(dashWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
 })
 
 test("generic stdio packaging validation permits neither/nor negative support wording", () => {
