@@ -105,6 +105,9 @@ export function assertCoverageCommandParity({ packageJsonPath, workflowPath }) {
 
 export function collectCoverageRequiredFiles({ repoRoot }) {
   return normalizePathList([
+    ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp"), ".js")
+      .filter((file) => isDirectChild(file, path.join(repoRoot, "plugins", "desk", "mcp")))
+      .filter(isProductionJs),
     ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp", "src"), ".js")
       .filter(isProductionJs),
     ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp", "scripts"), ".js")
@@ -195,6 +198,10 @@ function isProductionJs(file) {
 function isProductionCjs(file) {
   const normalized = normalizePath(file)
   return !path.basename(normalized).startsWith("test-")
+}
+
+function isDirectChild(file, dir) {
+  return path.dirname(file) === dir
 }
 
 function normalizeRelative(root, file) {

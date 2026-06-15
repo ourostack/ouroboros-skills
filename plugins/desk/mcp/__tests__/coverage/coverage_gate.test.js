@@ -93,15 +93,17 @@ test("coverage gate reports a missing coverage report as a hard failure", async 
   }
 })
 
-test("coverage gate requires 100% coverage for new MCP source, MCP scripts, and root scripts", async () => {
+test("coverage gate requires 100% coverage for new MCP entrypoints, source, MCP scripts, and root scripts", async () => {
   const { evaluateCoverageReport } = await loadGate()
   const tmp = makeTempDir()
   try {
+    const coveredEntrypoint = "plugins/desk/mcp/index.js"
     const coveredSource = "plugins/desk/mcp/src/activation/schema.js"
     const uncoveredSource = "plugins/desk/mcp/src/activation/validate.js"
     const coveredMcpScript = "plugins/desk/mcp/scripts/activation-support-matrix.js"
     const uncoveredRootScript = "scripts/validate-desk-activation.cjs"
     const reportPath = writeCoverageSummary(tmp, {
+      [path.join(repoRoot, coveredEntrypoint)]: metrics(),
       [path.join(repoRoot, coveredSource)]: metrics(),
       [path.join(repoRoot, uncoveredSource)]: metrics({ lines: 99.99 }),
       [path.join(repoRoot, coveredMcpScript)]: metrics(),
@@ -112,6 +114,7 @@ test("coverage gate requires 100% coverage for new MCP source, MCP scripts, and 
       repoRoot,
       reportPath,
       requiredFiles: [
+        coveredEntrypoint,
         coveredSource,
         uncoveredSource,
         coveredMcpScript,
@@ -122,6 +125,7 @@ test("coverage gate requires 100% coverage for new MCP source, MCP scripts, and 
 
     assert.equal(result.ok, false)
     assert.deepEqual(result.checkedFiles.sort(), [
+      coveredEntrypoint,
       coveredMcpScript,
       coveredSource,
       uncoveredRootScript,
@@ -449,6 +453,7 @@ test("coverage runner discovers changed files from git state and falls back from
   try {
     const fixtureRoot = path.join(tmp, "repo")
     const included = [
+      "plugins/desk/mcp/index.js",
       "plugins/desk/mcp/src/coverage/gate.js",
       "plugins/desk/mcp/src/coverage/runner.js",
       "plugins/desk/mcp/scripts/run-coverage.js",
@@ -468,6 +473,7 @@ test("coverage runner discovers changed files from git state and falls back from
         return {
           status: 0,
           stdout: [
+            "plugins/desk/mcp/index.js",
             "plugins/desk/mcp/src/coverage/gate.js",
             "scripts/validate-desk-activation.cjs",
           ].join("\n"),
@@ -489,6 +495,7 @@ test("coverage runner discovers changed files from git state and falls back from
     assert.deepEqual(
       normalizePaths(changedSinceMergeBase({ repoRoot: fixtureRoot, spawn })),
       [
+        "plugins/desk/mcp/index.js",
         "plugins/desk/mcp/src/coverage/gate.js",
         "scripts/validate-desk-activation.cjs",
       ],
@@ -497,6 +504,7 @@ test("coverage runner discovers changed files from git state and falls back from
       normalizePaths(collectChangedFiles({ repoRoot: fixtureRoot, spawn })),
       [
         "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js",
+        "plugins/desk/mcp/index.js",
         "plugins/desk/mcp/scripts/run-coverage.js",
         "plugins/desk/mcp/src/coverage/gate.js",
         "plugins/desk/mcp/src/coverage/runner.js",
@@ -529,6 +537,7 @@ test("coverage runner invokes node coverage with include filters and child no-op
   const result = runNodeCoverage({
     repoRoot: "/fixture/repo",
     requiredFiles: [
+      "plugins/desk/mcp/index.js",
       "plugins/desk/mcp/src/coverage/gate.js",
       "plugins/desk/mcp/scripts/run-coverage.js",
     ],
@@ -539,6 +548,7 @@ test("coverage runner invokes node coverage with include filters and child no-op
   assert.equal(result.status, 0)
   assert.equal(captured.cmd, process.execPath)
   assert.ok(captured.args.includes("--experimental-test-coverage"))
+  assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/index.js"))
   assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/src/coverage/gate.js"))
   assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/scripts/run-coverage.js"))
   assert.equal(captured.options.cwd, "/fixture/repo")

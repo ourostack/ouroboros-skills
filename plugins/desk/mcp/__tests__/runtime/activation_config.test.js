@@ -75,6 +75,8 @@ test("parseArgs captures activation config path without losing root or person", 
     entrypoint.parseArgs([
       "--activation-config",
       "/tmp/desk.activation-config.json",
+      "--host-session-root",
+      "/tmp/host-session-desk",
       "--root",
       "/tmp/desk",
       "--person",
@@ -82,6 +84,7 @@ test("parseArgs captures activation config path without losing root or person", 
     ]),
     {
       activationConfig: "/tmp/desk.activation-config.json",
+      hostSessionRoot: "/tmp/host-session-desk",
       person: "ari",
       root: "/tmp/desk",
     },
@@ -229,6 +232,118 @@ test("entrypoint startup root resolution uses parsed activation config and canon
   }
 })
 
+test("entrypoint startup root resolution lets host/session root override activation config", () => {
+  const resolveStartupDeskRoot = requireFunction(entrypoint, "resolveStartupDeskRoot")
+  const fixture = makeFixture()
+  try {
+    writeActivationConfig(fixture.configPath, fixture.activationRoot)
+    const args = entrypoint.parseArgs([
+      "--host-session-root",
+      fixture.hostSessionRoot,
+      "--activation-config",
+      fixture.configPath,
+    ])
+    const result = resolveStartupDeskRoot({
+      args,
+      env: {
+        DESK: fixture.envRoot,
+        HOME: fixture.home,
+      },
+      homeDir: fixture.home,
+    })
+    assert.equal(result.root, fixture.hostSessionRoot)
+    assert.equal(result.source, "host-session-root")
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("entrypoint main resolves startup root before launching injected runtime server", async () => {
+  const main = requireFunction(entrypoint, "main")
+  const fixture = makeFixture()
+  try {
+    writeActivationConfig(fixture.configPath, fixture.activationRoot)
+    const calls = []
+    await main({
+      argv: [
+        "--host-session-root",
+        fixture.hostSessionRoot,
+        "--activation-config",
+        fixture.configPath,
+        "--person",
+        "ari",
+      ],
+      env: {
+        DESK: fixture.envRoot,
+        HOME: fixture.home,
+      },
+      homeDir: fixture.home,
+      mcpRoot: "/fixture/mcp",
+      runtimeImporter: async ({ mcpRoot }) => {
+        calls.push(["runtimeImporter", mcpRoot])
+        return {
+          startServer: async ({ deskRoot, person }) => {
+            calls.push(["startServer", deskRoot, person])
+          },
+        }
+      },
+    })
+    assert.deepEqual(calls, [
+      ["runtimeImporter", "/fixture/mcp"],
+      ["startServer", fixture.hostSessionRoot, "ari"],
+    ])
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors", async () => {
+  const isEntrypoint = requireFunction(entrypoint, "isEntrypoint")
+  const runIfEntrypoint = requireFunction(entrypoint, "runIfEntrypoint")
+  const modulePath = path.join(repoRoot, "plugins", "desk", "mcp", "index.js")
+  const moduleUrl = pathToFileURL(modulePath).href
+
+  assert.equal(isEntrypoint({ argv: ["node"], moduleUrl }), false)
+  assert.equal(isEntrypoint({
+    argv: ["node", "/same/path"],
+    moduleUrl,
+    realpath: () => "/same/path",
+  }), true)
+  assert.equal(isEntrypoint({
+    argv: ["node", modulePath],
+    moduleUrl,
+    realpath: () => {
+      throw new Error("realpath unavailable")
+    },
+  }), true)
+
+  assert.equal(runIfEntrypoint({ argv: ["node"], moduleUrl }), null)
+
+  let launched = false
+  await runIfEntrypoint({
+    argv: ["node", modulePath],
+    moduleUrl,
+    launch: async () => {
+      launched = true
+    },
+  })
+  assert.equal(launched, true)
+
+  const writes = []
+  const exits = []
+  await runIfEntrypoint({
+    argv: ["node", modulePath],
+    moduleUrl,
+    launch: async () => {
+      throw new Error("bad launch")
+    },
+    stderr: { write: (text) => writes.push(text) },
+    exit: (code) => exits.push(code),
+  })
+  assert.match(writes.join(""), /\[desk-mcp\] fatal: bad launch/u)
+  assert.deepEqual(exits, [1])
+})
+
 test("entrypoint stdio startup uses activation config root for real MCP tool calls", {
   skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${process.platform}-${process.arch}-node-${process.versions.modules}`,
 }, async () => {
@@ -253,11 +368,50 @@ test("entrypoint stdio startup uses activation config root for real MCP tool cal
   }
 })
 
-async function runTaskCreateThroughEntrypoint(fixture) {
+test("entrypoint stdio startup lets host/session root override activation config root", {
+  skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${process.platform}-${process.arch}-node-${process.versions.modules}`,
+}, async () => {
+  const fixture = makeFixture()
+  try {
+    writeActivationConfig(fixture.configPath, fixture.activationRoot)
+    const result = await runTaskCreateThroughEntrypoint(fixture, {
+      args: [
+        "--host-session-root",
+        fixture.hostSessionRoot,
+        "--activation-config",
+        fixture.configPath,
+      ],
+      track: "host-session-check",
+    })
+    assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.created.error, undefined, result.stderr || result.stdout)
+    assert.equal(
+      existsSync(path.join(fixture.hostSessionRoot, "host-session-check", "from-server", "task.md")),
+      true,
+      "real MCP startup must write through the host/session root when provided",
+    )
+    assert.equal(
+      existsSync(path.join(fixture.activationRoot, "host-session-check", "from-server", "task.md")),
+      false,
+      "activation config root must not receive writes when host/session root is present",
+    )
+    assert.equal(
+      existsSync(path.join(fixture.envRoot, "host-session-check", "from-server", "task.md")),
+      false,
+      "conflicting DESK root must not receive writes when host/session root is present",
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+async function runTaskCreateThroughEntrypoint(fixture, {
+  args = ["--activation-config", fixture.configPath],
+  track = "activation-check",
+} = {}) {
   const child = spawn(process.execPath, [
     path.join(mcpRoot, "index.js"),
-    "--activation-config",
-    fixture.configPath,
+    ...args,
   ], {
     cwd: fixture.root,
     env: {
@@ -319,7 +473,7 @@ async function runTaskCreateThroughEntrypoint(fixture) {
       params: {
         name: "task_create",
         arguments: {
-          track: "activation-check",
+          track,
           slug: "from-server",
           title: "From server",
         },

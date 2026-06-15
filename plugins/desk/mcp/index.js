@@ -21,6 +21,8 @@ export function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--root" && argv[i + 1]) {
       args.root = argv[++i]
+    } else if (argv[i] === "--host-session-root" && argv[i + 1]) {
+      args.hostSessionRoot = argv[++i]
     } else if (argv[i] === "--person" && argv[i + 1]) {
       args.person = argv[++i]
     } else if (argv[i] === "--activation-config" && argv[i + 1]) {
@@ -36,35 +38,55 @@ export function resolveStartupDeskRoot({ args, env = process.env, homeDir } = {}
     env,
     explicitRoot: args?.root,
     homeDir,
+    hostSessionRoot: args?.hostSessionRoot,
   })
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2))
-  const { root: deskRoot } = resolveStartupDeskRoot({ args })
-  const { startServer } = await importRuntimeServer({
-    mcpRoot: path.dirname(fileURLToPath(import.meta.url)),
+export async function main({
+  argv = process.argv.slice(2),
+  env = process.env,
+  homeDir,
+  mcpRoot = path.dirname(fileURLToPath(import.meta.url)),
+  runtimeImporter = importRuntimeServer,
+} = {}) {
+  const args = parseArgs(argv)
+  const { root: deskRoot } = resolveStartupDeskRoot({ args, env, homeDir })
+  const { startServer } = await runtimeImporter({
+    mcpRoot,
   })
   await startServer({ deskRoot, person: args.person })
 }
 
-function isEntrypoint() {
-  if (!process.argv[1]) {
+export function isEntrypoint({
+  argv = process.argv,
+  moduleUrl = import.meta.url,
+  realpath = realpathSync,
+} = {}) {
+  if (!argv[1]) {
     return false
   }
-  const modulePath = fileURLToPath(import.meta.url)
+  const modulePath = fileURLToPath(moduleUrl)
   try {
-    return realpathSync(modulePath) === realpathSync(process.argv[1])
+    return realpath(modulePath) === realpath(argv[1])
   } catch {
-    return path.resolve(modulePath) === path.resolve(process.argv[1])
+    return path.resolve(modulePath) === path.resolve(argv[1])
   }
+}
+
+export function runIfEntrypoint({
+  argv = process.argv,
+  moduleUrl = import.meta.url,
+  launch = main,
+  stderr = process.stderr,
+  exit = process.exit,
+} = {}) {
+  if (!isEntrypoint({ argv, moduleUrl })) return null
+  return launch().catch((err) => {
+    stderr.write(`[desk-mcp] fatal: ${err.message}\n`)
+    exit(1)
+  })
 }
 
 // Only launch the server when run as the entry point, not when imported
 // (tests import `parseArgs` without spawning a stdio server).
-if (isEntrypoint()) {
-  main().catch((err) => {
-    console.error("[desk-mcp] fatal:", err.message)
-    process.exit(1)
-  })
-}
+runIfEntrypoint()
