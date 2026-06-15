@@ -63,14 +63,58 @@ export function validateCompactionPreservation({ before, after } = {}) {
   }
 
   for (const scope of SEARCH_SCOPES) {
-    assertSearchRowsEqual(
+    assertCanonicalRowsEqual(
       before.search?.[scope],
       after.search?.[scope],
       `${scope} search scope changed`,
     )
   }
+  assertCanonicalRowsEqual(before.chunks, after.chunks, "chunk identity changed")
   assertRefRowsEqual(before.refs_graph, after.refs_graph)
   return { search_preserved: true, refs_preserved: true }
+}
+
+export function captureCompactionPreservationSnapshot(db) {
+  const docs = db.prepare(
+    `SELECT path, kind, track, task_slug, status, updated_at, is_archived
+     FROM docs
+     ORDER BY path`,
+  ).all()
+  const search = {
+    active: [],
+    archived: [],
+    all: docs,
+  }
+  for (const row of docs) {
+    if (row.is_archived) {
+      search.archived.push(row)
+    } else {
+      search.active.push(row)
+    }
+  }
+
+  return {
+    search,
+    refs_graph: db.prepare(
+      `SELECT src.path AS "from", dst.path AS "to", rg.ref_kind
+       FROM refs_graph rg
+       JOIN docs src ON src.id = rg.src_doc_id
+       JOIN docs dst ON dst.id = rg.dst_doc_id
+       ORDER BY src.path, dst.path, rg.ref_kind`,
+    ).all(),
+    chunks: db.prepare(
+      `SELECT d.path AS doc_path,
+              c.chunk_index,
+              c.chunk_key,
+              c.text_hash,
+              c.embedding_spec_id,
+              c.chunker_id,
+              c.normalization_id
+       FROM chunks c
+       JOIN docs d ON d.id = c.doc_id
+       ORDER BY d.path, c.chunk_index, c.id`,
+    ).all(),
+  }
 }
 
 function packRows(pack, label) {
@@ -107,9 +151,9 @@ function vectorsEqual(left, right) {
   return true
 }
 
-function assertSearchRowsEqual(left, right, message) {
-  const leftList = normalizeSearchRows(left)
-  const rightList = normalizeSearchRows(right)
+function assertCanonicalRowsEqual(left, right, message) {
+  const leftList = normalizeCanonicalRows(left)
+  const rightList = normalizeCanonicalRows(right)
   if (leftList.length !== rightList.length) {
     throw new Error(message)
   }
@@ -120,7 +164,7 @@ function assertSearchRowsEqual(left, right, message) {
   }
 }
 
-function normalizeSearchRows(value) {
+function normalizeCanonicalRows(value) {
   return Array.isArray(value) ? value.map(canonicalSearchRow) : []
 }
 
