@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
+import { spawnSync } from "node:child_process"
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
+import { gzipSync } from "node:zlib"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -79,19 +81,53 @@ function makeTempDir() {
 }
 
 function writePackFixture({
-  archiveText = "fixture runtime dependency archive\n",
-  checksum = sha256(archiveText),
+  archiveEntries,
+  checksum,
   manifest,
 } = {}) {
   const packDir = makeTempDir()
-  writeFileSync(path.join(packDir, "runtime-deps.tgz"), archiveText, "utf8")
-  writeFileSync(path.join(packDir, "runtime-deps.sha256"), `${checksum}  runtime-deps.tgz\n`, "utf8")
+  const archiveBytes = createTarGz(archiveEntries)
+  writeFileSync(path.join(packDir, "runtime-deps.tgz"), archiveBytes)
+  writeFileSync(path.join(packDir, "runtime-deps.sha256"), `${checksum ?? sha256(archiveBytes)}  runtime-deps.tgz\n`, "utf8")
   writeFileSync(
     path.join(packDir, "runtime-deps.manifest.json"),
     JSON.stringify(manifest, null, 2),
     "utf8",
   )
   return packDir
+}
+
+function createTarGz(entries) {
+  const blocks = []
+  for (const entry of entries) {
+    const body = Buffer.from(`fixture for ${entry}\n`, "utf8")
+    blocks.push(tarHeader({ name: entry, size: body.length }))
+    blocks.push(body)
+    const padding = (512 - (body.length % 512)) % 512
+    if (padding > 0) {
+      blocks.push(Buffer.alloc(padding))
+    }
+  }
+  blocks.push(Buffer.alloc(1024))
+  return gzipSync(Buffer.concat(blocks))
+}
+
+function tarHeader({ name, size }) {
+  assert.ok(Buffer.byteLength(name) <= 100, `tar fixture path too long for ustar header: ${name}`)
+  const header = Buffer.alloc(512, 0)
+  header.write(name, 0, 100, "utf8")
+  header.write("0000644\0", 100, 8, "ascii")
+  header.write("0000000\0", 108, 8, "ascii")
+  header.write("0000000\0", 116, 8, "ascii")
+  header.write(size.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii")
+  header.write("00000000000\0", 136, 12, "ascii")
+  header.fill(0x20, 148, 156)
+  header.write("0", 156, 1, "ascii")
+  header.write("ustar\0", 257, 6, "ascii")
+  header.write("00", 263, 2, "ascii")
+  const checksum = [...header].reduce((sum, byte) => sum + byte, 0)
+  header.write(checksum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "ascii")
+  return header
 }
 
 function fixtureManifest({
@@ -213,14 +249,43 @@ function archiveEntriesForProductionDependencies(dependencies) {
   return entries.sort()
 }
 
-function workflowPathFilters(workflow) {
-  return [...workflow.matchAll(/^\s+- "([^"]+)"\s*$/gmu)]
-    .map((match) => match[1])
+function workflowPathFilters(workflow, eventName) {
+  const lines = workflow.split(/\r?\n/u)
+  const eventStart = lines.findIndex((line) => line === `  ${eventName}:`)
+  assert.notEqual(eventStart, -1, `workflow must define ${eventName}`)
+  const eventEnd = lines.findIndex((line, index) => (
+    index > eventStart && /^  [a-z_]+:/u.test(line)
+  ))
+  const eventLines = lines.slice(eventStart, eventEnd === -1 ? lines.length : eventEnd)
+  const pathsStart = eventLines.findIndex((line) => line === "    paths:")
+  assert.notEqual(pathsStart, -1, `${eventName} must define paths`)
+  const paths = []
+  for (const line of eventLines.slice(pathsStart + 1)) {
+    if (/^\s*$/.test(line)) {
+      continue
+    }
+    const match = line.match(/^      - "([^"]+)"$/u)
+    if (match === null) {
+      break
+    }
+    paths.push(match[1])
+  }
+  return paths
 }
 
 function workflowRunCommands(workflow) {
   return [...workflow.matchAll(/^\s*run:\s+(.+?)\s*$/gmu)]
     .map((match) => match[1])
+}
+
+function scriptHelp(scriptName) {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(mcpRoot, "scripts", scriptName), "--help"],
+    { encoding: "utf8" },
+  )
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  return `${result.stdout}${result.stderr}`
 }
 
 function assertIncludesAll(actual, expected, label) {
@@ -569,24 +634,35 @@ test("runtime dependency pack verification checks checksums and unsupported plat
   } = await loadRuntimeDeps()
   const packageJson = loadJson(packageJsonPath)
   const packageLock = loadJson(packageLockPath)
-  const archiveText = "fixture runtime dependency archive\n"
-  const archiveSha = sha256(archiveText)
+  const productionDependencies = collectProductionDependencyClosure({
+    packageJson,
+    packageLock,
+    platform: target.platform,
+    arch: target.arch,
+  })
+  const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
+  const archiveSha = sha256(createTarGz(validEntries))
   const manifest = fixtureManifest({
     archiveSha,
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
-    productionDependencies: collectProductionDependencyClosure({
-      packageJson,
-      packageLock,
-      platform: target.platform,
-      arch: target.arch,
-    }),
+    productionDependencies,
   })
-  const validEntries = archiveEntriesForProductionDependencies(manifest.production_dependencies)
-  const packDir = writePackFixture({ archiveText, checksum: archiveSha, manifest })
+  const packDir = writePackFixture({ archiveEntries: validEntries, checksum: archiveSha, manifest })
   const corruptPackDir = writePackFixture({
-    archiveText,
+    archiveEntries: validEntries,
     checksum: "0".repeat(64),
     manifest,
+  })
+  const missingRuntimeFileEntries = validEntries
+    .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js")
+  const missingRuntimeFileManifest = fixtureManifest({
+    archiveSha: sha256(createTarGz(missingRuntimeFileEntries)),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingRuntimeFilePackDir = writePackFixture({
+    archiveEntries: missingRuntimeFileEntries,
+    manifest: missingRuntimeFileManifest,
   })
   try {
     assert.deepEqual(
@@ -596,7 +672,6 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         platform: target.platform,
         arch: target.arch,
         nodeAbi: targetNodeAbi,
-        archiveEntries: validEntries,
       }),
       { ok: true, errors: [], manifest },
     )
@@ -608,7 +683,6 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         platform: target.platform,
         arch: target.arch,
         nodeAbi: targetNodeAbi,
-        archiveEntries: validEntries,
       }),
       {
         ok: false,
@@ -624,7 +698,6 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         platform: "freebsd",
         arch: target.arch,
         nodeAbi: targetNodeAbi,
-        archiveEntries: validEntries,
       }),
       {
         ok: false,
@@ -632,9 +705,27 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         manifest,
       },
     )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingRuntimeFilePackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency archive must include runtime file node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+        ],
+        manifest: missingRuntimeFileManifest,
+      },
+    )
   } finally {
     rmSync(packDir, { recursive: true, force: true })
     rmSync(corruptPackDir, { recursive: true, force: true })
+    rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
   }
 })
 
@@ -659,15 +750,29 @@ test("package declares CI/release scripts for runtime dependency packs", () => {
       .startsWith("#!/usr/bin/env node\n"),
     true,
   )
+
+  const buildHelp = scriptHelp("build-runtime-deps-pack.js")
+  assert.match(buildHelp, /runtime dependency pack/i)
+  assert.match(buildHelp, /--platform/u)
+  assert.match(buildHelp, /--arch/u)
+  assert.match(buildHelp, /--node-abi/u)
+
+  const verifyHelp = scriptHelp("verify-runtime-deps-pack.js")
+  assert.match(verifyHelp, /runtime dependency pack/i)
+  assert.match(verifyHelp, /--pack-dir/u)
+  assert.match(verifyHelp, /--platform/u)
 })
 
 test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
   const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
-  const pathFilters = workflowPathFilters(workflow)
+  const pullRequestPathFilters = workflowPathFilters(workflow, "pull_request")
+  const pushPathFilters = workflowPathFilters(workflow, "push")
   const runCommands = workflowRunCommands(workflow)
 
   assert.ok(runCommands.includes("npm run runtime:deps-pack:verify"))
-  assert.ok(pathFilters.includes("plugins/desk/mcp/artifacts/runtime-deps/**"))
-  assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/build-runtime-deps-pack.js"))
-  assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"))
+  for (const pathFilters of [pullRequestPathFilters, pushPathFilters]) {
+    assert.ok(pathFilters.includes("plugins/desk/mcp/artifacts/runtime-deps/**"))
+    assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/build-runtime-deps-pack.js"))
+    assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"))
+  }
 })
