@@ -234,7 +234,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened `plugins/desk/mcp/src/activation/adapters/codex.js` and `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`.  
 **Acceptance**: 100% coverage on new Codex adapter code, repeated activation is idempotent, and all Codex adapter tests pass.
 
-### ⬜ Unit 2d: Activation Artifact Ownership - Tests
+### ✅ Unit 2d: Activation Artifact Ownership - Tests
 **What**: Write failing tests for an owned-artifact ledger, generated artifact upgrade replacement, deactivation cleanup, preservation of user-authored config, and never deleting desk data.  
 **Output**: `plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js` and fixtures under `plugins/desk/mcp/__tests__/fixtures/activation/ownership/`.  
 **Acceptance**: Tests fail until activation writes an ownership ledger and deactivation removes only owned generated artifacts.
@@ -763,3 +763,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 18:15 Unit 2c reviewer fix: Beauvoir found a MAJOR gap where user-authored Desk disablement in legal dotted-key and inline-table TOML could be silently overridden; added coverage for section, dotted-key, quoted/escaped-key, inline-table, and plugin-MCP disable shapes; replaced exact-section scanning with TOML-aware defensive scanning; committed as `ce969d0`; refreshed `unit-2c-review-fix-codex-activation-green.log`, `unit-2c-review-fix-test-coverage-green.log`, `unit-2c-review-fix-npm-test-green.log`, and `unit-2c-review-fix-validate-skills-green.log`; verified targeted Codex activation tests, coverage, full MCP tests, validation, and `git diff --check a65f934`
 - 2026-06-14 18:15 Unit 2c evidence hygiene: scrubbed trailing whitespace from review-fix evidence logs in `55c05b6` and verified `git diff --check a65f934..HEAD` plus `git diff --check` pass
 - 2026-06-14 18:15 Unit 2c Round 2 cold reviewer gate converged; Beauvoir verified the legal TOML disabled-Desk override gap and evidence whitespace finding are closed
+- 2026-06-14 18:20 Unit 2d complete: added activation artifact ownership red tests and fixtures in `113cafc`; targeted red run saved to `unit-2d-artifact-ownership-red.log` and fails because `plugins/desk/mcp/src/activation/artifact-ledger.js` does not exist yet
