@@ -449,7 +449,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js`.
 **Acceptance**: Tests fail until rebuild imports packs before live embedding generation.
 
-### ⬜ Unit 13b: Vector Rebuild And Missing Generation - Implementation
+### 🔄 Unit 13b: Vector Rebuild And Missing Generation - Implementation
 **What**: Update `rebuildIndex` and related helpers to import shared vectors before embedding and to generate only missing vectors.
 **Output**: Updated `plugins/desk/mcp/src/indexer/index.js`, embedding helpers, and tests.
 **Acceptance**: Unit 13a tests pass and covered chunks do not trigger embedding endpoint calls.
@@ -929,3 +929,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 10:31 Unit 13a started for vector rebuild red tests: prove rebuild imports shared vector packs before live embeddings, makes zero embedding calls when packs cover all chunks, and only calls live embeddings for missing chunks.
 - 2026-06-15 10:35 Unit 13a complete: added `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js` red tests for fully covered vector packs making zero live embedding calls, partial pack coverage live-generating only missing chunks, and `skipEmbed`/offline rebuild succeeding when vector packs cover all chunks. Targeted red evidence in `unit-13a-vector-rebuild-red.log` fails because `rebuildIndex` ignores `vectorPacks.pluginRoot`, embeds pack-covered chunks live, and never imports pack vectors when `skipEmbed` is set. Terminal `All tests pass` is intentionally unchecked until Unit 13b implements import-before-live-embedding rebuild behavior.
 - 2026-06-15 10:39 Unit 13a cold reviewer gate converged: Bernoulli the 2nd verified the red tests meaningfully force pack-covered chunks to avoid live fetches, partial coverage to fetch only missing chunks, `skipEmbed` to populate vectors from packs, and row identities to use production `chunkBody` plus `chunkIdentity`.
+- 2026-06-15 10:40 Unit 13b started to implement import-before-live-embedding rebuild behavior.
