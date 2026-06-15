@@ -32,7 +32,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] The activation schema can declare host support, host fallbacks, and flattened bundle requirements.
 - [x] Unknown activation schema versions fail closed with actionable diagnostics.
 - [x] Plugin dependency order and activation order are deterministic.
-- [ ] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
+- [x] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
 - [x] Activation declares host permissions/capabilities and cannot silently elevate beyond the host plugin model.
 - [ ] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
 - [ ] Claude packaging declares Work Suite as a dependency when the support matrix marks dependency metadata native for the host format.
@@ -132,7 +132,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover sensitive-path exclusion and no absolute paths in snapshot artifacts.
 - [ ] Tests cover gitignored secret exclusion as product behavior.
 - [ ] Tests cover repeated startup idempotence.
-- [ ] Tests cover deactivation/uninstall artifact ownership.
+- [x] Tests cover deactivation/uninstall artifact ownership.
 - [x] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
 - [x] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
@@ -141,8 +141,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [ ] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] 100% test coverage on all new code
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -239,7 +239,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js` and fixtures under `plugins/desk/mcp/__tests__/fixtures/activation/ownership/`.  
 **Acceptance**: Tests fail until activation writes an ownership ledger and deactivation removes only owned generated artifacts.
 
-### ⬜ Unit 2e: Activation Artifact Ownership - Implementation
+### ✅ Unit 2e: Activation Artifact Ownership - Implementation
 **What**: Implement ownership ledger creation, upgrade replacement, deactivation cleanup, and user-config preservation for generated activation artifacts.  
 **Output**: `plugins/desk/mcp/src/activation/artifact-ledger.js`, updates to `plugins/desk/mcp/src/activation/adapters/codex.js`, and ownership fixtures.  
 **Acceptance**: Unit 2d tests pass, generated artifacts can be updated or removed safely, and desk data is never deleted.
@@ -766,3 +766,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 18:20 Unit 2d complete: added activation artifact ownership red tests and fixtures in `113cafc`; targeted red run saved to `unit-2d-artifact-ownership-red.log` and fails because `plugins/desk/mcp/src/activation/artifact-ledger.js` does not exist yet
 - 2026-06-14 18:24 Unit 2d reviewer fix: Erdos found the upgrade red test accidentally appended duplicate `.codex/config.toml` artifacts in one activation request and broad pass/coverage checklist boxes stayed checked during an intentional red-test state; fixed the helper so artifact overrides replace the list, made the upgrade request include one v2 config and one v2 instructions artifact, refreshed `unit-2d-artifact-ownership-red.log`, and committed as `7d24e37`
 - 2026-06-14 18:24 Unit 2d Round 2 cold reviewer gate converged; Erdos verified the duplicate-path test-contract issue and red-state checklist issue are closed
+- 2026-06-14 18:27 Unit 2e complete: implemented `plugins/desk/mcp/src/activation/artifact-ledger.js` in `6134ba1` with ledger creation, artifact upgrade replacement, deactivation block cleanup, user-authored content preservation, and never-delete desk-data skips; saved `unit-2e-artifact-ownership-green.log`, `unit-2e-test-coverage-green.log`, `unit-2e-npm-test-green.log`, and `unit-2e-validate-skills-green.log`; verified targeted ownership tests, `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
