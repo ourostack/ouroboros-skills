@@ -139,10 +139,10 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover permission/capability boundaries for generated activation artifacts.
 - [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
 - [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
-- [ ] Release/CI automation can fail when generated artifacts are stale.
+- [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] 100% test coverage on all new code
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -324,7 +324,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened runtime dependency pack code and scripts.
 **Acceptance**: 100% coverage on new runtime dependency pack code and scripts, and all runtime dependency pack tests pass.
 
-### ⬜ Unit 6g: Production Runtime Dependency Pack Publication - Tests
+### ✅ Unit 6g: Production Runtime Dependency Pack Publication - Tests
 **What**: Write failing checks that require the current production runtime dependency pack to be committed under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` with archive, manifest, checksum, package-lock provenance, dependency-only archive shape, and freshness metadata.
 **Output**: `plugins/desk/mcp/__tests__/runtime/production_runtime_pack.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Tests fail until production `runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256` exist under the canonical path, not only fixtures.
@@ -848,3 +848,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 03:24 Unit 6f reviewer blocker: Confucius the 2nd found that absent archive/checksum/manifest and corrupt archive handling still threw uncaught stack traces despite Unit 6f claiming coverage; reopening Unit 6f for red tests and clean verifier diagnostics
 - 2026-06-15 03:29 Unit 6f reviewer fix: `cb58f9d` adds red tests for missing manifest/archive/checksum, invalid gzip archive bytes, and spawned verify-CLI diagnostics without stack traces, then returns clean validation errors for those states; saved `unit-6f-review-fix-runtime-dependency-packs-red.log`, `unit-6f-review-fix-runtime-dependency-packs-green.log`, `unit-6f-review-fix-test-coverage-green.log`, `unit-6f-review-fix-npm-test-green.log`, and `unit-6f-review-fix-build-unavailable.log`; focused tests pass 11/11, full MCP tests pass 291/291, and coverage remains 100% line/branch/function
 - 2026-06-15 03:32 Unit 6f cold reviewer gate converged: Helmholtz the 2nd verified the missing/corrupt artifact blocker is closed, the verify CLI no longer emits stack traces for those cases, focused tests pass 11/11, full MCP/coverage pass 291/291 with 100% runtime-deps coverage, and the worktree is clean
+- 2026-06-15 03:39 Unit 6g complete: added production runtime dependency pack publication red tests and generated-artifact verification in `497cb8c`; targeted red logs saved to `unit-6g-production-runtime-pack-red.log` and `unit-6g-generated-artifacts-red.log`, failing because the current `1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be` pack trio is not yet committed; terminal coverage/all-tests criteria intentionally unchecked until Units 6h-6i make the checks green
