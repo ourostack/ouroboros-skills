@@ -424,7 +424,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated `plugins/desk/mcp/src/indexer/chunk.js`, new spec module, updated `schema.sql`/migrations, and indexer writes.
 **Acceptance**: Unit 11a tests pass and unchanged chunks get stable keys across runs.
 
-### ⬜ Unit 11c: Chunk Keys And Embedding Spec Schema - Coverage & Refactor
+### 🔄 Unit 11c: Chunk Keys And Embedding Spec Schema - Coverage & Refactor
 **What**: Add coverage for empty text, heading changes, normalization changes, spec changes, and migration from older indexes.
 **Output**: Hardened chunk key/spec implementation.
 **Acceptance**: 100% coverage on new chunk/spec code and all chunk-key tests pass.
