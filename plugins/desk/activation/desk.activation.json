@@ -41,7 +41,7 @@
           "work-suite"
         ],
         "entrypoints": {
-          "claude": "agents/worker.agent.md",
+          "claude": "agents/worker.md",
           "codex": "agents/worker.toml",
           "copilot": "agents/worker.md"
         }

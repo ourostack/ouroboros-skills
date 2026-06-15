@@ -12,10 +12,10 @@
       "source_paths": [
         "plugins/desk/.claude-plugin/plugin.json",
         "plugins/desk/.mcp.json",
-        "plugins/desk/agents/worker.agent.md",
+        "plugins/desk/agents/worker.md",
         "plugins/work-suite/.claude-plugin/plugin.json"
       ],
-      "evidence_command_or_doc": "plugins/desk/activation/desk.activation.json host_support row for claude",
+      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/claude_packaging.test.js",
       "unsupported_primitives": [],
       "fallback_behavior": "ship flattened bundle when transitive dependencies are unavailable"
     },
