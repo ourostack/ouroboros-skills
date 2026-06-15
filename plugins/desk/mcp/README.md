@@ -41,14 +41,14 @@ The plugin's sibling `.mcp.json` (at `plugins/desk/.mcp.json`) declares the spaw
     "desk": {
       "type": "stdio",
       "command": "node",
-      "args": ["./mcp/index.js", "--root", "${DESK:-./desk}"],
+      "args": ["${pluginRoot}/mcp/index.js"],
       "env": {}
     }
   }
 }
 ```
 
-Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
+Hosts materialize `${pluginRoot}` to the installed Desk plugin root before launching. Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
 
 ## Generic stdio MCP launch
 

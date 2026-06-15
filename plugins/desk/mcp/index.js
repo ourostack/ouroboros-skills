@@ -14,7 +14,7 @@ import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import * as path from "node:path"
 import { importRuntimeServer } from "./src/runtime/bootstrap.js"
-import { resolveDeskRootWithSource } from "./src/util/paths.js"
+import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
 
 export function parseArgs(argv) {
   const args = { root: null, person: null }
@@ -42,19 +42,47 @@ export function resolveStartupDeskRoot({ args, env = process.env, homeDir } = {}
   })
 }
 
+export function resolveStartupRuntimeCacheDir({
+  args,
+  cwd = process.cwd(),
+  homeDir,
+} = {}) {
+  if (!hasText(args?.activationConfig)) {
+    return null
+  }
+  const activationConfig = loadActivationConfig({
+    configPath: args.activationConfig,
+    cwd,
+    homeDir,
+  })
+  if (!hasText(activationConfig.runtimeCacheDir)) {
+    return null
+  }
+  const expanded = expandHome(activationConfig.runtimeCacheDir, homeDir)
+  return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(cwd, expanded))
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
+  cwd = process.cwd(),
   homeDir,
   mcpRoot = path.dirname(fileURLToPath(import.meta.url)),
   runtimeImporter = importRuntimeServer,
 } = {}) {
   const args = parseArgs(argv)
   const { root: deskRoot } = resolveStartupDeskRoot({ args, env, homeDir })
+  const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, homeDir })
   const { startServer } = await runtimeImporter({
+    env,
     mcpRoot,
+    runtimeCacheDir,
   })
   await startServer({ deskRoot, person: args.person })
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0
 }
 
 export function isEntrypoint({

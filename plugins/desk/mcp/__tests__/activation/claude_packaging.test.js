@@ -365,7 +365,7 @@ test("Claude hook and MCP configuration stay plugin-relative and non-manual", ()
   assert.deepEqual(mcp.mcpServers.desk, {
     type: "stdio",
     command: "node",
-    args: ["./mcp/index.js"],
+    args: ["${pluginRoot}/mcp/index.js"],
     env: {},
   })
 })

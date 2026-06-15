@@ -1,32 +1,31 @@
 ---
 name: codex-onboarding
-description: Install and verify the desk plugin under Codex, including the local marketplace entry, `$DESK` workspace binding, desk MCP server, companion work-suite plugin, and the `worker` agent layer (AGENTS.md default-behavior path OR subagent TOML path).
+description: Verify and repair Codex host-native Desk activation, including plugin source/marketplace exposure, Desk + Work Suite enablement, plugin-scoped Desk MCP, runtime dependency pack health, `$DESK` binding, and owned worker-default activation blocks.
 ---
 
 # Codex onboarding
 
-Use this when a Codex agent needs to install or repair desk support on a machine.
+Use this when a Codex agent needs to verify or repair Desk activation on a machine.
 
 ## Target shape
 
 - Local workspace: `$DESK`, commonly `~/desk` for a personal Codex workspace.
-- Local plugin source: `~/plugins/desk`.
-- Companion workflow plugin: `~/plugins/work-suite`.
-- Local marketplace: `~/.agents/plugins/marketplace.json`.
+- Desk and Work Suite are installed or exposed through the host's plugin loading surface.
 - Codex config has:
-  - a local marketplace entry pointing at the home directory.
+  - a marketplace/plugin source that exposes Desk and Work Suite.
   - `desk@<marketplace-name>` enabled.
   - `work-suite@<marketplace-name>` enabled.
-  - an MCP server named `desk` that launches `node ~/plugins/desk/mcp/index.js --root "$DESK"`.
-- The `worker` agent layer installed via one or both paths:
-  - **Default behavior** (recommended): the canonical body appended to `~/.codex/AGENTS.md` so every Codex session reads the desk substrate as always-on context.
-  - **Explicit subagent** (power-user): `~/.codex/agents/worker.toml` for `/agent worker` invocation.
+  - plugin-scoped Desk MCP enabled from Desk's bundled `.mcp.json`.
+- The `worker` agent layer is materialized by an owned activation block:
+  - **global-personal** (default): every Codex session reads the desk substrate as always-on context.
+  - **project-local**: a repo/session owns its local Desk binding.
+  - **manual-only**: Desk remains available without default worker behavior.
 
 Codex plugin and MCP changes generally require a new Codex session before the tools and skills appear in the active tool list.
 
-## Install or repair
+## Verify or repair
 
-1. Clone or copy the plugin directories:
+1. If this is a local development install, sync the plugin directories through the host's plugin source. For example, a local marketplace may point at a directory containing both plugins:
 
 ```bash
 mkdir -p ~/plugins
@@ -34,15 +33,9 @@ rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
 rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
 ```
 
-2. Install the desk MCP dependencies:
+2. Ensure the plugin source/marketplace includes `desk` and `work-suite`.
 
-```bash
-cd ~/plugins/desk/mcp && npm install
-```
-
-3. Ensure `~/.agents/plugins/marketplace.json` includes `desk` and `work-suite` with local paths under `./plugins/`.
-
-4. Ensure `~/.codex/config.toml` has a local marketplace entry:
+3. Ensure `~/.codex/config.toml` has an owned Desk activation block equivalent to the adapter output for the selected mode:
 
 ```toml
 [marketplaces.ourostack-local]
@@ -54,24 +47,21 @@ enabled = true
 
 [plugins."work-suite@ourostack-local"]
 enabled = true
+
+[plugins."desk@ourostack-local".mcp_servers.desk]
+enabled = true
+default_tools_approval_mode = "prompt"
 ```
 
-5. Register the desk MCP server:
+The plugin-scoped MCP declaration should come from Desk's bundled `.mcp.json`, whose entrypoint arg materializes `${pluginRoot}/mcp/index.js`. Do not add a separate healthy-path `mcp_servers.desk` entry unless the selected mode intentionally needs a project-local root override.
+
+4. Do not install MCP dependencies inside the plugin and do not register the MCP manually. The healthy path uses the committed runtime dependency pack and a writable runtime cache. Verify the committed pack instead:
 
 ```bash
-codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$DESK"
+cd "$HOME/plugins/desk/mcp" && npm run runtime:deps-pack:verify
 ```
 
-If `desk` already exists, inspect it with `codex mcp get desk`; remove and re-add only when it points at the wrong plugin path or workspace root.
-
-6. Verify:
-
-```bash
-cd "$HOME/plugins/desk/mcp" && npm test && npm audit --omit=dev
-codex mcp get desk
-```
-
-For an end-to-end stdio smoke, list the server's tool surface:
+5. For an end-to-end stdio smoke, list the server's tool surface with an explicit temporary runtime cache:
 
 ```bash
 cd "$HOME/plugins/desk/mcp" && node --input-type=module <<'EOF'
@@ -83,6 +73,10 @@ const client = new Client({ name: "desk-smoke", version: "0.0.0" }, { capabiliti
 const transport = new StdioClientTransport({
   command: "node",
   args: [`${process.env.HOME}/plugins/desk/mcp/index.js`, "--root", root],
+  env: {
+    ...process.env,
+    DESK_RUNTIME_CACHE_DIR: `${process.env.HOME}/.cache/ouroboros-skills/desk-smoke`,
+  },
   stderr: "pipe",
 })
 
@@ -95,35 +89,9 @@ EOF
 
 The active Codex session will not gain new plugin skills retroactively. Restart Codex or open a fresh session to confirm that `desk` and `work-suite` appear in the available plugins/skills list.
 
-## 7. Install the `worker` agent layer
+## Worker layer
 
-Codex plugins ship skills + MCP + apps + hooks per the plugin schema, but cannot ship subagents or AGENTS.md content directly — the agent layer is user-installed. Pick the path that matches the use case.
-
-**Path A — default behavior (recommended).** Codex itself behaves like `worker` in every session. Append the canonical body to `~/.codex/AGENTS.md`:
-
-```bash
-# Strip the YAML frontmatter (between the first two --- lines) and append.
-awk '/^---$/{c++; next} c>=2' "$HOME/plugins/desk/agents/worker.md" >> "$HOME/.codex/AGENTS.md"
-```
-
-If `~/.codex/AGENTS.md` already contains the body (e.g. a prior install), de-duplicate by trimming the older copy first. The appended body uses `$DESK` placeholders that the consumer agent's preamble resolves at use time.
-
-**Path B — explicit subagent.** Spawn `worker` on demand via `/agent worker` while keeping Codex's default behavior unchanged:
-
-```bash
-mkdir -p "$HOME/.codex/agents"
-cp "$HOME/plugins/desk/agents/worker.toml" "$HOME/.codex/agents/worker.toml"
-```
-
-Paths A and B compose. AGENTS.md = default behavior every session. TOML = isolated subagent session on demand.
-
-Verify Path B is registered:
-
-```bash
-codex /agents list  # should include 'worker'
-```
-
-(Path A is verified implicitly — the next session reads the appended AGENTS.md and behaves like worker.)
+For `global-personal`, activation owns a delimited `AGENTS.md` block that makes Codex behave like `worker` by default. Repair should replace only the owned block and preserve user-authored instructions. For `manual-only`, the block is absent by design. If an explicit subagent surface is available in the host, it can be layered on separately, but it is not the healthy-path requirement for default worker behavior.
 
 ## Friction rule
 

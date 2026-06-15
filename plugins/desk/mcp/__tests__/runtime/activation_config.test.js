@@ -347,6 +347,64 @@ test("entrypoint startup root resolution uses parsed activation config and canon
   }
 })
 
+test("entrypoint startup runtime cache resolution uses activation config only", () => {
+  const resolveStartupRuntimeCacheDir = requireFunction(entrypoint, "resolveStartupRuntimeCacheDir")
+  const fixture = makeFixture()
+  try {
+    assert.equal(resolveStartupRuntimeCacheDir({ args: {}, cwd: fixture.root, homeDir: fixture.home }), null)
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: "   ",
+    })
+    assert.equal(
+      resolveStartupRuntimeCacheDir({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      null,
+    )
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: fixture.runtimeCache,
+    })
+    assert.equal(
+      resolveStartupRuntimeCacheDir({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: path.join(fixture.root, "ignored-cwd"),
+        homeDir: fixture.home,
+      }),
+      fixture.runtimeCache,
+    )
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: "relative-runtime-cache",
+    })
+    assert.equal(
+      resolveStartupRuntimeCacheDir({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      path.join(fixture.root, "relative-runtime-cache"),
+    )
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: "~/tilde-runtime-cache",
+    })
+    assert.equal(
+      resolveStartupRuntimeCacheDir({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      path.join(fixture.home, "tilde-runtime-cache"),
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test("entrypoint startup root resolution lets host/session root override activation config", () => {
   const resolveStartupDeskRoot = requireFunction(entrypoint, "resolveStartupDeskRoot")
   const fixture = makeFixture()
@@ -377,7 +435,9 @@ test("entrypoint main resolves startup root before launching injected runtime se
   const main = requireFunction(entrypoint, "main")
   const fixture = makeFixture()
   try {
-    writeActivationConfig(fixture.configPath, fixture.activationRoot)
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      runtimeCacheDir: fixture.runtimeCache,
+    })
     const calls = []
     await main({
       argv: [
@@ -394,8 +454,9 @@ test("entrypoint main resolves startup root before launching injected runtime se
       },
       homeDir: fixture.home,
       mcpRoot: "/fixture/mcp",
-      runtimeImporter: async ({ mcpRoot }) => {
-        calls.push(["runtimeImporter", mcpRoot])
+      cwd: fixture.root,
+      runtimeImporter: async ({ mcpRoot, runtimeCacheDir }) => {
+        calls.push(["runtimeImporter", mcpRoot, runtimeCacheDir])
         return {
           startServer: async ({ deskRoot, person }) => {
             calls.push(["startServer", deskRoot, person])
@@ -404,7 +465,7 @@ test("entrypoint main resolves startup root before launching injected runtime se
       },
     })
     assert.deepEqual(calls, [
-      ["runtimeImporter", "/fixture/mcp"],
+      ["runtimeImporter", "/fixture/mcp", fixture.runtimeCache],
       ["startServer", fixture.hostSessionRoot, "ari"],
     ])
   } finally {

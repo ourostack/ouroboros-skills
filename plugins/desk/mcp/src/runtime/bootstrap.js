@@ -149,7 +149,12 @@ export function restoreRuntimeDependencies({
     })
   }
   const archiveSha = verification.manifest.archive.sha256
-  if (runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target })) {
+  if (runtimeCacheIsCurrent({
+    runtimeCacheDir,
+    archiveSha,
+    target,
+    expectedPlugin: verification.manifest.plugin,
+  })) {
     return { restored: false, runtimeCacheDir }
   }
   mkdirSync(runtimeCacheDir, { recursive: true })
@@ -406,23 +411,35 @@ export function runtimeDependencyPackError({
   ].join("\n"))
 }
 
-function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target }) {
+function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin }) {
   const markerPath = path.join(runtimeCacheDir, cacheMarkerFile)
   if (!existsSync(markerPath)) {
     return false
   }
   try {
     const marker = readJson(markerPath)
+    const cachedPackageJson = readJson(path.join(runtimeCacheDir, "package.json"))
+    const cachedRuntimeManifest = readJson(path.join(runtimeCacheDir, "runtime-deps.manifest.json"))
     return marker.schema_version === 1
       && marker.archive_sha256 === archiveSha
       && marker.target === target
+      && marker.plugin?.name === expectedPlugin?.name
+      && marker.plugin?.version === expectedPlugin?.version
+      && cachedPackageJson.name === expectedPlugin?.name
+      && cachedPackageJson.version === expectedPlugin?.version
+      && cachedRuntimeManifest.plugin?.name === expectedPlugin?.name
+      && cachedRuntimeManifest.plugin?.version === expectedPlugin?.version
+      && runtimeManifestArchiveShaIsCurrent(cachedRuntimeManifest, archiveSha)
       && existsSync(path.join(runtimeCacheDir, "node_modules"))
-      && existsSync(path.join(runtimeCacheDir, "package.json"))
       && existsSync(path.join(runtimeCacheDir, "package-lock.json"))
-      && existsSync(path.join(runtimeCacheDir, "runtime-deps.manifest.json"))
   } catch {
     return false
   }
+}
+
+function runtimeManifestArchiveShaIsCurrent(manifest, archiveSha) {
+  return manifest.archive?.sha256 === archiveSha ||
+    manifest.archive?.sha256 === embeddedArchiveShaMarker
 }
 
 function walkFiles(root, startDir) {

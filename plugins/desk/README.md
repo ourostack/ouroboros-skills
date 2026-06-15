@@ -68,19 +68,11 @@ Or inside an existing Claude session: `@desk:worker say hi`. The agent's preambl
 
 ### Under Codex
 
-The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. For a home-local install, copy both plugin directories into `~/plugins/`, expose them through a local marketplace rooted at `~/.agents/plugins/marketplace.json`, then enable both plugins from `~/.codex/config.toml`.
+The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. The healthy path is host-native activation: enable Desk and Work Suite through Codex's plugin loading surface, then let Desk's activation metadata materialize the owned config/instruction block for the selected mode.
 
-Minimum local setup:
+The default mode is `global-personal`: Desk and Work Suite are enabled together, the bundled Desk MCP is enabled through plugin-scoped MCP metadata, and Codex receives an owned `AGENTS.md` worker-default block. `project-local` and `manual-only` are opt-outs for repos or sessions that should not inherit the global worker default.
 
-```bash
-mkdir -p ~/plugins
-rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
-rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
-cd ~/plugins/desk/mcp && npm install
-codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$HOME/desk"
-```
-
-Then add a local Codex marketplace entry whose source is `$HOME`, enable `desk@<marketplace-name>` and `work-suite@<marketplace-name>`, and restart Codex so newly installed skills and MCP tools are loaded.
+Do not run `codex mcp add` or `npm install` inside the Desk plugin for the healthy path. The MCP entrypoint restores verified production runtime dependencies from the committed runtime pack into a writable cache, then launches from a source mirror. See `desk:codex-onboarding` for repair checks when a local development install or stale host config needs inspection.
 
 For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
 
@@ -98,19 +90,9 @@ claude --agent desk:worker
 copilot --agent worker
 ```
 
-**Codex — two paths**. Codex plugins cannot ship agents or AGENTS.md content directly per the plugin schema, so the agent layer is user-installed. Pick one or both:
+**Codex.** The activation adapter makes `worker` the global personal default by materializing owned Codex config and `AGENTS.md` blocks. Use `manual-only` when Desk should stay available as a plugin/MCP substrate without default worker behavior, or `project-local` when a specific repo should own its Desk binding.
 
-```bash
-# Path A — default behavior (recommended): make Codex itself behave like worker
-# every session by appending the canonical body to ~/.codex/AGENTS.md.
-awk '/^---$/{c++; next} c>=2' ~/plugins/desk/agents/worker.md >> ~/.codex/AGENTS.md
-
-# Path B — explicit subagent: invoke /agent worker on demand
-cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
-# then in a Codex session: /agent worker
-```
-
-Paths A and B compose. See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness install reference, and `desk:codex-onboarding` for the full Codex install sequence including the agent layer.
+See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness agent file reference, and `desk:codex-onboarding` for repair verification when a local Codex host does not reflect the activation metadata.
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 
