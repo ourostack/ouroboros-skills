@@ -464,7 +464,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js`.
 **Acceptance**: Tests fail until compaction and preservation checks exist.
 
-### ⬜ Unit 14b: Vector Compaction And Search Preservation - Implementation
+### 🔄 Unit 14b: Vector Compaction And Search Preservation - Implementation
 **What**: Implement compaction validation hooks only; do not enable pack rewriting in this unit. Preserve search/ref behavior across import/rebuild/validation and add explicit `result_mode` or `search_mode` fields to search responses.
 **Output**: Vector-pack compaction validation helpers plus updated search/indexer behavior.
 **Acceptance**: Unit 14a tests pass and semantic equivalence checks must pass before any future compaction rewrite can be enabled.
@@ -942,3 +942,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 11:32 Unit 14a started for vector compaction validation and search/ref preservation red tests.
 - 2026-06-15 11:32 Unit 14a complete: added `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js` red tests for compaction semantic equivalence, duplicate conflict rejection, missing/mutated/extra compacted rows, preservation of active/archived/all search snapshots, refs graph preservation including same-length mutations, and explicit `search_mode` on `desk_search`/`desk_timeline`. Red evidence in `unit-14a-vector-compaction-red.log` fails because `plugins/desk/mcp/src/indexer/vector-compaction.js` does not exist and search/timeline do not yet return `search_mode`.
 - 2026-06-15 11:32 Unit 14a reviewer fixes: Hegel the 2nd found MAJOR gaps around same-key/same-hash/different-vector duplicate conflicts, active/all/ref mutation preservation, and unique rows contributed by later packs. Added red coverage in `unit-14a-review-fix-red.log` and `unit-14a-review-fix2-red.log` for vector-conflicting source duplicates, extra compacted rows, active/all scope drift, same-length refs graph mutation, and multi-pack unique-row preservation. Hegel converged on the cumulative Unit 14a red contract through `78d3916`.
+- 2026-06-15 11:32 Unit 14b started for compaction validation hooks and explicit search-mode metadata.
