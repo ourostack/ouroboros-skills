@@ -1,0 +1,28 @@
+{
+  "name": "work-suite",
+  "version": "1.4.9",
+  "description": "The workflow primitive for orchestrator agents: ideate, plan, execute, merge, stay in turn while waiting, and run no-human-gates full-delivery autopilot loops.",
+  "author": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/work-suite",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "planning",
+    "execution",
+    "merge"
+  ],
+  "skills": "./skills/",
+  "activation": {
+    "copilot": {
+      "dependencyProvider": {
+        "id": "work-suite",
+        "version": "1.4.9",
+        "resolution": "flattened"
+      }
+    }
+  }
+}

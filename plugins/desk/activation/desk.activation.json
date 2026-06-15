@@ -43,7 +43,7 @@
         "entrypoints": {
           "claude": "agents/worker.md",
           "codex": "agents/worker.toml",
-          "copilot": "agents/worker.md"
+          "copilot": "agents/worker.agent.md"
         }
       }
     ],

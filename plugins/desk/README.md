@@ -16,10 +16,9 @@ cross-context portability runs on the `$DESK` placeholder convention: each consu
 
 ```bash
 copilot plugin install ourostack/ouroboros-skills:plugins/desk
-copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
 ```
 
-Copilot CLI doesn't resolve transitive deps; install both explicitly.
+The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so the normal path installs Desk once and launches `worker`.
 
 ### Under Ouroboros
 

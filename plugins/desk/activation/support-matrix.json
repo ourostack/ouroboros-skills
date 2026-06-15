@@ -39,17 +39,19 @@
     {
       "host_id": "copilot-root",
       "surface": "Root plugin package for Copilot-compatible hosts",
-      "disposition": "planned-flattened",
+      "disposition": "supported-flattened",
       "source_paths": [
         "plugins/desk/plugin.json",
-        "plugins/desk/agents/worker.md",
-        "plugins/desk/README.md"
+        "plugins/desk/agents/worker.agent.md",
+        "plugins/desk/.mcp.json",
+        "plugins/work-suite/plugin.json",
+        "plugins/desk/activation/copilot-root.flattened-bundle.json"
       ],
-      "evidence_command_or_doc": "Unit 5 packaging tests will validate root/Copilot metadata and flattened dependency closure",
+      "evidence_command_or_doc": "npm --prefix plugins/desk/mcp run activation:copilot-bundle:generate; node --test plugins/desk/mcp/__tests__/activation/copilot_packaging.test.js",
       "unsupported_primitives": [
         "transitive-dependency-resolution"
       ],
-      "fallback_behavior": "ship flattened Desk plus Work Suite bundle metadata"
+      "fallback_behavior": "load the generated flattened Desk plus Work Suite bundle metadata"
     },
     {
       "host_id": "ouroboros-autonomous-agent",

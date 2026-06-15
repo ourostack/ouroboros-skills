@@ -24,11 +24,10 @@ The plugin's root `plugin.json` (Copilot CLI's expected location) names `agents/
 
 ```bash
 copilot plugin install ourostack/ouroboros-skills:plugins/desk
-copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
 copilot --agent worker
 ```
 
-Copilot CLI doesn't auto-resolve transitive plugin deps — install both `desk` and `work-suite` explicitly.
+The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so no separate Work Suite install is part of the healthy path.
 
 ### Codex CLI — two paths
 

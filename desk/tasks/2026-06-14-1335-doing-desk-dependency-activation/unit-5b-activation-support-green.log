@@ -1,0 +1,125 @@
+TAP version 13
+# Subtest: activation schema exports the supported version and required top-level fields
+ok 1 - activation schema exports the supported version and required top-level fields
+  ---
+  duration_ms: 3.272166
+  type: 'test'
+  ...
+# Subtest: valid activation manifests distinguish substrate dependencies from agent activations
+ok 2 - valid activation manifests distinguish substrate dependencies from agent activations
+  ---
+  duration_ms: 1.291792
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for unknown schema versions with actionable diagnostics
+ok 3 - activation validation fails closed for unknown schema versions with actionable diagnostics
+  ---
+  duration_ms: 0.349667
+  type: 'test'
+  ...
+# Subtest: activation dependencies require version intent, provenance, and lock data
+ok 4 - activation dependencies require version intent, provenance, and lock data
+  ---
+  duration_ms: 0.508125
+  type: 'test'
+  ...
+# Subtest: activation dependencies reject bad identity, semver, pins, and incompatible locks
+ok 5 - activation dependencies reject bad identity, semver, pins, and incompatible locks
+  ---
+  duration_ms: 1.178625
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for contract type and enum fields
+ok 6 - activation validation fails closed for contract type and enum fields
+  ---
+  duration_ms: 1.656708
+  type: 'test'
+  ...
+# Subtest: activation validation requires MCP, root, artifact, host, and permission policy fields
+ok 7 - activation validation requires MCP, root, artifact, host, and permission policy fields
+  ---
+  duration_ms: 1.178125
+  type: 'test'
+  ...
+# Subtest: dependency and activation ordering is deterministic
+ok 8 - dependency and activation ordering is deterministic
+  ---
+  duration_ms: 9.133708
+  type: 'test'
+  ...
+# Subtest: activation validation enforces desk:worker and overlay relationship integrity
+ok 9 - activation validation enforces desk:worker and overlay relationship integrity
+  ---
+  duration_ms: 0.94475
+  type: 'test'
+  ...
+# Subtest: activation validation reports defensive structural errors
+ok 10 - activation validation reports defensive structural errors
+  ---
+  duration_ms: 1.317584
+  type: 'test'
+  ...
+# Subtest: activation dependency ranges support caret, tilde, and exact pins deterministically
+ok 11 - activation dependency ranges support caret, tilde, and exact pins deterministically
+  ---
+  duration_ms: 0.528375
+  type: 'test'
+  ...
+# Subtest: unsupported hosts produce host-native fallback diagnostics
+ok 12 - unsupported hosts produce host-native fallback diagnostics
+  ---
+  duration_ms: 0.295542
+  type: 'test'
+  ...
+# Subtest: canonical Desk activation manifest exists and validates
+ok 13 - canonical Desk activation manifest exists and validates
+  ---
+  duration_ms: 0.288041
+  type: 'test'
+  ...
+# wrote plugins/desk/activation/support-matrix.json
+# Subtest: host capability evidence declares required columns and host rows
+ok 14 - host capability evidence declares required columns and host rows
+  ---
+  duration_ms: 2.42275
+  type: 'test'
+  ...
+# Subtest: support matrix builder validates manifest host support against evidence
+ok 15 - support matrix builder validates manifest host support against evidence
+  ---
+  duration_ms: 2.064375
+  type: 'test'
+  ...
+# Subtest: support matrix validation reports evidence and freshness mismatches
+ok 16 - support matrix validation reports evidence and freshness mismatches
+  ---
+  duration_ms: 0.883959
+  type: 'test'
+  ...
+# Subtest: support matrix validation rejects host and primitive contract drift
+ok 17 - support matrix validation rejects host and primitive contract drift
+  ---
+  duration_ms: 0.376292
+  type: 'test'
+  ...
+# Subtest: generated support matrix artifact is fresh
+ok 18 - generated support matrix artifact is fresh
+  ---
+  duration_ms: 0.625667
+  type: 'test'
+  ...
+# Subtest: support matrix package script is wired to regenerate the artifact
+ok 19 - support matrix package script is wired to regenerate the artifact
+  ---
+  duration_ms: 1.445
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 114.656583
