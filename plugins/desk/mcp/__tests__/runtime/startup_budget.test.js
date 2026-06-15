@@ -13,6 +13,7 @@ function makeRoot(prefix) {
 }
 
 function runtimeServerWithEnsureIndex({ ensureIndex }) {
+  const events = []
   const startCalls = []
   return {
     _deskRuntime: {
@@ -21,9 +22,14 @@ function runtimeServerWithEnsureIndex({ ensureIndex }) {
       target: `${process.platform}-${process.arch}-node-${process.versions.modules}`,
       loaded_from_source_mirror: true,
     },
-    ensureIndex,
+    events,
     startCalls,
+    async ensureIndex(...args) {
+      events.push("ensureIndex")
+      return ensureIndex(...args)
+    },
     async startServer(args) {
+      events.push("startServer")
       startCalls.push(args)
     },
   }
@@ -69,6 +75,7 @@ test("startup runs bounded ensureIndex before registering the server and forward
     assert.equal(ensureCalls[0].opts.startup, true)
     assert.equal(ensureCalls[0].opts.budgetMs, 250)
     assert.equal(runtimeServer.startCalls.length, 1)
+    assert.deepEqual(runtimeServer.events, ["ensureIndex", "startServer"])
     const statusContext = runtimeServer.startCalls[0].statusContext
     assert.equal(statusContext.startup.ensure_index.reason, "snapshot_restored")
     assert.equal(statusContext.startup.ensure_index.snapshot.snapshot_id, "startup-compatible")
@@ -110,6 +117,7 @@ test("startup reports lexical fallback when snapshots and vector packs cannot co
     })
 
     const statusContext = runtimeServer.startCalls[0].statusContext
+    assert.deepEqual(runtimeServer.events, ["ensureIndex", "startServer"])
     assert.ok(statusContext.startup, "startup should forward bounded fallback status context")
     assert.equal(statusContext.startup.ensure_index.reason, "missing")
     assert.equal(statusContext.startup.ensure_index.snapshot.reason, "no_compatible_snapshot")
