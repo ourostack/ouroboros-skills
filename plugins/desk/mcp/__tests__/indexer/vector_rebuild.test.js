@@ -246,6 +246,7 @@ test("ensureIndex repairs a fresh lexical-only DB from vector packs without prob
   assert.equal(ensured.built, true)
   assert.equal(ensured.reason, "semantic_missing")
   assert.equal(ensured.semantic.missing_vectors, 0)
+  assert.equal(ensured.semantic.embedding_available, undefined)
 
   const db = openDb(deskRoot)
   try {
@@ -287,6 +288,7 @@ test("ensureIndex calls embeddings only after vector-pack import leaves missing 
   assert.equal(ensured.summary.semantic_warnings, 1)
   assert.equal(ensured.semantic.vectors_indexed, 1)
   assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.embedding_available, false)
 
   const db = openDb(deskRoot)
   try {
@@ -329,6 +331,7 @@ test("ensureIndex refreshes a stale lexical-only DB from vector packs without em
   assert.equal(ensured.reason, "stale")
   assert.equal(ensured.summary.docs_indexed, 1)
   assert.equal(ensured.semantic.missing_vectors, 0)
+  assert.equal(ensured.semantic.embedding_available, undefined)
 
   const db = openDb(deskRoot)
   try {
