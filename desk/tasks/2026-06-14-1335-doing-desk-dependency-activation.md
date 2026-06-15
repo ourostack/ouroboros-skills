@@ -49,16 +49,16 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Host adapters document and test their permission/capability boundary.
 - [x] Generated activation artifacts respect host permission/capability boundaries.
 - [x] Host adapters never require healthy-path manual MCP registration.
-- [ ] Host adapters never require healthy-path manual `npm install` inside plugin directories.
+- [x] Host adapters never require healthy-path manual `npm install` inside plugin directories.
 - [x] Host adapters never require healthy-path hand-editing of JSON or TOML.
 - [x] Host support matrix is generated from real schema validation or smoke evidence.
 - [x] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [x] Host support docs describe limitations and fallback behavior in host-native language.
-- [ ] Desk MCP startup can run from an installed plugin without manual dependency installation.
+- [x] Desk MCP startup can run from an installed plugin without manual dependency installation.
 - [ ] MCP runtime dependencies are restored from a verified pruned production runtime pack into a writable cache using this precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/`.
-- [ ] Runtime dependency packs live at `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz` with adjacent manifest and checksum files, and include every production dependency needed to start the real MCP server with `plugins/desk/mcp/node_modules` absent.
+- [x] Runtime dependency packs live at `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz` with adjacent manifest and checksum files, and include every production dependency needed to start the real MCP server with `plugins/desk/mcp/node_modules` absent.
 - [ ] Desk MCP launch works from arbitrary current working directories and resolves plugin-relative paths explicitly.
-- [ ] Desk MCP startup does not mutate immutable plugin source/cache directories.
+- [x] Desk MCP startup does not mutate immutable plugin source/cache directories.
 - [ ] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
 - [ ] Desk MCP offline startup behavior is tested for snapshot restore, vector-pack import, and lexical fallback.
 - [ ] Desk MCP resolves the desk root deterministically from explicit host/session root, activation default config, environment, and safe defaults.
@@ -344,7 +344,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js`.
 **Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `gray-matter`, `better-sqlite3`, `sqlite-vec`, or any production dependency outside the restored runtime cache.
 
-### 🔄 Unit 7b: Dependency-Light MCP Entrypoint - Implementation
+### ✅ Unit 7b: Dependency-Light MCP Entrypoint - Implementation
 **What**: Refactor `plugins/desk/mcp/index.js` into a dependency-light entrypoint that restores or verifies the writable runtime cache from production runtime dependency pack artifacts, syncs current plugin MCP source into runtime-cache `source-mirror/<source-hash>/`, and dynamically imports from that mirror so bare imports resolve against cached dependencies. Unsupported platforms or missing packs must fail with actionable diagnostics rather than attempting an implicit install.
 **Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, current-source mirror helpers, and runtime bootstrap fixtures.
 **Acceptance**: Unit 7a tests pass, the real server can start with `plugins/desk/mcp/node_modules` absent, missing runtime dependencies produce actionable non-leaking diagnostics, and no plugin source directory is mutated.
@@ -859,3 +859,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 04:22 Unit 7a complete: added dependency-light MCP entrypoint red tests in `303b4a1`; targeted red run saved to `unit-7a-dependency-light-entrypoint-red.log` and fails because `index.js` statically imports `./src/server.js`, a copied MCP package without `node_modules` exits before MCP initialize/list-tools with `ERR_MODULE_NOT_FOUND` for `@modelcontextprotocol/sdk`, and the missing/ABI-mismatched runtime-pack path reports a stack trace instead of actionable runtime-pack diagnostics; terminal coverage/all-tests criteria intentionally unchecked until Unit 7b makes the new tests green
 - 2026-06-15 04:34 Unit 7a reviewer fixes converged: Locke the 2nd found missing red-contract assertions for cache extraction location, low-level network modules, and actionable ABI diagnostics; Aquinas the 2nd found host-sensitive ABI fixture behavior and stale-source mirror execution ambiguity; `2ed53ea` and `1606aa3` harden the red tests with `DESK_RUNTIME_CACHE_DIR` restore assertions, `http`/`https`/`net`/`tls` interception, visible list-tools source-mirror sentinel checks, host-independent ABI mismatch synthesis, and refreshed red evidence; Hume the 2nd converged the Unit 7a gate
 - 2026-06-15 04:34 Unit 7b started: implementing dependency-light MCP entrypoint bootstrap from the converged Unit 7a red contract
+- 2026-06-15 04:43 Unit 7b complete: `95e56b5` makes `index.js` dependency-light, restores runtime dependencies from the verified production pack into a writable cache, syncs current MCP source into `source-mirror/<source-hash>/`, dynamically imports `src/server.js` from that mirror, and reports missing/ABI-mismatched packs with actionable non-stack diagnostics; focused dependency-light tests pass 3/3, full MCP tests pass 300/300, generated-artifact and runtime-pack verifiers pass, validate-skills passes, build remains unavailable because no package build script exists, and coverage fails only for new `bootstrap.js` branches carried into Unit 7c
