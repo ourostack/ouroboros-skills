@@ -178,6 +178,115 @@ test("Codex activation preserves user-authored config and instructions with owne
   assert.equal(result.generatedInstructions.match(/# END desk activation/g).length, 1)
 })
 
+test("Codex activation replaces existing owned blocks and stays idempotent", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const first = materializeCodexActivation(activationInput("global-personal"))
+  const repeated = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: first.generatedConfig,
+    existingInstructions: first.generatedInstructions,
+  }))
+
+  assert.equal(repeated.generatedConfig, first.generatedConfig)
+  assert.equal(repeated.generatedInstructions, first.generatedInstructions)
+  assert.equal(repeated.generatedConfig.match(/# BEGIN desk activation/g).length, 1)
+  assert.equal(repeated.generatedInstructions.match(/# BEGIN desk activation/g).length, 1)
+})
+
+test("Codex activation upgrades older owned blocks without duplicating activation content", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const oldConfig = `${existingConfig}
+# BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation
+[plugins."desk@ourostack"]
+enabled = false
+# END desk activation
+`
+  const oldInstructions = `${existingInstructions}
+# BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation
+You are not the desk worker by default.
+# END desk activation
+`
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: oldConfig,
+    existingInstructions: oldInstructions,
+  }))
+
+  assert.doesNotMatch(result.generatedConfig, /desk@1\.6\.0/)
+  assert.doesNotMatch(result.generatedInstructions, /desk@1\.6\.0/)
+  assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
+  assert.equal(result.generatedInstructions, loadFixture("global-personal", "generated-instructions.md"))
+})
+
+test("Codex activation fails closed for malformed owned activation blocks", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: `${existingConfig}
+# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+[plugins."desk@ourostack"]
+enabled = true
+`,
+    })),
+    /malformed owned desk activation block/i,
+  )
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingInstructions: `${existingInstructions}
+# END desk activation
+`,
+    })),
+    /malformed owned desk activation block/i,
+  )
+})
+
+test("Codex activation rejects duplicate owned activation blocks", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const duplicateOwnedConfig = `${existingConfig}
+# BEGIN desk activation: desk@1.7.2 mode=global-personal owner=desk-activation
+[plugins."desk@ourostack"]
+enabled = true
+# END desk activation
+
+# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+[plugins."desk@ourostack"]
+enabled = true
+# END desk activation
+`
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: duplicateOwnedConfig,
+    })),
+    /multiple owned desk activation blocks/i,
+  )
+})
+
+test("Codex activation does not silently override user-authored disabled Desk config", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const userDisabledDesk = `${existingConfig}
+[plugins."desk@ourostack"]
+enabled = false
+`
+  const userDisabledDeskMcp = `${existingConfig}
+[plugins."desk@ourostack".mcp_servers.desk]
+enabled = false
+`
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: userDisabledDesk,
+    })),
+    /user-authored.*disabled.*desk/i,
+  )
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: userDisabledDeskMcp,
+    })),
+    /user-authored.*disabled.*desk/i,
+  )
+})
+
 test("Codex activation rejects unsupported requested host capabilities", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
   const manifest = activationInput("global-personal").manifest
