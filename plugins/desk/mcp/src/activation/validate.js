@@ -16,7 +16,12 @@ const SNAPSHOT_RECONCILE_POLICIES = new Set(["incremental"])
 const HOST_SUPPORT_STATUSES = new Set(["supported", "degraded", "unsupported"])
 const DEPENDENCY_RESOLUTION_MODES = new Set(["flattened", "native-or-flattened", "manual-host"])
 const HOST_CAPABILITIES = new Set(["skills", "mcp", "global-default-agent", "agents", "hooks"])
-const UNSUPPORTED_PRIMITIVES = new Set(["host-activation", "agent-defaults"])
+const UNSUPPORTED_PRIMITIVES = new Set([
+  "agent-defaults",
+  "agent-view-dispatch",
+  "background-session-inheritance",
+  "host-activation",
+])
 const REQUESTED_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const GENERATED_ARTIFACTS = new Set(["owned-host-config", "activation-ledger"])
 const NEVER_DELETE = new Set(["desk-root-data"])

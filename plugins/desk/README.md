@@ -47,7 +47,7 @@ After install, launch the default worker agent:
 claude --agent desk:worker
 ```
 
-Or inside an existing Claude session: `@desk:worker say hi`. The agent's preamble auto-loads with the cozy library voice and a placeholder `$DESK` binding (typically `~/desk/`). See [`agents/README.md`](./agents/README.md) for the full agent file reference.
+Or inside an existing Claude session: `@desk:worker say hi`. The agent's preamble auto-loads with the cozy library voice and a placeholder `$DESK` binding (typically `~/desk/`). See [`docs/agent-files.md`](./docs/agent-files.md) for the full agent file reference.
 
 ### Under Codex
 
@@ -93,7 +93,7 @@ cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
 # then in a Codex session: /agent worker
 ```
 
-Paths A and B compose. See [`agents/README.md`](./agents/README.md) for the per-harness install reference, and `desk:codex-onboarding` for the full Codex install sequence including the agent layer.
+Paths A and B compose. See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness install reference, and `desk:codex-onboarding` for the full Codex install sequence including the agent layer.
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 

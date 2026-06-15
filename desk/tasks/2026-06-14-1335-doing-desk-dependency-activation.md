@@ -600,7 +600,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Acceptance**: Tests fail until Desk docs frame setup as dependency activation and move manual steps to troubleshooting/developer notes.
 
 ### ⬜ Unit 22b: Healthy-Path Docs - Implementation
-**What**: Update `plugins/desk/README.md`, `plugins/desk/agents/README.md`, `plugins/desk/mcp/README.md`, `plugins/desk/activation/README.md`, `plugins/desk/docs/dependency-activation-stories-and-criteria.md`, and `desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md` to reflect dependency activation, global Codex personal default, opt-outs, privacy, and no bespoke CLI.  
+**What**: Update `plugins/desk/README.md`, `plugins/desk/docs/agent-files.md`, `plugins/desk/mcp/README.md`, `plugins/desk/activation/README.md`, `plugins/desk/docs/dependency-activation-stories-and-criteria.md`, and `desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md` to reflect dependency activation, global Codex personal default, opt-outs, privacy, and no bespoke CLI.
 **Output**: Updated documentation and docs validation script.  
 **Acceptance**: Unit 22a tests pass and docs no longer present manual Desk install as the healthy path.
 

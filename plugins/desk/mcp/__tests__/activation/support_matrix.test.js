@@ -302,7 +302,11 @@ test("support matrix validation rejects host and primitive contract drift", asyn
   const nativeFlattenedConflictEvidence = {
     ...evidence,
     hosts: evidence.hosts.map((row) => row.host_id === "claude"
-      ? { ...row, unsupported_primitives: ["transitive-dependency-resolution"] }
+      ? {
+        ...row,
+        disposition: "supported-native-or-flattened",
+        unsupported_primitives: ["transitive-dependency-resolution"],
+      }
       : row),
   }
   assert.deepEqual(

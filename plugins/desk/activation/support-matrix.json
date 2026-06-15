@@ -7,7 +7,7 @@
   "hosts": [
     {
       "host_id": "claude",
-      "surface": "Claude plugin package",
+      "surface": "Claude foreground plugin package",
       "disposition": "supported-native-or-flattened",
       "source_paths": [
         "plugins/desk/.claude-plugin/plugin.json",
@@ -15,9 +15,12 @@
         "plugins/desk/agents/worker.md",
         "plugins/work-suite/.claude-plugin/plugin.json"
       ],
-      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/claude_packaging.test.js",
-      "unsupported_primitives": [],
-      "fallback_behavior": "ship flattened bundle when transitive dependencies are unavailable"
+      "evidence_command_or_doc": "claude plugin validate plugins/desk --strict; claude plugin validate plugins/work-suite --strict; desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/unit-4b-claude-help-evidence.log; node --test plugins/desk/mcp/__tests__/activation/claude_packaging.test.js",
+      "unsupported_primitives": [
+        "agent-view-dispatch",
+        "background-session-inheritance"
+      ],
+      "fallback_behavior": "launch foreground with `claude --agent desk:worker`; ship flattened bundle when transitive dependencies are unavailable"
     },
     {
       "host_id": "codex",

@@ -100,14 +100,17 @@
       "host": "claude",
       "status": "supported",
       "dependency_resolution": "native-or-flattened",
-      "fallback_behavior": "ship flattened bundle when transitive dependencies are unavailable",
+      "fallback_behavior": "launch foreground with `claude --agent desk:worker`; ship flattened bundle when transitive dependencies are unavailable",
       "capabilities": [
         "skills",
         "mcp",
         "agents",
         "hooks"
       ],
-      "unsupported_primitives": []
+      "unsupported_primitives": [
+        "agent-view-dispatch",
+        "background-session-inheritance"
+      ]
     },
     {
       "host": "generic-stdio",
@@ -122,6 +125,75 @@
       ]
     }
   ],
+  "host_activation": {
+    "claude": {
+      "defaultMode": "plugin-agent",
+      "targets": {
+        "desk:worker": {
+          "default": true,
+          "source": "agents/worker.md",
+          "activationSurface": "plugin-agent"
+        }
+      },
+      "nativeSurfaces": [
+        "skills",
+        "agents",
+        "hooks",
+        "mcpServers",
+        "outputStyles",
+        "dependencies"
+      ],
+      "mcpServers": {
+        "desk": {
+          "launch": "plugin-bundled",
+          "manualRegistration": false,
+          "configPath": ".mcp.json"
+        }
+      },
+      "dependencies": {
+        "work-suite": {
+          "path": "../work-suite",
+          "version": "1.4.9",
+          "resolution": "native"
+        }
+      },
+      "agentView": {
+        "status": "degraded",
+        "minimumClaudeCodeVersion": "2.1.139",
+        "foregroundLaunch": "claude --agent desk:worker",
+        "agentViewLaunch": "claude agents --agent desk:worker",
+        "inheritsPluginContext": false,
+        "evidence": "Claude Code 2.1.161 help exposes `claude agents --agent` and `--plugin-dir`, but Unit 4b did not capture a dispatched-session smoke proving `desk:worker` loads with Desk plugin context.",
+        "reason": "Help text proves CLI flags exist; it does not prove Agent View dispatched sessions inherit the installed plugin agent, skills, hooks, MCP server, and Work Suite dependency.",
+        "fallback": "Launch foreground with `claude --agent desk:worker`; for Agent View experiments, pass explicit `--plugin-dir` and `--mcp-config` until a dispatched-session smoke proves inheritance."
+      },
+      "backgroundSessionInheritance": {
+        "status": "unsupported",
+        "minimumClaudeCodeVersion": "2.1.139",
+        "agentViewLaunch": "claude agents --agent desk:worker",
+        "inheritsPluginContext": false,
+        "evidence": "Claude Code 2.1.161 `claude agents --help` exposes background-agent flags, but no Unit 4b dispatched-session smoke validates plugin-context inheritance; the worker agent frontmatter also declares `background: false`.",
+        "reason": "Background inheritance is not proven by help text and should not be treated as supported until a real background session loads `desk:worker` with Desk MCP and Work Suite skills.",
+        "fallback": "Launch foreground with `claude --agent desk:worker` when plugin-context inheritance is required."
+      },
+      "permissionBoundary": {
+        "requestedCapabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "generatedArtifacts": [],
+        "neverDelete": [
+          "desk-root-data"
+        ],
+        "unsupportedAgentScopedFields": [
+          "hooks",
+          "mcpServers",
+          "permissionMode"
+        ]
+      }
+    }
+  },
   "permissions": {
     "requested_capabilities": [
       "Read",

@@ -1,6 +1,14 @@
 ---
 name: content-routing
-description: Decide where a durable rule, lesson, fact, or preference belongs — the operator's workspace vs a plugin, which plugin (generic vs overlay), and within a plugin an always-on body/principles vs a triggered skill. Invoke whenever the agent is about to encode something durable and must choose its home: a friction disposition (curator), a captured lesson (lesson-capture), a new operator preference or rule, a repo-specific gotcha. Do NOT invoke for where files go *inside* a workspace (that's `directory-structure`), or for what to say to a human (that's a voice/comms concern).
+description: >-
+  Decide where a durable rule, lesson, fact, or preference belongs — the
+  operator's workspace vs a plugin, which plugin (generic vs overlay), and
+  within a plugin an always-on body/principles vs a triggered skill. Invoke
+  whenever the agent is about to encode something durable and must choose its
+  home: a friction disposition (curator), a captured lesson (lesson-capture),
+  a new operator preference or rule, a repo-specific gotcha. Do NOT invoke for
+  where files go *inside* a workspace (that's `directory-structure`), or for
+  what to say to a human (that's a voice/comms concern).
 ---
 
 # Content routing — where does this belong?

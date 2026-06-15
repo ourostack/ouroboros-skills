@@ -197,19 +197,16 @@ test("Claude plugin metadata declares native Desk surfaces and Work Suite depend
       version: "^1.4.0",
     },
   ])
-  assert.equal(deskPlugin.activation?.claude?.dependencies?.["work-suite"]?.resolution, "native")
-  assert.equal(deskPlugin.activation?.claude?.dependencies?.["work-suite"]?.version, workSuitePlugin.version)
+  assert.equal(Object.hasOwn(deskPlugin, "activation"), false)
+  assert.equal(workSuitePlugin.version, "1.4.9")
 })
 
-test("Work Suite Claude metadata declares itself as a native dependency provider", () => {
+test("Work Suite Claude manifest stays a strict-loadable skill provider", () => {
   const workSuitePlugin = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
 
+  assert.equal(workSuitePlugin.name, "work-suite")
   assert.equal(workSuitePlugin.skills, "./skills/")
-  assert.deepEqual(workSuitePlugin.activation?.claude?.dependencyProvider, {
-    id: "work-suite",
-    version: workSuitePlugin.version,
-    resolution: "native",
-  })
+  assert.equal(Object.hasOwn(workSuitePlugin, "activation"), false)
 })
 
 test("Claude worker agent is exposed without unsupported scoped permission fields", () => {
@@ -225,8 +222,9 @@ test("Claude worker agent is exposed without unsupported scoped permission field
 })
 
 test("Claude activation metadata records Agent View and background-session disposition", () => {
-  const deskPlugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
-  const claudeActivation = deskPlugin.activation?.claude
+  const activation = loadJson(activationManifestPath)
+  const claudeActivation = activation.host_activation?.claude
+  const backgroundDisposition = backgroundSessionDisposition(claudeActivation)
 
   assert.deepEqual(claudeActivation?.targets?.["desk:worker"], {
     default: true,
@@ -242,10 +240,14 @@ test("Claude activation metadata records Agent View and background-session dispo
     "dependencies",
   ])
   assertDocumentedDisposition("Agent View", claudeActivation?.agentView)
+  assert.equal(claudeActivation?.agentView?.status, "degraded")
+  assert.equal(claudeActivation?.agentView?.inheritsPluginContext, false)
   assertDocumentedDisposition(
     "background-session inheritance",
-    backgroundSessionDisposition(claudeActivation),
+    backgroundDisposition,
   )
+  assert.equal(backgroundDisposition?.status, "unsupported")
+  assert.equal(backgroundDisposition?.inheritsPluginContext, false)
 })
 
 test("Claude packaging metadata is backed by fresh evidence and support matrix rows", () => {
@@ -276,6 +278,10 @@ test("Claude packaging metadata is backed by fresh evidence and support matrix r
     activationManifestPath,
   )
 
+  assert.match(evidenceRow.evidence_command_or_doc, /claude plugin validate plugins\/desk --strict/u)
+  assert.match(evidenceRow.evidence_command_or_doc, /claude plugin validate plugins\/work-suite --strict/u)
+  assert.match(evidenceRow.evidence_command_or_doc, /unit-4b-claude-help-evidence\.log/u)
+  assert.match(evidenceRow.evidence_command_or_doc, /node --test plugins\/desk\/mcp\/__tests__\/activation\/claude_packaging\.test\.js/u)
   assert.deepEqual({
     activationManifestClaudeSource: activationTarget.entrypoints.claude,
     evidenceDisposition: evidenceRow.disposition,
@@ -301,15 +307,16 @@ test("Claude packaging metadata is backed by fresh evidence and support matrix r
 })
 
 test("Claude packaging documents its permission and capability boundary", () => {
-  const deskPlugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+  const activation = loadJson(activationManifestPath)
+  const claudeActivation = activation.host_activation?.claude
 
-  assert.deepEqual(deskPlugin.activation?.claude?.permissionBoundary, {
+  assert.deepEqual(claudeActivation?.permissionBoundary, {
     requestedCapabilities: ["Read", "Write", "Interactive"],
     generatedArtifacts: [],
     neverDelete: ["desk-root-data"],
     unsupportedAgentScopedFields: ["hooks", "mcpServers", "permissionMode"],
   })
-  assert.deepEqual(deskPlugin.activation?.claude?.mcpServers?.desk, {
+  assert.deepEqual(claudeActivation?.mcpServers?.desk, {
     launch: "plugin-bundled",
     manualRegistration: false,
     configPath: ".mcp.json",

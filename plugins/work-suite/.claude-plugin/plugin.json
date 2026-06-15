@@ -6,14 +6,5 @@
     "name": "ourostack",
     "url": "https://github.com/ourostack/ouroboros-skills"
   },
-  "skills": "./skills/",
-  "activation": {
-    "claude": {
-      "dependencyProvider": {
-        "id": "work-suite",
-        "version": "1.4.9",
-        "resolution": "native"
-      }
-    }
-  }
+  "skills": "./skills/"
 }

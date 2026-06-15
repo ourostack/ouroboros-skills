@@ -25,6 +25,8 @@ const REQUIRED_HOSTS = [
 ]
 const UNSUPPORTED_PRIMITIVES = new Set([
   "agent-defaults",
+  "agent-view-dispatch",
+  "background-session-inheritance",
   "host-activation",
   "host-native-plugin-install",
   "transitive-dependency-resolution",
