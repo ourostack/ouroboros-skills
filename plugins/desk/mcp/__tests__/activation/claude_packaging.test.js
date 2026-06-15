@@ -7,6 +7,25 @@ import { fileURLToPath } from "node:url"
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
 )
+const activationManifestPath = "plugins/desk/activation/desk.activation.json"
+const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const supportMatrixPath = "plugins/desk/activation/support-matrix.json"
+const claudeNativeWorkerSource = "agents/worker.md"
+const expectedClaudeSourcePaths = [
+  "plugins/desk/.claude-plugin/plugin.json",
+  "plugins/desk/.mcp.json",
+  `plugins/desk/${claudeNativeWorkerSource}`,
+  "plugins/work-suite/.claude-plugin/plugin.json",
+]
+const supportedDispositionStatuses = new Set([
+  "supported",
+  "supported-with-version-floor",
+  "validated",
+])
+const unsupportedDispositionStatuses = new Set([
+  "degraded",
+  "unsupported",
+])
 
 function readText(...segments) {
   return readFileSync(path.join(repoRoot, ...segments), "utf8")
@@ -41,6 +60,126 @@ function marketplacePlugin(name) {
   return loadJson(".claude-plugin", "marketplace.json")
     .plugins
     .find((plugin) => plugin.name === name)
+}
+
+function splitMarkdownRow(row) {
+  return row.trim().replace(/^\|/u, "").replace(/\|$/u, "")
+    .split("|")
+    .map((cell) => cell.trim())
+}
+
+function parseEvidenceTable(content) {
+  const tableRows = content
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("|"))
+  const columns = splitMarkdownRow(tableRows[0])
+  return tableRows.slice(2).map((line) => {
+    const values = splitMarkdownRow(line)
+    return Object.fromEntries(columns.map((column, index) => [column, values[index] ?? ""]))
+  })
+}
+
+function splitList(value) {
+  if (value === "none") {
+    return []
+  }
+  return value.split(";").map((item) => item.trim()).filter(Boolean)
+}
+
+function normalizedEvidenceRows(content) {
+  return parseEvidenceTable(content).map((row) => ({
+    ...row,
+    source_paths: splitList(row.source_paths),
+    unsupported_primitives: splitList(row.unsupported_primitives),
+  }))
+}
+
+function findByField(rows, field, value, source) {
+  const row = rows.find((candidate) => candidate[field] === value)
+  assert.ok(row, `${source} must include ${field}=${value}`)
+  return row
+}
+
+function copyHostRow(row) {
+  return {
+    ...row,
+    source_paths: [...row.source_paths],
+    unsupported_primitives: [...row.unsupported_primitives],
+  }
+}
+
+function hasDocumentedField(value, fields) {
+  return fields.some((field) => {
+    const fieldValue = value[field]
+    if (typeof fieldValue === "string") {
+      return fieldValue.trim() !== ""
+    }
+    if (Array.isArray(fieldValue)) {
+      return fieldValue.length > 0
+    }
+    return fieldValue && typeof fieldValue === "object" && Object.keys(fieldValue).length > 0
+  })
+}
+
+function assertDocumentedDisposition(label, disposition) {
+  assert.equal(typeof disposition, "object", `${label} disposition must be documented`)
+  assert.notEqual(disposition, null, `${label} disposition must be documented`)
+  assert.ok(
+    supportedDispositionStatuses.has(disposition.status)
+      || unsupportedDispositionStatuses.has(disposition.status),
+    `${label} status must be supported, degraded, or unsupported`,
+  )
+
+  if (supportedDispositionStatuses.has(disposition.status)) {
+    assert.equal(
+      disposition.inheritsPluginContext,
+      true,
+      `${label} supported status must state plugin-context inheritance`,
+    )
+    assert.ok(
+      hasDocumentedField(disposition, ["evidence", "evidenceCommandOrDoc", "validatedBy", "validation"]),
+      `${label} supported status must cite validation evidence`,
+    )
+  } else {
+    assert.ok(
+      hasDocumentedField(disposition, ["reason", "notes", "fallback", "fallbackBehavior", "degradedBehavior"]),
+      `${label} unsupported/degraded status must document the fallback or reason`,
+    )
+  }
+
+  if (Object.hasOwn(disposition, "minimumClaudeCodeVersion")) {
+    assert.match(disposition.minimumClaudeCodeVersion, /^\d+\.\d+\.\d+$/u)
+  }
+  for (const commandField of ["foregroundLaunch", "backgroundLaunch", "agentViewLaunch"]) {
+    if (Object.hasOwn(disposition, commandField)) {
+      assert.equal(typeof disposition[commandField], "string")
+      assert.match(disposition[commandField], /desk:worker/u)
+    }
+  }
+}
+
+function backgroundSessionDisposition(claudeActivation) {
+  if (claudeActivation?.backgroundSessionInheritance) {
+    return claudeActivation.backgroundSessionInheritance
+  }
+  if (claudeActivation?.backgroundSessions) {
+    return claudeActivation.backgroundSessions
+  }
+  const agentView = claudeActivation?.agentView
+  if (!agentView || (
+    !Object.hasOwn(agentView, "backgroundLaunch")
+    && !Object.hasOwn(agentView, "backgroundInheritsPluginContext")
+  )) {
+    return undefined
+  }
+  return {
+    ...agentView,
+    inheritsPluginContext: agentView.backgroundInheritsPluginContext
+      ?? agentView.inheritsPluginContext,
+    evidence: agentView.backgroundEvidence ?? agentView.evidence,
+    reason: agentView.backgroundReason ?? agentView.reason,
+    fallback: agentView.backgroundFallback ?? agentView.fallback,
+  }
 }
 
 test("Claude plugin metadata declares native Desk surfaces and Work Suite dependency", () => {
@@ -87,13 +226,14 @@ test("Claude worker agent is exposed without unsupported scoped permission field
 
 test("Claude activation metadata records Agent View and background-session disposition", () => {
   const deskPlugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+  const claudeActivation = deskPlugin.activation?.claude
 
-  assert.deepEqual(deskPlugin.activation?.claude?.targets?.["desk:worker"], {
+  assert.deepEqual(claudeActivation?.targets?.["desk:worker"], {
     default: true,
-    source: "agents/worker.md",
+    source: claudeNativeWorkerSource,
     activationSurface: "plugin-agent",
   })
-  assert.deepEqual(deskPlugin.activation?.claude?.nativeSurfaces, [
+  assert.deepEqual(claudeActivation?.nativeSurfaces, [
     "skills",
     "agents",
     "hooks",
@@ -101,13 +241,62 @@ test("Claude activation metadata records Agent View and background-session dispo
     "outputStyles",
     "dependencies",
   ])
-  assert.deepEqual(deskPlugin.activation?.claude?.agentView, {
-    status: "supported-with-version-floor",
-    minimumClaudeCodeVersion: "2.1.157",
-    foregroundLaunch: "claude --agent desk:worker",
-    backgroundLaunch: "claude --agent desk:worker --bg",
-    agentViewLaunch: "claude agents --agent desk:worker",
-    inheritsPluginContext: true,
+  assertDocumentedDisposition("Agent View", claudeActivation?.agentView)
+  assertDocumentedDisposition(
+    "background-session inheritance",
+    backgroundSessionDisposition(claudeActivation),
+  )
+})
+
+test("Claude packaging metadata is backed by fresh evidence and support matrix rows", () => {
+  const activation = loadJson(activationManifestPath)
+  const supportMatrix = loadJson(supportMatrixPath)
+  const evidenceRow = findByField(
+    normalizedEvidenceRows(readText(evidencePath)),
+    "host_id",
+    "claude",
+    evidencePath,
+  )
+  const supportMatrixRow = findByField(
+    supportMatrix.hosts,
+    "host_id",
+    "claude",
+    supportMatrixPath,
+  )
+  const activationTarget = findByField(
+    activation.provides.activation_targets,
+    "id",
+    "desk:worker",
+    activationManifestPath,
+  )
+  const activationHostSupport = findByField(
+    activation.host_support,
+    "host",
+    "claude",
+    activationManifestPath,
+  )
+
+  assert.deepEqual({
+    activationManifestClaudeSource: activationTarget.entrypoints.claude,
+    evidenceDisposition: evidenceRow.disposition,
+    evidenceFallback: evidenceRow.fallback_behavior,
+    evidenceSourcePaths: [...evidenceRow.source_paths],
+    evidenceUnsupportedPrimitives: [...evidenceRow.unsupported_primitives],
+    supportMatrixGeneratedFrom: supportMatrix.generated_from,
+    supportMatrixRow: copyHostRow(supportMatrixRow),
+    supportMatrixSourcePaths: [...supportMatrixRow.source_paths],
+  }, {
+    activationManifestClaudeSource: claudeNativeWorkerSource,
+    evidenceDisposition: `${activationHostSupport.status}-${activationHostSupport.dependency_resolution}`,
+    evidenceFallback: activationHostSupport.fallback_behavior,
+    evidenceSourcePaths: [...expectedClaudeSourcePaths],
+    evidenceUnsupportedPrimitives: [...activationHostSupport.unsupported_primitives],
+    supportMatrixGeneratedFrom: {
+      activation_manifest: activationManifestPath,
+      host_capability_evidence: evidencePath,
+    },
+    supportMatrixRow: copyHostRow(evidenceRow),
+    supportMatrixSourcePaths: [...expectedClaudeSourcePaths],
   })
 })
 

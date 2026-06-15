@@ -2,9 +2,9 @@ TAP version 13
 # Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
 not ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
   ---
-  duration_ms: 2.486541
+  duration_ms: 1.855792
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:46:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:185:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -18,7 +18,7 @@ not ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite d
   expected: './skills/'
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:50:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:189:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.start (node:internal/test_runner/test:944:17)
@@ -27,9 +27,9 @@ not ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite d
 # Subtest: Work Suite Claude metadata declares itself as a native dependency provider
 not ok 2 - Work Suite Claude metadata declares itself as a native dependency provider
   ---
-  duration_ms: 0.260708
+  duration_ms: 0.269167
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:65:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:204:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -43,7 +43,7 @@ not ok 2 - Work Suite Claude metadata declares itself as a native dependency pro
   expected: './skills/'
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:68:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:207:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -54,9 +54,9 @@ not ok 2 - Work Suite Claude metadata declares itself as a native dependency pro
 # Subtest: Claude worker agent is exposed without unsupported scoped permission fields
 not ok 3 - Claude worker agent is exposed without unsupported scoped permission fields
   ---
-  duration_ms: 0.663333
+  duration_ms: 0.588042
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:76:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:215:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -70,7 +70,7 @@ not ok 3 - Claude worker agent is exposed without unsupported scoped permission 
   expected: false
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:81:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:220:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -81,9 +81,9 @@ not ok 3 - Claude worker agent is exposed without unsupported scoped permission 
 # Subtest: Claude activation metadata records Agent View and background-session disposition
 not ok 4 - Claude activation metadata records Agent View and background-session disposition
   ---
-  duration_ms: 1.375083
+  duration_ms: 1.3285
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:88:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:227:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly deep-equal:
@@ -104,7 +104,114 @@ not ok 4 - Claude activation metadata records Agent View and background-session 
     activationSurface: 'plugin-agent'
   operator: 'deepStrictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:91:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:231:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Claude packaging metadata is backed by fresh evidence and support matrix rows
+not ok 5 - Claude packaging metadata is backed by fresh evidence and support matrix rows
+  ---
+  duration_ms: 1.710208
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:251:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+
+      {
+    +   activationManifestClaudeSource: 'agents/worker.agent.md',
+    -   activationManifestClaudeSource: 'agents/worker.md',
+        evidenceDisposition: 'supported-native-or-flattened',
+        evidenceFallback: 'ship flattened bundle when transitive dependencies are unavailable',
+        evidenceSourcePaths: [
+          'plugins/desk/.claude-plugin/plugin.json',
+          'plugins/desk/.mcp.json',
+    +     'plugins/desk/agents/worker.agent.md',
+    -     'plugins/desk/agents/worker.md',
+          'plugins/work-suite/.claude-plugin/plugin.json'
+        ],
+        evidenceUnsupportedPrimitives: [],
+        supportMatrixGeneratedFrom: {
+          activation_manifest: 'plugins/desk/activation/desk.activation.json',
+    ...
+          'plugins/desk/.mcp.json',
+    +     'plugins/desk/agents/worker.agent.md',
+    -     'plugins/desk/agents/worker.md',
+          'plugins/work-suite/.claude-plugin/plugin.json'
+        ]
+      }
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    activationManifestClaudeSource: 'agents/worker.md'
+    evidenceDisposition: 'supported-native-or-flattened'
+    evidenceFallback: 'ship flattened bundle when transitive dependencies are unavailable'
+    evidenceSourcePaths:
+      0: 'plugins/desk/.claude-plugin/plugin.json'
+      1: 'plugins/desk/.mcp.json'
+      2: 'plugins/desk/agents/worker.md'
+      3: 'plugins/work-suite/.claude-plugin/plugin.json'
+    evidenceUnsupportedPrimitives:
+    supportMatrixGeneratedFrom:
+      activation_manifest: 'plugins/desk/activation/desk.activation.json'
+      host_capability_evidence: 'desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md'
+    supportMatrixRow:
+      host_id: 'claude'
+      surface: 'Claude plugin package'
+      disposition: 'supported-native-or-flattened'
+      source_paths:
+        0: 'plugins/desk/.claude-plugin/plugin.json'
+        1: 'plugins/desk/.mcp.json'
+        2: 'plugins/desk/agents/worker.agent.md'
+        3: 'plugins/work-suite/.claude-plugin/plugin.json'
+      evidence_command_or_doc: 'plugins/desk/activation/desk.activation.json host_support row for claude'
+      unsupported_primitives:
+      fallback_behavior: 'ship flattened bundle when transitive dependencies are unavailable'
+    supportMatrixSourcePaths:
+      0: 'plugins/desk/.claude-plugin/plugin.json'
+      1: 'plugins/desk/.mcp.json'
+      2: 'plugins/desk/agents/worker.md'
+      3: 'plugins/work-suite/.claude-plugin/plugin.json'
+  actual:
+    activationManifestClaudeSource: 'agents/worker.agent.md'
+    evidenceDisposition: 'supported-native-or-flattened'
+    evidenceFallback: 'ship flattened bundle when transitive dependencies are unavailable'
+    evidenceSourcePaths:
+      0: 'plugins/desk/.claude-plugin/plugin.json'
+      1: 'plugins/desk/.mcp.json'
+      2: 'plugins/desk/agents/worker.agent.md'
+      3: 'plugins/work-suite/.claude-plugin/plugin.json'
+    evidenceUnsupportedPrimitives:
+    supportMatrixGeneratedFrom:
+      activation_manifest: 'plugins/desk/activation/desk.activation.json'
+      host_capability_evidence: 'desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md'
+    supportMatrixRow:
+      host_id: 'claude'
+      surface: 'Claude plugin package'
+      disposition: 'supported-native-or-flattened'
+      source_paths:
+        0: 'plugins/desk/.claude-plugin/plugin.json'
+        1: 'plugins/desk/.mcp.json'
+        2: 'plugins/desk/agents/worker.agent.md'
+        3: 'plugins/work-suite/.claude-plugin/plugin.json'
+      evidence_command_or_doc: 'plugins/desk/activation/desk.activation.json host_support row for claude'
+      unsupported_primitives:
+      fallback_behavior: 'ship flattened bundle when transitive dependencies are unavailable'
+    supportMatrixSourcePaths:
+      0: 'plugins/desk/.claude-plugin/plugin.json'
+      1: 'plugins/desk/.mcp.json'
+      2: 'plugins/desk/agents/worker.agent.md'
+      3: 'plugins/work-suite/.claude-plugin/plugin.json'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:279:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -113,11 +220,11 @@ not ok 4 - Claude activation metadata records Agent View and background-session 
     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: Claude packaging documents its permission and capability boundary
-not ok 5 - Claude packaging documents its permission and capability boundary
+not ok 6 - Claude packaging documents its permission and capability boundary
   ---
-  duration_ms: 0.419
+  duration_ms: 0.254958
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:114:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:303:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly deep-equal:
@@ -157,7 +264,7 @@ not ok 5 - Claude packaging documents its permission and capability boundary
       2: 'permissionMode'
   operator: 'deepStrictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:117:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:306:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -166,23 +273,23 @@ not ok 5 - Claude packaging documents its permission and capability boundary
     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
-ok 6 - Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 7 - Claude hook and MCP configuration stay plugin-relative and non-manual
   ---
-  duration_ms: 0.818209
+  duration_ms: 0.467583
   type: 'test'
   ...
 # Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
-ok 7 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 8 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
   ---
-  duration_ms: 1.192125
+  duration_ms: 0.664791
   type: 'test'
   ...
-1..7
-# tests 7
+1..8
+# tests 8
 # suites 0
 # pass 2
-# fail 5
+# fail 6
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 88.719375
+# duration_ms 90.142833
