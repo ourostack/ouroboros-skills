@@ -818,6 +818,22 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     ["Generic stdio docs must not claim worker activation"],
   )
 
+  const passiveBuiltIntoWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  passiveBuiltIntoWorkSuite.genericStdioReadmeSection +=
+    "\nWork Suite is built into generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveBuiltIntoWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const passiveBuiltIntoDeskWorker = clone(currentOuroborosStdioPackagingInput())
+  passiveBuiltIntoDeskWorker.genericStdioReadmeSection +=
+    "\ndesk:worker is built into generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveBuiltIntoDeskWorker),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const givesYouDeskWorker = clone(currentOuroborosStdioPackagingInput())
   givesYouDeskWorker.genericStdioReadmeSection +=
     "\nGeneric stdio gives you desk:worker automatically.\n"
@@ -898,6 +914,14 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const noManualSetupSupportDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  noManualSetupSupportDependencyClaim.genericStdioReadmeSection +=
+    "\nNo manual setup is needed for Work Suite support.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noManualSetupSupportDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
   const noManualInstallWorkerClaim = clone(currentOuroborosStdioPackagingInput())
   noManualInstallWorkerClaim.genericStdioReadmeSection +=
     "\nNo manual install is needed because this path starts worker activation automatically.\n"
@@ -919,6 +943,14 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     "\nNo extra command is needed because desk:worker is activated by generic stdio.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(noExtraCommandWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const noExtraHostSupportWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  noExtraHostSupportWorkerClaim.genericStdioReadmeSection +=
+    "\nNo extra host is needed for worker activation support.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noExtraHostSupportWorkerClaim),
     ["Generic stdio docs must not claim worker activation"],
   )
 
@@ -1057,6 +1089,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nNo worker activation is provided by this path.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(noWorkerActivationProvided),
+    [],
+  )
+
+  const noWorkSuiteSupportProvided = clone(currentOuroborosStdioPackagingInput())
+  noWorkSuiteSupportProvided.genericStdioReadmeSection +=
+    "\nNo Work Suite support is provided by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noWorkSuiteSupportProvided),
+    [],
+  )
+
+  const noWorkerActivationSupportProvided = clone(currentOuroborosStdioPackagingInput())
+  noWorkerActivationSupportProvided.genericStdioReadmeSection +=
+    "\nNo worker activation support is provided by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noWorkerActivationSupportProvided),
     [],
   )
 
