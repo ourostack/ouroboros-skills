@@ -289,6 +289,10 @@ test("ensureIndex calls embeddings only after vector-pack import leaves missing 
   assert.equal(ensured.semantic.vectors_indexed, 1)
   assert.equal(ensured.semantic.missing_vectors, 1)
   assert.equal(ensured.semantic.embedding_available, false)
+  assert.equal(
+    ensured.semantic.embedding_diagnostic.reason,
+    "embedding_generation_failed",
+  )
 
   const db = openDb(deskRoot)
   try {
@@ -297,6 +301,43 @@ test("ensureIndex calls embeddings only after vector-pack import leaves missing 
   } finally {
     closeDb(db)
   }
+})
+
+test("ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nprobe then fail body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  let calls = 0
+  const flakyFetch = async () => {
+    calls += 1
+    if (calls === 1) {
+      return {
+        ok: true,
+        json: async () => ({ embedding: vector(31) }),
+      }
+    }
+    throw new Error("embedding failed after probe")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: flakyFetch,
+    },
+  })
+  assert.equal(calls, 2)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.summary.semantic_warnings, 1)
+  assert.equal(ensured.semantic.embedding_available, false)
+  assert.equal(
+    ensured.semantic.embedding_diagnostic.reason,
+    "embedding_generation_failed",
+  )
+  assert.equal(ensured.semantic.missing_vectors, 1)
 })
 
 test("ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls", async () => {
