@@ -10,6 +10,11 @@ import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./indexer/spec.js"
 
+const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
+  reason: "embedding_generation_failed",
+  message: "one or more document embeddings could not be generated during rebuild",
+}
+
 /**
  * Bring the on-disk index up to date for `deskRoot`. Idempotent: when the
  * DB exists and no markdown file has an mtime newer than last_indexed_at,
@@ -121,11 +126,12 @@ async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
 function assignEmbeddingAvailability(target, source, summary) {
   if (summary.semantic_warnings > 0) {
     target.embedding_available = false
+    target.embedding_diagnostic = EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC
   } else if (source.embedding_available === true) {
     target.embedding_available = true
-  }
-  if (source.embedding_diagnostic) {
-    target.embedding_diagnostic = source.embedding_diagnostic
+    if (source.embedding_diagnostic) {
+      target.embedding_diagnostic = source.embedding_diagnostic
+    }
   }
   return target
 }
