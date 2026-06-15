@@ -52,7 +52,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Host adapters never require healthy-path manual `npm install` inside plugin directories.
 - [x] Host adapters never require healthy-path hand-editing of JSON or TOML.
 - [ ] Host support matrix is generated from real schema validation or smoke evidence.
-- [ ] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
+- [x] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual dependency installation.
 - [ ] MCP runtime dependencies are restored from a verified pruned production runtime pack into a writable cache using this precedence: activation config `runtimeCacheDir`, then `DESK_RUNTIME_CACHE_DIR`, then `${XDG_CACHE_HOME:-$HOME/.cache}/ouroboros-skills/desk/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/`.
@@ -254,7 +254,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/support_matrix.test.js` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
 **Acceptance**: Tests fail until the generated matrix validates against the evidence artifact, and the evidence artifact has columns `host_id`, `surface`, `disposition`, `source_paths`, `evidence_command_or_doc`, `unsupported_primitives`, and `fallback_behavior`, with rows for `claude`, `codex`, `copilot-root`, `ouroboros-autonomous-agent`, and `generic-stdio`.
 
-### ⬜ Unit 3b: Support Matrix Generator - Implementation
+### ✅ Unit 3b: Support Matrix Generator - Implementation
 **What**: Implement support-matrix generation and validation from activation metadata plus the evidence artifact.  
 **Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/mcp/scripts/generate-support-matrix.js`, `plugins/desk/mcp/package.json` script `activation:support-matrix:generate`, `plugins/desk/activation/support-matrix.json`, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
 **Acceptance**: Unit 3a tests pass, `npm --prefix plugins/desk/mcp run activation:support-matrix:generate` regenerates `plugins/desk/activation/support-matrix.json`, and generated support matrix matches the evidence artifact exactly.
@@ -773,3 +773,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 18:52 Unit 2f cold reviewer gate converged; Fermat verified all five requested edge cases, safe rollback/user-edit handling, 100% `artifact-ledger.js` coverage, clean range diff, justified doing-doc status, and expected-only `semantic_unavailable` fallback diagnostics
 - 2026-06-14 18:55 Unit 3a complete: added `plugins/desk/mcp/__tests__/activation/support_matrix.test.js` and `host-capability-evidence.md` in `1675eb2`; evidence table includes required columns and rows for `claude`, `codex`, `copilot-root`, `ouroboros-autonomous-agent`, and `generic-stdio`; targeted red run saved to `unit-3a-support-matrix-red.log` and fails because `plugins/desk/mcp/src/activation/support-matrix.js` and the generated support-matrix artifact do not exist yet
 - 2026-06-14 18:59 Unit 3a cold reviewer gate converged; Meitner verified the evidence columns/host rows, meaningful red test contract, correctly scoped missing-generator failure, clean bookkeeping, and no stale source paths or whitespace issues
+- 2026-06-14 19:05 Unit 3b complete: implemented `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/mcp/scripts/generate-support-matrix.js`, package script `activation:support-matrix:generate`, and generated `plugins/desk/activation/support-matrix.json` in `0d21a6c`; saved `unit-3b-generate-support-matrix-green.log`, `unit-3b-support-matrix-green.log`, `unit-3b-test-coverage-green.log`, `unit-3b-npm-test-green.log`, `unit-3b-validate-skills-green.log`, and `unit-3b-build-unavailable.log`; verified the generator command, targeted support-matrix tests, 100% coverage for support-matrix code and script, full MCP tests, skill validation, and `git diff --check`
