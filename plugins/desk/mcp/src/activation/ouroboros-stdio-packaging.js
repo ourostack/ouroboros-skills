@@ -178,7 +178,6 @@ function claimsGenericStdioDependencyResolution(readmeSection) {
 
 function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
   return readmeStatements(readmeSection)
-    .filter((statement) => normalizeClaimText(statement).includes("generic stdio"))
     .some((statement) => readmeClauses(statement)
       .some((clause) => hasPositiveSupportClaim({ clause, action, target })))
 }
@@ -190,7 +189,11 @@ function hasPositiveSupportClaim({ clause, action, target }) {
   return actionMatches.some((actionMatch) => (
     !isSupportActionNegated(normalizedClause, actionMatch.index)
     && targetMatches.some((targetMatch) => (
-      !isSupportTargetNegated(normalizedClause, targetMatch.index)
+      !isSupportTargetNegated({
+        clause: normalizedClause,
+        actionIndex: actionMatch.index,
+        targetIndex: targetMatch.index,
+      })
     ))
   ))
 }
@@ -218,8 +221,11 @@ function isSupportActionNegated(clause, actionIndex) {
   return isNegativeSupportBoundary(clause.slice(0, actionIndex))
 }
 
-function isSupportTargetNegated(clause, targetIndex) {
-  return /\b(?:not|no|without)\s*$/u.test(clause.slice(0, targetIndex))
+function isSupportTargetNegated({ clause, actionIndex, targetIndex }) {
+  const beforeTarget = clause.slice(0, targetIndex)
+  const betweenActionAndTarget = clause.slice(actionIndex, targetIndex)
+  return /\b(?:not|no|without)\s*$/u.test(beforeTarget)
+    || /\b(?:neither|nor|not|no|without)\b/u.test(betweenActionAndTarget)
 }
 
 function allMatches(pattern, text) {
