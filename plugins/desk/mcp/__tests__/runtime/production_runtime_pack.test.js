@@ -2,10 +2,20 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, readFileSync } from "node:fs"
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import { gzipSync } from "node:zlib"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -28,6 +38,128 @@ function sha256(bytes) {
 
 function repoPath(filePath) {
   return path.relative(repoRoot, filePath).replaceAll(path.sep, "/")
+}
+
+function makeTempPackExpectation(baseExpectation) {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-pack-"))
+  const packDir = path.join(tempDir, "pack")
+  mkdirSync(packDir, { recursive: true })
+  const paths = {
+    packDir,
+    archivePath: path.join(packDir, "runtime-deps.tgz"),
+    manifestPath: path.join(packDir, "runtime-deps.manifest.json"),
+    checksumPath: path.join(packDir, "runtime-deps.sha256"),
+  }
+  copyFileSync(baseExpectation.paths.archivePath, paths.archivePath)
+  copyFileSync(baseExpectation.paths.manifestPath, paths.manifestPath)
+  copyFileSync(baseExpectation.paths.checksumPath, paths.checksumPath)
+  return {
+    tempDir,
+    expectation: {
+      ...baseExpectation,
+      paths,
+      relativePackDir: path.relative(repoRoot, packDir).replaceAll(path.sep, "/"),
+      requiredFiles: [
+        paths.archivePath,
+        paths.manifestPath,
+        paths.checksumPath,
+      ].map((filePath) => ({
+        path: filePath,
+        repoPath: path.relative(repoRoot, filePath).replaceAll(path.sep, "/"),
+      })),
+    },
+  }
+}
+
+function withTrackedFiles() {
+  return { status: 0, stdout: "", stderr: "" }
+}
+
+function writeMutatedManifest(expectation, mutate) {
+  const manifest = loadJson(expectation.paths.manifestPath)
+  mutate(manifest)
+  writeFileSync(expectation.paths.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  return manifest
+}
+
+function verifyTempPack(expectation) {
+  return generatedArtifacts.verifyPublishedRuntimeDependencyPack({
+    expectation,
+    spawn: withTrackedFiles,
+  })
+}
+
+function writeArchiveWithExtraEntry(expectation, entry, body) {
+  const contents = generatedArtifacts.extractTarGzContents(expectation.paths.archivePath)
+  contents.set(entry, Buffer.from(body, "utf8"))
+  const archiveBytes = createTarGz(contents)
+  writeFileSync(expectation.paths.archivePath, archiveBytes)
+  const archiveSha = sha256(archiveBytes)
+  writeFileSync(expectation.paths.checksumPath, `${archiveSha}  runtime-deps.tgz\n`, "utf8")
+  writeMutatedManifest(expectation, (manifest) => {
+    manifest.archive.sha256 = archiveSha
+    contents.set(
+      "runtime-deps.manifest.json",
+      Buffer.from(JSON.stringify(embeddedManifestForArchive(manifest), null, 2), "utf8"),
+    )
+  })
+  writeFileSync(expectation.paths.archivePath, createTarGz(contents))
+}
+
+function embeddedManifestForArchive(manifest) {
+  const embeddedManifest = structuredClone(manifest)
+  embeddedManifest.archive.sha256 = "<archive-sha256-recorded-in-sidecar>"
+  return embeddedManifest
+}
+
+function createTarGz(contents) {
+  const blocks = []
+  for (const [name, body] of [...contents.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    blocks.push(tarHeader({ name, size: body.length }))
+    blocks.push(body)
+    const padding = (512 - (body.length % 512)) % 512
+    if (padding > 0) {
+      blocks.push(Buffer.alloc(padding))
+    }
+  }
+  blocks.push(Buffer.alloc(1024))
+  return gzipSync(Buffer.concat(blocks))
+}
+
+function tarHeader({ name, size }) {
+  const { headerName, prefix } = splitTarPath(name)
+  const header = Buffer.alloc(512, 0)
+  header.write(headerName, 0, 100, "utf8")
+  header.write("0000644\0", 100, 8, "ascii")
+  header.write("0000000\0", 108, 8, "ascii")
+  header.write("0000000\0", 116, 8, "ascii")
+  header.write(size.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii")
+  header.write("00000000000\0", 136, 12, "ascii")
+  header.fill(0x20, 148, 156)
+  header.write("0", 156, 1, "ascii")
+  header.write("ustar\0", 257, 6, "ascii")
+  header.write("00", 263, 2, "ascii")
+  if (prefix.length > 0) {
+    header.write(prefix, 345, 155, "utf8")
+  }
+  const checksum = [...header].reduce((sum, byte) => sum + byte, 0)
+  header.write(checksum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "ascii")
+  return header
+}
+
+function splitTarPath(name) {
+  if (Buffer.byteLength(name) <= 100) {
+    return { headerName: name, prefix: "" }
+  }
+  const parts = name.split("/")
+  for (let index = 1; index < parts.length; index += 1) {
+    const prefix = parts.slice(0, index).join("/")
+    const headerName = parts.slice(index).join("/")
+    if (Buffer.byteLength(prefix) <= 155 && Buffer.byteLength(headerName) <= 100) {
+      return { headerName, prefix }
+    }
+  }
+  throw new Error(`test tar path is too long: ${name}`)
 }
 
 function gitTracksFile(filePath) {
@@ -302,6 +434,105 @@ test("generated artifact verification uses explicit published targets instead of
   assert.deepEqual(result.expectations.map((expectation) => expectation.target), ["darwin-arm64-node-127"])
   assert.match(stdout.join(""), /darwin-arm64-node-127/u)
   assert.equal(stderr.join(""), "")
+})
+
+test("published runtime pack verifier rejects stale, unsafe, or fixture-only artifacts", async () => {
+  const [baseExpectation] = await generatedArtifacts.productionRuntimePackExpectations({
+    repoRoot,
+    mcpRoot,
+  })
+  const tempDirs = []
+  const tempCopy = () => {
+    const fixture = makeTempPackExpectation(baseExpectation)
+    tempDirs.push(fixture.tempDir)
+    return fixture.expectation
+  }
+
+  try {
+    const missingDir = mkdtempSync(path.join(tmpdir(), "desk-production-pack-missing-"))
+    tempDirs.push(missingDir)
+    const missingPackDir = path.join(missingDir, "pack")
+    const missingExpectation = {
+      ...baseExpectation,
+      paths: {
+        packDir: missingPackDir,
+        archivePath: path.join(missingPackDir, "runtime-deps.tgz"),
+        manifestPath: path.join(missingPackDir, "runtime-deps.manifest.json"),
+        checksumPath: path.join(missingPackDir, "runtime-deps.sha256"),
+      },
+      requiredFiles: [
+        path.join(missingPackDir, "runtime-deps.tgz"),
+        path.join(missingPackDir, "runtime-deps.manifest.json"),
+        path.join(missingPackDir, "runtime-deps.sha256"),
+      ].map((filePath) => ({ path: filePath, repoPath: repoPath(filePath) })),
+    }
+    assert.match(
+      verifyTempPack(missingExpectation).errors.join("\n"),
+      /generated artifact missing: .*runtime-deps\.tgz[\s\S]*runtime dependency pack checksum runtime-deps\.sha256 is missing/u,
+    )
+
+    const checksumMismatch = tempCopy()
+    writeFileSync(checksumMismatch.paths.checksumPath, `${"0".repeat(64)}  runtime-deps.tgz\n`, "utf8")
+    assert.match(
+      verifyTempPack(checksumMismatch).errors.join("\n"),
+      /runtime dependency pack checksum mismatch for runtime-deps\.tgz/u,
+    )
+
+    const stalePackageLock = tempCopy()
+    writeMutatedManifest(stalePackageLock, (manifest) => {
+      manifest.package_lock.sha256 = "0".repeat(64)
+    })
+    assert.match(
+      verifyTempPack(stalePackageLock).errors.join("\n"),
+      /package_lock\.sha256 must match plugins\/desk\/mcp\/package-lock\.json/u,
+    )
+
+    const staleProductionHash = tempCopy()
+    writeMutatedManifest(staleProductionHash, (manifest) => {
+      manifest.package_lock.prod_dependency_lock_hash = "1".repeat(64)
+    })
+    assert.match(
+      verifyTempPack(staleProductionHash).errors.join("\n"),
+      /prod_dependency_lock_hash must match production dependency closure/u,
+    )
+
+    const staleTarget = tempCopy()
+    writeMutatedManifest(staleTarget, (manifest) => {
+      manifest.platform.os = "linux"
+    })
+    assert.match(
+      verifyTempPack(staleTarget).errors.join("\n"),
+      /platform\.os must match target platform/u,
+    )
+
+    const bundledSource = tempCopy()
+    writeArchiveWithExtraEntry(bundledSource, "src/server.js", "export default 'mutable source'\n")
+    assert.match(
+      verifyTempPack(bundledSource).errors.join("\n"),
+      /runtime dependency archive must not include mutable MCP source src\/server\.js/u,
+    )
+
+    const stdout = []
+    const stderr = []
+    const fixtureOnly = await generatedArtifacts.verifyGeneratedArtifacts({
+      repoRoot,
+      mcpRoot,
+      targets: [{ platform: "linux", arch: "x64", nodeAbi: "127" }],
+      io: {
+        stdout: { write: (text) => stdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      },
+    })
+    assert.equal(fixtureOnly.ok, false)
+    assert.match(stderr.join(""), /linux-x64-node-127/u)
+    assert.match(stderr.join(""), /generated artifact missing/u)
+    assert.doesNotMatch(stderr.join(""), /__tests__\/fixtures/u)
+    assert.equal(stdout.join(""), "")
+  } finally {
+    for (const tempDir of tempDirs) {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  }
 })
 
 test("CI checks committed generated artifacts before rebuilding runtime dependency packs", () => {
