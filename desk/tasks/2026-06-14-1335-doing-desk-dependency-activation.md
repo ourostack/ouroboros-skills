@@ -334,7 +334,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Production files under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Unit 6g tests pass, generated runtime dependency pack artifacts are committed, and the dependency pack can support a runtime-cache current-source mirror without `plugins/desk/mcp/node_modules`.
 
-### ⬜ Unit 6i: Production Runtime Dependency Pack Publication - Coverage & Refactor
+### 🔄 Unit 6i: Production Runtime Dependency Pack Publication - Coverage & Refactor
 **What**: Add coverage for missing production pack, stale package-lock hash, accidentally bundled server source, checksum mismatch, stale platform/arch/ABI, fixture-only false positives, and production pack freshness drift.
 **Output**: Hardened production runtime pack freshness checks.
 **Acceptance**: Production runtime pack checks pass locally, and fixtures alone cannot satisfy the no-manual-install completion criteria.
