@@ -873,6 +873,32 @@ test("generic stdio packaging validation rejects host dependency support claims"
   )
 })
 
+test("generic stdio packaging validation rejects fallback dependency support drift", () => {
+  const fallbackDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    fallbackDependencyClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but resolves plugin dependencies automatically"
+  findByField(
+    fallbackDependencyClaim.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but resolves plugin dependencies automatically"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(fallbackDependencyClaim),
+    [
+      "Generic stdio fallback must not claim plugin dependency resolution",
+      "Generic stdio evidence fallback must not claim plugin dependency resolution",
+    ],
+  )
+})
+
 test("generic stdio packaging validation rejects evidence row support drift", () => {
   const genericEvidenceDrift = clone(currentOuroborosStdioPackagingInput())
   const genericEvidence = findByField(
