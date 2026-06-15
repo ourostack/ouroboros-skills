@@ -259,7 +259,7 @@ function isExternalSupportAssignment({ clause, targetMatch }) {
   const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
   return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
     .test(clause)
-    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?(?:requires?|needs?|depends\s+on)\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+to\s+(?:activate|start|launch|load|run|support|provide|expose|enable|handle|manage|wire|bootstrap|configure|prepare|supply|deliver|set\s+up|ship|spawn|bundle|resolve|include|install)\s*$/u
+    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?(?:requires?|needs?|depends\s+on)\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+to\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activate|start|launch|load|run|support|provide|expose|enable|handle|manage|wire|bootstrap|configure|prepare|supply|deliver|set\s+up|ship|spawn|bundle|resolve|include|install)\s*$/u
       .test(beforeTarget)
     || /^\s+(?:(?:dependency\s+(?:closure|resolution|support)|activation)\s+)?(?:(?:must|should|can|could|will|would|may|might)\s+)?(?:be\s+)?(?:provided|supplied|installed|loaded|configured|handled|managed|resolved|bundled|wired|bootstrapped|prepared|delivered|enabled|exposed)\s+by\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
       .test(afterTarget)
