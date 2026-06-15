@@ -100,16 +100,16 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Vector-pack compaction preserves semantic equivalence and is tested before being enabled.
 - [x] A local DB can be rebuilt from docs plus vector packs with the embedding endpoint disabled when all chunks are covered.
 - [x] Live document embedding generation happens only for chunk keys missing from shared packs.
-- [ ] Ordinary healthy startup never dirties the Git worktree by writing vector packs or snapshots.
+- [x] Ordinary healthy startup never dirties the Git worktree by writing vector packs or snapshots.
 - [ ] Explicit artifact publication can write new vector packs only through MCP maintenance tools or `plugins/desk/mcp/package.json` scripts.
 - [ ] Explicit snapshot build/verify can run through MCP maintenance tools or `plugins/desk/mcp/package.json` scripts.
-- [ ] Public or sensitive repo policy can disable embedding/snapshot publication.
-- [ ] Artifact publication policy lives at `plugins/desk/artifacts/publication-policy.json` and validates against `plugins/desk/artifacts/publication-policy.schema.json`.
+- [x] Public or sensitive repo policy can disable embedding/snapshot publication.
+- [x] Artifact publication policy lives at `plugins/desk/artifacts/publication-policy.json` and validates against `plugins/desk/artifacts/publication-policy.schema.json`.
 - [ ] Documentation states that embeddings and snapshots are derivative data and may carry privacy risk.
 - [ ] Health output, logs, snapshot errors, and vector-pack validation errors avoid dumping chunk text or sensitive document content.
 - [ ] Vector-pack validation errors report file, row, and chunk key without dumping full text.
 - [ ] Gitignored secret files are excluded from indexing and artifact publication by default.
-- [ ] Artifact publication requires explicit approval when repository or organization policy requires it.
+- [x] Artifact publication requires explicit approval when repository or organization policy requires it.
 - [ ] Deleted/redacted documents are invalidated through tombstone metadata at `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`, plus artifact rotation cleanup.
 - [ ] CI validates that deleted/redacted docs are no longer represented in active vector packs or snapshots.
 - [ ] Existing active/archived search scope behavior is preserved after snapshot restore and vector import.
@@ -539,7 +539,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js`.
 **Acceptance**: Tests fail until artifact publication policy checks exist.
 
-### ⬜ Unit 18b: Publication Policy And Approval - Implementation
+### ✅ Unit 18b: Publication Policy And Approval - Implementation
 **What**: Implement publication policy schema and checks for vector-pack writes to `plugins/desk/artifacts/vector-packs/` and snapshot writes to `plugins/desk/artifacts/snapshots/`.
 **Output**: `plugins/desk/mcp/src/artifacts/policy.js`, `plugins/desk/artifacts/publication-policy.json`, `plugins/desk/artifacts/publication-policy.schema.json`, and updated artifact write paths.
 **Acceptance**: Unit 18a tests pass, public/sensitive repos default to no publication, and ordinary startup never dirties the worktree.
@@ -977,3 +977,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 16:39 Unit 17f cold reviewer gate converged: Banach the 3rd found no functional issues and verified the coverage matrix/top-level checklist claims, with one MINOR evidence-hygiene note that the committed coverage logs contained trailing whitespace while the original diff-check artifact only checked the working tree. The Unit 17f coverage logs are scrubbed and `unit-17f-range-diff-check-green.log` proves the full Unit 17f range passes `git diff --check`.
 - 2026-06-15 16:42 Unit 18a complete: `3bac235` adds the red publication-policy contract in `plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js`. The tests require committed `plugins/desk/artifacts/publication-policy.json` and `publication-policy.schema.json` with conservative privacy defaults, a policy module at `plugins/desk/mcp/src/artifacts/policy.js`, public/sensitive repo default denial without explicit approval, repo/org approval acceptance for vector-pack and snapshot artifacts, write-guard rejection without approval, and an ordinary-startup invariant that committed artifact files are not written. Evidence saved in `unit-18a-publication-policy-red.log` shows 5/6 failures for the intended missing policy artifacts/module and 1/6 passing for startup read-only behavior; `unit-18a-diff-check-green.log` is clean.
 - 2026-06-15 16:46 Unit 18a reviewer fix: Herschel the 3rd found a MAJOR gap where the ordinary-startup no-write test only compared filenames in an empty artifact fixture, so it would not catch same-name mutation of existing committed artifacts. The red contract now seeds committed-like active vector-pack and snapshot sidecars, hashes every artifact file before startup, runs `ensureIndex` with snapshot/vector-pack options, and asserts the artifact tree hashes are unchanged. Evidence saved in `unit-18a-review-fix-publication-policy-red.log` still shows the intended 5/6 red failures for missing policy artifacts/module and 1/6 passing for the strengthened startup immutability invariant; `unit-18a-review-fix-diff-check-green.log` is clean.
+- 2026-06-15 16:56 Unit 18b complete: `e463dd6` adds the committed publication policy and schema, implements `plugins/desk/mcp/src/artifacts/policy.js` with default-deny publication decisions plus explicit repo/org approval handling, and wires a write guard that rejects vector-pack and snapshot artifact writes without approval while avoiding sensitive content in errors. The implementation also makes support-matrix generation atomic after full-suite coverage exposed a parallel-read race, and adds a focused vector-pack absent-state assertion so changed production coverage remains 100%. Evidence saved in `unit-18b-publication-policy-green.log`, `unit-18b-support-matrix-atomic-green.log`, `unit-18b-vector-rebuild-green.log`, `unit-18b-test-coverage.log`, `unit-18b-npm-test-green.log`, `unit-18b-runtime-pack-verify-green.log`, `unit-18b-generate-support-matrix-green.log`, `unit-18b-generated-artifacts-green.log`, `unit-18b-validate-skills-green.log`, `unit-18b-build-unavailable.log`, and `unit-18b-diff-check-green.log`; publication policy tests pass 6/6, vector rebuild tests pass 20/20, full MCP tests pass 528/528, coverage is 100% line/branch/function for 34 changed production files, generated-artifact/runtime-pack/skill validation pass, and build remains unavailable because the MCP package has no `build` script.
