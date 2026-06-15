@@ -329,7 +329,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/runtime/production_runtime_pack.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Tests fail until production `runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256` exist under the canonical path, not only fixtures.
 
-### ⬜ Unit 6h: Production Runtime Dependency Pack Publication - Implementation
+### 🔄 Unit 6h: Production Runtime Dependency Pack Publication - Implementation
 **What**: Generate, verify, and commit the current production runtime dependency pack with `plugins/desk/mcp/node_modules` absent from the launch fixture, no network, no `npm install`, no bundled server source, and no plugin-source mutation. Record exact commands, manifest/checksum, package-lock hash, and platform/arch/ABI.
 **Output**: Production files under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Unit 6g tests pass, generated runtime dependency pack artifacts are committed, and the dependency pack can support a runtime-cache current-source mirror without `plugins/desk/mcp/node_modules`.
