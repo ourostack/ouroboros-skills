@@ -427,7 +427,7 @@ function inferRuntimeFilesForDependency(dependency) {
 function runtimeFilesUnderPackageDir(packageDir, startDir) {
   const runtimeFiles = []
   for (const entry of readdirSync(startDir, { withFileTypes: true })) {
-    if (entry.name.startsWith(".") || ["test", "tests", "docs", "examples", "benchmark"].includes(entry.name)) {
+    if (entry.name.startsWith(".") || ["test", "tests", "docs", "examples", "benchmark", "node_modules"].includes(entry.name)) {
       continue
     }
     const entryPath = path.join(startDir, entry.name)

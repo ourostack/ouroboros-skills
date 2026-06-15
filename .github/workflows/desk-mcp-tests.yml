@@ -12,6 +12,9 @@ on:
   pull_request:
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
       - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
   push:
@@ -19,6 +22,9 @@ on:
       - main
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
       - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
 
@@ -49,3 +55,11 @@ jobs:
       - name: Run desk MCP coverage gate
         working-directory: plugins/desk/mcp
         run: npm run test:coverage
+
+      - name: Build runtime dependency pack
+        working-directory: plugins/desk/mcp
+        run: npm run runtime:deps-pack:build
+
+      - name: Verify runtime dependency pack
+        working-directory: plugins/desk/mcp
+        run: npm run runtime:deps-pack:verify
