@@ -141,9 +141,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [x] 100% test coverage on all new code
-- [x] All tests pass
-- [x] No warnings
+- [ ] 100% test coverage on all new code
+- [ ] All tests pass
+- [ ] No warnings
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**
@@ -264,7 +264,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened support-matrix validation.  
 **Acceptance**: 100% coverage on new support-matrix code and all support-matrix tests pass.
 
-### ⬜ Unit 4a: Claude And Work Suite Packaging - Tests
+### ✅ Unit 4a: Claude And Work Suite Packaging - Tests
 **What**: Write failing tests for Claude plugin metadata, Work Suite dependency declaration when host metadata supports it, Agent View/background-session support disposition, manifest version consistency, and permission/capability boundaries.  
 **Output**: `plugins/desk/mcp/__tests__/activation/claude_packaging.test.js`.  
 **Acceptance**: Tests fail on missing or stale Claude/Work Suite dependency and support metadata.
@@ -777,3 +777,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 19:09 Unit 3b cold reviewer gate converged; Kuhn verified npm-prefix generator reproducibility, generated artifact freshness, all five host dispositions, scoped validation, 100% support-matrix coverage, clean diff check, and accurate no-build-script evidence
 - 2026-06-14 19:13 Unit 3c complete: added edge-case coverage for unknown support hosts, missing required evidence rows, unsupported primitive values, and native-or-flattened/transitive-dependency conflicts in `c39457a`, then hardened `plugins/desk/mcp/src/activation/support-matrix.js` in `30b4b9b`; saved `unit-3c-support-matrix-red.log`, `unit-3c-support-matrix-green.log`, `unit-3c-test-coverage-green.log`, `unit-3c-npm-test-green.log`, `unit-3c-validate-skills-green.log`, and `unit-3c-build-unavailable.log`; verified targeted support-matrix tests, 100% coverage for support-matrix code, full MCP tests, skill validation, no build script available, and `git diff --check`
 - 2026-06-14 19:17 Unit 3c cold reviewer gate converged; Gauss verified the unknown-host, missing-required-row, unsupported-primitive, and native-or-flattened conflict coverage, support-matrix validation behavior, 100% coverage evidence, passing support-matrix/full-suite logs, and justified doing-doc checklist updates
+- 2026-06-14 19:21 Unit 4a complete: added Claude/Work Suite packaging red tests in `47aa564`; targeted red run saved to `unit-4a-claude-packaging-red.log` and fails on missing explicit Claude component metadata, native Work Suite dependency/provider metadata, worker Agent View/background-session disposition, and Claude permission-boundary metadata; terminal green criteria intentionally unchecked until Unit 4b makes the new tests pass
