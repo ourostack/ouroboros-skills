@@ -104,8 +104,9 @@ export async function rebuildIndex(deskRoot, opts = {}) {
 
     // Per doc: upsert docs row and replace chunks. Vectors are imported from
     // committed packs first, then live-generated only for remaining gaps.
+    const reindexedDocIds = []
     for (const doc of toReindex) {
-      indexOneDoc(db, doc, summary)
+      reindexedDocIds.push(indexOneDoc(db, doc, summary))
       summary.docs_indexed += 1
     }
 
@@ -117,7 +118,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     }
 
     if (!opts.skipEmbed) {
-      await embedMissingVectors(db, opts, summary)
+      await embedMissingVectors(db, opts, summary, reindexedDocIds)
     }
 
     // Refs graph — recompute from scratch each pass. Cheap (just a table
@@ -292,20 +293,24 @@ function indexOneDoc(db, doc, summary) {
       )
       summary.chunks_inserted += 1
     }
+    return docId
   })
-  txn()
+  return txn()
 }
 
-async function embedMissingVectors(db, opts, summary) {
+async function embedMissingVectors(db, opts, summary, docIds) {
+  if (docIds.length === 0) return
+  const placeholders = docIds.map(() => "?").join(", ")
   const missing = db
     .prepare(
       `SELECT c.id, c.text
        FROM chunks c
        LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
        WHERE v.chunk_id IS NULL
+         AND c.doc_id IN (${placeholders})
        ORDER BY c.id`,
     )
-    .all()
+    .all(...docIds)
   if (missing.length === 0) return
 
   const embeddings = await embedChunks(

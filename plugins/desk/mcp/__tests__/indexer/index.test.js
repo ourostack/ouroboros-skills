@@ -473,3 +473,37 @@ test("ollama-down soft-fail still populates FTS chunks", async () => {
     closeDb(db)
   }
 })
+
+test("unchanged lexical-only docs do not live-embed unless reembedMissing is enabled", async () => {
+  const root = await mkRoot()
+  await w(root, "trackA/t1/task.md", "---\nstatus: processing\n---\nlexical-only body")
+
+  const failingFetch = async () => {
+    const error = new Error("ECONNREFUSED")
+    error.code = "ECONNREFUSED"
+    throw error
+  }
+  const first = await rebuildIndex(root, { embed: { fetch: failingFetch } })
+  assert.equal(first.docs_indexed, 1)
+  assert.equal(first.semantic_warnings, 1)
+
+  let calls = 0
+  const okFetch = async () => {
+    calls += 1
+    const vec = Array.from({ length: 768 }, (_, i) => (i % 13) / 768)
+    return { ok: true, json: async () => ({ embedding: vec }) }
+  }
+  const second = await rebuildIndex(root, { embed: { fetch: okFetch } })
+  assert.equal(second.docs_indexed, 0)
+  assert.equal(second.docs_skipped, 1)
+  assert.equal(second.semantic_warnings, 0)
+  assert.equal(calls, 0)
+
+  const db = openDb(root)
+  try {
+    const vecCount = db.prepare("SELECT count(*) AS c FROM chunk_vecs").get().c
+    assert.equal(vecCount, 0)
+  } finally {
+    closeDb(db)
+  }
+})
