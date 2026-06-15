@@ -20,6 +20,7 @@ const UNSUPPORTED_PRIMITIVES = new Set([
   "agent-defaults",
   "agent-view-dispatch",
   "background-session-inheritance",
+  "codex-desktop-scriptable-activation-smoke",
   "host-activation",
   "host-native-plugin-install",
   "plugin-dependency-resolution",

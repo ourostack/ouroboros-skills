@@ -29,12 +29,17 @@
       "source_paths": [
         "plugins/desk/.codex-plugin/plugin.json",
         "plugins/desk/mcp/src/activation/adapters/codex.js",
+        "plugins/desk/mcp/src/activation/codex-smoke.js",
+        "plugins/desk/mcp/__tests__/activation/codex_smoke.test.js",
         "plugins/desk/agents/worker.toml",
-        "plugins/work-suite/.codex-plugin/plugin.json"
+        "plugins/work-suite/.codex-plugin/plugin.json",
+        "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md"
       ],
-      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/codex_activation.test.js",
-      "unsupported_primitives": [],
-      "fallback_behavior": "materialize owned global/project activation artifacts"
+      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/codex_activation.test.js; node --test plugins/desk/mcp/__tests__/activation/codex_smoke.test.js; desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md",
+      "unsupported_primitives": [
+        "codex-desktop-scriptable-activation-smoke"
+      ],
+      "fallback_behavior": "Codex Desktop lacks a stable scriptable activation-smoke primitive; use temp-profile Codex CLI `codex exec --json` smoke plus owned global/project activation artifacts, with experimental app-server protocol evidence as the fallback when Desktop automation is needed"
     },
     {
       "host_id": "copilot-root",

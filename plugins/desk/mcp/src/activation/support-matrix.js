@@ -27,6 +27,7 @@ const UNSUPPORTED_PRIMITIVES = new Set([
   "agent-defaults",
   "agent-view-dispatch",
   "background-session-inheritance",
+  "codex-desktop-scriptable-activation-smoke",
   "host-activation",
   "host-native-plugin-install",
   "plugin-dependency-resolution",
@@ -160,10 +161,7 @@ function splitMarkdownRow(row) {
 }
 
 function splitList(value) {
-  if (value === "none") {
-    return []
-  }
-  return value.split(";").map((item) => item.trim()).filter(Boolean)
+  return value.replace(/^none$/u, "").split(";").map((item) => item.trim()).filter(Boolean)
 }
 
 function sameList(left, right) {

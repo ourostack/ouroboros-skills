@@ -88,13 +88,15 @@
       "host": "codex",
       "status": "supported",
       "dependency_resolution": "flattened",
-      "fallback_behavior": "materialize owned global/project activation artifacts",
+      "fallback_behavior": "Codex Desktop lacks a stable scriptable activation-smoke primitive; use temp-profile Codex CLI `codex exec --json` smoke plus owned global/project activation artifacts, with experimental app-server protocol evidence as the fallback when Desktop automation is needed",
       "capabilities": [
         "skills",
         "mcp",
         "global-default-agent"
       ],
-      "unsupported_primitives": []
+      "unsupported_primitives": [
+        "codex-desktop-scriptable-activation-smoke"
+      ]
     },
     {
       "host": "claude",
