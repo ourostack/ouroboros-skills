@@ -79,7 +79,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
 - [ ] Compatible snapshots are copied into `.state/` before mutation.
 - [ ] Snapshot artifacts live at `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` with adjacent manifest and checksum files.
-- [ ] Snapshot manifest includes artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
+- [x] Snapshot manifest includes artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
 - [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, artifact source-scope/document hashes, included pack IDs, and artifact format.
 - [ ] Snapshot restore treats artifact source-scope or document tree mismatch as freshness information, not compatibility failure.
 - [ ] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
@@ -479,7 +479,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/snapshots/manifest.test.js`.
 **Acceptance**: Tests fail until snapshot manifest parsing and validation exists.
 
-### 🔄 Unit 15b: Snapshot Manifest And Validation - Implementation
+### ✅ Unit 15b: Snapshot Manifest And Validation - Implementation
 **What**: Implement snapshot manifest parser and validation for `plugins/desk/artifacts/snapshots/`. Treat schema/spec/runtime/path failures as compatibility failures.
 **Output**: `plugins/desk/mcp/src/snapshots/manifest.js`, `plugins/desk/artifacts/snapshots/README.md`, and fixtures.
 **Acceptance**: Unit 15a tests pass and invalid manifests fail with non-leaking diagnostics.
@@ -949,3 +949,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 12:46 Unit 15a started for snapshot manifest/path/compatibility/checksum validation red tests.
 - 2026-06-15 12:53 Unit 15a complete: `7897c38` added snapshot manifest red tests for canonical snapshot paths, manifest/checksum sidecars, embedding/chunker/DB/sqlite-vec/runtime compatibility, artifact/source/document hashes, included pack IDs, creation timestamp, provenance, freshness-vs-compatibility semantics, and source-path safety. Poincare the 2nd found a MAJOR missing `normalization_id` drift assertion and a MINOR missing-field/provenance-subfield gap; `3b1ec97` added those regressions and refreshed `unit-15a-snapshot-manifest-red.log`, which still fails only because `plugins/desk/mcp/src/snapshots/manifest.js` is missing. Parfit the 2nd converged on the fixed red contract.
 - 2026-06-15 12:55 Unit 15b started for snapshot manifest parsing and validation implementation.
+- 2026-06-15 13:14 Unit 15b complete: `88e09f7` added canonical snapshot path derivation, snapshot artifact/manifest/checksum validation, freshness reporting for source/document hashes, snapshot source-path allowlist checks, artifact filename binding, and `plugins/desk/artifacts/snapshots/README.md`. Rawls the 2nd found a BLOCKER for embedded Windows host-path fragments in `source_paths`, a MAJOR leaking unexpected-path diagnostic, and a MINOR loose timestamp parser; `8f02639` fixed all three with regressions and refreshed `unit-15b-review-fix-*` evidence. Boole the 2nd converged on Round 2. Final evidence: manifest tests pass 11/11, full MCP tests pass 462/462, coverage is 100% line/branch/function for changed production files, runtime-pack/generated-artifact/support-matrix/skill/diff checks pass, and build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script.
