@@ -56,32 +56,35 @@
     {
       "host_id": "ouroboros-autonomous-agent",
       "surface": "Ouroboros/autonomous-agent bundle wiring",
-      "disposition": "planned-bundle",
+      "disposition": "supported-flattened",
       "source_paths": [
         "plugins/desk/README.md",
-        "plugins/desk/mcp/README.md",
-        "plugins/desk/docs/dependency-activation-stories-and-criteria.md"
+        "plugins/desk/activation/README.md",
+        "plugins/desk/.mcp.json",
+        "plugins/desk/plugin.json",
+        "plugins/work-suite/plugin.json"
       ],
-      "evidence_command_or_doc": "Unit 6 packaging tests will validate bundle disposition and DESK binding docs",
+      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js; plugins/desk/README.md#under-ouroboros; plugins/desk/activation/README.md#ouroboros-autonomous-agent",
       "unsupported_primitives": [
         "host-native-plugin-install"
       ],
-      "fallback_behavior": "provide explicit bundle wiring docs and stdio MCP root binding"
+      "fallback_behavior": "bundle Desk + Work Suite into the agent bundle and bind $DESK to ~/AgentBundles/<agent>.ouro/desk/"
     },
     {
       "host_id": "generic-stdio",
       "surface": "Generic stdio MCP launch",
-      "disposition": "degraded-manual-host",
+      "disposition": "degraded-mcp-only",
       "source_paths": [
         "plugins/desk/.mcp.json",
         "plugins/desk/mcp/README.md",
-        "plugins/desk/activation/desk.activation.json"
+        "plugins/desk/activation/README.md"
       ],
-      "evidence_command_or_doc": "plugins/desk/activation/desk.activation.json host_support row for generic-stdio",
+      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js; plugins/desk/mcp/README.md#generic-stdio-mcp-launch; plugins/desk/activation/README.md#generic-stdio",
       "unsupported_primitives": [
-        "agent-defaults"
+        "agent-defaults",
+        "plugin-dependency-resolution"
       ],
-      "fallback_behavior": "start MCP with explicit root and no worker activation"
+      "fallback_behavior": "start MCP with explicit --root or DESK and no worker activation"
     }
   ]
 }

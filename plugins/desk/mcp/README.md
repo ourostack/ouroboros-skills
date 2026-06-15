@@ -48,7 +48,25 @@ The plugin's sibling `.mcp.json` (at `plugins/desk/.mcp.json`) declares the spaw
 }
 ```
 
-Claude Code reads this natively. Copilot CLI inherits the same spec. The ouroboros daemon reads `.mcp.json` from plugin manifests in a forthcoming release.
+Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
+
+## Generic stdio MCP launch
+
+Generic stdio hosts can launch Desk as an MCP-only server, but generic stdio does not activate `worker` and does not resolve plugin dependencies for Work Suite.
+
+Bind the root explicitly:
+
+```sh
+DESK=~/desk node /path/to/plugins/desk/mcp/index.js --root "$DESK"
+```
+
+If the host cannot pass environment variables, pass the same concrete path directly:
+
+```sh
+node /path/to/plugins/desk/mcp/index.js --root ~/desk
+```
+
+This path provides MCP tools only; there is no worker activation, default agent preamble, or plugin dependency closure.
 
 ## Dependencies
 

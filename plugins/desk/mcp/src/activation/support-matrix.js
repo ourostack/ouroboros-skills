@@ -29,6 +29,7 @@ const UNSUPPORTED_PRIMITIVES = new Set([
   "background-session-inheritance",
   "host-activation",
   "host-native-plugin-install",
+  "plugin-dependency-resolution",
   "transitive-dependency-resolution",
 ])
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))

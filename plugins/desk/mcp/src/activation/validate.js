@@ -21,6 +21,9 @@ const UNSUPPORTED_PRIMITIVES = new Set([
   "agent-view-dispatch",
   "background-session-inheritance",
   "host-activation",
+  "host-native-plugin-install",
+  "plugin-dependency-resolution",
+  "transitive-dependency-resolution",
 ])
 const REQUESTED_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const GENERATED_ARTIFACTS = new Set(["owned-host-config", "activation-ledger"])

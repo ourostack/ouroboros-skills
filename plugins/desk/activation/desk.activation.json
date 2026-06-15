@@ -113,15 +113,30 @@
       ]
     },
     {
+      "host": "ouroboros-autonomous-agent",
+      "status": "supported",
+      "dependency_resolution": "flattened",
+      "fallback_behavior": "bundle Desk + Work Suite into the agent bundle and bind $DESK to ~/AgentBundles/<agent>.ouro/desk/",
+      "capabilities": [
+        "agents",
+        "skills",
+        "mcp"
+      ],
+      "unsupported_primitives": [
+        "host-native-plugin-install"
+      ]
+    },
+    {
       "host": "generic-stdio",
       "status": "degraded",
       "dependency_resolution": "manual-host",
-      "fallback_behavior": "start MCP with explicit root and no worker activation",
+      "fallback_behavior": "start MCP with explicit --root or DESK and no worker activation",
       "capabilities": [
         "mcp"
       ],
       "unsupported_primitives": [
-        "agent-defaults"
+        "agent-defaults",
+        "plugin-dependency-resolution"
       ]
     }
   ],

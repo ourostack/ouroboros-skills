@@ -23,3 +23,17 @@ The manifest is intentionally declarative. Host adapters flatten it into native 
 Host adapters may flatten this manifest into their native plugin/config surfaces, but generated artifacts must remain owned and removable without deleting desk-root data.
 
 The manifest is not a user-facing CLI contract. Healthy activation should be host-native: no manual MCP registration, copied worker files, or hand-edited JSON/TOML on the happy path.
+
+## Ouroboros Autonomous Agent
+
+Disposition: `supported-flattened`.
+
+Ouroboros/autonomous-agent bundles do not provide host-native-plugin-install for Desk as an independently installed substrate. The supported path is to bundle Desk + Work Suite into the agent bundle and bind `$DESK` to `~/AgentBundles/<agent>.ouro/desk/` in the agent preamble.
+
+The bundle owns the agent, skills, and MCP surfaces together. Desk still reads and writes durable workspace data only through the bound `$DESK` root.
+
+## Generic Stdio
+
+Disposition: `degraded-mcp-only`.
+
+Generic stdio hosts can start the Desk MCP server, but they do not provide agent-defaults or plugin-dependency-resolution. Start the MCP with explicit --root or DESK and no worker activation. A separate host or overlay must provide any agent identity and Work Suite dependency closure.

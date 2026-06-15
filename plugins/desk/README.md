@@ -28,6 +28,24 @@ ouro plugin install ourostack/ouroboros-skills:plugins/desk --agent <agent-name>
 
 The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declares `Your desk: ~/AgentBundles/<agent>.ouro/desk/`.
 
+Ouroboros treats Desk as bundled substrate instead of a separate user setup step. The agent bundle carries Desk and Work Suite together:
+
+```json
+{
+  "plugins": [
+    "desk",
+    "work-suite"
+  ]
+}
+```
+
+The agent preamble binds the placeholder to a concrete workspace path:
+
+```text
+$DESK = ~/AgentBundles/<agent>.ouro/desk/
+Your desk: ~/AgentBundles/<agent>.ouro/desk/
+```
+
 ### Under Claude Code
 
 The `ourostack/ouroboros-skills` repo ships a Claude Code marketplace manifest at `.claude-plugin/marketplace.json`, so installation is two slash commands inside a Claude Code session:
