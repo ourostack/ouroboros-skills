@@ -12,11 +12,13 @@ import {
 import * as os from "node:os"
 import * as path from "node:path"
 import { pathToFileURL } from "node:url"
+import { isDeepStrictEqual } from "node:util"
 import { gunzipSync } from "node:zlib"
 import { deriveRuntimeDependencyPackPaths } from "./runtime-deps.js"
 
 const cacheMarkerFile = ".desk-runtime-cache.json"
 const sourceMirrorDir = "source-mirror"
+const embeddedArchiveShaMarker = "<archive-sha256-recorded-in-sidecar>"
 
 export async function importRuntimeServer({
   mcpRoot,
@@ -228,11 +230,18 @@ export function verifyBootstrapRuntimeDependencyPack({
     const archivePackageJson = parseArchiveJson(archiveEntries.get("package.json"), "package.json", errors)
     const archivePackageLock = archiveEntries.get("package-lock.json")
     parseArchiveJson(archivePackageLock, "package-lock.json", errors)
-    parseArchiveJson(archiveEntries.get("runtime-deps.manifest.json"), "runtime-deps.manifest.json", errors)
+    const archiveManifest = parseArchiveJson(
+      archiveEntries.get("runtime-deps.manifest.json"),
+      "runtime-deps.manifest.json",
+      errors,
+    )
     if (archivePackageJson !== undefined) {
       if (archivePackageJson.name !== manifest.plugin?.name || archivePackageJson.version !== manifest.plugin?.version) {
         errors.push("runtime dependency archive package.json must match sidecar manifest plugin metadata")
       }
+    }
+    if (archiveManifest !== undefined && !isDeepStrictEqual(archiveManifest, embeddedManifestForArchive(manifest))) {
+      errors.push("runtime dependency archive embedded manifest must match sidecar manifest metadata")
     }
     if (archivePackageLock !== undefined && sha256(archivePackageLock) !== manifest.package_lock?.sha256) {
       errors.push("runtime dependency archive package-lock.json sha256 must match sidecar manifest")
@@ -544,6 +553,14 @@ function parseArchiveJson(bytes, entry, errors) {
     errors.push(`runtime dependency archive ${entry} must be valid JSON`)
     return undefined
   }
+}
+
+function embeddedManifestForArchive(manifest) {
+  const embeddedManifest = structuredClone(manifest)
+  if (embeddedManifest.archive !== undefined && typeof embeddedManifest.archive === "object") {
+    embeddedManifest.archive.sha256 = embeddedArchiveShaMarker
+  }
+  return embeddedManifest
 }
 
 function hasText(value) {

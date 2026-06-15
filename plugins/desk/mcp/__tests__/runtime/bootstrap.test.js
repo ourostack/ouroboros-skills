@@ -21,6 +21,7 @@ const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const fixturePlatform = "unit-os"
 const fixtureArch = "unit-arch"
 const fixtureNodeAbi = "999"
+const embeddedArchiveShaMarker = "<archive-sha256-recorded-in-sidecar>"
 
 async function loadBootstrap() {
   return import(pathToFileURL(path.join(mcpRoot, "src", "runtime", "bootstrap.js")))
@@ -121,18 +122,6 @@ async function writeRuntimePack({
     arch,
     nodeAbi,
   })
-  const provisionalArchiveBytes = archiveBytes ?? createTarGz(
-    archiveEntries,
-    {
-      "package.json": readFileSync(path.join(fixtureMcpRoot, "package.json")),
-      "package-lock.json": readFileSync(packageLockPath),
-      "runtime-deps.manifest.json": Buffer.from("{}\n", "utf8"),
-      "node_modules/fixture-package/package.json": Buffer.from('{"name":"fixture-package"}\n', "utf8"),
-      ...archiveEntryBytes,
-    },
-    headerModes,
-  )
-  const archiveSha = sha256(provisionalArchiveBytes)
   const manifest = {
     schema_version: 1,
     created_at: "2026-06-15T00:00:00.000Z",
@@ -152,7 +141,7 @@ async function writeRuntimePack({
     },
     archive: {
       file: "runtime-deps.tgz",
-      sha256: archiveSha,
+      sha256: "0".repeat(64),
       root_entries: ["node_modules/", "package.json", "package-lock.json", "runtime-deps.manifest.json"],
       contains_server_source: false,
     },
@@ -163,6 +152,19 @@ async function writeRuntimePack({
     },
   }
   manifestMutator?.(manifest)
+  const provisionalArchiveBytes = archiveBytes ?? createTarGz(
+    archiveEntries,
+    {
+      "package.json": readFileSync(path.join(fixtureMcpRoot, "package.json")),
+      "package-lock.json": readFileSync(packageLockPath),
+      "runtime-deps.manifest.json": Buffer.from(JSON.stringify(embeddedManifestForArchive(manifest), null, 2), "utf8"),
+      "node_modules/fixture-package/package.json": Buffer.from('{"name":"fixture-package"}\n', "utf8"),
+      ...archiveEntryBytes,
+    },
+    headerModes,
+  )
+  const archiveSha = sha256(provisionalArchiveBytes)
+  manifest.archive.sha256 = archiveSha
   mkdirSync(packPaths.packDir, { recursive: true })
   writeFileSync(packPaths.archivePath, provisionalArchiveBytes)
   writeText(packPaths.checksumPath, `${checksum ?? archiveSha}  runtime-deps.tgz\n`)
@@ -216,6 +218,12 @@ function createTarGz(entries, entryBytes = {}, headerModes = {}) {
   }
   blocks.push(Buffer.alloc(1024))
   return gzipSync(Buffer.concat(blocks))
+}
+
+function embeddedManifestForArchive(manifest) {
+  const embeddedManifest = structuredClone(manifest)
+  embeddedManifest.archive.sha256 = embeddedArchiveShaMarker
+  return embeddedManifest
 }
 
 function appendTarEntry(blocks, { blankSize = false, name, prefix = "", body, type = "0" }) {
@@ -719,6 +727,27 @@ test("bootstrap pack verifier rejects missing metadata, drift, corrupt archives,
           })
         },
         pattern: /archive package\.json must match sidecar manifest plugin metadata/u,
+      },
+      {
+        name: "archive embedded manifest drift",
+        rewrite: async () => {
+          await writeRuntimePack({
+            mcpRoot: fixture.mcpRoot,
+            archiveEntryBytes: {
+              "runtime-deps.manifest.json": Buffer.from(JSON.stringify({
+                schema_version: 1,
+                plugin: {
+                  name: "wrong",
+                  version: "0.0.0",
+                },
+                archive: {
+                  sha256: embeddedArchiveShaMarker,
+                },
+              }, null, 2), "utf8"),
+            },
+          })
+        },
+        pattern: /archive embedded manifest must match sidecar manifest metadata/u,
       },
       {
         name: "archive bundles mutable source",
