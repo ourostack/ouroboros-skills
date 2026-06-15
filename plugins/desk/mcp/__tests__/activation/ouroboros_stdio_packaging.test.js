@@ -571,6 +571,66 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
   )
 })
 
+test("generic stdio packaging validation rejects identifier and support-verb claim variants", () => {
+  const backtickedWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  backtickedWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio loads `work-suite` automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(backtickedWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const dependencyPrimitive = clone(currentOuroborosStdioPackagingInput())
+  dependencyPrimitive.genericStdioReadmeSection +=
+    "\nGeneric stdio resolves plugin-dependency-resolution automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(dependencyPrimitive),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const agentDefaults = clone(currentOuroborosStdioPackagingInput())
+  agentDefaults.genericStdioReadmeSection +=
+    "\nGeneric stdio loads `agent-defaults` automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(agentDefaults),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const supportWorker = clone(currentOuroborosStdioPackagingInput())
+  supportWorker.genericStdioReadmeSection +=
+    "\nGeneric stdio supports desk:worker with no manual setup.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportWorker),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const supportWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  supportWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio supports Work Suite without requiring a plugin installer.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const activationReadmeIdentifierClaim = clone(currentOuroborosStdioPackagingInput())
+  activationReadmeIdentifierClaim.genericStdioActivationSection +=
+    "\nGeneric stdio loads `work-suite` automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(activationReadmeIdentifierClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+})
+
+test("generic stdio packaging validation permits neither/nor negative support wording", () => {
+  const neitherNorNegative = clone(currentOuroborosStdioPackagingInput())
+  neitherNorNegative.genericStdioReadmeSection +=
+    "\nGeneric stdio neither activates worker nor resolves plugin dependencies.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(neitherNorNegative),
+    [],
+  )
+})
+
 test("generic stdio packaging validation rejects host dependency support claims", () => {
   const genericDependencyClaim = clone(currentOuroborosStdioPackagingInput())
   const genericHost = findByField(
