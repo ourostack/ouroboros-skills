@@ -8,6 +8,7 @@ import { existsSync } from "node:fs"
 import { closeDb, indexDbPath, openDb } from "./db/init.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
+import { ACTIVE_EMBEDDING_SPEC } from "./indexer/spec.js"
 
 /**
  * Bring the on-disk index up to date for `deskRoot`. Idempotent: when the
@@ -67,7 +68,18 @@ export async function ensureIndex(deskRoot, opts = {}) {
 
 export function getSemanticCoverage(db) {
   const chunks = db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n
-  const vectors = db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n
+  const vectors = db.prepare(
+    `SELECT COUNT(*) AS n
+     FROM chunks c
+     JOIN chunk_vecs v ON v.chunk_id = c.id
+     WHERE c.embedding_spec_id = ?
+       AND c.chunker_id = ?
+       AND c.normalization_id = ?`,
+  ).get(
+    ACTIVE_EMBEDDING_SPEC.id,
+    ACTIVE_EMBEDDING_SPEC.chunker_id,
+    ACTIVE_EMBEDDING_SPEC.normalization_id,
+  ).n
   return {
     chunks_total: chunks,
     vectors_indexed: vectors,

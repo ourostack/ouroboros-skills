@@ -3,19 +3,22 @@ import { fileURLToPath } from "node:url"
 import * as path from "node:path"
 import Database from "better-sqlite3"
 import * as sqliteVec from "sqlite-vec"
-import { EMBEDDING_DIM, resolveEmbeddingModel } from "../indexer/embed.js"
 import { indexDbPath } from "../db/init.js"
+import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 
 const packageJson = JSON.parse(
   readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
 )
 const DB_SCHEMA = { id: "desk-index", version: 1 }
 const EMBEDDING_SPEC = {
-  id: "ollama:nomic-embed-text:768",
+  id: ACTIVE_EMBEDDING_SPEC.id,
   provider: "ollama",
-  model: resolveEmbeddingModel({}),
-  dimensions: EMBEDDING_DIM,
+  model: ACTIVE_EMBEDDING_SPEC.model,
+  model_revision: ACTIVE_EMBEDDING_SPEC.model_revision,
+  dimensions: ACTIVE_EMBEDDING_SPEC.dimension,
   encoding: "float32",
+  chunker_id: ACTIVE_EMBEDDING_SPEC.chunker_id,
+  normalization_id: ACTIVE_EMBEDDING_SPEC.normalization_id,
 }
 
 export async function desk_status({ deskRoot, statusContext = {} }) {
@@ -58,7 +61,10 @@ function inspectLocalDb(deskRoot) {
     const vectorsTableExists = tableExists(db, "chunk_vecs")
     const lexicalAvailable = tableExists(db, "chunks_fts")
     const chunksTotal = chunksTableExists ? countRows(db, "chunks") : 0
-    const vectorsIndexed = vectorsTableExists ? countRows(db, "chunk_vecs") : 0
+    const vectorsIndexed = countActiveVectors(db, {
+      chunksTableExists,
+      vectorsTableExists,
+    })
     const missingVectors = Math.max(0, chunksTotal - vectorsIndexed)
     const freshness = inspectFreshness(deskRoot, db)
     return {
@@ -216,6 +222,34 @@ function countRows(db, table) {
 
 function tableExists(db, table) {
   return db.prepare("SELECT 1 AS found FROM sqlite_master WHERE name = ?").get(table) !== undefined
+}
+
+function tableHasColumns(db, table, columns) {
+  const names = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name))
+  return columns.every((column) => names.has(column))
+}
+
+function countActiveVectors(db, { chunksTableExists, vectorsTableExists }) {
+  if (!chunksTableExists || !vectorsTableExists) return 0
+  if (!tableHasColumns(db, "chunks", [
+    "embedding_spec_id",
+    "chunker_id",
+    "normalization_id",
+  ])) {
+    return 0
+  }
+  return db.prepare(
+    `SELECT COUNT(*) AS count
+     FROM chunks c
+     JOIN chunk_vecs v ON v.chunk_id = c.id
+     WHERE c.embedding_spec_id = ?
+       AND c.chunker_id = ?
+       AND c.normalization_id = ?`,
+  ).get(
+    ACTIVE_EMBEDDING_SPEC.id,
+    ACTIVE_EMBEDDING_SPEC.chunker_id,
+    ACTIVE_EMBEDDING_SPEC.normalization_id,
+  ).count
 }
 
 function metaValue(db, key) {

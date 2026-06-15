@@ -1,0 +1,131 @@
+TAP version 13
+# Subtest: desk_reindex — empty bundle returns ok with built=true and zero docs
+ok 1 - desk_reindex — empty bundle returns ok with built=true and zero docs
+  ---
+  duration_ms: 22.850834
+  type: 'test'
+  ...
+# Subtest: desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+ok 2 - desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+  ---
+  duration_ms: 11.485041
+  type: 'test'
+  ...
+# Subtest: desk_reindex — second call without force returns built=false reason=fresh
+ok 3 - desk_reindex — second call without force returns built=false reason=fresh
+  ---
+  duration_ms: 11.162042
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+ok 4 - desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+  ---
+  duration_ms: 38.788833
+  type: 'test'
+  ...
+# Subtest: desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+ok 5 - desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+  ---
+  duration_ms: 46.723792
+  type: 'test'
+  ...
+# Subtest: desk_reindex — stale lexical-only indexes repair through default embedding options
+ok 6 - desk_reindex — stale lexical-only indexes repair through default embedding options
+  ---
+  duration_ms: 30.899666
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true drops the DB and rebuilds from scratch
+ok 7 - desk_reindex — force:true drops the DB and rebuilds from scratch
+  ---
+  duration_ms: 12.669541
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true on a fresh root with no DB still succeeds
+ok 8 - desk_reindex — force:true on a fresh root with no DB still succeeds
+  ---
+  duration_ms: 5.057791
+  type: 'test'
+  ...
+# Subtest: desk_status is registered with a session-start-safe description
+ok 9 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 1.256208
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 10 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 6.124792
+  type: 'test'
+  ...
+# Subtest: desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+ok 11 - desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+  ---
+  duration_ms: 13.013292
+  type: 'test'
+  ...
+# Subtest: desk_status reports fresh and unknown freshness states without repair work
+ok 12 - desk_status reports fresh and unknown freshness states without repair work
+  ---
+  duration_ms: 22.565625
+  type: 'test'
+  ...
+# Subtest: desk_status reports no desk root without trying to inspect a local DB
+ok 13 - desk_status reports no desk root without trying to inspect a local DB
+  ---
+  duration_ms: 0.271583
+  type: 'test'
+  ...
+# Subtest: desk_status sanitizes malformed root context and reports nonexistent roots
+ok 14 - desk_status sanitizes malformed root context and reports nonexistent roots
+  ---
+  duration_ms: 1.750875
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 15 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 7.026666
+  type: 'test'
+  ...
+# Subtest: desk_status leaves query embedding unprobed even when the endpoint is unavailable
+ok 16 - desk_status leaves query embedding unprobed even when the endpoint is unavailable
+  ---
+  duration_ms: 0.959
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 17 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 7.43275
+  type: 'test'
+  ...
+# Subtest: desk_status reports vector coverage against the active embedding spec
+ok 18 - desk_status reports vector coverage against the active embedding spec
+  ---
+  duration_ms: 21.322375
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 19 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 3.765709
+  type: 'test'
+  ...
+# Subtest: desk_status tolerates an existing DB with missing index tables
+ok 20 - desk_status tolerates an existing DB with missing index tables
+  ---
+  duration_ms: 1.76925
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 347.841458

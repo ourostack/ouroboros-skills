@@ -15,6 +15,7 @@ import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { closeDb, indexDbPath, openDb, setMeta } from "../../src/db/init.js"
+import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { callTool, TOOL_IMPLS } from "../../src/server.js"
 import { TOOL_DESCRIPTIONS, TOOL_NAMES } from "../../src/tool-names.js"
 
@@ -85,6 +86,13 @@ test("desk_status reports root, runtime, missing DB, and deferred repair state w
     assert.equal(body.lexical_index.available, false)
     assert.equal(body.document_vectors.state, "missing_local_db")
     assert.equal(body.query_embedding.available, "not_checked")
+    assert.equal(body.active_embedding_spec.id, ACTIVE_EMBEDDING_SPEC.id)
+    assert.equal(body.active_embedding_spec.model, ACTIVE_EMBEDDING_SPEC.model)
+    assert.equal(body.active_embedding_spec.model_revision, ACTIVE_EMBEDDING_SPEC.model_revision)
+    assert.equal(body.active_embedding_spec.dimensions, ACTIVE_EMBEDDING_SPEC.dimension)
+    assert.equal(body.active_embedding_spec.chunker_id, ACTIVE_EMBEDDING_SPEC.chunker_id)
+    assert.equal(body.active_embedding_spec.normalization_id, ACTIVE_EMBEDDING_SPEC.normalization_id)
+    assert.doesNotMatch(body.active_embedding_spec.id, /[\\/: \t\r\n]/u)
     assert.equal(body.snapshots.restore_state, "not_checked")
     assert.equal(body.snapshots.module_state, "not_installed")
     assert.equal(body.vector_packs.import_state, "not_checked")
@@ -297,7 +305,7 @@ test("desk_status leaves query embedding unprobed even when the endpoint is unav
     }))
 
     assert.equal(body.query_embedding.available, "not_checked")
-    assert.equal(body.query_embedding.spec_id, "ollama:nomic-embed-text:768")
+    assert.equal(body.query_embedding.spec_id, ACTIVE_EMBEDDING_SPEC.id)
     assert.match(body.query_embedding.note, /does not probe/u)
     assert.equal(fetchCalls, 0)
   } finally {
@@ -343,6 +351,71 @@ test("desk_status defaults unknown startup context and reports partial vector co
     assert.equal(body.document_vectors.vectors_indexed, 0)
     assert.equal(body.document_vectors.missing_vectors, 1)
     assert.equal(body.document_vectors.coverage, 0)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports vector coverage against the active embedding spec", async () => {
+  const root = makeRoot()
+  try {
+    const db = openDb(root)
+    try {
+      const docId = db.prepare(
+        `INSERT INTO docs (path, kind, hash, mtime, frontmatter)
+         VALUES ('notes.md', 'other', 'abc', 1, '{}')
+         RETURNING id`,
+      ).get().id
+      const activeChunkId = db.prepare(
+        `INSERT INTO chunks (
+           doc_id,
+           chunk_index,
+           chunk_key,
+           text_hash,
+           embedding_spec_id,
+           chunker_id,
+           normalization_id,
+           text
+         )
+         VALUES (?, 0, 'ck_active', 'sha256:active', ?, ?, ?, 'active text')
+         RETURNING id`,
+      ).get(
+        docId,
+        ACTIVE_EMBEDDING_SPEC.id,
+        ACTIVE_EMBEDDING_SPEC.chunker_id,
+        ACTIVE_EMBEDDING_SPEC.normalization_id,
+      ).id
+      const inactiveChunkId = db.prepare(
+        `INSERT INTO chunks (
+           doc_id,
+           chunk_index,
+           chunk_key,
+           text_hash,
+           embedding_spec_id,
+           chunker_id,
+           normalization_id,
+           text
+         )
+         VALUES (?, 1, 'ck_inactive', 'sha256:inactive', 'old-spec', 'old-chunker', 'old-normalizer', 'inactive text')
+         RETURNING id`,
+      ).get(docId).id
+      const vec = new Float32Array(ACTIVE_EMBEDDING_SPEC.dimension)
+      db.prepare("INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)").run(BigInt(activeChunkId), vec)
+      db.prepare("INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)").run(BigInt(inactiveChunkId), vec)
+    } finally {
+      closeDb(db)
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.document_vectors.chunks_total, 2)
+    assert.equal(body.document_vectors.vectors_indexed, 1)
+    assert.equal(body.document_vectors.missing_vectors, 1)
+    assert.equal(body.document_vectors.coverage, 0.5)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
