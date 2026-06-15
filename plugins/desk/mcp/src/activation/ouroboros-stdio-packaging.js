@@ -215,7 +215,7 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|activating|starts?|started|starting|launches?|launched|launching|loads?|loaded|loading|runs?|running|includes?|included|including|installs?|installed|installing|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
+    action: /\b(?:activates?|activated|activating|starts?|started|starting|launches?|launched|launching|loads?|loaded|loading|runs?|running|includes?|included|including|installs?|installed|installing|preloads?|preloaded|preloading|brings?\s+in|brought\s+in|bringing\s+in|comes?\s+with|came\s+with|coming\s+with|gives?\s+you|gave\s+you|giving\s+you|has|have|had|having|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
     target: /\b(?:desk worker|worker activation|agent defaults?|default agent|worker)\b/u,
   })
 }
@@ -223,7 +223,7 @@ function claimsGenericStdioWorkerActivation(readmeSection) {
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|resolving|loads?|loaded|loading|includes?|included|including|installs?|installed|installing|activates?|activated|activating|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
+    action: /\b(?:resolves?|resolved|resolving|loads?|loaded|loading|includes?|included|including|installs?|installed|installing|preloads?|preloaded|preloading|brings?\s+in|brought\s+in|bringing\s+in|comes?\s+with|came\s+with|coming\s+with|gives?\s+you|gave\s+you|giving\s+you|has|have|had|having|activates?|activated|activating|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
     target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|work suite dependency closure|work suite dependency resolution|work suite dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
@@ -247,6 +247,11 @@ function hasPositiveSupportClaim({ clause, action, target }) {
         actionIndex: actionMatch.index,
         targetIndex: targetMatch.index,
       })
+      && isSupportActionTargetCompatible({
+        clause: normalizedClause,
+        actionMatch,
+        targetMatch,
+      })
       && !isUnsupportedTargetClassification(normalizedClause, targetMatch)
       && !isExternalSupportAssignment({
         clause: normalizedClause,
@@ -263,6 +268,14 @@ function isSupportNounPhrase(clause, actionMatch) {
   const afterAction = clause.slice(actionMatch.index + actionMatch[0].length)
   return /^\s+(?:matrix|matrices|table|tables|row|rows|column|columns|entry|entries|status|evidence|docs?|documentation|section|sections)\b/u
     .test(afterAction)
+}
+
+function isSupportActionTargetCompatible({ clause, actionMatch, targetMatch }) {
+  if (!/^(?:has|have|had|having)$/u.test(actionMatch[0])) {
+    return true
+  }
+  const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
+  return /^\s+built\s+in\b/u.test(afterTarget)
 }
 
 function isExternalSupportAssignment({ clause, targetMatch }) {
