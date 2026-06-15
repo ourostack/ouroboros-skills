@@ -97,7 +97,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Vector-pack import is idempotent and deduplicates repeated chunk keys.
 - [ ] Vector-pack import tolerates multiple append-only pack files.
 - [ ] Runtime ignores inactive-spec vector packs.
-- [ ] Vector-pack compaction preserves semantic equivalence and is tested before being enabled.
+- [x] Vector-pack compaction preserves semantic equivalence and is tested before being enabled.
 - [x] A local DB can be rebuilt from docs plus vector packs with the embedding endpoint disabled when all chunks are covered.
 - [x] Live document embedding generation happens only for chunk keys missing from shared packs.
 - [ ] Ordinary healthy startup never dirties the Git worktree by writing vector packs or snapshots.
@@ -114,7 +114,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] CI validates that deleted/redacted docs are no longer represented in active vector packs or snapshots.
 - [ ] Existing active/archived search scope behavior is preserved after snapshot restore and vector import.
 - [ ] Existing refs graph behavior is preserved after snapshot restore and vector import.
-- [ ] Search responses distinguish semantic, lexical, and hybrid result modes.
+- [x] Search responses distinguish semantic, lexical, and hybrid result modes.
 - [ ] Query embedding failure does not imply document vectors are missing.
 - [ ] Document-vector absence does not prevent lexical search.
 - [x] Manifest version drift between root, Claude, Codex, and Work Suite-related plugin metadata is tested or intentionally documented.
@@ -464,7 +464,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js`.
 **Acceptance**: Tests fail until compaction and preservation checks exist.
 
-### 🔄 Unit 14b: Vector Compaction And Search Preservation - Implementation
+### ✅ Unit 14b: Vector Compaction And Search Preservation - Implementation
 **What**: Implement compaction validation hooks only; do not enable pack rewriting in this unit. Preserve search/ref behavior across import/rebuild/validation and add explicit `result_mode` or `search_mode` fields to search responses.
 **Output**: Vector-pack compaction validation helpers plus updated search/indexer behavior.
 **Acceptance**: Unit 14a tests pass and semantic equivalence checks must pass before any future compaction rewrite can be enabled.
@@ -943,3 +943,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 11:32 Unit 14a complete: added `plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js` red tests for compaction semantic equivalence, duplicate conflict rejection, missing/mutated/extra compacted rows, preservation of active/archived/all search snapshots, refs graph preservation including same-length mutations, and explicit `search_mode` on `desk_search`/`desk_timeline`. Red evidence in `unit-14a-vector-compaction-red.log` fails because `plugins/desk/mcp/src/indexer/vector-compaction.js` does not exist and search/timeline do not yet return `search_mode`.
 - 2026-06-15 11:32 Unit 14a reviewer fixes: Hegel the 2nd found MAJOR gaps around same-key/same-hash/different-vector duplicate conflicts, active/all/ref mutation preservation, and unique rows contributed by later packs. Added red coverage in `unit-14a-review-fix-red.log` and `unit-14a-review-fix2-red.log` for vector-conflicting source duplicates, extra compacted rows, active/all scope drift, same-length refs graph mutation, and multi-pack unique-row preservation. Hegel converged on the cumulative Unit 14a red contract through `78d3916`.
 - 2026-06-15 11:32 Unit 14b started for compaction validation hooks and explicit search-mode metadata.
+- 2026-06-15 12:32 Unit 14b complete: `3497379` added compaction validation hooks without enabling pack rewriting, plus explicit `search_mode` on `desk_search` and `desk_timeline`; Singer the 2nd found a MAJOR false-green preservation comparison for object search rows, fixed in `1198da3` by stable content canonicalization with a regression that would have passed under the old `[object Object]` coercion. Evidence refreshed in `unit-14b-vector-compaction-green.log`, `unit-14b-search-green.log`, `unit-14b-recall-green.log`, `unit-14b-similar-green.log`, `unit-14b-timeline-green.log`, `unit-14b-test-coverage.log`, `unit-14b-npm-test-green.log`, `unit-14b-runtime-pack-verify-green.log`, `unit-14b-generate-support-matrix-green.log`, `unit-14b-generated-artifacts-green.log`, `unit-14b-validate-skills-green.log`, and `unit-14b-diff-check-green.log`; coverage is 100% line/branch/function for changed production files, full MCP tests pass 448/448, build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script, and Jason the 2nd converged on the fixed Unit 14b state.
