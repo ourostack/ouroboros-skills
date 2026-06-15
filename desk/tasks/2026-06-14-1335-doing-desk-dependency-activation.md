@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -524,7 +524,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/tools/status_artifacts.test.js` and extended `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.
 **Acceptance**: Tests fail until full artifact-aware status and offline fallback are wired after Units 11-17.
 
-### 🔄 Unit 17e: Full Status And Offline Fallback - Implementation
+### ✅ Unit 17e: Full Status And Offline Fallback - Implementation
 **What**: Wire snapshot, vector-pack, and embedding-spec modules into `desk_status` and bounded startup fallback without making status run expensive repair work.
 **Output**: Updated `plugins/desk/mcp/src/tools/status.js`, `plugins/desk/mcp/src/server-helpers.js`, and artifact helper integration.
 **Acceptance**: Unit 17d tests pass, full status fields are populated when modules exist, and offline startup falls back through snapshot, vector packs, then lexical indexing.
@@ -968,3 +968,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 15:06 Unit 17d complete: `0a70cd7` added red status/startup contracts in `plugins/desk/mcp/__tests__/tools/status_artifacts.test.js` and `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`. Targeted red evidence in `unit-17d-status-startup-red.log` fails because startup does not yet call bounded `ensureIndex`, does not forward startup fallback context, and `desk_status` still reports snapshot/vector-pack modules as `not_installed`; existing `desk_status` tests still pass 12/12 in `unit-17d-existing-status-green.log`, and `unit-17d-diff-check-green.log` is clean. Terminal `All tests pass` is intentionally unchecked until Unit 17e makes the new status/offline fallback contract green.
 - 2026-06-15 15:06 Unit 17d reviewer fix: Halley the 2nd found MAJOR issues where the existing status baseline still contradicted the new artifact-module contract and startup ordering was not asserted. The fix updates `plugins/desk/mcp/__tests__/tools/status.test.js` to expect installed snapshot/vector-pack modules to report `available` while still `not_checked`, wraps startup `ensureIndex`/`startServer` calls in a shared event log, and saves refreshed red evidence in `unit-17d-review-fix-status-startup-red.log` showing the coherent contract now fails 5/16 for the intended missing implementation; `unit-17d-review-fix-diff-check-green.log` is clean.
 - 2026-06-15 15:10 Unit 17d Round 2 cold reviewer gate converged: Sagan the 2nd verified the module-state contradiction and startup-ordering gaps are fixed, the red contract now fails only for intended missing implementation, and Unit 17e started for artifact-aware `desk_status` and bounded startup fallback implementation.
+- 2026-06-15 15:24 Unit 17e complete: `0ce7f77` wires bounded startup `ensureIndex` before MCP server registration with `skipEmbed: true`, forwards startup fallback evidence into `desk_status`, reports snapshot/vector-pack module availability and restore/import state, distinguishes full/partial/missing document-vector coverage, query embedding availability, lexical availability, startup fallback mode, and degraded modes, and updates the runtime source-mirror smoke to expect lexical startup fallback. Evidence saved in `unit-17e-status-startup-green.log`, `unit-17e-entrypoint-dispatch-green.log`, `unit-17e-dependency-light-entrypoint-green.log`, `unit-17e-status-startup-coverage.log`, `unit-17e-npm-test-green.log`, `unit-17e-test-coverage.log`, `unit-17e-runtime-pack-verify-green.log`, `unit-17e-generate-support-matrix-green.log`, `unit-17e-generated-artifacts-green.log`, `unit-17e-validate-skills-green.log`, `unit-17e-build-unavailable.log`, and `unit-17e-diff-check-green.log`; focused startup/status tests pass 20/20, dependency-light entrypoint tests pass, full MCP tests pass 498/498, coverage is 100% line/branch/function for changed production files, generated-artifact/runtime-pack/skill validation pass, and build remains unavailable because the MCP package has no `build` script.
