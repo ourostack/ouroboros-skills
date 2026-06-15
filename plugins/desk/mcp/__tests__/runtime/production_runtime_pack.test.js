@@ -46,6 +46,128 @@ function gitTracksFile(filePath) {
   return (result.status ?? 1) === 0
 }
 
+function workflowJob(workflow, jobName) {
+  const lines = workflow.split(/\r?\n/u)
+  const jobStart = lines.findIndex((line) => line === `  ${jobName}:`)
+  assert.notEqual(jobStart, -1, `workflow must define job ${jobName}`)
+  const jobEnd = lines.findIndex((line, index) => (
+    index > jobStart
+    && /^  [A-Za-z0-9_-]+:\s*$/u.test(line)
+  ))
+  return lines.slice(jobStart, jobEnd === -1 ? lines.length : jobEnd).join("\n")
+}
+
+function workflowStepBlocks(jobSection) {
+  const blocks = []
+  let currentBlock
+  for (const line of jobSection.split(/\r?\n/u)) {
+    if (/^      - /u.test(line)) {
+      if (currentBlock !== undefined) {
+        blocks.push(currentBlock.join("\n"))
+      }
+      currentBlock = [line]
+      continue
+    }
+    if (currentBlock !== undefined) {
+      currentBlock.push(line)
+    }
+  }
+  if (currentBlock !== undefined) {
+    blocks.push(currentBlock.join("\n"))
+  }
+  return blocks
+}
+
+function workflowStepRunText(stepBlock) {
+  const lines = stepBlock.split(/\r?\n/u)
+  for (let index = 0; index < lines.length; index += 1) {
+    const inline = lines[index].match(/^\s*run:\s+(.+?)\s*$/u)
+    if (inline !== null && inline[1] !== "|" && inline[1] !== ">") {
+      return inline[1]
+    }
+    if (/^\s*run:\s*[|>]\s*$/u.test(lines[index])) {
+      return lines
+        .slice(index + 1)
+        .filter((line) => /^\s{10,}\S/u.test(line))
+        .map((line) => line.replace(/^\s{10}/u, ""))
+        .join("\n")
+    }
+  }
+  return ""
+}
+
+function workflowStepWorkingDirectory(stepBlock) {
+  const match = stepBlock.match(/^\s*working-directory:\s+(.+?)\s*$/mu)
+  return match?.[1]?.replace(/^["']|["']$/gu, "")
+}
+
+function workflowStepAllowsFailure(stepBlock) {
+  const match = stepBlock.match(/^\s*continue-on-error:\s+(.+?)\s*$/mu)
+  return match !== null && !/^["']?false["']?$/iu.test(match[1])
+}
+
+function workflowScriptArgsAreReal(args) {
+  return !/(?:^|\s)--help(?:\s|$)/u.test(args)
+    && !/(?:^|\s)(?:\|\||&&|\||;)(?:\s|$)/u.test(args)
+}
+
+function workflowLineRunsGeneratedArtifactVerifier(line) {
+  const envPrefix = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*`
+  const match = line.match(new RegExp(`^${envPrefix}node\\s+scripts/test-desk-generated-artifacts\\.cjs(?:\\s+(?<args>.*)|$)`, "u"))
+  return match !== null && workflowScriptArgsAreReal(match.groups?.args ?? "")
+}
+
+function workflowLineRunsMcpScript(line, scriptName, { requirePrefix = false } = {}) {
+  const envPrefix = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*`
+  const escapedScriptName = scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+  const prefixPattern = String.raw`npm\s+--prefix\s+plugins/desk/mcp\s+run\s+${escapedScriptName}(?:\s+(?<prefixArgs>.*)|$)`
+  const workingDirPattern = String.raw`npm\s+run\s+${escapedScriptName}(?:\s+(?<workingDirArgs>.*)|$)`
+  const match = line.match(new RegExp(`^${envPrefix}(?:${prefixPattern}${requirePrefix ? "" : `|${workingDirPattern}`})`, "u"))
+  const args = match?.groups?.prefixArgs ?? match?.groups?.workingDirArgs ?? ""
+  return match !== null && workflowScriptArgsAreReal(args)
+}
+
+function workflowStepRunsGeneratedArtifactVerifier(stepBlock) {
+  if (workflowStepAllowsFailure(stepBlock)) {
+    return false
+  }
+  const workingDirectory = workflowStepWorkingDirectory(stepBlock)
+  if (workingDirectory !== undefined && workingDirectory !== ".") {
+    return false
+  }
+  return workflowStepRunText(stepBlock)
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .some((line) => workflowLineRunsGeneratedArtifactVerifier(line))
+}
+
+function workflowStepRunsMcpScript(stepBlock, scriptName) {
+  if (workflowStepAllowsFailure(stepBlock)) {
+    return false
+  }
+  const runLines = workflowStepRunText(stepBlock)
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+  const runsCommand = runLines.some((line) => workflowLineRunsMcpScript(line, scriptName))
+  if (!runsCommand) {
+    return false
+  }
+  return (
+    workflowStepWorkingDirectory(stepBlock) === "plugins/desk/mcp"
+    || runLines.some((line) => workflowLineRunsMcpScript(line, scriptName, { requirePrefix: true }))
+  )
+}
+
+function workflowStepOrder(jobSection) {
+  const blocks = workflowStepBlocks(jobSection)
+  return {
+    generatedArtifactCheck: blocks.findIndex((stepBlock) => workflowStepRunsGeneratedArtifactVerifier(stepBlock)),
+    runtimePackBuild: blocks.findIndex((stepBlock) => workflowStepRunsMcpScript(stepBlock, "runtime:deps-pack:build")),
+  }
+}
+
 test("production runtime dependency pack is committed at the current canonical path", async () => {
   const {
     deriveRuntimeDependencyPackPaths,
@@ -158,13 +280,35 @@ test("generated artifact freshness script verifies the production runtime depend
 
 test("CI checks committed generated artifacts before rebuilding runtime dependency packs", () => {
   const workflow = readFileSync(workflowPath, "utf8")
-  const generatedArtifactCheck = workflow.indexOf("node scripts/test-desk-generated-artifacts.cjs")
-  const runtimePackBuild = workflow.indexOf("runtime:deps-pack:build")
+  const order = workflowStepOrder(workflowJob(workflow, "desk-mcp-tests"))
 
-  assert.notEqual(generatedArtifactCheck, -1, "desk MCP workflow must run the generated artifact verifier")
-  assert.notEqual(runtimePackBuild, -1, "desk MCP workflow must still build runtime dependency packs")
+  assert.notEqual(order.generatedArtifactCheck, -1, "desk MCP workflow must run the generated artifact verifier")
+  assert.notEqual(order.runtimePackBuild, -1, "desk MCP workflow must still build runtime dependency packs")
   assert.ok(
-    generatedArtifactCheck < runtimePackBuild,
+    order.generatedArtifactCheck < order.runtimePackBuild,
     "committed generated artifacts must be checked before CI creates fresh local runtime dependency packs",
   )
+
+  const fakeWorkflow = [
+    "  desk-mcp-tests:",
+    "    steps:",
+    "      - name: Fake verifier",
+    "        run: echo node scripts/test-desk-generated-artifacts.cjs",
+    "      - name: Failure-masked verifier",
+    "        continue-on-error: true",
+    "        run: node scripts/test-desk-generated-artifacts.cjs",
+    "      - name: Comment-only verifier",
+    "        run: |",
+    "          # node scripts/test-desk-generated-artifacts.cjs",
+    "          npm run runtime:deps-pack:build",
+    "      - name: Real verifier",
+    "        run: node scripts/test-desk-generated-artifacts.cjs",
+    "      - name: Build runtime dependency pack",
+    "        working-directory: plugins/desk/mcp",
+    "        run: npm run runtime:deps-pack:build",
+  ].join("\n")
+  assert.deepEqual(workflowStepOrder(fakeWorkflow), {
+    generatedArtifactCheck: 3,
+    runtimePackBuild: 4,
+  })
 })
