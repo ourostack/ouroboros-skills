@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -319,7 +319,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/src/runtime/runtime-deps.js`, `plugins/desk/mcp/scripts/build-runtime-deps-pack.js`, `plugins/desk/mcp/scripts/verify-runtime-deps-pack.js`, `plugins/desk/mcp/artifacts/runtime-deps/README.md`, package scripts `runtime:deps-pack:build` and `runtime:deps-pack:verify`, and CI wiring.
 **Acceptance**: Unit 6d tests pass and the runtime dependency pack builder can create an archive whose manifest proves production dependency closure, production dependency versions, package-lock hash, platform/arch/ABI, checksums, and build provenance without bundling mutable server source.
 
-### ✅ Unit 6f: Runtime Dependency Pack Artifacts - Coverage & Refactor
+### 🔄 Unit 6f: Runtime Dependency Pack Artifacts - Coverage & Refactor
 **What**: Add coverage for absent archive, corrupt archive, checksum mismatch, unsupported ABI, accidentally bundled server source, missing non-native dependency, package-lock mismatch, stale lock metadata, missing CI job, and repeated verification.
 **Output**: Hardened runtime dependency pack code and scripts.
 **Acceptance**: 100% coverage on new runtime dependency pack code and scripts, and all runtime dependency pack tests pass.
@@ -845,3 +845,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 03:00 Unit 6e reviewer fix: Euclid the 2nd found BLOCKER gaps where verification trusted checkout lock metadata over embedded archive metadata and allowed arbitrary root subdirectories, plus a MAJOR host-native CI target issue; `d1cb61f` adds red probes for tampered embedded `package-lock.json`, missing root archive metadata, unexpected nested root paths, and host-native build target selection, then verifies embedded package metadata against the sidecar and archive shape; saved `unit-6e-review-fix-runtime-dependency-packs-red.log`, `unit-6e-review-fix-runtime-dependency-packs-green.log`, `unit-6e-review-fix-npm-test-green.log`, and `unit-6e-review-fix-coverage-current.log`; coverage remains below 100% for `runtime-deps.js` and is carried into Unit 6f
 - 2026-06-15 03:03 Unit 6e cold reviewer gate converged: Ohm the 2nd verified Euclid's metadata-trust, unexpected-root-path, and host-native target findings are closed; remaining coverage work is explicitly Unit 6f scope
 - 2026-06-15 03:20 Unit 6f complete: hardened runtime dependency pack coverage/refactor in `bbfe0fd` with malformed lock/input closures, direct manifest drift, package scanner symlink and empty-runtime cases, embedded metadata failures, PAX/GNU/NUL tar headers, long path builder behavior, direct CLI helper branches, and small unreachable-branch simplifications; saved `unit-6f-coverage-red.log`, `unit-6f-runtime-dependency-packs-green.log`, `unit-6f-test-coverage-green.log`, `unit-6f-npm-test-green.log`, and `unit-6f-build-unavailable.log`; focused tests pass 10/10, full MCP tests pass 290/290, and coverage is 100% line/branch/function for all changed production files
+- 2026-06-15 03:24 Unit 6f reviewer blocker: Confucius the 2nd found that absent archive/checksum/manifest and corrupt archive handling still threw uncaught stack traces despite Unit 6f claiming coverage; reopening Unit 6f for red tests and clean verifier diagnostics

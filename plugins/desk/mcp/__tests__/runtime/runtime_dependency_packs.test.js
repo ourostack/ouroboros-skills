@@ -106,6 +106,27 @@ function writePackFixture({
   return packDir
 }
 
+function writePartialPackFixture({
+  archiveBytes,
+  checksum,
+  manifest,
+  omitArchive = false,
+  omitChecksum = false,
+  omitManifest = false,
+} = {}) {
+  const packDir = makeTempDir()
+  if (!omitArchive) {
+    writeFileSync(path.join(packDir, "runtime-deps.tgz"), archiveBytes ?? Buffer.from("not gzip\n", "utf8"))
+  }
+  if (!omitChecksum) {
+    writeFileSync(path.join(packDir, "runtime-deps.sha256"), `${checksum ?? "0".repeat(64)}  runtime-deps.tgz\n`, "utf8")
+  }
+  if (!omitManifest) {
+    writeFileSync(path.join(packDir, "runtime-deps.manifest.json"), JSON.stringify(manifest ?? { schema_version: 1 }, null, 2), "utf8")
+  }
+  return packDir
+}
+
 function createTarGz(entries, entryBytes = {}) {
   const blocks = []
   for (const entry of entries) {
@@ -1391,6 +1412,32 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     checksum: "0".repeat(64),
     manifest,
   })
+  const missingManifestPackDir = writePartialPackFixture({
+    archiveBytes: createTarGz(validEntries, archiveEntryBytesForManifest(manifest)),
+    checksum: archiveSha,
+    omitManifest: true,
+  })
+  const missingArchivePackDir = writePartialPackFixture({
+    checksum: archiveSha,
+    manifest,
+    omitArchive: true,
+  })
+  const missingChecksumPackDir = writePartialPackFixture({
+    archiveBytes: createTarGz(validEntries, archiveEntryBytesForManifest(manifest)),
+    manifest,
+    omitChecksum: true,
+  })
+  const invalidArchiveBytes = Buffer.from("not gzip\n", "utf8")
+  const invalidArchiveManifest = fixtureManifest({
+    archiveSha: sha256(invalidArchiveBytes),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const invalidArchivePackDir = writePartialPackFixture({
+    archiveBytes: invalidArchiveBytes,
+    checksum: sha256(invalidArchiveBytes),
+    manifest: invalidArchiveManifest,
+  })
   const staleManifestArchiveShaManifest = fixtureManifest({
     archiveSha: "f".repeat(64),
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
@@ -1636,6 +1683,66 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         ok: false,
         errors: ["runtime dependency pack checksum mismatch for runtime-deps.tgz"],
         manifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingManifestPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency pack manifest runtime-deps.manifest.json is missing"],
+        manifest: undefined,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingArchivePackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency pack archive runtime-deps.tgz is missing"],
+        manifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingChecksumPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency pack checksum runtime-deps.sha256 is missing"],
+        manifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: invalidArchivePackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive runtime-deps.tgz must be a readable gzip tar archive"],
+        manifest: invalidArchiveManifest,
       },
     )
 
@@ -1889,6 +1996,10 @@ test("runtime dependency pack verification checks checksums and unsupported plat
   } finally {
     rmSync(packDir, { recursive: true, force: true })
     rmSync(corruptPackDir, { recursive: true, force: true })
+    rmSync(missingManifestPackDir, { recursive: true, force: true })
+    rmSync(missingArchivePackDir, { recursive: true, force: true })
+    rmSync(missingChecksumPackDir, { recursive: true, force: true })
+    rmSync(invalidArchivePackDir, { recursive: true, force: true })
     rmSync(staleManifestArchiveShaPackDir, { recursive: true, force: true })
     rmSync(embeddedManifestMismatchPackDir, { recursive: true, force: true })
     rmSync(missingArchivePackageJsonPackDir, { recursive: true, force: true })
@@ -1903,6 +2014,66 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     rmSync(noProductionDependenciesPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
     rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
+  }
+})
+
+test("runtime dependency pack verify CLI reports missing and corrupt artifacts cleanly", async () => {
+  const {
+    collectProductionDependencyClosure,
+    productionDependencyLockHash,
+  } = await loadRuntimeDeps()
+  const packageJson = loadJson(packageJsonPath)
+  const packageLock = loadJson(packageLockPath)
+  const productionDependencies = collectProductionDependencyClosure({
+    packageJson,
+    packageLock,
+    platform: target.platform,
+    arch: target.arch,
+  })
+  const invalidArchiveBytes = Buffer.from("not gzip\n", "utf8")
+  const invalidArchiveManifest = fixtureManifest({
+    archiveSha: sha256(invalidArchiveBytes),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingArtifactsPackDir = makeTempDir()
+  const corruptArchivePackDir = writePartialPackFixture({
+    archiveBytes: invalidArchiveBytes,
+    checksum: sha256(invalidArchiveBytes),
+    manifest: invalidArchiveManifest,
+  })
+
+  try {
+    const missingRun = runNpmScript("runtime:deps-pack:verify", [
+      "--pack-dir",
+      missingArtifactsPackDir,
+      "--platform",
+      target.platform,
+      "--arch",
+      target.arch,
+      "--node-abi",
+      targetNodeAbi,
+    ])
+    assert.notEqual(missingRun.status, 0)
+    assert.match(missingRun.stderr, /runtime dependency pack manifest runtime-deps\.manifest\.json is missing/u)
+    assert.doesNotMatch(missingRun.stderr, /(?:Error:|ENOENT|at file:|at async|incorrect header check)/u)
+
+    const corruptRun = runNpmScript("runtime:deps-pack:verify", [
+      "--pack-dir",
+      corruptArchivePackDir,
+      "--platform",
+      target.platform,
+      "--arch",
+      target.arch,
+      "--node-abi",
+      targetNodeAbi,
+    ])
+    assert.notEqual(corruptRun.status, 0)
+    assert.match(corruptRun.stderr, /runtime dependency archive runtime-deps\.tgz must be a readable gzip tar archive/u)
+    assert.doesNotMatch(corruptRun.stderr, /(?:Error:|ENOENT|at file:|at async|incorrect header check)/u)
+  } finally {
+    rmSync(missingArtifactsPackDir, { recursive: true, force: true })
+    rmSync(corruptArchivePackDir, { recursive: true, force: true })
   }
 })
 

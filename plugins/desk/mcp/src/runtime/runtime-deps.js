@@ -287,8 +287,16 @@ export function verifyRuntimeDependencyPack({
   arch = process.arch,
   nodeAbi = process.versions.modules,
 }) {
-  const manifest = readJson(path.join(packDir, "runtime-deps.manifest.json"))
   const errors = []
+  const manifestPath = path.join(packDir, "runtime-deps.manifest.json")
+  if (!existsSync(manifestPath)) {
+    return {
+      ok: false,
+      errors: ["runtime dependency pack manifest runtime-deps.manifest.json is missing"],
+      manifest: undefined,
+    }
+  }
+  const manifest = readJson(manifestPath)
   if (!isSupportedRuntimeTarget({ platform, arch })) {
     return {
       ok: false,
@@ -300,10 +308,16 @@ export function verifyRuntimeDependencyPack({
   const packageJson = readJson(path.join(mcpRoot, "package.json"))
   const packageLock = readJson(path.join(mcpRoot, "package-lock.json"))
   const archivePath = path.join(packDir, "runtime-deps.tgz")
-  const archiveBytes = readFileSync(archivePath)
-  const archiveSha = sha256(archiveBytes)
-  const checksumSha = readChecksum(path.join(packDir, "runtime-deps.sha256"))
-  if (checksumSha !== archiveSha) {
+  const checksumPath = path.join(packDir, "runtime-deps.sha256")
+  const archiveBytes = existsSync(archivePath) ? readFileSync(archivePath) : undefined
+  const archiveSha = archiveBytes === undefined ? undefined : sha256(archiveBytes)
+  if (archiveBytes === undefined) {
+    errors.push("runtime dependency pack archive runtime-deps.tgz is missing")
+  }
+  const checksumSha = existsSync(checksumPath) ? readChecksum(checksumPath) : undefined
+  if (checksumSha === undefined) {
+    errors.push("runtime dependency pack checksum runtime-deps.sha256 is missing")
+  } else if (archiveSha !== undefined && checksumSha !== archiveSha) {
     errors.push("runtime dependency pack checksum mismatch for runtime-deps.tgz")
   }
 
@@ -317,42 +331,51 @@ export function verifyRuntimeDependencyPack({
     nodeAbi,
   }).filter((error) => error !== "runtime dependency pack manifest archive.sha256 must match runtime-deps.tgz"))
 
-  if (manifest?.archive?.sha256 !== archiveSha) {
+  if (archiveSha !== undefined && manifest?.archive?.sha256 !== archiveSha) {
     errors.push("runtime dependency pack manifest archive.sha256 must match runtime-deps.tgz")
   }
 
-  const archiveContents = extractTarGzContents(archivePath)
-  const archivePackageJson = parseArchiveJson(archiveContents.get("package.json"), "package.json", errors)
-  const archivePackageLock = parseArchiveJson(archiveContents.get("package-lock.json"), "package-lock.json", errors)
-  const archivePackageLockBytes = archiveContents.get("package-lock.json")
-  if (archivePackageLockBytes !== undefined && sha256(archivePackageLockBytes) !== manifest?.package_lock?.sha256) {
-    errors.push("runtime dependency archive package-lock.json sha256 must match sidecar manifest")
-  }
-  if (archivePackageJson !== undefined && archivePackageLock !== undefined) {
-    if (archivePackageJson.name !== manifest?.plugin?.name || archivePackageJson.version !== manifest?.plugin?.version) {
-      errors.push("runtime dependency archive package.json must match sidecar manifest plugin metadata")
-    }
+  let archiveContents
+  if (archiveBytes !== undefined) {
     try {
-      const embeddedProdDependencyLockHash = productionDependencyLockHash({
-        packageJson: archivePackageJson,
-        packageLock: archivePackageLock,
-      })
-      if (embeddedProdDependencyLockHash !== manifest?.package_lock?.prod_dependency_lock_hash) {
-        errors.push("runtime dependency archive production dependency lock hash must match embedded package metadata")
-      }
+      archiveContents = extractTarGzContents(archivePath)
     } catch {
-      errors.push("runtime dependency archive production dependency lock hash must be computable from embedded package metadata")
+      errors.push("runtime dependency archive runtime-deps.tgz must be a readable gzip tar archive")
     }
   }
-  const embeddedManifest = parseEmbeddedManifest(archiveContents.get("runtime-deps.manifest.json"))
-  if (!deepEqual(embeddedManifest, embeddedManifestForArchive(manifest))) {
-    errors.push("runtime dependency archive embedded manifest must match sidecar manifest metadata")
+  if (archiveContents !== undefined) {
+    const archivePackageJson = parseArchiveJson(archiveContents.get("package.json"), "package.json", errors)
+    const archivePackageLock = parseArchiveJson(archiveContents.get("package-lock.json"), "package-lock.json", errors)
+    const archivePackageLockBytes = archiveContents.get("package-lock.json")
+    if (archivePackageLockBytes !== undefined && sha256(archivePackageLockBytes) !== manifest?.package_lock?.sha256) {
+      errors.push("runtime dependency archive package-lock.json sha256 must match sidecar manifest")
+    }
+    if (archivePackageJson !== undefined && archivePackageLock !== undefined) {
+      if (archivePackageJson.name !== manifest?.plugin?.name || archivePackageJson.version !== manifest?.plugin?.version) {
+        errors.push("runtime dependency archive package.json must match sidecar manifest plugin metadata")
+      }
+      try {
+        const embeddedProdDependencyLockHash = productionDependencyLockHash({
+          packageJson: archivePackageJson,
+          packageLock: archivePackageLock,
+        })
+        if (embeddedProdDependencyLockHash !== manifest?.package_lock?.prod_dependency_lock_hash) {
+          errors.push("runtime dependency archive production dependency lock hash must match embedded package metadata")
+        }
+      } catch {
+        errors.push("runtime dependency archive production dependency lock hash must be computable from embedded package metadata")
+      }
+    }
+    const embeddedManifest = parseEmbeddedManifest(archiveContents.get("runtime-deps.manifest.json"))
+    if (!deepEqual(embeddedManifest, embeddedManifestForArchive(manifest))) {
+      errors.push("runtime dependency archive embedded manifest must match sidecar manifest metadata")
+    }
+    errors.push(...validateRuntimeDependencyArchiveShape({
+      entries: [...archiveContents.keys()].sort(),
+      productionDependencies: manifest.production_dependencies ?? [],
+      mcpRoot,
+    }))
   }
-  errors.push(...validateRuntimeDependencyArchiveShape({
-    entries: [...archiveContents.keys()].sort(),
-    productionDependencies: manifest.production_dependencies ?? [],
-    mcpRoot,
-  }))
 
   return {
     ok: errors.length === 0,
