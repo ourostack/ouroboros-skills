@@ -228,6 +228,7 @@ test("generic stdio docs show explicit root binding and no default worker claim"
   assert.match(section, /node .*mcp\/index\.js .*--root/u)
   assert.match(section, /DESK=/u)
   assert.match(section, /\$DESK/u)
+  assert.doesNotMatch(section, /DESK=[^\n]+--root "\$DESK"/u)
   assert.match(section, /MCP-only/u)
   assert.match(section, /no worker activation/u)
   assert.doesNotMatch(section, /desk:worker is activated by generic stdio/u)
