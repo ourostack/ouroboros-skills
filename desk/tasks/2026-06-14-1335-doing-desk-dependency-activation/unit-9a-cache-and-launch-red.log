@@ -1,69 +1,220 @@
 TAP version 13
 # Subtest: runtime cache and host launch contract
     # Subtest: resolves committed host manifest MCP references relative to each manifest file
+        # Subtest: desk plugin.json
+        ok 1 - desk plugin.json
+          ---
+          duration_ms: 1.22575
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        not ok 2 - codex plugin.json
+          ---
+          duration_ms: 0.994416
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:425:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:426:24)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:425:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Promise.all (index 0)
+            async Suite.run (node:internal/test_runner/test:1442:7)
+          ...
+        # Subtest: claude plugin.json
+        not ok 3 - claude plugin.json
+          ---
+          duration_ms: 0.437875
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:425:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:426:24)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:425:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Promise.all (index 0)
+            async Suite.run (node:internal/test_runner/test:1442:7)
+          ...
+        1..3
     not ok 1 - resolves committed host manifest MCP references relative to each manifest file
       ---
-      duration_ms: 2.005
+      duration_ms: 3.35275
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:426:3'
-      failureType: 'testCodeFailure'
-      error: |-
-        /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
-
-        false !== true
-
-      code: 'ERR_ASSERTION'
-      name: 'AssertionError'
-      expected: true
-      actual: false
-      operator: 'strictEqual'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:423:3'
+      failureType: 'subtestsFailed'
+      error: '2 subtests failed'
+      code: 'ERR_TEST_FAILURE'
       stack: |-
-        mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:245:12)
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:428:22)
-        Test.runInAsyncScope (node:async_hooks:214:14)
-        Test.run (node:internal/test_runner/test:1047:25)
-        Test.start (node:internal/test_runner/test:944:17)
-        node:internal/test_runner/test:1440:71
-        node:internal/per_context/primordials:464:82
-        new Promise (<anonymous>)
-        new SafePromise (node:internal/per_context/primordials:433:3)
-        node:internal/per_context/primordials:464:9
+        async Promise.all (index 0)
       ...
     # Subtest: committed MCP launch configs use cwd-independent installed entrypoint args
+        # Subtest: desk .mcp.json
+        not ok 1 - desk .mcp.json
+          ---
+          duration_ms: 0.444917
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            desk .mcp.json must not use caller-cwd-relative MCP entrypoint args
+
+            true !== false
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: false
+          actual: true
+          operator: 'strictEqual'
+          stack: |-
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:297:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:436:9)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+          ...
+        # Subtest: desk plugin.json
+        not ok 2 - desk plugin.json
+          ---
+          duration_ms: 0.206209
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            desk plugin.json must not use caller-cwd-relative MCP entrypoint args
+
+            true !== false
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: false
+          actual: true
+          operator: 'strictEqual'
+          stack: |-
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:297:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:436:9)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+          ...
+        # Subtest: codex plugin.json
+        not ok 3 - codex plugin.json
+          ---
+          duration_ms: 0.171583
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            Object.resolveServer (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:273:28)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:436:68)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+          ...
+        # Subtest: claude plugin.json
+        not ok 4 - claude plugin.json
+          ---
+          duration_ms: 0.105708
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            Object.resolveServer (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:278:28)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:436:68)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 0.35375
+          type: 'test'
+          ...
+        1..5
     not ok 2 - committed MCP launch configs use cwd-independent installed entrypoint args
       ---
-      duration_ms: 0.305458
+      duration_ms: 1.79775
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:434:3'
-      failureType: 'testCodeFailure'
-      error: |-
-        /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
-
-        false !== true
-
-      code: 'ERR_ASSERTION'
-      name: 'AssertionError'
-      expected: true
-      actual: false
-      operator: 'strictEqual'
-      stack: |-
-        mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:245:12)
-        declarationCases (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:284:15)
-        staticLaunchConfigCases (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:300:10)
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:435:31)
-        Test.runInAsyncScope (node:async_hooks:214:14)
-        Test.run (node:internal/test_runner/test:1047:25)
-        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
-        Test.postRun (node:internal/test_runner/test:1173:19)
-        Test.run (node:internal/test_runner/test:1101:12)
-        async Promise.all (index 0)
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:433:3'
+      failureType: 'subtestsFailed'
+      error: '4 subtests failed'
+      code: 'ERR_TEST_FAILURE'
       ...
     # Subtest: uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
     not ok 3 - uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
       ---
-      duration_ms: 474.489167
+      duration_ms: 467.755541
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:440:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:441:3'
       failureType: 'testCodeFailure'
       error: |-
         activation config runtimeCacheDir should receive runtime dependencies
@@ -76,46 +227,177 @@ TAP version 13
       actual: false
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:467:12)
-        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:468:12)
         async Test.run (node:internal/test_runner/test:1054:7)
         async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
       ...
     # Subtest: launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
+        # Subtest: desk .mcp.json
+        not ok 1 - desk .mcp.json
+          ---
+          duration_ms: 57.54525
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            MCP process exited before response 1 (code=1, signal=null). stderr:
+            node:internal/modules/cjs/loader:1386
+              throw err;
+              ^
+
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-RDT7UK/caller-cwd/mcp/index.js'
+                at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+                at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+                at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+                at Module._load (node:internal/modules/cjs/loader:1192:37)
+                at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+                at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+                at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+                at node:internal/main/run_main_module:36:49 {
+              code: 'MODULE_NOT_FOUND',
+              requireStack: []
+            }
+
+            Node.js v22.22.0
+
+          code: 'ERR_TEST_FAILURE'
+          stack: |-
+            Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+            defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+            resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+            Module._load (node:internal/modules/cjs/loader:1192:37)
+            TracingChannel.traceSync (node:diagnostics_channel:328:14)
+            wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+            Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+            node:internal/main/run_main_module:36:49 {
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:327:14)
+            Object.onceWrapper (node:events:634:26)
+            ChildProcess.emit (node:events:519:28)
+            ChildProcess._handle.onexit (node:internal/child_process:293:12)
+          ...
+        # Subtest: desk plugin.json
+        not ok 2 - desk plugin.json
+          ---
+          duration_ms: 56.800125
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            MCP process exited before response 1 (code=1, signal=null). stderr:
+            node:internal/modules/cjs/loader:1386
+              throw err;
+              ^
+
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-v4dP59/caller-cwd/mcp/index.js'
+                at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+                at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+                at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+                at Module._load (node:internal/modules/cjs/loader:1192:37)
+                at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+                at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+                at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+                at node:internal/main/run_main_module:36:49 {
+              code: 'MODULE_NOT_FOUND',
+              requireStack: []
+            }
+
+            Node.js v22.22.0
+
+          code: 'ERR_TEST_FAILURE'
+          stack: |-
+            Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+            defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+            resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+            Module._load (node:internal/modules/cjs/loader:1192:37)
+            TracingChannel.traceSync (node:diagnostics_channel:328:14)
+            wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+            Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+            node:internal/main/run_main_module:36:49 {
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:327:14)
+            Object.onceWrapper (node:events:634:26)
+            ChildProcess.emit (node:events:519:28)
+            ChildProcess._handle.onexit (node:internal/child_process:293:12)
+          ...
+        # Subtest: codex plugin.json
+        not ok 3 - codex plugin.json
+          ---
+          duration_ms: 0.931042
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            Object.resolveServer (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:273:28)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:485:36)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+          ...
+        # Subtest: claude plugin.json
+        not ok 4 - claude plugin.json
+          ---
+          duration_ms: 0.6525
+          type: 'test'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15'
+          failureType: 'testCodeFailure'
+          error: |-
+            /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.claude-plugin/.mcp.json
+
+            false !== true
+
+          code: 'ERR_ASSERTION'
+          name: 'AssertionError'
+          expected: true
+          actual: false
+          operator: 'strictEqual'
+          stack: |-
+            mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:234:12)
+            Object.resolveServer (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:278:28)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:485:36)
+            Test.runInAsyncScope (node:async_hooks:214:14)
+            Test.run (node:internal/test_runner/test:1047:25)
+            Test.start (node:internal/test_runner/test:944:17)
+            TestContext.test (node:internal/test_runner/test:373:20)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:480:15)
+            async Test.run (node:internal/test_runner/test:1054:7)
+            async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 459.50275
+          type: 'test'
+          ...
+        1..5
     not ok 4 - launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
       ---
-      duration_ms: 4.100334
+      duration_ms: 640.907583
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:473:3'
-      failureType: 'testCodeFailure'
-      error: |-
-        /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json mcpServers must resolve relative to the manifest file: /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/.mcp.json
-
-        false !== true
-
-      code: 'ERR_ASSERTION'
-      name: 'AssertionError'
-      expected: true
-      actual: false
-      operator: 'strictEqual'
-      stack: |-
-        mcpServerFromManifest (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:245:12)
-        declarationCases (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:284:15)
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:478:31)
-        Test.runInAsyncScope (node:async_hooks:214:14)
-        Test.run (node:internal/test_runner/test:1047:25)
-        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
-        Test.postRun (node:internal/test_runner/test:1173:19)
-        Test.run (node:internal/test_runner/test:1101:12)
-        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:474:3'
+      failureType: 'subtestsFailed'
+      error: '4 subtests failed'
+      code: 'ERR_TEST_FAILURE'
       ...
     # Subtest: repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
     not ok 5 - repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
       ---
-      duration_ms: 309.3565
+      duration_ms: 309.878
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:506:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:509:3'
       failureType: 'testCodeFailure'
       error: |-
         runtime cache marker should be repaired from the committed pack
@@ -130,31 +412,30 @@ TAP version 13
       actual: '0.0.0-incompatible'
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:528:12)
+        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:531:12)
         Test.runInAsyncScope (node:async_hooks:214:14)
         Test.run (node:internal/test_runner/test:1047:25)
         Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
         Test.postRun (node:internal/test_runner/test:1173:19)
         Test.run (node:internal/test_runner/test:1101:12)
-        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
         async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
       ...
     1..5
 not ok 1 - runtime cache and host launch contract
   ---
-  duration_ms: 791.053166
+  duration_ms: 1424.335042
   type: 'suite'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:425:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:422:1'
   failureType: 'subtestsFailed'
   error: '5 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
 1..1
-# tests 5
+# tests 18
 # suites 1
-# pass 0
-# fail 5
+# pass 3
+# fail 15
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 893.213833
+# duration_ms 1527.44575

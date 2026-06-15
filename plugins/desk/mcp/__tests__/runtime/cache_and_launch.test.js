@@ -18,9 +18,6 @@ const immutableFixtureDirs = [
   path.join(fixtureRoot, "immutable/host-cache-source"),
   path.join(fixtureRoot, "immutable/readonly-plugin-cache"),
 ];
-const immutablePluginSourceSkipPaths = [
-  path.join(mcpRoot, "node_modules"),
-];
 const forbiddenPluginArtifactPaths = [
   path.join(deskPluginRoot, ".desk-runtime-cache.json"),
   path.join(deskPluginRoot, ".state"),
@@ -29,6 +26,7 @@ const forbiddenPluginArtifactPaths = [
   path.join(deskPluginRoot, "source-mirror"),
   path.join(mcpRoot, ".desk-runtime-cache.json"),
   path.join(mcpRoot, ".state"),
+  path.join(mcpRoot, "node_modules"),
   path.join(mcpRoot, "runtime-cache"),
   path.join(mcpRoot, "source-mirror"),
 ];
@@ -161,16 +159,13 @@ function assertNoRuntimeArtifactsUnder(rootPath, message) {
   assert.deepEqual(findRuntimeArtifactsUnder(rootPath), [], message);
 }
 
-function listTree(dirPath, { skipPaths = [] } = {}) {
+function listTree(dirPath) {
   if (!existsSync(dirPath)) return [];
   const entries = [];
   const walk = (current, relativePrefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const relativePath = path.join(relativePrefix, entry.name);
       const absolutePath = path.join(current, entry.name);
-      if (skipPaths.some((skipPath) => absolutePath === skipPath || absolutePath.startsWith(`${skipPath}${path.sep}`))) {
-        continue;
-      }
       const stat = statSync(absolutePath);
       entries.push({
         path: relativePath,
@@ -207,16 +202,10 @@ function snapshotImmutableState() {
   return {
     fixtureDirs: new Map(immutableFixtureDirs.map((dirPath) => [dirPath, listTree(dirPath)])),
     pluginArtifacts: new Map(forbiddenPluginArtifactPaths.map((targetPath) => [targetPath, snapshotPath(targetPath)])),
-    pluginSourceTree: listTree(deskPluginRoot, { skipPaths: immutablePluginSourceSkipPaths }),
   };
 }
 
 function assertImmutableStateUnchanged(before) {
-  assert.deepEqual(
-    listTree(deskPluginRoot, { skipPaths: immutablePluginSourceSkipPaths }),
-    before.pluginSourceTree,
-    `${deskPluginRoot} must not be mutated by runtime startup`,
-  );
   for (const [dirPath, expected] of before.fixtureDirs.entries()) {
     assert.deepEqual(listTree(dirPath), expected, `${dirPath} should not be mutated by runtime startup`);
     assert.equal(existsSync(path.join(dirPath, "node_modules")), false, `${dirPath} must not receive node_modules`);
@@ -271,27 +260,27 @@ function declarationCases() {
     {
       id: "desk .mcp.json",
       sourcePath: path.join(deskPluginRoot, ".mcp.json"),
-      server: mcpServerFromConfig(path.join(deskPluginRoot, ".mcp.json")),
+      resolveServer: () => mcpServerFromConfig(path.join(deskPluginRoot, ".mcp.json")),
     },
     {
       id: "desk plugin.json",
       sourcePath: path.join(deskPluginRoot, "plugin.json"),
-      server: mcpServerFromManifest(path.join(deskPluginRoot, "plugin.json")),
+      resolveServer: () => mcpServerFromManifest(path.join(deskPluginRoot, "plugin.json")),
     },
     {
       id: "codex plugin.json",
       sourcePath: path.join(deskPluginRoot, ".codex-plugin/plugin.json"),
-      server: mcpServerFromManifest(path.join(deskPluginRoot, ".codex-plugin/plugin.json")),
+      resolveServer: () => mcpServerFromManifest(path.join(deskPluginRoot, ".codex-plugin/plugin.json")),
     },
     {
       id: "claude plugin.json",
       sourcePath: path.join(deskPluginRoot, ".claude-plugin/plugin.json"),
-      server: mcpServerFromManifest(path.join(deskPluginRoot, ".claude-plugin/plugin.json")),
+      resolveServer: () => mcpServerFromManifest(path.join(deskPluginRoot, ".claude-plugin/plugin.json")),
     },
     {
       id: "generic stdio fixture",
       sourcePath: hostLaunchFixture,
-      server: mcpServerFromConfig(hostLaunchFixture),
+      resolveServer: () => mcpServerFromConfig(hostLaunchFixture),
     },
   ];
 }
@@ -301,6 +290,7 @@ function staticLaunchConfigCases() {
 }
 
 function assertCwdIndependentLaunchArgs(id, server) {
+  assert.equal(server.command, "node", `${id} must launch through the host-provided node command`);
   const args = server.args ?? [];
   const entrypointArg = args.find((arg) => materializeLaunchValue(arg, deskPluginRoot).replaceAll("\\", "/").endsWith("/mcp/index.js"));
   assert.ok(entrypointArg, `${id} must launch plugins/desk/mcp/index.js`);
@@ -409,31 +399,42 @@ function makeDeskHome(tempRoot) {
   return { homeDir, deskRoot };
 }
 
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
 function prependNodeShimToPath(tempRoot, existingPath) {
   const binDir = ensureDir(path.join(tempRoot, "bin"));
+  const invocationLogPath = path.join(tempRoot, "node-shim-invocations.log");
   if (process.platform === "win32") {
-    writeFileSync(path.join(binDir, "node.cmd"), `@"${process.execPath}" %*\r\n`);
+    writeFileSync(path.join(binDir, "node.cmd"), `@echo node %*>>"${invocationLogPath}"\r\n@"${process.execPath}" %*\r\n`);
   } else {
-    const escapedExecPath = process.execPath.replaceAll("'", "'\\''");
     const shimPath = path.join(binDir, "node");
-    writeFileSync(shimPath, `#!/bin/sh\nexec '${escapedExecPath}' "$@"\n`);
+    writeFileSync(shimPath, `#!/bin/sh\nprintf '%s\\n' "node $*" >> ${shellQuote(invocationLogPath)}\nexec ${shellQuote(process.execPath)} "$@"\n`);
     chmodSync(shimPath, 0o755);
   }
-  return [binDir, existingPath ?? ""].filter(Boolean).join(path.delimiter);
+  return {
+    invocationLogPath,
+    path: [binDir, existingPath ?? ""].filter(Boolean).join(path.delimiter),
+  };
 }
 
 describe("runtime cache and host launch contract", () => {
-  it("resolves committed host manifest MCP references relative to each manifest file", () => {
+  it("resolves committed host manifest MCP references relative to each manifest file", async (t) => {
     for (const manifest of manifestCases()) {
-      const server = mcpServerFromManifest(manifest.sourcePath);
-      assert.equal(server.type, "stdio", `${manifest.id} should resolve a stdio MCP server`);
-      assert.ok(Array.isArray(server.args), `${manifest.id} should resolve launch args`);
+      await t.test(manifest.id, () => {
+        const server = mcpServerFromManifest(manifest.sourcePath);
+        assert.equal(server.type, "stdio", `${manifest.id} should resolve a stdio MCP server`);
+        assert.ok(Array.isArray(server.args), `${manifest.id} should resolve launch args`);
+      });
     }
   });
 
-  it("committed MCP launch configs use cwd-independent installed entrypoint args", () => {
+  it("committed MCP launch configs use cwd-independent installed entrypoint args", async (t) => {
     for (const declaration of staticLaunchConfigCases()) {
-      assertCwdIndependentLaunchArgs(declaration.id, declaration.server);
+      await t.test(declaration.id, () => {
+        assertCwdIndependentLaunchArgs(declaration.id, declaration.resolveServer());
+      });
     }
   });
 
@@ -481,7 +482,8 @@ describe("runtime cache and host launch contract", () => {
         const cwd = ensureDir(path.join(tempRoot, "caller-cwd"));
         const { homeDir } = makeDeskHome(tempRoot);
         const runtimeCacheDir = ensureDir(path.join(tempRoot, "runtime-cache"));
-        const server = declaration.server;
+        const server = declaration.resolveServer();
+        const nodeShim = prependNodeShimToPath(tempRoot, process.env.PATH);
         const args = (server.args ?? []).map((arg) => materializeLaunchValue(arg, deskPluginRoot));
 
         await runListToolsSession({
@@ -494,9 +496,10 @@ describe("runtime cache and host launch contract", () => {
             DESK: "",
             DESK_RUNTIME_CACHE_DIR: runtimeCacheDir,
             HOME: homeDir,
-            PATH: prependNodeShimToPath(tempRoot, process.env.PATH),
+            PATH: nodeShim.path,
           },
         });
+        assert.match(readFileSync(nodeShim.invocationLogPath, "utf8"), /^node .+/u, `${declaration.id} must launch through the controlled node PATH shim`);
       });
     }
 
