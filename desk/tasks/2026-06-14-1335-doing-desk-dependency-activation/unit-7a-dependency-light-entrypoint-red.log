@@ -2,9 +2,9 @@ TAP version 13
 # Subtest: MCP entrypoint is dependency-light before bootstrap
 not ok 1 - MCP entrypoint is dependency-light before bootstrap
   ---
-  duration_ms: 1.754291
+  duration_ms: 1.9405
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:406:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:460:1'
   failureType: 'testCodeFailure'
   error: |-
     The input was expected to not match the regular expression /from\s+["']\.\/src\/server\.js["']/u. Input:
@@ -101,7 +101,7 @@ not ok 1 - MCP entrypoint is dependency-light before bootstrap
 
   operator: 'doesNotMatch'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:408:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:462:10)
     Test.runInAsyncScope (node:async_hooks:214:14)
     Test.run (node:internal/test_runner/test:1047:25)
     Test.start (node:internal/test_runner/test:944:17)
@@ -110,28 +110,30 @@ not ok 1 - MCP entrypoint is dependency-light before bootstrap
 # Subtest: MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
 not ok 2 - MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
   ---
-  duration_ms: 97.290208
+  duration_ms: 123.213084
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:423:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:477:1'
   failureType: 'testCodeFailure'
   error: |-
     process exited before response 1: {"code":1,"signal":null}
     stdout:
 
     stderr:
-    node:internal/modules/package_json_reader:314
-      throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
-            ^
 
-    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-NAiQY7/mcp/src/server.js
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Ao0Qxq/mcp/src/server.js
         at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
         at packageResolve (node:internal/modules/esm/resolve:767:81)
         at moduleResolve (node:internal/modules/esm/resolve:853:18)
         at defaultResolve (node:internal/modules/esm/resolve:983:11)
-        at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
-        at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
-        at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
-        at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Ao0Qxq/forbid-network-loader.mjs:8:10)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+        at MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+        at [nodejs.internal.kHybridDispatch] (node:internal/event_target:845:20) {
       code: 'ERR_MODULE_NOT_FOUND'
     }
 
@@ -143,37 +145,41 @@ not ok 2 - MCP entrypoint restores runtime dependencies offline and serves list-
     packageResolve (node:internal/modules/esm/resolve:767:81)
     moduleResolve (node:internal/modules/esm/resolve:853:18)
     defaultResolve (node:internal/modules/esm/resolve:983:11)
-    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
-    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
-    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
-    ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
-    Timeout.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:305:16)
+    nextResolve (node:internal/modules/esm/hooks:748:28)
+    resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Ao0Qxq/forbid-network-loader.mjs:8:10)
+    nextResolve (node:internal/modules/esm/hooks:748:28)
+    Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    MessagePort.handleMessage (node:internal/modules/esm/worker:199:24)
+    [nodejs.internal.kHybridDispatch] (node:internal/event_target:845:20) {
+    Timeout.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:335:16)
     listOnTimeout (node:internal/timers:588:17)
     process.processTimers (node:internal/timers:523:7)
   ...
 # Subtest: MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
 not ok 3 - MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
   ---
-  duration_ms: 81.110417
+  duration_ms: 95.265417
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:462:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:517:1'
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /runtime dependency pack/i. Input:
 
-    'node:internal/modules/package_json_reader:314\n' +
-      '  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n' +
-      '        ^\n' +
-      '\n' +
-      "Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-pCjBv6/mcp/src/server.js\n" +
+    '\n' +
+      'node:internal/modules/run_main:123\n' +
+      '    triggerUncaughtException(\n' +
+      '    ^\n' +
+      "Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Z236i5/mcp/src/server.js\n" +
       '    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)\n' +
       '    at packageResolve (node:internal/modules/esm/resolve:767:81)\n' +
       '    at moduleResolve (node:internal/modules/esm/resolve:853:18)\n' +
       '    at defaultResolve (node:internal/modules/esm/resolve:983:11)\n' +
-      '    at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)\n' +
-      '    at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)\n' +
-      '    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)\n' +
-      '    at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {\n' +
+      '    at nextResolve (node:internal/modules/esm/hooks:748:28)\n' +
+      '    at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Z236i5/forbid-network-loader.mjs:8:10)\n' +
+      '    at nextResolve (node:internal/modules/esm/hooks:748:28)\n' +
+      '    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)\n' +
+      '    at handleMessage (node:internal/modules/esm/worker:199:24)\n' +
+      '    at checkForMessages (node:internal/modules/esm/worker:141:28) {\n' +
       "  code: 'ERR_MODULE_NOT_FOUND'\n" +
       '}\n' +
       '\n' +
@@ -183,19 +189,21 @@ not ok 3 - MCP entrypoint reports missing or ABI-mismatched runtime packs withou
   name: 'AssertionError'
   expected:
   actual: |-
-    node:internal/modules/package_json_reader:314
-      throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
-            ^
 
-    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-pCjBv6/mcp/src/server.js
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Z236i5/mcp/src/server.js
         at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
         at packageResolve (node:internal/modules/esm/resolve:767:81)
         at moduleResolve (node:internal/modules/esm/resolve:853:18)
         at defaultResolve (node:internal/modules/esm/resolve:983:11)
-        at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
-        at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
-        at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
-        at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-Z236i5/forbid-network-loader.mjs:8:10)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+        at handleMessage (node:internal/modules/esm/worker:199:24)
+        at checkForMessages (node:internal/modules/esm/worker:141:28) {
       code: 'ERR_MODULE_NOT_FOUND'
     }
 
@@ -203,7 +211,7 @@ not ok 3 - MCP entrypoint reports missing or ABI-mismatched runtime packs withou
 
   operator: 'match'
   stack: |-
-    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:474:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:529:12)
     async Test.run (node:internal/test_runner/test:1054:7)
     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
@@ -215,4 +223,4 @@ not ok 3 - MCP entrypoint reports missing or ABI-mismatched runtime packs withou
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 273.618208
+# duration_ms 312.429875

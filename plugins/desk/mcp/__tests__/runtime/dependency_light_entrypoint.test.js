@@ -191,10 +191,40 @@ function makeFixture() {
     )
   }
   const preloadPath = path.join(root, "forbid-network.mjs")
+  const loaderPath = path.join(root, "forbid-network-loader.mjs")
+  const forbiddenNetworkModules = ["http", "https", "net", "tls", "node:http", "node:https", "node:net", "node:tls"]
+  writeFileSync(
+    loaderPath,
+    [
+      `import { appendFileSync } from "node:fs"`,
+      `const forbidden = new Set(${JSON.stringify(forbiddenNetworkModules)})`,
+      `export async function resolve(specifier, context, nextResolve) {`,
+      `  if (forbidden.has(specifier)) {`,
+      `    appendFileSync(${JSON.stringify(networkLog)}, "module " + specifier + "\\n")`,
+      `    throw new Error("network module forbidden during runtime dependency bootstrap: " + specifier)`,
+      `  }`,
+      `  return nextResolve(specifier, context)`,
+      `}`,
+      "",
+    ].join("\n"),
+    "utf8",
+  )
   writeFileSync(
     preloadPath,
     [
+      `import { register } from "node:module"`,
       `import { appendFileSync } from "node:fs"`,
+      `import Module from "node:module"`,
+      `register(${JSON.stringify(pathToFileURL(loaderPath).href)})`,
+      `const forbidden = new Set(${JSON.stringify(forbiddenNetworkModules)})`,
+      `const originalLoad = Module._load`,
+      `Module._load = function(request, parent, isMain) {`,
+      `  if (forbidden.has(request)) {`,
+      `    appendFileSync(${JSON.stringify(networkLog)}, "require " + request + "\\n")`,
+      `    throw new Error("network module forbidden during runtime dependency bootstrap: " + request)`,
+      `  }`,
+      `  return originalLoad.apply(this, arguments)`,
+      `}`,
       `globalThis.fetch = async (...args) => {`,
       `  appendFileSync(${JSON.stringify(networkLog)}, JSON.stringify(args.map(String)) + "\\n")`,
       `  throw new Error("network access forbidden during runtime dependency bootstrap")`,
@@ -400,7 +430,31 @@ function listSourceMirrors(runtimeCacheDir) {
 function assertNoBootstrapSideEffects(fixture) {
   assert.equal(existsSync(path.join(fixture.mcpRoot, "node_modules")), false)
   assert.equal(existsSync(fixture.commandLog), false, "runtime bootstrap must not shell out to npm/npx/curl/wget")
-  assert.equal(existsSync(fixture.networkLog), false, "runtime bootstrap must not use fetch/network")
+  assert.equal(existsSync(fixture.networkLog), false, "runtime bootstrap must not use fetch or network modules")
+}
+
+function assertRuntimeDependenciesRestoredToCache(fixture) {
+  for (const entry of [
+    "package.json",
+    "package-lock.json",
+    "runtime-deps.manifest.json",
+    "node_modules/@modelcontextprotocol/sdk/package.json",
+    "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+    "node_modules/better-sqlite3/package.json",
+    "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+    "node_modules/gray-matter/package.json",
+    "node_modules/sqlite-vec/package.json",
+  ]) {
+    assert.equal(
+      existsSync(path.join(fixture.runtimeCacheDir, entry)),
+      true,
+      `runtime dependency pack must restore ${entry} into DESK_RUNTIME_CACHE_DIR`,
+    )
+  }
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 }
 
 test("MCP entrypoint is dependency-light before bootstrap", async () => {
@@ -434,6 +488,7 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
       "list-tools response must come from the restored runtime server",
     )
     assertNoBootstrapSideEffects(fixture)
+    assertRuntimeDependenciesRestoredToCache(fixture)
     const firstMirrors = listSourceMirrors(fixture.runtimeCacheDir)
     assert.equal(firstMirrors.length, 1, "runtime cache must contain one source mirror after first start")
 
@@ -472,7 +527,10 @@ test("MCP entrypoint reports missing or ABI-mismatched runtime packs without npm
     const result = await runEntrypointExpectingFailure(fixture)
     assert.notEqual(result.code, 0)
     assert.match(result.stderr, /runtime dependency pack/i)
-    assert.match(result.stderr, new RegExp(hostTarget.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"))
+    assert.match(result.stderr, new RegExp(escapeRegExp(hostTarget), "u"))
+    assert.match(result.stderr, new RegExp(escapeRegExp(path.join(artifactsRoot, hostTarget)), "u"))
+    assert.match(result.stderr, new RegExp(`available.+${escapeRegExp(path.basename(wrongTargetDir))}`, "isu"))
+    assert.match(result.stderr, /runtime:deps-pack:build/u)
     assert.doesNotMatch(result.stderr, /Cannot find package '@modelcontextprotocol\/sdk'/u)
     assert.doesNotMatch(result.stderr, /\n\s+at\s+/u)
     assertNoBootstrapSideEffects(fixture)
