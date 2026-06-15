@@ -210,7 +210,11 @@ test("unchanged legacy indexes are reindexed to backfill chunk identity metadata
 
 test("unchanged docs with missing chunk rows are rebuilt only when chunks are expected", async () => {
   const root = await mkRoot()
-  await w(root, "trackA/task-1/doing.md", "## Missing chunks\n\nbody")
+  await w(
+    root,
+    "trackA/task-1/doing.md",
+    "## Missing chunks\n\nbody\n\n## Second chunk\n\nmore body",
+  )
   await w(root, "trackA/task-2/doing.md", "")
 
   await rebuildIndex(root, indexOpts)
@@ -222,7 +226,9 @@ test("unchanged docs with missing chunk rows are rebuilt only when chunks are ex
     const emptyDoc = db
       .prepare("SELECT id FROM docs WHERE path = ?")
       .get("trackA/task-2/doing.md")
-    db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(missingChunksDoc.id)
+    db.prepare("DELETE FROM chunks WHERE doc_id = ? AND chunk_index = 1").run(
+      missingChunksDoc.id,
+    )
     db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(emptyDoc.id)
   } finally {
     closeDb(db)
@@ -250,7 +256,7 @@ test("unchanged docs with missing chunk rows are rebuilt only when chunks are ex
          WHERE d.path = ?`,
       )
       .get("trackA/task-2/doing.md").count
-    assert.ok(rebuiltChunks > 0)
+    assert.equal(rebuiltChunks, 2)
     assert.equal(emptyChunks, 0)
   } finally {
     closeDb(dbAfter)

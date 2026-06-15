@@ -118,6 +118,9 @@ export async function rebuildIndex(deskRoot, opts = {}) {
 }
 
 function docNeedsActiveChunkMetadata(db, docId, doc) {
+  const expectedKeys = chunkBody(doc.body).map((chunk) =>
+    chunkIdentity({ docPath: doc.path, chunk }).chunk_key
+  )
   const row = db
     .prepare(
       `SELECT
@@ -144,7 +147,18 @@ function docNeedsActiveChunkMetadata(db, docId, doc) {
       docId,
     )
   if (row.stale > 0) return true
-  return row.total === 0 && chunkBody(doc.body).length > 0
+  if (row.total !== expectedKeys.length) return true
+  if (expectedKeys.length === 0) return false
+  const storedKeys = db
+    .prepare(
+      `SELECT chunk_key
+       FROM chunks
+       WHERE doc_id = ?
+       ORDER BY chunk_index`,
+    )
+    .all(docId)
+    .map((chunk) => chunk.chunk_key)
+  return storedKeys.some((chunkKey, index) => chunkKey !== expectedKeys[index])
 }
 
 function docHasMissingActiveEmbeddings(db, docId) {
