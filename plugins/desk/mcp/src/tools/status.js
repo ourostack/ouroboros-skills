@@ -27,6 +27,22 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
   const localDb = root.valid
     ? inspectLocalDb(root.path)
     : unavailableLocalDb(root.path === null ? null : indexDbPath(root.path), "root_unavailable")
+  const startup = normalizeStartup(statusContext.startup)
+  const snapshots = snapshotStatus(startup)
+  const vectorPacks = vectorPackStatus(startup)
+  const queryEmbedding = queryEmbeddingStatus(startup)
+  const startupFallback = startupFallbackStatus({
+    startup,
+    documentVectors: localDb.document_vectors,
+    queryEmbedding,
+    lexicalIndex: localDb.lexical_index,
+  })
+  const degradedModes = degradedModesFor({
+    documentVectors: localDb.document_vectors,
+    queryEmbedding,
+    lexicalIndex: localDb.lexical_index,
+    startupFallback,
+  })
 
   return {
     status: root.valid ? "ok" : "error",
@@ -35,16 +51,14 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
     local_db: localDb.local_db,
     db_schema: localDb.local_db.schema,
     active_embedding_spec: EMBEDDING_SPEC,
-    snapshots: { restore_state: "not_checked", module_state: "not_installed" },
-    vector_packs: { import_state: "not_checked", module_state: "not_installed" },
+    snapshots,
+    vector_packs: vectorPacks,
     document_vectors: localDb.document_vectors,
-    query_embedding: {
-      available: "not_checked",
-      spec_id: EMBEDDING_SPEC.id,
-      note: "desk_status does not probe live embedding endpoints during session start",
-    },
+    query_embedding: queryEmbedding,
     lexical_index: localDb.lexical_index,
-    summary: summaryFor({ root, localDb }),
+    startup_fallback: startupFallback,
+    degraded_modes: degradedModes,
+    summary: summaryFor({ root, localDb, snapshots, vectorPacks, startupFallback }),
   }
 }
 
@@ -80,7 +94,12 @@ function inspectLocalDb(deskRoot) {
         state: ["missing", "available"][Number(lexicalAvailable)],
       },
       document_vectors: {
-        state: vectorsTableExists ? "available" : "missing",
+        state: documentVectorState({
+          chunksTotal,
+          missingVectors,
+          vectorsIndexed,
+          vectorsTableExists,
+        }),
         chunks_total: chunksTotal,
         vectors_indexed: vectorsIndexed,
         missing_vectors: missingVectors,
@@ -113,6 +132,146 @@ function unavailableLocalDb(dbPath, state) {
       coverage: null,
     },
   }
+}
+
+function normalizeStartup(startup) {
+  return startup !== null && typeof startup === "object" ? startup : {}
+}
+
+function startupEnsure(startup) {
+  const ensure = startup.ensure_index
+  return ensure !== null && typeof ensure === "object" ? ensure : null
+}
+
+function snapshotStatus(startup) {
+  const ensure = startupEnsure(startup)
+  const snapshot = ensure?.snapshot
+  const base = { module_state: "available" }
+  if (!snapshot) {
+    return { ...base, restore_state: "not_checked" }
+  }
+  return compactObject({
+    ...base,
+    restore_state: snapshotRestoreState(snapshot),
+    snapshot_id: snapshot.snapshot_id,
+    reason: snapshot.reason,
+    reconciled: snapshot.reconciled,
+    freshness: snapshot.freshness,
+  })
+}
+
+function vectorPackStatus(startup) {
+  const ensure = startupEnsure(startup)
+  const base = { module_state: "available" }
+  if (!ensure) return { ...base, import_state: "not_checked" }
+  if (ensure.fallback === "vector_packs") {
+    return { ...base, import_state: "used_as_fallback", fallback_used: true }
+  }
+  if (ensure.vector_packs?.import_state) {
+    return { ...base, ...ensure.vector_packs }
+  }
+  return { ...base, import_state: "absent" }
+}
+
+function queryEmbeddingStatus(startup) {
+  const semantic = startupEnsure(startup)?.semantic
+  const base = { spec_id: EMBEDDING_SPEC.id }
+  if (typeof semantic?.embedding_available === "boolean") {
+    return compactObject({
+      ...base,
+      available: semantic.embedding_available,
+      diagnostic: semantic.embedding_diagnostic,
+    })
+  }
+  return {
+    ...base,
+    available: "not_checked",
+    note: "desk_status does not probe live embedding endpoints during session start",
+  }
+}
+
+function startupFallbackStatus({
+  startup,
+  documentVectors,
+  queryEmbedding,
+  lexicalIndex,
+}) {
+  const ensure = startupEnsure(startup)
+  const mode = startup.fallback_mode ?? inferStartupFallbackMode({ ensure, lexicalIndex })
+  const degraded = startup.degraded ?? fallbackIsDegraded({
+    documentVectors,
+    mode,
+    queryEmbedding,
+  })
+  return compactObject({
+    mode,
+    degraded,
+    duration_ms: startup.duration_ms,
+    budget_ms: startup.budget_ms,
+  })
+}
+
+function degradedModesFor({
+  documentVectors,
+  queryEmbedding,
+  lexicalIndex,
+  startupFallback,
+}) {
+  const modes = []
+  if (documentVectors.state === "partial") modes.push("document_vectors_partial")
+  if (documentVectors.state === "missing") modes.push("document_vectors_missing")
+  if (queryEmbedding.available === false) modes.push("query_embedding_unavailable")
+  if (startupFallback.mode === "lexical_only" && lexicalIndex.available) {
+    modes.push("lexical_fallback_active")
+  }
+  return modes
+}
+
+function snapshotRestoreState(snapshot) {
+  if (snapshot.restored === true) return "restored"
+  if (snapshot.reason === "snapshot_already_restored") return "already_restored"
+  return "skipped"
+}
+
+function documentVectorState({
+  chunksTotal,
+  missingVectors,
+  vectorsIndexed,
+  vectorsTableExists,
+}) {
+  if (!vectorsTableExists) return "missing"
+  if (chunksTotal === 0) return "available"
+  if (vectorsIndexed === 0) return "missing"
+  return missingVectors > 0 ? "partial" : "available"
+}
+
+function inferStartupFallbackMode({ ensure, lexicalIndex }) {
+  if (!ensure) return "not_checked"
+  if (ensure.fallback === "vector_packs" && ensure.snapshot?.restored) {
+    return "snapshot_then_vector_packs"
+  }
+  if (ensure.fallback === "vector_packs") return "vector_packs"
+  if (
+    ensure.semantic?.missing_vectors > 0 &&
+    lexicalIndex.available
+  ) {
+    return "lexical_only"
+  }
+  if (ensure.snapshot?.restored) return "snapshot"
+  return ensure.built ? "rebuild" : "fresh"
+}
+
+function fallbackIsDegraded({ documentVectors, mode, queryEmbedding }) {
+  return mode === "lexical_only" ||
+    documentVectors.state === "missing" ||
+    documentVectors.state === "partial" ||
+    queryEmbedding.available === false
+}
+
+function compactObject(value) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  )
 }
 
 function rootStatus(deskRoot, rootContext = {}) {
@@ -272,13 +431,16 @@ function shouldSkipDir(name) {
   return name === ".state" || name === ".git" || name === "node_modules"
 }
 
-function summaryFor({ root, localDb }) {
+function summaryFor({ root, localDb, snapshots, vectorPacks, startupFallback }) {
+  const startupSummary = startupFallback.mode === "not_checked"
+    ? "Snapshot restore, vector-pack import, and query embedding probes were not run."
+    : `Startup fallback mode: ${startupFallback.mode}. Snapshot restore: ${snapshots.restore_state}. Vector pack import: ${vectorPacks.import_state}.`
   return [
     `Desk root ${root.path} resolved from ${root.source}.`,
     root.valid ? null : `Root diagnostic: ${root.diagnostic}.`,
     localDb.local_db.exists
       ? `Local DB is ${localDb.local_db.state}.`
       : "Local DB is missing; this is normal on first run.",
-    "Snapshot restore, vector-pack import, and query embedding probes were not run.",
+    startupSummary,
   ].filter(Boolean).join(" ")
 }

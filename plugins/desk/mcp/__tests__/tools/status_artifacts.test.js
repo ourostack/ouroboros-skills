@@ -79,6 +79,22 @@ function seedLexicalOnlyDb(root) {
   }
 }
 
+function seedFullyCoveredVectorDb(root) {
+  const db = openDb(root)
+  try {
+    for (const chunkId of insertDocWithChunks(db, 2)) {
+      const vec = new Float32Array(ACTIVE_EMBEDDING_SPEC.dimension)
+      db.prepare("INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)").run(
+        BigInt(chunkId),
+        vec,
+      )
+    }
+    setMeta(db, "last_indexed_at", "2999-01-01T00:00:00.000Z")
+  } finally {
+    closeDb(db)
+  }
+}
+
 test("desk_status reports snapshot/vector-pack startup fallback and degraded query embeddings", async () => {
   const root = makeRoot()
   try {
@@ -207,6 +223,111 @@ test("desk_status reports lexical-only startup fallback when artifacts and embed
     assert.equal(body.startup_fallback.degraded, true)
     assert.ok(body.degraded_modes.includes("document_vectors_missing"))
     assert.ok(body.degraded_modes.includes("lexical_fallback_active"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status preserves explicit vector-pack import state from startup context", async () => {
+  const root = makeRoot()
+  try {
+    seedLexicalOnlyDb(root)
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        startup: {
+          ensure_index: {
+            built: false,
+            reason: "fresh",
+            vector_packs: {
+              import_state: "validated",
+              packs_available: 2,
+            },
+          },
+          duration_ms: 1,
+          budget_ms: 250,
+        },
+      },
+    }))
+
+    assert.equal(body.vector_packs.module_state, "available")
+    assert.equal(body.vector_packs.import_state, "validated")
+    assert.equal(body.vector_packs.packs_available, 2)
+    assert.equal(body.startup_fallback.mode, "fresh")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status classifies additional artifact startup modes", async () => {
+  const root = makeRoot()
+  async function statusFor(ensureIndex) {
+    return parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        startup: {
+          ensure_index: ensureIndex,
+          duration_ms: 2,
+          budget_ms: 250,
+        },
+      },
+    }))
+  }
+
+  try {
+    seedFullyCoveredVectorDb(root)
+
+    let body = await statusFor({
+      built: false,
+      reason: "snapshot_restored",
+      snapshot: {
+        restored: false,
+        reason: "snapshot_already_restored",
+        snapshot_id: "already-restored",
+      },
+      semantic: {
+        chunks_total: 2,
+        vectors_indexed: 2,
+        missing_vectors: 0,
+        embedding_available: true,
+      },
+    })
+    assert.equal(body.snapshots.restore_state, "already_restored")
+    assert.equal(body.query_embedding.available, true)
+    assert.equal(body.document_vectors.state, "available")
+    assert.deepEqual(body.degraded_modes, [])
+
+    body = await statusFor({
+      built: true,
+      reason: "semantic_missing",
+      fallback: "vector_packs",
+      semantic: { chunks_total: 2, vectors_indexed: 2, missing_vectors: 0 },
+    })
+    assert.equal(body.startup_fallback.mode, "vector_packs")
+    assert.equal(body.vector_packs.import_state, "used_as_fallback")
+
+    body = await statusFor({
+      built: false,
+      reason: "snapshot_restored",
+      snapshot: { restored: true, snapshot_id: "snapshot-only" },
+      semantic: { chunks_total: 2, vectors_indexed: 2, missing_vectors: 0 },
+    })
+    assert.equal(body.startup_fallback.mode, "snapshot")
+
+    body = await statusFor({
+      built: true,
+      reason: "stale",
+      semantic: { chunks_total: 2, vectors_indexed: 2, missing_vectors: 0 },
+    })
+    assert.equal(body.startup_fallback.mode, "rebuild")
+
+    body = await statusFor({ built: false, reason: "fresh" })
+    assert.equal(body.startup_fallback.mode, "fresh")
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

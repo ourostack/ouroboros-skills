@@ -132,3 +132,119 @@ test("startup reports lexical fallback when snapshots and vector packs cannot co
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test("startup reports snapshot plus vector-pack fallback and startup errors", async () => {
+  const root = makeRoot("desk-startup-budget-edges-")
+  const vectorPackRuntime = runtimeServerWithEnsureIndex({
+    ensureIndex: async () => ({
+      built: true,
+      reason: "semantic_missing",
+      fallback: "vector_packs",
+      snapshot: {
+        restored: true,
+        snapshot_id: "startup-snapshot-with-packs",
+      },
+      semantic: {
+        chunks_total: 2,
+        vectors_indexed: 2,
+        missing_vectors: 0,
+      },
+    }),
+  })
+  const errorRuntime = runtimeServerWithEnsureIndex({
+    ensureIndex: async () => {
+      throw new Error("startup repair unavailable")
+    },
+  })
+  try {
+    await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => vectorPackRuntime,
+    })
+    assert.equal(
+      vectorPackRuntime.startCalls[0].statusContext.startup.fallback_mode,
+      "snapshot_then_vector_packs",
+    )
+    assert.equal(vectorPackRuntime.startCalls[0].statusContext.startup.degraded, false)
+
+    await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => errorRuntime,
+    })
+    const errorStartup = errorRuntime.startCalls[0].statusContext.startup
+    assert.equal(errorStartup.ensure_index.reason, "startup_error")
+    assert.equal(errorStartup.ensure_index.error.message, "startup repair unavailable")
+    assert.equal(errorStartup.fallback_mode, "startup_error")
+    assert.equal(errorStartup.degraded, true)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("startup classifies every bounded fallback mode", async () => {
+  const root = makeRoot("desk-startup-budget-modes-")
+  async function startupFor(resultOrThrow) {
+    const runtimeServer = runtimeServerWithEnsureIndex({
+      ensureIndex: async () => {
+        if (resultOrThrow instanceof Error || typeof resultOrThrow === "string") {
+          throw resultOrThrow
+        }
+        return resultOrThrow
+      },
+    })
+    await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => runtimeServer,
+    })
+    return runtimeServer.startCalls[0].statusContext.startup
+  }
+
+  try {
+    assert.equal((await startupFor({
+      built: true,
+      reason: "semantic_missing",
+      fallback: "vector_packs",
+      semantic: { chunks_total: 1, vectors_indexed: 1, missing_vectors: 0 },
+    })).fallback_mode, "vector_packs")
+
+    assert.equal((await startupFor({
+      built: false,
+      reason: "snapshot_restored",
+      snapshot: { restored: true, snapshot_id: "snapshot-only" },
+      semantic: { chunks_total: 1, vectors_indexed: 1, missing_vectors: 0 },
+    })).fallback_mode, "snapshot")
+
+    const rebuild = await startupFor({
+      built: true,
+      reason: "stale",
+      semantic: { chunks_total: 1, vectors_indexed: 1, missing_vectors: 0 },
+    })
+    assert.equal(rebuild.fallback_mode, "rebuild")
+    assert.equal(rebuild.degraded, false)
+
+    const degradedLexical = await startupFor({
+      built: true,
+      reason: "stale",
+      semantic: { chunks_total: 1, vectors_indexed: 0, missing_vectors: 1 },
+    })
+    assert.equal(degradedLexical.fallback_mode, "lexical_only")
+    assert.equal(degradedLexical.degraded, true)
+
+    assert.equal((await startupFor({ built: false, reason: "fresh" })).fallback_mode, "fresh")
+
+    const stringError = await startupFor("string startup failure")
+    assert.equal(stringError.ensure_index.reason, "startup_error")
+    assert.equal(stringError.ensure_index.error.message, "string startup failure")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

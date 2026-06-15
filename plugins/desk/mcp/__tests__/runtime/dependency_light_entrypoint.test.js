@@ -621,7 +621,7 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
   }
 })
 
-test("MCP entrypoint serves desk_status from the source mirror without session-start indexing", {
+test("MCP entrypoint serves desk_status from the source mirror after bounded lexical startup fallback", {
   skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${hostTarget}`,
 }, async () => {
   const fixture = makeFixture()
@@ -645,8 +645,12 @@ test("MCP entrypoint serves desk_status from the source mirror without session-s
     const body = JSON.parse(result.status.result.content[0].text)
     assert.equal(body.status, "ok")
     assert.equal(body.root.path, fixture.deskRoot)
-    assert.equal(body.local_db.exists, false)
-    assert.equal(body.local_db.state, "missing")
+    assert.equal(body.local_db.exists, true)
+    assert.equal(body.local_db.state, "available")
+    assert.equal(body.lexical_index.available, true)
+    assert.equal(body.document_vectors.state, "missing")
+    assert.equal(body.startup_fallback.mode, "lexical_only")
+    assert.equal(body.startup_fallback.degraded, true)
     assert.equal(body.runtime.loaded_from_source_mirror, true)
     assert.ok(
       body.runtime.source_mirror_path.startsWith(path.join(fixture.runtimeCacheDir, "source-mirror")),
@@ -654,8 +658,8 @@ test("MCP entrypoint serves desk_status from the source mirror without session-s
     )
     assert.equal(
       existsSync(path.join(fixture.deskRoot, ".state", "desk-index.sqlite")),
-      false,
-      "session-start status must not create or rebuild the local index DB",
+      true,
+      "bounded session-start fallback should create the lexical local index DB",
     )
     assertNoBootstrapSideEffects(fixture)
   } finally {

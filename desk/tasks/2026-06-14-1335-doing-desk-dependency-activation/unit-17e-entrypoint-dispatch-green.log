@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: parseArgs captures activation config path without losing root or person
+ok 1 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 2.040959
+  type: 'test'
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+ok 2 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 3.499
+  type: 'test'
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+ok 3 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 3.061
+  type: 'test'
+  ...
+# Subtest: activation config roots support tilde and relative paths with injectable cwd
+ok 4 - activation config roots support tilde and relative paths with injectable cwd
+  ---
+  duration_ms: 3.676541
+  type: 'test'
+  ...
+# Subtest: root resolver reports nonexistent explicit, host-session, and activation roots
+ok 5 - root resolver reports nonexistent explicit, host-session, and activation roots
+  ---
+  duration_ms: 2.217042
+  type: 'test'
+  ...
+# Subtest: root resolver final diagnostic lists every fallback source attempted in order
+ok 6 - root resolver final diagnostic lists every fallback source attempted in order
+  ---
+  duration_ms: 1.616667
+  type: 'test'
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+ok 7 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 1.469083
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+ok 8 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 1.76425
+  type: 'test'
+  ...
+# Subtest: entrypoint startup runtime cache resolution uses activation config only
+ok 9 - entrypoint startup runtime cache resolution uses activation config only
+  ---
+  duration_ms: 3.365416
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution lets host/session root override activation config
+ok 10 - entrypoint startup root resolution lets host/session root override activation config
+  ---
+  duration_ms: 4.809208
+  type: 'test'
+  ...
+# Subtest: entrypoint main resolves startup root before launching injected runtime server
+ok 11 - entrypoint main resolves startup root before launching injected runtime server
+  ---
+  duration_ms: 1.901792
+  type: 'test'
+  ...
+# Subtest: entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+ok 12 - entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+  ---
+  duration_ms: 0.957709
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+ok 13 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 1471.184166
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup lets host/session root override activation config root
+ok 14 - entrypoint stdio startup lets host/session root override activation config root
+  ---
+  duration_ms: 1561.654334
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+ok 15 - entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+  ---
+  duration_ms: 2202.512042
+  type: 'test'
+  ...
+# Subtest: server.callTool routes task_create to the real implementation
+ok 16 - server.callTool routes task_create to the real implementation
+  ---
+  duration_ms: 21.41825
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with structured body
+ok 17 - server.callTool surfaces tool errors as isError with structured body
+  ---
+  duration_ms: 4.442125
+  type: 'test'
+  ...
+# Subtest: server.callTool routes desk_thread to the real implementation
+ok 18 - server.callTool routes desk_thread to the real implementation
+  ---
+  duration_ms: 43.628084
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names
+ok 19 - server.callTool rejects unknown tool names
+  ---
+  duration_ms: 0.853708
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names even with person set
+ok 20 - server.callTool rejects unknown tool names even with person set
+  ---
+  duration_ms: 0.70625
+  type: 'test'
+  ...
+# Subtest: server.callTool reports registered tools missing from the implementation table
+ok 21 - server.callTool reports registered tools missing from the implementation table
+  ---
+  duration_ms: 0.686375
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with person set
+ok 22 - server.callTool surfaces tool errors as isError with person set
+  ---
+  duration_ms: 1.673042
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces non-Error throws as string messages
+ok 23 - server.callTool surfaces non-Error throws as string messages
+  ---
+  duration_ms: 1.002708
+  type: 'test'
+  ...
+# Subtest: server.callTool defaults omitted input to an empty object
+ok 24 - server.callTool defaults omitted input to an empty object
+  ---
+  duration_ms: 2.225709
+  type: 'test'
+  ...
+# Subtest: server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+ok 25 - server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+  ---
+  duration_ms: 8.49675
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces an invalid-alias throw as isError
+ok 26 - server.callTool surfaces an invalid-alias throw as isError
+  ---
+  duration_ms: 1.287166
+  type: 'test'
+  ...
+# Subtest: server.startServer registers list/call handlers and forwards status context
+ok 27 - server.startServer registers list/call handlers and forwards status context
+  ---
+  duration_ms: 2.138625
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct its default transport
+ok 28 - server.startServer can construct its default transport
+  ---
+  duration_ms: 1.900625
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct server and transport through injected factories
+ok 29 - server.startServer can construct server and transport through injected factories
+  ---
+  duration_ms: 2.67625
+  type: 'test'
+  ...
+# Subtest: server MCP factory helpers construct default SDK instances
+ok 30 - server MCP factory helpers construct default SDK instances
+  ---
+  duration_ms: 3.461208
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5397.225125

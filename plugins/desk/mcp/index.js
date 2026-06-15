@@ -16,6 +16,8 @@ import * as path from "node:path"
 import { importRuntimeServer } from "./src/runtime/bootstrap.js"
 import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
 
+const STARTUP_INDEX_BUDGET_MS = 250
+
 export function parseArgs(argv) {
   const args = { root: null, person: null }
   for (let i = 0; i < argv.length; i++) {
@@ -85,14 +87,78 @@ export async function main({
     target: null,
     loaded_from_source_mirror: false,
   }
+  const startupStatus = await runStartupEnsureIndex({
+    budgetMs: STARTUP_INDEX_BUDGET_MS,
+    deskRoot,
+    runtimeServer,
+  })
   await runtimeServer.startServer({
     deskRoot,
     person: args.person,
     statusContext: {
       root: rootResolution,
       runtime: runtimeStatus,
+      startup: startupStatus,
     },
   })
+}
+
+async function runStartupEnsureIndex({ budgetMs, deskRoot, runtimeServer }) {
+  if (!hasText(deskRoot) || typeof runtimeServer.ensureIndex !== "function") {
+    return {
+      fallback_mode: "not_checked",
+      degraded: false,
+      duration_ms: 0,
+      budget_ms: budgetMs,
+    }
+  }
+  const startedAt = Date.now()
+  let ensureIndexResult
+  try {
+    ensureIndexResult = await runtimeServer.ensureIndex(deskRoot, {
+      startup: true,
+      budgetMs,
+      skipEmbed: true,
+    })
+  } catch (err) {
+    ensureIndexResult = {
+      built: false,
+      reason: "startup_error",
+      error: {
+        message: err?.message ?? String(err),
+      },
+    }
+  }
+  const fallbackMode = inferStartupFallbackMode(ensureIndexResult)
+  return {
+    ensure_index: ensureIndexResult,
+    duration_ms: Date.now() - startedAt,
+    budget_ms: budgetMs,
+    fallback_mode: fallbackMode,
+    degraded: startupIsDegraded(ensureIndexResult, fallbackMode),
+  }
+}
+
+function inferStartupFallbackMode(ensureIndexResult) {
+  if (ensureIndexResult?.fallback === "vector_packs" && ensureIndexResult?.snapshot?.restored) {
+    return "snapshot_then_vector_packs"
+  }
+  if (ensureIndexResult?.fallback === "vector_packs") return "vector_packs"
+  if (
+    ensureIndexResult?.semantic?.missing_vectors > 0
+  ) {
+    return "lexical_only"
+  }
+  if (ensureIndexResult?.snapshot?.restored) return "snapshot"
+  if (ensureIndexResult?.reason === "startup_error") return "startup_error"
+  return ensureIndexResult?.built ? "rebuild" : "fresh"
+}
+
+function startupIsDegraded(ensureIndexResult, fallbackMode) {
+  return fallbackMode === "lexical_only" ||
+    fallbackMode === "startup_error" ||
+    ensureIndexResult?.semantic?.embedding_available === false ||
+    ensureIndexResult?.semantic?.missing_vectors > 0
 }
 
 function hasText(value) {
