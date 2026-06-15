@@ -465,6 +465,29 @@ test("Ouroboros packaging validation rejects host-support drift and manual insta
   )
 })
 
+test("Ouroboros packaging validation rejects evidence row drift", () => {
+  const evidenceDrift = clone(currentOuroborosStdioPackagingInput())
+  const ouroborosEvidence = findByField(
+    evidenceDrift.evidenceRows,
+    "host_id",
+    "ouroboros-autonomous-agent",
+    "test input",
+  )
+  ouroborosEvidence.disposition = "unsupported"
+  ouroborosEvidence.unsupported_primitives = []
+  ouroborosEvidence.fallback_behavior = "manual npm install only"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(evidenceDrift),
+    [
+      "Ouroboros evidence must record supported-flattened disposition",
+      "Ouroboros evidence must mark host-native-plugin-install unsupported",
+      "Ouroboros evidence fallback must describe bundled Desk and Work Suite",
+      "Ouroboros evidence fallback must describe $DESK binding",
+    ],
+  )
+})
+
 test("generic stdio packaging validation rejects unsafe or under-specified launches", () => {
   const unsafeInlineBinding = clone(currentOuroborosStdioPackagingInput())
   unsafeInlineBinding.genericStdioReadmeSection =
@@ -923,6 +946,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nA separate host or overlay must provide Work Suite dependency closure.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(separateOverlayProvidesClosure),
+    [],
+  )
+
+  const passiveSeparateHostProvidesClosure = clone(currentOuroborosStdioPackagingInput())
+  passiveSeparateHostProvidesClosure.genericStdioActivationSection +=
+    "\nWork Suite dependency closure must be provided by a separate host or overlay.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveSeparateHostProvidesClosure),
+    [],
+  )
+
+  const passiveAnotherOverlaySuppliesWorker = clone(currentOuroborosStdioPackagingInput())
+  passiveAnotherOverlaySuppliesWorker.genericStdioReadmeSection +=
+    "\nWorker activation must be supplied by another overlay.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveAnotherOverlaySuppliesWorker),
     [],
   )
 })
