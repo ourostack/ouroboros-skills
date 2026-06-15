@@ -202,12 +202,29 @@ test("snapshot manifest rejects compatibility and provenance drift", async () =>
   assert.throws(() => validate({ ...base, embedding_spec_id: "other-spec" }), /embedding_spec_id/u)
   assert.throws(() => validate({ ...base, dimension: 42 }), /dimension/u)
   assert.throws(() => validate({ ...base, chunker_id: "other-chunker" }), /chunker_id/u)
+  assert.throws(() => validate({ ...base, normalization_id: "other-normalizer" }), /normalization_id/u)
   assert.throws(() => validate({ ...base, db_schema: { ...DB_SCHEMA, version: 999 } }), /DB schema/u)
   assert.throws(() => validate({ ...base, sqlite_vec: { ...SQLITE_VEC, version: "9.9.9" } }), /sqlite-vec/u)
   assert.throws(() => validate({ ...base, runtime: { ...RUNTIME, arch: "x64" } }), /runtime/u)
   assert.throws(() => validate({ ...base, included_pack_ids: ["../pack"] }), /included_pack_ids/u)
   assert.throws(() => validate({ ...base, created_at: "not-a-date" }), /created_at/u)
   assert.throws(() => validate({ ...base, provenance: {} }), /provenance/u)
+  assert.throws(
+    () => validate({ ...base, artifact_source_scope_hash: undefined }),
+    /artifact_source_scope_hash/u,
+  )
+  assert.throws(
+    () => validate({ ...base, document_tree_hash: undefined }),
+    /document_tree_hash/u,
+  )
+  assert.throws(
+    () => validate({ ...base, provenance: { ...base.provenance, builder: "" } }),
+    /provenance/u,
+  )
+  assert.throws(
+    () => validate({ ...base, provenance: { ...base.provenance, commit: "not-a-sha" } }),
+    /provenance/u,
+  )
   assert.throws(
     () => validate({
       ...base,
