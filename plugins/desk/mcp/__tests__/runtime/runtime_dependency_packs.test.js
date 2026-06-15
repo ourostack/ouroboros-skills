@@ -2305,14 +2305,8 @@ test("runtime dependency pack builder handles long paths and CLI argument edge c
     stdout.length = 0
     stderr.length = 0
   }
-  let defaultRuntimePack
 
   try {
-    defaultRuntimePack = buildRuntimeDependencyPack({
-      createdAt: "2026-06-15T00:00:00.000Z",
-      provenanceSource: "unit 6f default path fixture",
-    })
-
     const built = buildRuntimeDependencyPack({
       mcpRoot: splittableLongPathRoot.root,
       outputRoot: splittableOutputRoot,
@@ -2423,9 +2417,6 @@ test("runtime dependency pack builder handles long paths and CLI argument edge c
     rmSync(unsplittableOutputRoot, { recursive: true, force: true })
     rmSync(defaultOutputRoot.root, { recursive: true, force: true })
     rmSync(cliOutputRoot, { recursive: true, force: true })
-    if (defaultRuntimePack !== undefined) {
-      rmSync(defaultRuntimePack.packDir, { recursive: true, force: true })
-    }
     rmSync(cliInvalidPackDir, { recursive: true, force: true })
   }
 })
