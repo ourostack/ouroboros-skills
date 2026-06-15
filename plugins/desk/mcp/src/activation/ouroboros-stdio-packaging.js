@@ -239,7 +239,8 @@ function hasPositiveSupportClaim({ clause, action, target }) {
   const actionMatches = allMatches(action, normalizedClause)
   const targetMatches = allMatches(target, normalizedClause)
   return actionMatches.some((actionMatch) => (
-    !isSupportActionNegated(normalizedClause, actionMatch.index)
+    !isSupportNounPhrase(normalizedClause, actionMatch)
+    && !isSupportActionNegated(normalizedClause, actionMatch.index)
     && targetMatches.some((targetMatch) => (
       !isSupportTargetNegated({
         clause: normalizedClause,
@@ -252,6 +253,15 @@ function hasPositiveSupportClaim({ clause, action, target }) {
       })
     ))
   ))
+}
+
+function isSupportNounPhrase(clause, actionMatch) {
+  if (actionMatch[0] !== "support") {
+    return false
+  }
+  const afterAction = clause.slice(actionMatch.index + actionMatch[0].length)
+  return /^\s+(?:matrix|matrices|table|tables|row|rows|column|columns|entry|entries|status|evidence|docs?|documentation|section|sections)\b/u
+    .test(afterAction)
 }
 
 function isExternalSupportAssignment({ clause, targetMatch }) {
@@ -274,7 +284,7 @@ function readmeStatements(readmeSection) {
 
 function readmeClauses(statement) {
   return statement
-    .split(/(?:,|:\s+|\s+-\s+|\s+\b(?:but|and|yet|though|although|while|however|because|since|as|so)\b\s+|;\s*)/iu)
+    .split(/(?:,|:\s+|\s+-\s+|\s+\b(?:but|and|yet|though|although|while|however|because|since|as|so|then)\b\s+|;\s*)/iu)
     .map((clause) => clause.trim())
     .filter(Boolean)
 }
