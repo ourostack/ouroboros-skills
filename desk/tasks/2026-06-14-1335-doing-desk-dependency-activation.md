@@ -80,10 +80,10 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Compatible snapshots are copied into `.state/` before mutation.
 - [ ] Snapshot artifacts live at `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` with adjacent manifest and checksum files.
 - [x] Snapshot manifest includes artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
-- [ ] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, artifact source-scope/document hashes, included pack IDs, and artifact format.
-- [ ] Snapshot restore treats artifact source-scope or document tree mismatch as freshness information, not compatibility failure.
-- [ ] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
-- [ ] Snapshot restore rejects or skips artifacts with unexpected source paths.
+- [x] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, artifact source-scope/document hashes, included pack IDs, and artifact format.
+- [x] Snapshot restore treats artifact source-scope or document tree mismatch as freshness information, not compatibility failure.
+- [x] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
+- [x] Snapshot restore rejects or skips artifacts with unexpected source paths.
 - [ ] Snapshot artifacts are compressed or otherwise size-managed.
 - [ ] Runtime chooses the newest compatible snapshot for the active embedding spec and ignores inactive-spec snapshots.
 - [ ] Snapshot restore corruption is treated as a cache miss.
@@ -484,7 +484,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/src/snapshots/manifest.js`, `plugins/desk/artifacts/snapshots/README.md`, and fixtures.
 **Acceptance**: Unit 15a tests pass and invalid manifests fail with non-leaking diagnostics.
 
-### 🔄 Unit 15c: Snapshot Manifest And Validation - Coverage & Refactor
+### ✅ Unit 15c: Snapshot Manifest And Validation - Coverage & Refactor
 **What**: Add coverage for missing fields, wrong types, checksum mismatch, sqlite-vec/runtime mismatch, unexpected source paths, and absolute paths.
 **Output**: Hardened snapshot manifest validation.
 **Acceptance**: 100% coverage on new snapshot manifest code and all manifest tests pass.
@@ -951,3 +951,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 12:55 Unit 15b started for snapshot manifest parsing and validation implementation.
 - 2026-06-15 13:14 Unit 15b complete: `88e09f7` added canonical snapshot path derivation, snapshot artifact/manifest/checksum validation, freshness reporting for source/document hashes, snapshot source-path allowlist checks, artifact filename binding, and `plugins/desk/artifacts/snapshots/README.md`. Rawls the 2nd found a BLOCKER for embedded Windows host-path fragments in `source_paths`, a MAJOR leaking unexpected-path diagnostic, and a MINOR loose timestamp parser; `8f02639` fixed all three with regressions and refreshed `unit-15b-review-fix-*` evidence. Boole the 2nd converged on Round 2. Final evidence: manifest tests pass 11/11, full MCP tests pass 462/462, coverage is 100% line/branch/function for changed production files, runtime-pack/generated-artifact/support-matrix/skill/diff checks pass, and build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script.
 - 2026-06-15 13:18 Unit 15c started for snapshot manifest coverage/refactor hardening around missing fields, wrong types, checksum mismatch, sqlite-vec/runtime mismatch, unexpected source paths, and absolute paths.
+- 2026-06-15 13:22 Unit 15c complete: `06d7731` hardened snapshot manifest validation with controlled bad path-type diagnostics, `.sqlite.zst` extension rejection before sidecar inference, raw checksum sidecar acceptance, missing manifest/checksum sidecar coverage, wrong-type/missing-field compatibility assertions, and the adjusted filesystem-error regression. Evidence saved in `unit-15c-snapshot-manifest-green.log`, `unit-15c-test-coverage.log`, `unit-15c-npm-test-green.log`, `unit-15c-runtime-pack-verify-green.log`, `unit-15c-generate-support-matrix-green.log`, `unit-15c-generated-artifacts-green.log`, `unit-15c-validate-skills-green.log`, `unit-15c-build-unavailable.log`, and `unit-15c-diff-check-green.log`; focused manifest tests pass 13/13, full MCP tests pass 464/464, coverage is 100% line/branch/function for changed production files, and Mendel the 2nd converged on the Unit 15c reviewer gate.
