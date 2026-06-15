@@ -134,7 +134,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover repeated startup idempotence.
 - [ ] Tests cover deactivation/uninstall artifact ownership.
 - [x] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
-- [ ] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
+- [x] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
 - [x] Tests cover permission/capability boundaries for generated activation artifacts.
 - [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
@@ -229,7 +229,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/src/activation/adapters/codex.js`, `plugins/desk/.codex-plugin/plugin.json`, `plugins/work-suite/.codex-plugin/plugin.json`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Unit 2a tests pass and generated output proves Codex activation config can be materialized without manual MCP registration or copied worker files; real session smoke proof waits for Units 10d-10f after `desk_status` exists.
 
-### ⬜ Unit 2c: Codex Global Activation - Coverage & Refactor
+### ✅ Unit 2c: Codex Global Activation - Coverage & Refactor
 **What**: Add edge-case coverage for existing config, disabled Desk, changed activation version, malformed config, and repeated activation.  
 **Output**: Hardened `plugins/desk/mcp/src/activation/adapters/codex.js` and `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`.  
 **Acceptance**: 100% coverage on new Codex adapter code, repeated activation is idempotent, and all Codex adapter tests pass.
@@ -759,3 +759,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 17:45 Unit 2b reviewer fix: Dirac found a BLOCKER that the first materializer emitted custom `[desk.activation]` TOML rather than Codex-native loading surfaces; tightened the Codex activation tests with red evidence in `unit-2b-review-fix-red.log`, changed materialization to native plugin enablement, plugin-scoped bundled MCP policy, project-local `[mcp_servers.desk]` only where a `.desk` root override is needed, and owned Codex `AGENTS.md` instruction blocks for worker default behavior; committed as `f6c6eee`; refreshed green logs for targeted Codex activation, `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
 - 2026-06-14 17:51 Unit 2b reviewer hygiene: Faraday found a NIT that committed Unit 2b evidence logs had trailing whitespace when checking the full `99506fe..72d39ab` review range; scrubbed trailing whitespace from Unit 2b evidence logs in `0a55102` and verified `git diff --check 99506fe..HEAD` and `git diff --check` pass
 - 2026-06-14 17:51 Unit 2b cold reviewer gate converged after blocker and hygiene fixes; Huygens verified native Codex activation surfaces, AGENTS worker-default materialization, evidence logs, checklist scope, and clean `git diff --check 99506fe..5642d3d`
+- 2026-06-14 18:02 Unit 2c complete: hardened Codex activation owned-block handling in `cb8b301`; red evidence covered repeated activation, old-version replacement, malformed/duplicate owned blocks, user-authored Desk disablement, and empty host files; green evidence saved in `unit-2c-codex-activation-green.log`, `unit-2c-test-coverage-green.log`, `unit-2c-npm-test-green.log`, and `unit-2c-validate-skills-green.log`; verified `node --test plugins/desk/mcp/__tests__/activation/codex_activation.test.js`, `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`; no Desk MCP build script exists, so no separate build command was available
