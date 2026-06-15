@@ -717,6 +717,30 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     validateOuroborosStdioPackagingContract(startsNeitherNor),
     [],
   )
+
+  const passiveNeitherNor = clone(currentOuroborosStdioPackagingInput())
+  passiveNeitherNor.genericStdioReadmeSection +=
+    "\nNeither desk:worker nor Work Suite is supported by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveNeitherNor),
+    [],
+  )
+
+  const passiveClosureNeitherNor = clone(currentOuroborosStdioPackagingInput())
+  passiveClosureNeitherNor.genericStdioReadmeSection +=
+    "\nNeither worker activation nor Work Suite dependency closure is provided by this path.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(passiveClosureNeitherNor),
+    [],
+  )
+
+  const noDependencyClosure = clone(currentOuroborosStdioPackagingInput())
+  noDependencyClosure.genericStdioReadmeSection +=
+    "\nNo Work Suite dependency closure is enabled here.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noDependencyClosure),
+    [],
+  )
 })
 
 test("generic stdio packaging validation rejects host dependency support claims", () => {
