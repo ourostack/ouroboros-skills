@@ -229,6 +229,84 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
   assert.equal(selected.manifest.created_at, "2026-06-15T01:00:00.000Z")
 })
 
+test("selectNewestCompatibleSnapshot returns null for no compatible snapshots and ties by snapshot id", async () => {
+  const { discoverSnapshotArtifacts, selectNewestCompatibleSnapshot } = await loadRestoreModule()
+  const missingPluginRoot = await tmpRoot("desk-snapshot-restore-missing-plugin-")
+  const incompatiblePluginRoot = await tmpRoot("desk-snapshot-restore-incompatible-plugin-")
+  const tiedPluginRoot = await tmpRoot("desk-snapshot-restore-tied-plugin-")
+  await writeSnapshot({
+    pluginRoot: incompatiblePluginRoot,
+    snapshotId: "inactive-only",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    embeddingSpecId: "inactive-spec-v1",
+  })
+  await writeSnapshot({
+    pluginRoot: tiedPluginRoot,
+    snapshotId: "b-tied",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  await writeSnapshot({
+    pluginRoot: tiedPluginRoot,
+    snapshotId: "a-tied",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+
+  assert.equal(
+    selectNewestCompatibleSnapshot(await discoverSnapshotArtifacts({
+      pluginRoot: missingPluginRoot,
+      ...expectedContext(),
+    })),
+    null,
+  )
+  assert.equal(selectNewestCompatibleSnapshot({}), null)
+  assert.equal(
+    selectNewestCompatibleSnapshot(await discoverSnapshotArtifacts({
+      pluginRoot: incompatiblePluginRoot,
+      ...expectedContext(),
+    })),
+    null,
+  )
+  assert.equal(
+    selectNewestCompatibleSnapshot(await discoverSnapshotArtifacts({
+      pluginRoot: tiedPluginRoot,
+      ...expectedContext(),
+    })).snapshot_id,
+    "a-tied",
+  )
+})
+
+test("discoverSnapshotArtifacts ignores non-directory entries and rejects invalid snapshot roots", async () => {
+  const { discoverSnapshotArtifacts } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const badPluginRoot = await tmpRoot("desk-snapshot-restore-bad-plugin-")
+  const snapshotsRoot = path.join(pluginRoot, "artifacts", "snapshots")
+  await fs.mkdir(snapshotsRoot, { recursive: true })
+  await fs.writeFile(path.join(snapshotsRoot, "README.md"), "not a spec directory\n", "utf8")
+  await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-only",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  await fs.mkdir(path.join(badPluginRoot, "artifacts"), { recursive: true })
+  await fs.writeFile(path.join(badPluginRoot, "artifacts", "snapshots"), "not a directory\n", "utf8")
+
+  const discovered = await discoverSnapshotArtifacts({
+    pluginRoot,
+    ...expectedContext(),
+  })
+  assert.deepEqual(
+    discovered.compatible.map((candidate) => candidate.snapshot_id),
+    ["active-only"],
+  )
+  await assert.rejects(
+    () => discoverSnapshotArtifacts({
+      pluginRoot: badPluginRoot,
+      ...expectedContext(),
+    }),
+    (error) => error?.code === "ENOTDIR",
+  )
+})
+
 test("restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts", async () => {
   const { restoreSnapshotToState } = await loadRestoreModule()
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
@@ -278,6 +356,73 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   assert.equal(result.state_db_path, indexDbPath(deskRoot))
   assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), newer.sqliteBytes)
   assert.deepEqual(await fingerprint(repoArtifactPaths), before)
+})
+
+test("restoreSnapshotToState repairs corrupt metadata and missing state DB markers", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+  const snapshot = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-only",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("repair sqlite bytes", "utf8"),
+  })
+  const statePath = indexDbPath(deskRoot)
+  const stateMetaPath = `${statePath}.snapshot.json`
+
+  assert.equal((await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })).restored, true)
+
+  await fs.writeFile(stateMetaPath, "{not-json", "utf8")
+  assert.equal((await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })).restored, true)
+  assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
+
+  await fs.rm(statePath)
+  assert.equal((await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })).restored, true)
+  assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
+})
+
+test("restoreSnapshotToState reports cache miss when no compatible snapshot exists", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+
+  assert.deepEqual(
+    await restoreSnapshotToState({
+      pluginRoot,
+      deskRoot,
+      ...expectedContext(),
+    }),
+    { restored: false, reason: "no_compatible_snapshot" },
+  )
+  await assert.rejects(
+    () => restoreSnapshotToState({
+      pluginRoot,
+      deskRoot: "",
+      ...expectedContext(),
+    }),
+    /deskRoot is required/u,
+  )
+  await assert.rejects(
+    () => restoreSnapshotToState({
+      pluginRoot: "",
+      deskRoot,
+      ...expectedContext(),
+    }),
+    /pluginRoot is required/u,
+  )
 })
 
 test("restoreSnapshotToState is idempotent for repeated compatible restores", async () => {
