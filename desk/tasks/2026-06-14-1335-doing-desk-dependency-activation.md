@@ -138,11 +138,11 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
 - [x] Tests cover permission/capability boundaries for generated activation artifacts.
 - [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
-- [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
+- [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -299,7 +299,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js`.  
 **Acceptance**: Tests fail until evidence rows, generated support-matrix output, and docs give explicit dispositions for Ouroboros/autonomous-agent and generic stdio paths.
 
-### ⬜ Unit 6b: Ouroboros And Generic Stdio Packaging - Implementation
+### ✅ Unit 6b: Ouroboros And Generic Stdio Packaging - Implementation
 **What**: Add `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` and docs entries for Ouroboros/autonomous-agent bundle wiring and generic stdio MCP launch, then regenerate support-matrix output through the Unit 3 generator.  
 **Output**: Updated evidence rows, generated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
 **Acceptance**: Unit 6a tests pass, the docs no longer leave the Ouroboros path out of the activation story, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
@@ -797,3 +797,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 20:59 Unit 6a complete: added Ouroboros/autonomous-agent and generic stdio packaging red tests in `38dac70`; targeted red run saved to `unit-6a-ouroboros-stdio-packaging-red.log` and fails because the activation manifest lacks an `ouroboros-autonomous-agent` host-support row, Ouroboros docs do not show a concrete `bundle.json` plugin closure with `$DESK` preamble binding, generic stdio evidence still uses `degraded-manual-host` instead of an MCP-only disposition, and the MCP README lacks a generic stdio launch section; terminal `All tests pass` criterion intentionally unchecked until Unit 6b makes the new tests green
 - 2026-06-14 21:05 Unit 6a reviewer fix: Pauli found MAJOR gaps where evidence-anchor strings were not proven by real activation README sections and the `$DESK` assertion accepted a circular binding; `c28fb56` added markdown-anchor validation for the Ouroboros and generic stdio activation sections, required those sections to state their dispositions, and changed the Ouroboros README assertion to require `$DESK = ~/AgentBundles/<agent>.ouro/desk/`; refreshed red evidence in `unit-6a-review-fix-ouroboros-stdio-packaging-red.log`
 - 2026-06-14 21:05 Unit 6a Round 2 cold reviewer gate converged; Parfit verified the activation-anchor and concrete `$DESK` binding findings are closed, the red tests still target real current gaps, and terminal `All tests pass` remains unchecked while Unit 6a is intentionally red
+- 2026-06-14 21:12 Unit 6b complete: implemented Ouroboros/autonomous-agent and generic stdio packaging dispositions in `22fa50d` by adding an `ouroboros-autonomous-agent` activation host-support row, updating generic stdio to `degraded-mcp-only`, adding `plugin-dependency-resolution` to activation/support-matrix unsupported primitive allow-lists, documenting `bundle.json` plus `$DESK = ~/AgentBundles/<agent>.ouro/desk/`, adding activation README anchors, adding generic stdio MCP-only launch docs, updating host-capability evidence, and regenerating `plugins/desk/activation/support-matrix.json`; saved `unit-6b-generate-support-matrix-green.log`, `unit-6b-ouroboros-stdio-packaging-green.log`, `unit-6b-support-matrix-green.log`, `unit-6b-activation-contract-green.log`, `unit-6b-test-coverage-green.log`, `unit-6b-npm-test-green.log`, `unit-6b-validate-skills-green.log`, `unit-6b-build-unavailable.log`, and `unit-6b-diff-check-green.log`; verified targeted packaging, support-matrix, activation-contract, coverage, full MCP suite, skill validation, expected missing build script disposition, and `git diff --check`
