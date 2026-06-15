@@ -866,6 +866,14 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const externalHostThenDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  externalHostThenDependencyClaim.genericStdioReadmeSection +=
+    "\nA separate host must manually provide Work Suite dependency closure then generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(externalHostThenDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
   const asWorkerClaim = clone(currentOuroborosStdioPackagingInput())
   asWorkerClaim.genericStdioReadmeSection +=
     "\nNo manual install is needed as this path starts worker activation automatically.\n"
@@ -969,6 +977,14 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nNo plugin dependencies are resolved by generic stdio.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(noPluginDependenciesResolved),
+    [],
+  )
+
+  const supportMatrixUnsupported = clone(currentOuroborosStdioPackagingInput())
+  supportMatrixUnsupported.genericStdioReadmeSection +=
+    "\nThe generic stdio support matrix records Work Suite dependency closure as unsupported.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportMatrixUnsupported),
     [],
   )
 
