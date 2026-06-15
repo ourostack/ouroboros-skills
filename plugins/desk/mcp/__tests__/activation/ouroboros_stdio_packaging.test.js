@@ -616,6 +616,38 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     ["Generic stdio docs must not claim worker activation"],
   )
 
+  const includesAgentDefaults = clone(currentOuroborosStdioPackagingInput())
+  includesAgentDefaults.genericStdioReadmeSection +=
+    "\nGeneric stdio includes agent-defaults automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(includesAgentDefaults),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const installsDefaultAgent = clone(currentOuroborosStdioPackagingInput())
+  installsDefaultAgent.genericStdioReadmeSection +=
+    "\nGeneric stdio installs the default agent automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(installsDefaultAgent),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const installsDeskWorker = clone(currentOuroborosStdioPackagingInput())
+  installsDeskWorker.genericStdioReadmeSection +=
+    "\nGeneric stdio installs desk:worker automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(installsDeskWorker),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const includesWorkerActivation = clone(currentOuroborosStdioPackagingInput())
+  includesWorkerActivation.genericStdioReadmeSection +=
+    "\nGeneric stdio includes worker activation automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(includesWorkerActivation),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const bundlesWorkSuite = clone(currentOuroborosStdioPackagingInput())
   bundlesWorkSuite.genericStdioReadmeSection +=
     "\nGeneric stdio bundles Work Suite automatically.\n"
@@ -1065,6 +1097,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nGeneric stdio depends on an external overlay to explicitly start worker activation.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(activeExternalOverlayExplicitlyStartsWorker),
+    [],
+  )
+
+  const reliesOnSeparateHostProvidesClosure = clone(currentOuroborosStdioPackagingInput())
+  reliesOnSeparateHostProvidesClosure.genericStdioReadmeSection +=
+    "\nGeneric stdio relies on a separate host that provides Work Suite dependency closure.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnSeparateHostProvidesClosure),
+    [],
+  )
+
+  const reliesOnExternalOverlayStartsWorker = clone(currentOuroborosStdioPackagingInput())
+  reliesOnExternalOverlayStartsWorker.genericStdioActivationSection +=
+    "\nGeneric stdio relies on an external overlay that starts worker activation.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnExternalOverlayStartsWorker),
     [],
   )
 })
