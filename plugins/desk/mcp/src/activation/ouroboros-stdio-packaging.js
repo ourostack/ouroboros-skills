@@ -190,7 +190,7 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled)\b/u,
+    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered)\b/u,
     target: /\b(?:desk worker|worker|agent defaults?|default agent)\b/u,
   })
 }
@@ -198,7 +198,7 @@ function claimsGenericStdioWorkerActivation(readmeSection) {
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled)\b/u,
+    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered)\b/u,
     target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
