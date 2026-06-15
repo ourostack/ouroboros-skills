@@ -186,6 +186,7 @@ test("support matrix validation reports evidence and freshness mismatches", asyn
   assert.deepEqual(
     validateSupportMatrix({ matrix, manifest, evidence: missingCodexEvidence }),
     [
+      "missing required evidence row for host codex",
       "missing evidence row for host codex",
       "support matrix host rows must match evidence rows",
     ],

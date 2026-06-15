@@ -16,6 +16,19 @@ const REQUIRED_EVIDENCE_COLUMNS = [
   "unsupported_primitives",
   "fallback_behavior",
 ]
+const REQUIRED_HOSTS = [
+  "claude",
+  "codex",
+  "copilot-root",
+  "ouroboros-autonomous-agent",
+  "generic-stdio",
+]
+const UNSUPPORTED_PRIMITIVES = new Set([
+  "agent-defaults",
+  "host-activation",
+  "host-native-plugin-install",
+  "transitive-dependency-resolution",
+])
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const defaultRepoRoot = path.resolve(moduleDir, "..", "..", "..", "..", "..")
 const defaultManifestPath = "plugins/desk/activation/desk.activation.json"
@@ -66,6 +79,9 @@ export function validateSupportMatrix({ matrix, manifest, evidence }) {
   if (matrix.schema_version !== SUPPORT_MATRIX_SCHEMA_VERSION) {
     issues.push("support matrix schema_version is unsupported")
   }
+
+  validateEvidenceRows(evidence, issues)
+
   for (const hostSupport of manifest.host_support) {
     const evidenceRow = evidence.hosts.find((row) => row.host_id === hostSupport.host)
     if (!evidenceRow) {
@@ -78,6 +94,33 @@ export function validateSupportMatrix({ matrix, manifest, evidence }) {
     issues.push("support matrix host rows must match evidence rows")
   }
   return issues
+}
+
+function validateEvidenceRows(evidence, issues) {
+  const evidenceHosts = new Set(evidence.hosts.map((row) => row.host_id))
+  for (const host of REQUIRED_HOSTS) {
+    if (!evidenceHosts.has(host)) {
+      issues.push(`missing required evidence row for host ${host}`)
+    }
+  }
+  for (const row of evidence.hosts) {
+    if (!REQUIRED_HOSTS.includes(row.host_id)) {
+      issues.push(`unknown support matrix host ${row.host_id}`)
+    }
+    for (const primitive of row.unsupported_primitives) {
+      if (!UNSUPPORTED_PRIMITIVES.has(primitive)) {
+        issues.push(`unsupported primitive ${primitive} for host ${row.host_id}`)
+      }
+    }
+    if (
+      row.disposition === "supported-native-or-flattened" &&
+      row.unsupported_primitives.includes("transitive-dependency-resolution")
+    ) {
+      issues.push(
+        `native-or-flattened disposition conflicts with unsupported transitive dependencies for host ${row.host_id}`,
+      )
+    }
+  }
 }
 
 export function generateSupportMatrixArtifact() {
