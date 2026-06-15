@@ -49,10 +49,11 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
   if (!readmeSection.includes("bundle.json")) {
     errors.push("Ouroboros docs must define bundle.json plugin metadata")
   }
-  if (!readmeSection.includes("\"desk\"")) {
+  const bundlePlugins = extractBundlePlugins(readmeSection)
+  if (!bundlePlugins.includes("desk")) {
     errors.push("Ouroboros bundle metadata must include desk plugin")
   }
-  if (!readmeSection.includes("\"work-suite\"")) {
+  if (!bundlePlugins.includes("work-suite")) {
     errors.push("Ouroboros bundle metadata must include work-suite plugin")
   }
   if (!/\$DESK\s*=\s*~\/AgentBundles\/<agent>\.ouro\/desk\//u.test(readmeSection)) {
@@ -103,8 +104,14 @@ function validateGenericStdioHost({ host, evidence, readmeSection }, errors) {
   if (!/MCP-only/u.test(readmeSection)) {
     errors.push("Generic stdio docs must state MCP-only behavior")
   }
-  if (/desk:worker is activated by generic stdio/u.test(readmeSection)) {
+  if (!/no worker activation/u.test(readmeSection)) {
+    errors.push("Generic stdio docs must state no worker activation")
+  }
+  if (claimsGenericStdioWorkerActivation(readmeSection)) {
     errors.push("Generic stdio docs must not claim worker activation")
+  }
+  if (claimsGenericStdioDependencyResolution(readmeSection)) {
+    errors.push("Generic stdio docs must not claim plugin dependency resolution")
   }
 }
 
@@ -120,6 +127,61 @@ function findEvidenceRow(input, hostId) {
     return undefined
   }
   return input.evidenceRows.find((entry) => entry?.host_id === hostId)
+}
+
+function extractBundlePlugins(readmeSection) {
+  for (const block of readmeSection.matchAll(/```json\s*\n(?<json>[\s\S]*?)```/gu)) {
+    const parsed = parseJson(block.groups.json)
+    if (Array.isArray(parsed?.plugins)) {
+      return parsed.plugins.filter((plugin) => typeof plugin === "string")
+    }
+  }
+  return []
+}
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+function claimsGenericStdioWorkerActivation(readmeSection) {
+  return hasGenericStdioSupportClaim({
+    readmeSection,
+    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running)\b/iu,
+    target: /\b(?:desk:worker|worker|agent defaults?|default agent)\b/iu,
+  })
+}
+
+function claimsGenericStdioDependencyResolution(readmeSection) {
+  return hasGenericStdioSupportClaim({
+    readmeSection,
+    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated)\b/iu,
+    target: /\b(?:plugin dependencies|plugin dependency resolution|dependency closure|work suite)\b/iu,
+  })
+}
+
+function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
+  return readmeStatements(readmeSection)
+    .some((statement) => (
+      /generic stdio/iu.test(statement)
+      && !isNegativeSupportBoundary(statement)
+      && action.test(statement)
+      && target.test(statement)
+    ))
+}
+
+function readmeStatements(readmeSection) {
+  return readmeSection
+    .split(/[\n.]+/u)
+    .map((statement) => statement.trim())
+    .filter(Boolean)
+}
+
+function isNegativeSupportBoundary(statement) {
+  return /\b(?:does not|do not|cannot|can't|no|without)\b/iu.test(statement)
 }
 
 function arrayIncludes(value, expected) {

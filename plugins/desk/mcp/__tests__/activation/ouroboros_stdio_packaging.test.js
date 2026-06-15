@@ -359,6 +359,26 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
     validateOuroborosStdioPackagingContract(malformedWorkSuiteBundleWithProse),
     ["Ouroboros bundle metadata must include work-suite plugin"],
   )
+
+  const malformedJsonBundle = clone(currentOuroborosStdioPackagingInput())
+  malformedJsonBundle.ouroborosReadmeSection =
+    malformedJsonBundle.ouroborosReadmeSection.replace(
+      /```json[\s\S]*?```/u,
+      [
+        "```json",
+        "{",
+        "  \"plugins\": [\"desk\",",
+        "}",
+        "```",
+      ].join("\n"),
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(malformedJsonBundle),
+    [
+      "Ouroboros bundle metadata must include desk plugin",
+      "Ouroboros bundle metadata must include work-suite plugin",
+    ],
+  )
 })
 
 test("Ouroboros packaging validation rejects host-support drift and manual installs", () => {
