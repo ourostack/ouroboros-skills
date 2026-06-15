@@ -133,20 +133,91 @@ function tarHeader({ name, size }) {
 }
 
 function listTarGzEntries(archivePath) {
+  return [...extractTarGzContents(archivePath).keys()].sort()
+}
+
+function extractTarGzContents(archivePath) {
   const data = gunzipSync(readFileSync(archivePath))
-  const entries = []
+  const entries = new Map()
+  let pendingLongName
+  let pendingPaxPath
   for (let offset = 0; offset < data.length;) {
     const header = data.subarray(offset, offset + 512)
     if (header.every((byte) => byte === 0)) {
       break
     }
-    const rawName = header.toString("utf8", 0, 100).replace(/\0.*$/u, "")
-    const rawSize = header.toString("ascii", 124, 136).replace(/\0.*$/u, "").trim()
+    const rawName = readTarString(header, 0, 100)
+    const rawPrefix = readTarString(header, 345, 155)
+    const rawSize = readTarString(header, 124, 12).trim()
+    const type = header.toString("ascii", 156, 157)
     const size = Number.parseInt(rawSize || "0", 8)
-    entries.push(rawName)
+    const bodyStart = offset + 512
+    const bodyEnd = bodyStart + size
+    const body = data.subarray(bodyStart, bodyEnd)
+    const name = pendingPaxPath
+      ?? pendingLongName
+      ?? (rawPrefix.length > 0 ? `${rawPrefix}/${rawName}` : rawName)
+
+    if (type === "L") {
+      pendingLongName = body.toString("utf8").replace(/\0.*$/u, "")
+    } else if (type === "x") {
+      pendingPaxPath = paxPath(body)
+    } else {
+      if (type === "0" || type === "\0" || type === "") {
+        entries.set(name, Buffer.from(body))
+      }
+      pendingLongName = undefined
+      pendingPaxPath = undefined
+    }
     offset += 512 + Math.ceil(size / 512) * 512
   }
-  return entries.sort()
+  return entries
+}
+
+function readTarString(header, offset, length) {
+  return header.toString("utf8", offset, offset + length).replace(/\0.*$/u, "")
+}
+
+function paxPath(body) {
+  for (const line of body.toString("utf8").split("\n")) {
+    const match = line.match(/^\d+ path=(.+)$/u)
+    if (match !== null) {
+      return match[1]
+    }
+  }
+  return undefined
+}
+
+function assertArchiveFileMatchesInstalledNodeModule(archiveContents, entry) {
+  const installedPath = path.join(mcpRoot, entry)
+  assert.equal(existsSync(installedPath), true, `installed runtime file must exist for ${entry}`)
+  assert.equal(archiveContents.has(entry), true, `runtime dependency archive must include ${entry}`)
+  assert.deepEqual(
+    archiveContents.get(entry),
+    readFileSync(installedPath),
+    `built runtime dependency archive bytes for ${entry} must match installed node_modules bytes`,
+  )
+}
+
+function representativeNativeRuntimeArchiveEntry(productionDependencies) {
+  for (const dependency of productionDependencies) {
+    if (dependency.native !== true) {
+      continue
+    }
+    if (!existsSync(path.join(mcpRoot, dependency.lock_path))) {
+      continue
+    }
+    for (const runtimeFile of runtimeFilesForDependency(dependency)) {
+      if (!/\.(?:node|dylib|so|dll)$/u.test(runtimeFile)) {
+        continue
+      }
+      const entry = `${dependency.lock_path}/${runtimeFile}`
+      if (existsSync(path.join(mcpRoot, entry))) {
+        return entry
+      }
+    }
+  }
+  return undefined
 }
 
 function fixtureManifest({
@@ -418,9 +489,89 @@ function workflowPathFilters(workflow, eventName) {
   return paths
 }
 
-function workflowRunCommands(workflow) {
-  return [...workflow.matchAll(/^\s*run:\s+(.+?)\s*$/gmu)]
-    .map((match) => match[1])
+function workflowJob(workflow, jobName) {
+  const lines = workflow.split(/\r?\n/u)
+  const jobStart = lines.findIndex((line) => line === `  ${jobName}:`)
+  assert.notEqual(jobStart, -1, `workflow must define job ${jobName}`)
+  const jobEnd = lines.findIndex((line, index) => (
+    index > jobStart
+    && /^  [A-Za-z0-9_-]+:\s*$/u.test(line)
+  ))
+  return lines.slice(jobStart, jobEnd === -1 ? lines.length : jobEnd).join("\n")
+}
+
+function workflowStepBlocks(jobSection) {
+  const blocks = []
+  let currentBlock
+  for (const line of jobSection.split(/\r?\n/u)) {
+    if (/^      - /u.test(line)) {
+      if (currentBlock !== undefined) {
+        blocks.push(currentBlock.join("\n"))
+      }
+      currentBlock = [line]
+      continue
+    }
+    if (currentBlock !== undefined) {
+      currentBlock.push(line)
+    }
+  }
+  if (currentBlock !== undefined) {
+    blocks.push(currentBlock.join("\n"))
+  }
+  return blocks
+}
+
+function workflowStepRunText(stepBlock) {
+  const lines = stepBlock.split(/\r?\n/u)
+  for (let index = 0; index < lines.length; index += 1) {
+    const inline = lines[index].match(/^\s*run:\s+(.+?)\s*$/u)
+    if (inline !== null && inline[1] !== "|" && inline[1] !== ">") {
+      return inline[1]
+    }
+    if (/^\s*run:\s*[|>]\s*$/u.test(lines[index])) {
+      return lines
+        .slice(index + 1)
+        .filter((line) => /^\s{10,}\S/u.test(line))
+        .map((line) => line.replace(/^\s{10}/u, ""))
+        .join("\n")
+    }
+  }
+  return ""
+}
+
+function workflowStepWorkingDirectory(stepBlock) {
+  const match = stepBlock.match(/^\s*working-directory:\s+(.+?)\s*$/mu)
+  return match?.[1]?.replace(/^["']|["']$/gu, "")
+}
+
+function workflowStepRunsMcpScript(stepBlock, scriptName) {
+  const runText = workflowStepRunText(stepBlock)
+  const escapedScriptName = escapeRegExp(scriptName)
+  const runsCommand = runText.split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .some((line) => (
+      new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+run\\s+${escapedScriptName}\\b`, "u").test(line)
+      || new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+--prefix\\s+plugins/desk/mcp\\s+run\\s+${escapedScriptName}\\b`, "u").test(line)
+    ))
+  if (!runsCommand) {
+    return false
+  }
+  return (
+    workflowStepWorkingDirectory(stepBlock) === "plugins/desk/mcp"
+    || new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+--prefix\\s+plugins/desk/mcp\\s+run\\s+${escapedScriptName}\\b`, "um").test(runText)
+  )
+}
+
+function assertWorkflowJobRunsMcpScript(jobSection, jobName, scriptName) {
+  assert.ok(
+    workflowStepBlocks(jobSection).some((stepBlock) => workflowStepRunsMcpScript(stepBlock, scriptName)),
+    `workflow job ${jobName} must run ${scriptName} from plugins/desk/mcp or via npm --prefix plugins/desk/mcp`,
+  )
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 }
 
 function scriptHelp(scriptName) {
@@ -735,6 +886,40 @@ test("runtime dependency archive shape rejects server source and missing depende
     [],
   )
 
+  const extraDependencyErrors = validateRuntimeDependencyArchiveShape({
+    entries: [
+      ...validEntries,
+      "node_modules/@types/node/package.json",
+      "node_modules/@types/node/index.d.ts",
+      "node_modules/unit-6d-dev-only/package.json",
+      "node_modules/unit-6d-dev-only/index.js",
+    ],
+    productionDependencies,
+  })
+  assert.deepEqual(
+    [...extraDependencyErrors].sort(),
+    [
+      "runtime dependency archive must not include non-production dependency @types/node",
+      "runtime dependency archive must not include non-production dependency unit-6d-dev-only",
+    ].sort(),
+  )
+
+  const unexpectedRootErrors = validateRuntimeDependencyArchiveShape({
+    entries: [
+      ...validEntries,
+      "README.md",
+      "release-notes.txt",
+    ],
+    productionDependencies,
+  })
+  assert.deepEqual(
+    [...unexpectedRootErrors].sort(),
+    [
+      "runtime dependency archive must not include unexpected root file README.md",
+      "runtime dependency archive must not include unexpected root file release-notes.txt",
+    ].sort(),
+  )
+
   assert.deepEqual(
     validateRuntimeDependencyArchiveShape({
       entries: [
@@ -1031,13 +1216,23 @@ test("package declares CI/release scripts for runtime dependency packs", async (
         `${target.platform}-${target.arch}-node-${targetNodeAbi}`,
         prodDependencyLockHash,
       )
-      assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.tgz")), true)
+      const builtArchivePath = path.join(builtPackDir, "runtime-deps.tgz")
+      assert.equal(existsSync(builtArchivePath), true)
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.manifest.json")), true)
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.sha256")), true)
-      const builtEntries = listTarGzEntries(path.join(builtPackDir, "runtime-deps.tgz"))
+      const builtEntries = listTarGzEntries(builtArchivePath)
       assert.ok(builtEntries.includes("node_modules/section-matter/index.js"))
       assert.ok(builtEntries.includes("node_modules/@hono/node-server/dist/index.js"))
       assert.ok(builtEntries.includes("node_modules/sqlite-vec/index.cjs"))
+      assert.equal(requiredRuntimeFilesByPackage.has("section-matter"), false)
+      const builtArchiveContents = extractTarGzContents(builtArchivePath)
+      assertArchiveFileMatchesInstalledNodeModule(
+        builtArchiveContents,
+        "node_modules/section-matter/index.js",
+      )
+      const nativeRuntimeEntry = representativeNativeRuntimeArchiveEntry(productionDependencies)
+      assert.notEqual(nativeRuntimeEntry, undefined, "runtime dependency test fixture must find an installed native runtime file")
+      assertArchiveFileMatchesInstalledNodeModule(builtArchiveContents, nativeRuntimeEntry)
 
       const builtVerifyRun = runNpmScript("runtime:deps-pack:verify", [
         "--pack-dir",
@@ -1063,7 +1258,7 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
   const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
   const pullRequestPathFilters = workflowPathFilters(workflow, "pull_request")
   const pushPathFilters = workflowPathFilters(workflow, "push")
-  const runCommands = workflowRunCommands(workflow)
+  const deskMcpJob = workflowJob(workflow, "desk-mcp-tests")
 
   assert.throws(
     () => workflowPathFilters([
@@ -1081,10 +1276,66 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
     ].join("\n"), "push"),
     /push must define paths/u,
   )
-  assert.ok(runCommands.includes("npm run runtime:deps-pack:verify"))
-  for (const pathFilters of [pullRequestPathFilters, pushPathFilters]) {
-    assert.ok(pathFilters.includes("plugins/desk/mcp/artifacts/runtime-deps/**"))
-    assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/build-runtime-deps-pack.js"))
-    assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"))
+  assert.throws(
+    () => {
+      const fakeWorkflow = [
+        "name: fake",
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Run desk MCP coverage gate",
+        "        working-directory: plugins/desk/mcp",
+        "        run: npm run test:coverage",
+        "  unrelated-release:",
+        "    steps:",
+        "      - name: Loose runtime dependency verification",
+        "        run: npm --prefix plugins/desk/mcp run runtime:deps-pack:verify",
+      ].join("\n")
+      assertWorkflowJobRunsMcpScript(
+        workflowJob(fakeWorkflow, "desk-mcp-tests"),
+        "desk-mcp-tests",
+        "runtime:deps-pack:verify",
+      )
+    },
+    /workflow job desk-mcp-tests must run runtime:deps-pack:verify/u,
+  )
+  assert.throws(
+    () => {
+      const fakeWorkflow = [
+        "name: fake",
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Pretend runtime dependency build",
+        "        working-directory: plugins/desk/mcp",
+        "        run: echo npm run runtime:deps-pack:build",
+      ].join("\n")
+      assertWorkflowJobRunsMcpScript(
+        workflowJob(fakeWorkflow, "desk-mcp-tests"),
+        "desk-mcp-tests",
+        "runtime:deps-pack:build",
+      )
+    },
+    /workflow job desk-mcp-tests must run runtime:deps-pack:build/u,
+  )
+  assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:build")
+  assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:verify")
+  for (const [eventName, pathFilters] of [
+    ["pull_request", pullRequestPathFilters],
+    ["push", pushPathFilters],
+  ]) {
+    assertIncludesAll(pathFilters, [
+      "plugins/desk/mcp/artifacts/runtime-deps/**",
+      "plugins/desk/mcp/scripts/build-runtime-deps-pack.js",
+      "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js",
+    ], `${eventName} path filters`)
   }
 })
