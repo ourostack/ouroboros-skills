@@ -340,6 +340,37 @@ test("ensureIndex reports failure diagnostics when probe succeeds but rebuild em
   assert.equal(ensured.semantic.missing_vectors, 1)
 })
 
+test("ensureIndex preserves failed probe diagnostics when stale content is skipped", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nstale same-hash body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  const future = new Date(Date.now() + 5000)
+  await fs.utimes(path.join(deskRoot, docPath), future, future)
+
+  let calls = 0
+  const failingFetch = async () => {
+    calls += 1
+    throw new Error("probe failed before skipped rebuild")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: failingFetch,
+    },
+  })
+  assert.equal(calls, 1)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "stale")
+  assert.equal(ensured.summary.semantic_warnings, 0)
+  assert.equal(ensured.summary.docs_skipped, 1)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.embedding_available, false)
+  assert.equal(ensured.semantic.embedding_diagnostic.reason, "network_error")
+})
+
 test("ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls", async () => {
   const deskRoot = await tmpRoot()
   const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
