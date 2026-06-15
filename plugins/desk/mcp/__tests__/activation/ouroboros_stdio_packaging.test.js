@@ -537,6 +537,38 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     validateOuroborosStdioPackagingContract(negativeBoundaryClaims),
     [],
   )
+
+  const supportClaimWithNoSetup = clone(currentOuroborosStdioPackagingInput())
+  supportClaimWithNoSetup.genericStdioReadmeSection +=
+    "\nGeneric stdio starts desk:worker with no manual setup.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportClaimWithNoSetup),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const supportClaimWithWithout = clone(currentOuroborosStdioPackagingInput())
+  supportClaimWithWithout.genericStdioReadmeSection +=
+    "\nGeneric stdio loads Work Suite without requiring a plugin installer.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportClaimWithWithout),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const willNotBoundaryClaims = clone(currentOuroborosStdioPackagingInput())
+  willNotBoundaryClaims.genericStdioReadmeSection +=
+    "\nGeneric stdio will not activate worker and will not resolve plugin dependencies.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(willNotBoundaryClaims),
+    [],
+  )
+
+  const activationReadmeDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  activationReadmeDependencyClaim.genericStdioActivationSection +=
+    "\nGeneric stdio loads Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(activationReadmeDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
 })
 
 test("generic stdio packaging validation rejects host dependency support claims", () => {
