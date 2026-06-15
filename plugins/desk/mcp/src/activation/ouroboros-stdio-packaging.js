@@ -185,10 +185,14 @@ function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
 
 function hasPositiveSupportClaim({ clause, action, target }) {
   const normalizedClause = normalizeClaimText(clause)
-  const actionMatch = normalizedClause.match(action)
-  return actionMatch !== null
-    && target.test(normalizedClause)
-    && !isSupportActionNegated(normalizedClause, actionMatch.index)
+  const actionMatches = allMatches(action, normalizedClause)
+  const targetMatches = allMatches(target, normalizedClause)
+  return actionMatches.some((actionMatch) => (
+    !isSupportActionNegated(normalizedClause, actionMatch.index)
+    && targetMatches.some((targetMatch) => (
+      !isSupportTargetNegated(normalizedClause, targetMatch.index)
+    ))
+  ))
 }
 
 function readmeStatements(readmeSection) {
@@ -200,18 +204,26 @@ function readmeStatements(readmeSection) {
 
 function readmeClauses(statement) {
   return statement
-    .split(/(?:,?\s+\bbut\b\s+|,?\s+\band\b\s+|;\s*|\s+\bhowever\b\s*)/iu)
+    .split(/(?:,|\s+\b(?:but|and|yet|though|although|while|however)\b\s+|;\s*)/iu)
     .map((clause) => clause.trim())
     .filter(Boolean)
 }
 
 function isNegativeSupportBoundary(statement) {
-  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|cannot|can't|won't|never|without|neither|nor|no\s+longer)\s*$/u
+  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|doesn't|don't|didn't|wouldn't|couldn't|shouldn't|mustn't|isn't|aren't|wasn't|weren't|cannot|can't|won't|never|without|neither|nor|no\s+longer)\s*$/u
     .test(statement)
 }
 
 function isSupportActionNegated(clause, actionIndex) {
   return isNegativeSupportBoundary(clause.slice(0, actionIndex))
+}
+
+function isSupportTargetNegated(clause, targetIndex) {
+  return /\b(?:not|no|without)\s*$/u.test(clause.slice(0, targetIndex))
+}
+
+function allMatches(pattern, text) {
+  return [...text.matchAll(new RegExp(pattern.source, `${pattern.flags.replace("g", "")}g`))]
 }
 
 function normalizeClaimText(text) {
