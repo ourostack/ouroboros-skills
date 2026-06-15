@@ -49,12 +49,16 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
   if (!readmeSection.includes("bundle.json")) {
     errors.push("Ouroboros docs must define bundle.json plugin metadata")
   }
-  const bundlePlugins = extractBundlePlugins(readmeSection)
-  if (!bundlePlugins.includes("desk")) {
-    errors.push("Ouroboros bundle metadata must include desk plugin")
-  }
-  if (!bundlePlugins.includes("work-suite")) {
-    errors.push("Ouroboros bundle metadata must include work-suite plugin")
+  const bundleMetadata = readBundleMetadata(readmeSection)
+  if (bundleMetadata.invalidJson) {
+    errors.push("Ouroboros bundle metadata must be valid JSON")
+  } else {
+    if (!bundleMetadata.plugins.includes("desk")) {
+      errors.push("Ouroboros bundle metadata must include desk plugin")
+    }
+    if (!bundleMetadata.plugins.includes("work-suite")) {
+      errors.push("Ouroboros bundle metadata must include work-suite plugin")
+    }
   }
   if (!/\$DESK\s*=\s*~\/AgentBundles\/<agent>\.ouro\/desk\//u.test(readmeSection)) {
     errors.push("Ouroboros preamble must bind $DESK to ~/AgentBundles/<agent>.ouro/desk/")
@@ -129,14 +133,21 @@ function findEvidenceRow(input, hostId) {
   return input.evidenceRows.find((entry) => entry?.host_id === hostId)
 }
 
-function extractBundlePlugins(readmeSection) {
-  for (const block of readmeSection.matchAll(/```json\s*\n(?<json>[\s\S]*?)```/gu)) {
-    const parsed = parseJson(block.groups.json)
-    if (Array.isArray(parsed?.plugins)) {
-      return parsed.plugins.filter((plugin) => typeof plugin === "string")
-    }
+function readBundleMetadata(readmeSection) {
+  const block = readmeSection.match(/```json\s*\n(?<json>[\s\S]*?)```/u)
+  if (block === null) {
+    return { invalidJson: false, plugins: [] }
   }
-  return []
+  const parsed = parseJson(block.groups.json)
+  if (parsed === undefined) {
+    return { invalidJson: true, plugins: [] }
+  }
+  return {
+    invalidJson: false,
+    plugins: Array.isArray(parsed.plugins)
+      ? parsed.plugins.filter((plugin) => typeof plugin === "string")
+      : [],
+  }
 }
 
 function parseJson(text) {
@@ -165,18 +176,26 @@ function claimsGenericStdioDependencyResolution(readmeSection) {
 
 function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
   return readmeStatements(readmeSection)
-    .some((statement) => (
-      /generic stdio/iu.test(statement)
-      && !isNegativeSupportBoundary(statement)
-      && action.test(statement)
-      && target.test(statement)
-    ))
+    .filter((statement) => /generic stdio/iu.test(statement))
+    .some((statement) => readmeClauses(statement)
+      .some((clause) => (
+        !isNegativeSupportBoundary(clause)
+        && action.test(clause)
+        && target.test(clause)
+      )))
 }
 
 function readmeStatements(readmeSection) {
   return readmeSection
     .split(/[\n.]+/u)
     .map((statement) => statement.trim())
+    .filter(Boolean)
+}
+
+function readmeClauses(statement) {
+  return statement
+    .split(/(?:,?\s+\bbut\b\s+|,?\s+\band\b\s+|;\s*|\s+\bhowever\b\s*)/iu)
+    .map((clause) => clause.trim())
     .filter(Boolean)
 }
 
