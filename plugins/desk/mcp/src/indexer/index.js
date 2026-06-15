@@ -79,6 +79,10 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     for (const doc of discovered) {
       const existingRow = existingByPath.get(doc.path)
       if (existingRow && existingRow.hash === doc.hash) {
+        if (docNeedsActiveChunkMetadata(db, existingRow.id, doc)) {
+          toReindex.push(doc)
+          continue
+        }
         if (
           opts.reembedMissing &&
           !opts.skipEmbed &&
@@ -111,6 +115,36 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   return summary
+}
+
+function docNeedsActiveChunkMetadata(db, docId, doc) {
+  const row = db
+    .prepare(
+      `SELECT
+         COUNT(*) AS total,
+         COALESCE(SUM(
+           CASE
+             WHEN chunk_key IS NULL OR
+                  text_hash IS NULL OR
+                  embedding_spec_id IS NULL OR
+                  embedding_spec_id != ? OR
+                  chunker_id IS NULL OR
+                  chunker_id != ? OR
+                  normalization_id IS NULL OR
+                  normalization_id != ?
+             THEN 1 ELSE 0 END
+         ), 0) AS stale
+       FROM chunks
+       WHERE doc_id = ?`,
+    )
+    .get(
+      ACTIVE_EMBEDDING_SPEC.id,
+      ACTIVE_EMBEDDING_SPEC.chunker_id,
+      ACTIVE_EMBEDDING_SPEC.normalization_id,
+      docId,
+    )
+  if (row.stale > 0) return true
+  return row.total === 0 && chunkBody(doc.body).length > 0
 }
 
 function docHasMissingActiveEmbeddings(db, docId) {

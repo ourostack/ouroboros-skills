@@ -62,6 +62,11 @@ export function openDb(deskRoot, opts = {}) {
  * sqlite_master / table_info so they're also idempotent.
  */
 export function runMigrations(db) {
+  const hadChunksFts = Boolean(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE name = 'chunks_fts'")
+      .get(),
+  )
   const sql = readSchemaSql()
   db.exec(sql)
 
@@ -92,6 +97,13 @@ export function runMigrations(db) {
   }
   db.exec("CREATE INDEX IF NOT EXISTS idx_chunks_chunk_key ON chunks(chunk_key)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_chunks_embedding_spec_id ON chunks(embedding_spec_id)")
+
+  if (!hadChunksFts) {
+    const row = db.prepare("SELECT COUNT(*) AS count FROM chunks").get()
+    if (row.count > 0) {
+      db.exec("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
+    }
+  }
 }
 
 /** Clean shutdown — close DB handle. Safe to call multiple times. */

@@ -98,6 +98,29 @@ test("chunk keys are stable when unchanged text moves within a document", async 
   assert.notEqual(changedKey, beforeKey)
 })
 
+test("heading and spec identity changes produce distinct chunk keys", async () => {
+  const { ACTIVE_EMBEDDING_SPEC, computeChunkKey } = await loadSpecModule()
+  const docPath = "trackA/task-1/doing.md"
+  const original = chunkBody("## Original\n\nsame body")[0]
+  const renamedHeading = chunkBody("## Renamed\n\nsame body")[0]
+  const nextSpec = {
+    ...ACTIVE_EMBEDDING_SPEC,
+    id: `${ACTIVE_EMBEDDING_SPEC.id}-next`,
+    normalization_id: `${ACTIVE_EMBEDDING_SPEC.normalization_id}-next`,
+  }
+
+  const originalKey = computeChunkKey({ docPath, chunk: original })
+  const headingKey = computeChunkKey({ docPath, chunk: renamedHeading })
+  const specKey = computeChunkKey({
+    docPath,
+    chunk: original,
+    embeddingSpec: nextSpec,
+  })
+
+  assert.notEqual(headingKey, originalKey)
+  assert.notEqual(specKey, originalKey)
+})
+
 test("inactive embedding specs are rejected by spec identity helpers", async () => {
   const { ACTIVE_EMBEDDING_SPEC, isActiveEmbeddingSpec } = await loadSpecModule()
 
