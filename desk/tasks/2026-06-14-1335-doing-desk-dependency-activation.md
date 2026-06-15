@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -429,7 +429,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened chunk key/spec implementation.
 **Acceptance**: 100% coverage on new chunk/spec code and all chunk-key tests pass.
 
-### 🔄 Unit 12a: Vector Pack Validation And Import - Tests
+### ✅ Unit 12a: Vector Pack Validation And Import - Tests
 **What**: Write failing tests for vector-pack row schema, canonical repo path `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl`, adjacent manifests/checksums, wrong spec/dimension/hash rejection, malformed vector encodings, idempotent import, duplicate rows, and multiple append-only packs.
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` with fixtures under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`.
 **Acceptance**: Tests fail until vector-pack validation/import exists.
@@ -917,3 +917,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 09:32 Unit 11c complete: `dceb11f` adds edge coverage for heading/spec identity changes, unchanged legacy indexes missing chunk identity metadata, and unchanged docs with missing chunk rows; it backfills active chunk/spec metadata for migrated older indexes and rebuilds FTS when opening legacy chunk tables that predate `chunks_fts`. Targeted chunk/indexer tests pass 19/19 in `unit-11c-chunk-keys-green.log`; full Desk MCP tests pass 387/387 in `unit-11c-npm-test-green.log`; coverage is 100% line/branch/function for all changed production files in `unit-11c-test-coverage.log`; runtime dependency pack verification, support-matrix generation, generated-artifact freshness, skill validation, and diff check all pass. Build remains unavailable because the MCP package has no `build` script, captured in `unit-11c-build-unavailable.log`.
 - 2026-06-15 09:36 Unit 11c reviewer fix: Newton the 2nd found a MAJOR gap where unchanged docs with some, but not all, expected chunks missing could still be skipped. `3a10d3e` tightens the regression to delete only one expected chunk from a two-chunk doc and changes unchanged-doc freshness repair to compare stored active chunk keys against expected chunk identities. Saved red/green evidence in `unit-11c-review-fix-red.log` and `unit-11c-review-fix-green.log`; full MCP tests pass 387/387, coverage is 100% line/branch/function for changed production files, runtime pack verification, generated-artifact freshness, skill validation, and diff check pass.
 - 2026-06-15 09:37 Unit 11c Round 2 cold reviewer gate converged: Einstein the 2nd verified the partial missing-chunk MAJOR is closed and no new issues were introduced. Unit 12a started for vector-pack validation/import red tests.
+- 2026-06-15 09:44 Unit 12a complete: `df2f053` adds vector-pack red tests in `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` plus fixture contract docs under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`. Targeted red evidence in `unit-12a-vector-packs-red.log` fails because `plugins/desk/mcp/src/indexer/vector-packs.js` does not exist yet; the contract covers canonical spec-scoped pack paths, adjacent manifest/checksum sidecars, row schema validation, wrong spec/dimension/hash rejection, malformed encodings/vectors, non-leaking diagnostics, idempotent import, duplicate chunk-key dedupe, multi-pack append-only import, and local DB text-hash verification. Terminal `All tests pass` is intentionally unchecked until Unit 12b makes the red contract green.
