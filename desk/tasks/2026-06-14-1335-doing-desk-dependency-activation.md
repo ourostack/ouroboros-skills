@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -414,7 +414,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened Codex smoke harness and evidence generation.
 **Acceptance**: 100% coverage on new smoke harness code where it is unit-testable, and all Codex smoke tests/evidence checks pass.
 
-### 🔄 Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
+### ✅ Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
 **What**: Write failing tests for deterministic chunk keys, embedding spec IDs, chunker version, normalized text identity, DB schema/migrations for chunk keys/spec metadata, and inactive-spec ignore.
 **Output**: `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js` and migration assertions in existing DB/indexer tests.
 **Acceptance**: Tests fail until chunks and index metadata can record stable keys and active specs.
@@ -908,3 +908,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 08:38 Unit 10f complete: `7e305ce` hardens the Codex smoke harness for stale owned activation blocks, project-local activation, manual-only opt-out, temp profile cleanup on skip/failure, missing Codex binaries, launch failures, failed MCP startup, malformed runner output, and invalid `desk_status` proof roots. Saved red/green evidence in `unit-10f-codex-smoke-red.log` and `unit-10f-codex-smoke-green.log`; full MCP tests pass 369/369, coverage is 100% line/branch/function including `plugins/desk/mcp/src/activation/codex-smoke.js`, generated artifacts and runtime pack verification pass, validation passes, diff check is clean, and build remains unavailable because no package build script exists.
 - 2026-06-15 08:44 Unit 10f reviewer fix: Averroes the 2nd found a MAJOR gap where failed MCP launch stderr could leak stack-shaped lines. `064e30b` adds a red repro with `at ...` stderr frames, sanitizes nonzero-exit diagnostics to keep the useful MCP failure line while stripping stack frames, and saves review-fix red/green smoke, coverage, full-test, generated-artifact, runtime-pack, validation, build-unavailable, and diff-check evidence.
 - 2026-06-15 08:47 Unit 10f Round 2 cold reviewer gate converged; Averroes the 2nd verified the stack-shaped stderr leak is closed. Unit 11a started for chunk-key and embedding-spec red tests.
+- 2026-06-15 08:51 Unit 11a complete: `4780464` adds chunk-key and embedding-spec red tests in `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js`, DB schema/migration assertions in `plugins/desk/mcp/__tests__/db/init.test.js`, and indexer persistence/inactive-spec red tests in `plugins/desk/mcp/__tests__/indexer/index.test.js`. Targeted red evidence in `unit-11a-chunk-keys-red.log` fails because `plugins/desk/mcp/src/indexer/spec.js`, `embedding_specs`, chunk metadata columns, active-spec meta writes, and inactive-spec re-embed behavior do not exist yet; terminal `All tests pass` is intentionally unchecked until Unit 11b makes the red contract green.
