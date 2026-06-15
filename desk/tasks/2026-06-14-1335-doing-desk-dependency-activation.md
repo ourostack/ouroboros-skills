@@ -414,7 +414,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened Codex smoke harness and evidence generation.
 **Acceptance**: 100% coverage on new smoke harness code where it is unit-testable, and all Codex smoke tests/evidence checks pass.
 
-### ⬜ Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
+### 🔄 Unit 11a: Chunk Keys And Embedding Spec Schema - Tests
 **What**: Write failing tests for deterministic chunk keys, embedding spec IDs, chunker version, normalized text identity, DB schema/migrations for chunk keys/spec metadata, and inactive-spec ignore.
 **Output**: `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js` and migration assertions in existing DB/indexer tests.
 **Acceptance**: Tests fail until chunks and index metadata can record stable keys and active specs.
@@ -907,3 +907,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 08:27 Unit 10e cold reviewer gate converged: Darwin the 2nd found no issues and verified temp-profile activation, `desk_status` smoke proof, Desktop App unsupported primitive/fallback, manifest/evidence/support-matrix consistency, green logs, and doing-doc claims; Unit 10f started for edge hardening.
 - 2026-06-15 08:38 Unit 10f complete: `7e305ce` hardens the Codex smoke harness for stale owned activation blocks, project-local activation, manual-only opt-out, temp profile cleanup on skip/failure, missing Codex binaries, launch failures, failed MCP startup, malformed runner output, and invalid `desk_status` proof roots. Saved red/green evidence in `unit-10f-codex-smoke-red.log` and `unit-10f-codex-smoke-green.log`; full MCP tests pass 369/369, coverage is 100% line/branch/function including `plugins/desk/mcp/src/activation/codex-smoke.js`, generated artifacts and runtime pack verification pass, validation passes, diff check is clean, and build remains unavailable because no package build script exists.
 - 2026-06-15 08:44 Unit 10f reviewer fix: Averroes the 2nd found a MAJOR gap where failed MCP launch stderr could leak stack-shaped lines. `064e30b` adds a red repro with `at ...` stderr frames, sanitizes nonzero-exit diagnostics to keep the useful MCP failure line while stripping stack frames, and saves review-fix red/green smoke, coverage, full-test, generated-artifact, runtime-pack, validation, build-unavailable, and diff-check evidence.
+- 2026-06-15 08:47 Unit 10f Round 2 cold reviewer gate converged; Averroes the 2nd verified the stack-shaped stderr leak is closed. Unit 11a started for chunk-key and embedding-spec red tests.
