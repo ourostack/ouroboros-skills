@@ -628,6 +628,97 @@ test("ensureIndex repairs vectors before returning a fresh restored snapshot", a
   }
 })
 
+test("ensureIndex reconcile removes deleted snapshot docs and refreshes archived docs", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-reconcile-delete-archive-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-reconcile-delete-archive-plugin-")
+  const snapshotSourceRoot = await tmpRoot("desk-snapshot-reconcile-delete-archive-source-")
+  const deletedPath = "trackA/task-1/task.md"
+  const archivedPath = "trackA/_archive/old-task/task.md"
+  const deletedBody = "---\nstatus: processing\n---\ndeleted snapshot body"
+  const staleArchivedBody = "---\nstatus: done\n---\nstale archived snapshot body"
+  const currentArchivedBody = "---\nstatus: done\n---\ncurrent archived body"
+
+  await writeFile(snapshotSourceRoot, deletedPath, deletedBody)
+  await writeFile(snapshotSourceRoot, archivedPath, staleArchivedBody)
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "stale-delete-archive-compatible",
+    sourceDeskRoot: snapshotSourceRoot,
+    documentTreeHash: STALE_DOCUMENT_TREE_HASH,
+  })
+  await writeFile(deskRoot, archivedPath, currentArchivedBody)
+  const old = new Date("2020-01-01T00:00:00.000Z")
+  await fs.utimes(path.join(deskRoot, archivedPath), old, old)
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: snapshotContext(pluginRoot),
+    skipEmbed: true,
+  })
+
+  assert.equal(ensured.reason, "stale_snapshot_reconciled")
+  assert.equal(ensured.summary.docs_removed, 1)
+  assert.equal(ensured.summary.docs_indexed, 1)
+  assert.equal(ensured.snapshot.reconciled, true)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM docs WHERE path = ?").get(deletedPath).count,
+      0,
+    )
+    const archived = db
+      .prepare("SELECT is_archived FROM docs WHERE path = ?")
+      .get(archivedPath)
+    assert.equal(archived.is_archived, 1)
+    const text = db
+      .prepare("SELECT group_concat(text, '\n') AS text FROM chunks")
+      .get().text
+    assert.match(text, /current archived body/u)
+    assert.doesNotMatch(text, /deleted snapshot body/u)
+    assert.doesNotMatch(text, /stale archived snapshot body/u)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex treats missing vector packs and disabled embeddings as lexical fallback", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-missing-packs-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-missing-packs-plugin-")
+  const docPath = "trackA/task-1/task.md"
+  await writeFile(
+    deskRoot,
+    docPath,
+    "---\nstatus: processing\n---\nlexical fallback body",
+  )
+  await writeCorruptSnapshot({ pluginRoot, snapshotId: "missing-packs-corrupt" })
+
+  let calls = 0
+  const failingFetch = async () => {
+    calls += 1
+    throw new Error("embedding endpoint disabled")
+  }
+
+  const ensured = await withPluginRoot(pluginRoot, () => ensureIndex(deskRoot, {
+    embed: {
+      endpoint: "http://127.0.0.1:65535/api/embeddings",
+      fetch: failingFetch,
+    },
+  }))
+
+  assert.equal(calls, 1)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "missing")
+  assert.equal(ensured.snapshot.restored, false)
+  assert.equal(ensured.snapshot.reason, "snapshot_corrupt")
+  assert.equal(ensured.fallback, undefined)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.embedding_available, false)
+  assert.equal(
+    ensured.semantic.embedding_diagnostic.reason,
+    "embedding_generation_failed",
+  )
+})
+
 test("ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text", async () => {
   const deskRoot = await tmpRoot("desk-snapshot-reconcile-desk-")
   const pluginRoot = await tmpRoot("desk-snapshot-reconcile-plugin-")
