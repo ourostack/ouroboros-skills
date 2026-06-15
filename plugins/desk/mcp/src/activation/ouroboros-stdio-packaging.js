@@ -247,6 +247,7 @@ function hasPositiveSupportClaim({ clause, action, target }) {
         actionIndex: actionMatch.index,
         targetIndex: targetMatch.index,
       })
+      && !isUnsupportedTargetClassification(normalizedClause, targetMatch)
       && !isExternalSupportAssignment({
         clause: normalizedClause,
         targetMatch,
@@ -286,7 +287,7 @@ function readmeStatements(readmeSection) {
 
 function readmeClauses(statement) {
   return statement
-    .split(/(?:,|:\s+|\s+-\s+|\s+\b(?:but|and|yet|though|although|while|however|because|since|as|so|then)\b\s+|;\s*)/iu)
+    .split(/(?:,|:\s+|\s+-\s+|\s+\b(?:but|and|yet|though|although|while|however|because|since|as(?!\s+(?:an?\s+)?unsupported\b)|so|then)\b\s+|;\s*)/iu)
     .map((clause) => clause.trim())
     .filter(Boolean)
 }
@@ -306,6 +307,11 @@ function isSupportTargetNegated({ clause, actionIndex, targetIndex }) {
   return /\b(?:not|no|without)\s*$/u.test(beforeTarget)
     || /\b(?:neither|no)\b/u.test(beforeTarget)
     || /\b(?:neither|nor|not|no|without)\b/u.test(betweenActionAndTarget)
+}
+
+function isUnsupportedTargetClassification(clause, targetMatch) {
+  const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
+  return /^\s+(?:as\s+)?(?:an?\s+)?unsupported\b/u.test(afterTarget)
 }
 
 function allMatches(pattern, text) {
