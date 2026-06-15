@@ -651,6 +651,30 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     validateOuroborosStdioPackagingContract(whileDependencyClaim),
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
+
+  const scopedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  scopedWorkerClaim.genericStdioReadmeSection +=
+    "\nThis path provides worker activation.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(scopedWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const scopedDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  scopedDependencyClaim.genericStdioReadmeSection +=
+    "\nThis path provides Work Suite dependency closure.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(scopedDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const secondSentenceClaim = clone(currentOuroborosStdioPackagingInput())
+  secondSentenceClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not support desk:worker. It supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(secondSentenceClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
 })
 
 test("generic stdio packaging validation permits neither/nor negative support wording", () => {
@@ -675,6 +699,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nGeneric stdio starts the MCP server, not worker activation.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(postActionNegativeTarget),
+    [],
+  )
+
+  const supportsNeitherNor = clone(currentOuroborosStdioPackagingInput())
+  supportsNeitherNor.genericStdioReadmeSection +=
+    "\nGeneric stdio supports neither desk:worker nor Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportsNeitherNor),
+    [],
+  )
+
+  const startsNeitherNor = clone(currentOuroborosStdioPackagingInput())
+  startsNeitherNor.genericStdioReadmeSection +=
+    "\nGeneric stdio starts neither worker activation nor Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(startsNeitherNor),
     [],
   )
 })
