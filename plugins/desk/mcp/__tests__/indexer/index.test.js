@@ -6,7 +6,7 @@ import * as path from "node:path"
 import * as os from "node:os"
 import { promises as fs } from "node:fs"
 
-import { rebuildIndex } from "../../src/indexer/index.js"
+import { isIndexFresh, rebuildIndex } from "../../src/indexer/index.js"
 import { openDb, closeDb, getMeta, setMeta } from "../../src/db/init.js"
 
 async function mkRoot() {
@@ -177,6 +177,69 @@ test("reembedMissing treats vectors from inactive embedding specs as missing", a
 
   assert.equal(second.docs_indexed, 1)
   assert.ok(calls > 0, "inactive spec vectors must not satisfy active-spec embedding coverage")
+})
+
+test("default embedding options use global fetch and archive docs keep archive metadata", async () => {
+  const root = await mkRoot()
+  await w(root, "trackA/_archive/old-task/task.md", "---\nstatus: done\n---\narchived semantic body")
+
+  const originalFetch = globalThis.fetch
+  const dim = 768
+  const vec = Array.from({ length: dim }, (_, i) => (i % 11) / dim)
+  const requests = []
+  globalThis.fetch = async (url, request) => {
+    requests.push({
+      url: String(url),
+      body: JSON.parse(request.body),
+    })
+    return { ok: true, json: async () => ({ embedding: vec }) }
+  }
+
+  try {
+    const summary = await rebuildIndex(root)
+    assert.equal(summary.docs_indexed, 1)
+    assert.equal(summary.semantic_warnings, 0)
+  } finally {
+    if (originalFetch === undefined) {
+      delete globalThis.fetch
+    } else {
+      globalThis.fetch = originalFetch
+    }
+  }
+
+  assert.ok(requests.length > 0, "expected indexer to call global fetch with default embed options")
+  assert.ok(requests[0].url.endsWith("/api/embeddings"), `unexpected embed URL: ${requests[0].url}`)
+  assert.equal(requests[0].body.model, "nomic-embed-text")
+
+  const db = openDb(root)
+  try {
+    const doc = db.prepare("SELECT is_archived FROM docs WHERE path = ?").get("trackA/_archive/old-task/task.md")
+    const vecCount = db.prepare("SELECT count(*) AS c FROM chunk_vecs").get().c
+    assert.equal(doc.is_archived, 1)
+    assert.ok(vecCount > 0, "expected default embedding path to store vectors")
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("isIndexFresh covers missing, invalid, stale, and fresh metadata states", async () => {
+  const root = await mkRoot()
+  await w(root, "trackA/task-1/task.md", "---\nstatus: processing\n---\nfreshness body")
+  const db = openDb(root)
+  try {
+    assert.equal(await isIndexFresh(root, db), false)
+
+    setMeta(db, "last_indexed_at", "not-a-date")
+    assert.equal(await isIndexFresh(root, db), false)
+
+    setMeta(db, "last_indexed_at", "2000-01-01T00:00:00.000Z")
+    assert.equal(await isIndexFresh(root, db), false)
+
+    setMeta(db, "last_indexed_at", "2999-01-01T00:00:00.000Z")
+    assert.equal(await isIndexFresh(root, db), true)
+  } finally {
+    closeDb(db)
+  }
 })
 
 test("modifying one doc → that doc reindexed, others skipped", async () => {

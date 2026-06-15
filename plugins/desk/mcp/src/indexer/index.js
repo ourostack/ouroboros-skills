@@ -13,6 +13,11 @@ import { discover } from "./discover.js"
 import { chunkBody } from "./chunk.js"
 import { embedChunks, EMBEDDING_DIM } from "./embed.js"
 import { computeRefs } from "./refs.js"
+import {
+  ACTIVE_EMBEDDING_SPEC,
+  chunkIdentity,
+  writeActiveEmbeddingSpec,
+} from "./spec.js"
 
 /**
  * Run the indexer against `deskRoot`. Creates/refreshes
@@ -43,6 +48,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   try {
+    writeActiveEmbeddingSpec(db, setMeta)
     const discovered = await discover(deskRoot)
     const discoveredByPath = new Map(discovered.map((d) => [d.path, d]))
 
@@ -76,7 +82,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
         if (
           opts.reembedMissing &&
           !opts.skipEmbed &&
-          docHasMissingEmbeddings(db, existingRow.id)
+          docHasMissingActiveEmbeddings(db, existingRow.id)
         ) {
           toReindex.push(doc)
           continue
@@ -107,20 +113,35 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   return summary
 }
 
-function docHasMissingEmbeddings(db, docId) {
+function docHasMissingActiveEmbeddings(db, docId) {
   const row = db
     .prepare(
       `SELECT COUNT(*) AS missing
        FROM chunks c
        LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
-       WHERE c.doc_id = ? AND v.chunk_id IS NULL`,
+       WHERE c.doc_id = ?
+         AND (
+           v.chunk_id IS NULL OR
+           c.embedding_spec_id IS NULL OR
+           c.embedding_spec_id != ? OR
+           c.chunker_id != ? OR
+           c.normalization_id != ?
+         )`,
     )
-    .get(docId)
-  return (row?.missing ?? 0) > 0
+    .get(
+      docId,
+      ACTIVE_EMBEDDING_SPEC.id,
+      ACTIVE_EMBEDDING_SPEC.chunker_id,
+      ACTIVE_EMBEDDING_SPEC.normalization_id,
+    )
+  return row.missing > 0
 }
 
 async function indexOneDoc(db, doc, opts, summary) {
-  const chunks = chunkBody(doc.body)
+  const chunks = chunkBody(doc.body).map((chunk) => ({
+    ...chunk,
+    ...chunkIdentity({ docPath: doc.path, chunk }),
+  }))
 
   // Embed chunks unless caller asked us to skip. embedChunks returns an
   // array of either Float32-friendly arrays or nulls; nulls mean Ollama
@@ -177,7 +198,7 @@ async function indexOneDoc(db, doc, opts, summary) {
       hash: doc.hash,
       mtime: doc.mtime,
       is_archived: doc.is_archived ? 1 : 0,
-      frontmatter: JSON.stringify(doc.frontmatter ?? {}),
+      frontmatter: JSON.stringify(doc.frontmatter),
     })
     const docId = row.id
 
@@ -195,8 +216,20 @@ async function indexOneDoc(db, doc, opts, summary) {
     db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(docId)
 
     const insertChunk = db.prepare(
-      `INSERT INTO chunks (doc_id, chunk_index, text, heading, start_offset, end_offset)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO chunks (
+         doc_id,
+         chunk_index,
+         chunk_key,
+         text_hash,
+         embedding_spec_id,
+         chunker_id,
+         normalization_id,
+         text,
+         heading,
+         start_offset,
+         end_offset
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     const insertVec = db.prepare(
       `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
@@ -206,6 +239,11 @@ async function indexOneDoc(db, doc, opts, summary) {
       const ins = insertChunk.get(
         docId,
         c.index,
+        c.chunk_key,
+        c.text_hash,
+        c.embedding_spec_id,
+        c.chunker_id,
+        c.normalization_id,
         c.text,
         c.heading,
         c.start_offset,
@@ -235,10 +273,7 @@ function refreshRefs(db, docs) {
       "INSERT OR IGNORE INTO refs_graph (src_doc_id, dst_doc_id, ref_kind) VALUES (?, ?, ?)",
     )
     for (const e of edges) {
-      const from = lookup.get(e.from)
-      const to = lookup.get(e.to)
-      if (!from || !to) continue
-      ins.run(from.id, to.id, e.ref_kind)
+      ins.run(lookup.get(e.from).id, lookup.get(e.to).id, e.ref_kind)
     }
   })
   txn()

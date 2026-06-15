@@ -74,8 +74,24 @@ export function runMigrations(db) {
     db.exec(
       "ALTER TABLE docs ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0",
     )
-    db.exec("CREATE INDEX IF NOT EXISTS idx_docs_is_archived ON docs(is_archived)")
   }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_docs_is_archived ON docs(is_archived)")
+
+  // 1.2 migration: stable chunk identity and embedding spec metadata.
+  const chunkCols = db.prepare("PRAGMA table_info(chunks)").all()
+  for (const column of [
+    "chunk_key",
+    "text_hash",
+    "embedding_spec_id",
+    "chunker_id",
+    "normalization_id",
+  ]) {
+    if (!chunkCols.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE chunks ADD COLUMN ${column} TEXT`)
+    }
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_chunks_chunk_key ON chunks(chunk_key)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_chunks_embedding_spec_id ON chunks(embedding_spec_id)")
 }
 
 /** Clean shutdown — close DB handle. Safe to call multiple times. */

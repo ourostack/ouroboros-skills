@@ -108,6 +108,57 @@ test("migrations upgrade older chunk tables with key and spec metadata columns",
   }
 })
 
+test("migrations upgrade older docs tables with archive metadata", async () => {
+  const root = await tmpRoot()
+  const stateDir = path.join(root, ".state")
+  await fs.mkdir(stateDir, { recursive: true })
+  const dbPath = path.join(stateDir, "desk-index.sqlite")
+  const legacy = new Database(dbPath)
+  try {
+    legacy.exec(`
+      CREATE TABLE docs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        path TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL,
+        track TEXT,
+        task_slug TEXT,
+        status TEXT,
+        schema_version INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT,
+        updated_at TEXT,
+        hash TEXT NOT NULL,
+        mtime INTEGER NOT NULL,
+        frontmatter TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE TABLE chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doc_id INTEGER NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        heading TEXT,
+        start_offset INTEGER,
+        end_offset INTEGER
+      );
+    `)
+  } finally {
+    legacy.close()
+  }
+
+  const db = openDb(root)
+  try {
+    const docCols = db.prepare("PRAGMA table_info(docs)").all().map((c) => c.name)
+    const indexes = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name")
+      .all()
+      .map((row) => row.name)
+
+    assert.ok(docCols.includes("is_archived"), `migration missing docs.is_archived; got: ${docCols.join(", ")}`)
+    assert.ok(indexes.includes("idx_docs_is_archived"), `migration missing archive index; got: ${indexes.join(", ")}`)
+  } finally {
+    closeDb(db)
+  }
+})
+
 test("FTS5 virtual table chunks_fts is queryable", async () => {
   const root = await tmpRoot()
   const db = openDb(root)

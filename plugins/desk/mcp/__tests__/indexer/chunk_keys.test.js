@@ -40,6 +40,40 @@ test("normalized text identity is stable across line endings and insignificant w
   assert.notEqual(chunkTextHash(right), chunkTextHash(`${right}changed\n`))
 })
 
+test("chunk identity handles empty text and custom embedding specs", async () => {
+  const {
+    ACTIVE_EMBEDDING_SPEC,
+    chunkIdentity,
+    chunkTextHash,
+    computeChunkKey,
+    normalizeChunkText,
+  } = await loadSpecModule()
+  const docPath = "trackA/task-1/empty.md"
+  const defaultIdentity = chunkIdentity({ docPath, chunk: null })
+  const missingTextKey = computeChunkKey({ docPath, chunk: { heading: "No Text" } })
+  const customSpec = {
+    ...ACTIVE_EMBEDDING_SPEC,
+    id: "custom-embedding-spec",
+    chunker_id: "custom-chunker",
+    normalization_id: "custom-normalizer",
+  }
+  const customIdentity = chunkIdentity({
+    docPath,
+    chunk: { text: null },
+    embeddingSpec: customSpec,
+  })
+
+  assert.equal(normalizeChunkText(null), "")
+  assert.equal(normalizeChunkText(undefined), "")
+  assert.equal(defaultIdentity.text_hash, chunkTextHash(""))
+  assert.equal(missingTextKey, defaultIdentity.chunk_key)
+  assert.equal(defaultIdentity.embedding_spec_id, ACTIVE_EMBEDDING_SPEC.id)
+  assert.equal(customIdentity.embedding_spec_id, customSpec.id)
+  assert.equal(customIdentity.chunker_id, customSpec.chunker_id)
+  assert.equal(customIdentity.normalization_id, customSpec.normalization_id)
+  assert.notEqual(customIdentity.chunk_key, defaultIdentity.chunk_key)
+})
+
 test("chunk keys are stable when unchanged text moves within a document", async () => {
   const { ACTIVE_EMBEDDING_SPEC, computeChunkKey } = await loadSpecModule()
   const docPath = "trackA/task-1/doing.md"
