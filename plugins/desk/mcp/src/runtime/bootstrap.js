@@ -36,7 +36,17 @@ export async function importRuntimeServer({
     arch,
     nodeAbi,
   })
-  return import(pathToFileURL(path.join(prepared.sourceMirrorPath, "src", "server.js")).href)
+  const runtimeServer = await import(pathToFileURL(path.join(prepared.sourceMirrorPath, "src", "server.js")).href)
+  return {
+    ...runtimeServer,
+    _deskRuntime: {
+      runtime_cache_dir: prepared.runtimeCacheDir,
+      source_mirror_path: prepared.sourceMirrorPath,
+      target: prepared.target,
+      pack_dir: prepared.packDir,
+      loaded_from_source_mirror: true,
+    },
+  }
 }
 
 export function prepareRuntime({

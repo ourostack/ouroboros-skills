@@ -8,6 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
+import Database from "better-sqlite3"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -126,6 +127,72 @@ test("desk_status reports existing DB coverage without probing query embeddings"
     assert.equal(fetchCalls, 0, "status must not call the embedding endpoint")
   } finally {
     globalThis.fetch = originalFetch
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status defaults unknown startup context and reports partial vector coverage", async () => {
+  const root = makeRoot()
+  try {
+    const db = openDb(root)
+    try {
+      db.prepare(
+        `INSERT INTO docs (path, kind, hash, mtime, frontmatter)
+         VALUES ('notes.md', 'other', 'abc', 1, '{}')`,
+      ).run()
+      db.prepare(
+        `INSERT INTO chunks (doc_id, chunk_index, text, heading, start_offset, end_offset)
+         VALUES (1, 0, 'hello', null, 0, 5)`,
+      ).run()
+    } finally {
+      closeDb(db)
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.root.source, "unknown")
+    assert.deepEqual(body.root.tried, [])
+    assert.equal(body.runtime.runtime_cache_dir, null)
+    assert.equal(body.runtime.source_mirror_path, null)
+    assert.equal(body.runtime.loaded_from_source_mirror, false)
+    assert.equal(body.document_vectors.chunks_total, 1)
+    assert.equal(body.document_vectors.vectors_indexed, 0)
+    assert.equal(body.document_vectors.missing_vectors, 1)
+    assert.equal(body.document_vectors.coverage, 0)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports lexical index absence without mutating an existing DB", async () => {
+  const root = makeRoot()
+  const dbPath = indexDbPath(root)
+  try {
+    mkdirSync(path.dirname(dbPath), { recursive: true })
+    const db = new Database(dbPath)
+    try {
+      db.exec(`
+        CREATE TABLE chunks (id INTEGER PRIMARY KEY);
+        CREATE TABLE chunk_vecs (chunk_id INTEGER PRIMARY KEY);
+      `)
+    } finally {
+      db.close()
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.local_db.exists, true)
+    assert.equal(body.lexical_index.available, false)
+    assert.equal(body.lexical_index.state, "missing")
+  } finally {
     rmSync(root, { recursive: true, force: true })
   }
 })

@@ -71,14 +71,28 @@ export async function main({
   runtimeImporter = importRuntimeServer,
 } = {}) {
   const args = parseArgs(argv)
-  const { root: deskRoot } = resolveStartupDeskRoot({ args, env, homeDir })
+  const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
+  const { root: deskRoot } = rootResolution
   const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, homeDir })
-  const { startServer } = await runtimeImporter({
+  const runtimeServer = await runtimeImporter({
     env,
     mcpRoot,
     runtimeCacheDir,
   })
-  await startServer({ deskRoot, person: args.person })
+  const runtimeStatus = runtimeServer._deskRuntime ?? {
+    runtime_cache_dir: runtimeCacheDir,
+    source_mirror_path: null,
+    target: null,
+    loaded_from_source_mirror: false,
+  }
+  await runtimeServer.startServer({
+    deskRoot,
+    person: args.person,
+    statusContext: {
+      root: rootResolution,
+      runtime: runtimeStatus,
+    },
+  })
 }
 
 function hasText(value) {
