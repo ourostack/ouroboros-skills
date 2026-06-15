@@ -561,16 +561,16 @@ ok 92 - support matrix package script is wired to regenerate the artifact
 # \# --------------------------------------------------------------
 # \# file          | line % | branch % | funcs % | uncovered lines
 # \# --------------------------------------------------------------
-# \# plugins              |        |          |         | 
-# \#  desk                |        |          |         | 
-# \#   mcp                |        |          |         | 
-# \#    scripts           |        |          |         | 
-# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 | 
-# \#    src               |        |          |         | 
-# \#     coverage         |        |          |         | 
-# \#      runner.js       | 100.00 |   100.00 |  100.00 | 
+# \# plugins              |        |          |         |
+# \#  desk                |        |          |         |
+# \#   mcp                |        |          |         |
+# \#    scripts           |        |          |         |
+# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 |
+# \#    src               |        |          |         |
+# \#     coverage         |        |          |         |
+# \#      runner.js       | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
-# \# all files     | 100.00 |   100.00 |  100.00 | 
+# \# all files     | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
 # \# end of coverage report
 # [coverage-gate] passed for 2 changed production file(s)

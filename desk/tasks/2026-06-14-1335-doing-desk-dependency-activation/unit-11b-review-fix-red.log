@@ -33,9 +33,9 @@ not ok 5 - desk_reindex — no-force repairs fresh vectors from an inactive embe
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     false !== true
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: true
@@ -74,10 +74,10 @@ not ok 9 - desk_status reports root, runtime, missing DB, and deferred repair st
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + 'ollama:nomic-embed-text:768'
     - 'nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 'nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768'
@@ -128,10 +128,10 @@ not ok 15 - desk_status leaves query embedding unprobed even when the endpoint i
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + 'ollama:nomic-embed-text:768'
     - 'nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 'nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768'
@@ -157,9 +157,9 @@ not ok 17 - desk_status reports vector coverage against the active embedding spe
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     2 !== 1
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 1
