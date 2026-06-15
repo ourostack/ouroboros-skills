@@ -770,6 +770,46 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const bringsInWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  bringsInWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio brings in Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(bringsInWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const preloadsWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  preloadsWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio preloads Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(preloadsWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const comesWithWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  comesWithWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio comes with Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(comesWithWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const hasWorkSuiteBuiltIn = clone(currentOuroborosStdioPackagingInput())
+  hasWorkSuiteBuiltIn.genericStdioReadmeSection +=
+    "\nGeneric stdio has Work Suite built in.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(hasWorkSuiteBuiltIn),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const givesYouDeskWorker = clone(currentOuroborosStdioPackagingInput())
+  givesYouDeskWorker.genericStdioReadmeSection +=
+    "\nGeneric stdio gives you desk:worker automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(givesYouDeskWorker),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const activationReadmeIdentifierClaim = clone(currentOuroborosStdioPackagingInput())
   activationReadmeIdentifierClaim.genericStdioActivationSection +=
     "\nGeneric stdio loads `work-suite` automatically.\n"
