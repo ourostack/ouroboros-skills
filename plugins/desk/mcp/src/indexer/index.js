@@ -306,18 +306,19 @@ async function embedMissingVectors(db, opts, summary, docIds) {
   for (let start = 0; start < docIds.length; start += SQLITE_PARAMETER_BATCH_SIZE) {
     const batch = docIds.slice(start, start + SQLITE_PARAMETER_BATCH_SIZE)
     const placeholders = batch.map(() => "?").join(", ")
-    missing.push(
-      ...db
-        .prepare(
-          `SELECT c.id, c.text
-           FROM chunks c
-           LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
-           WHERE v.chunk_id IS NULL
-             AND c.doc_id IN (${placeholders})
-           ORDER BY c.id`,
-        )
-        .all(...batch),
-    )
+    const rows = db
+      .prepare(
+        `SELECT c.id, c.text
+         FROM chunks c
+         LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+         WHERE v.chunk_id IS NULL
+           AND c.doc_id IN (${placeholders})
+         ORDER BY c.id`,
+      )
+      .all(...batch)
+    for (const row of rows) {
+      missing.push(row)
+    }
   }
   if (missing.length === 0) return
 

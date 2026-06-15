@@ -32,6 +32,22 @@ async function writeManyEmptySharedDocs(root, count) {
   }
 }
 
+async function writeManyChunkySharedDocs(root, docCount, chunksPerDoc) {
+  const dir = path.join(root, "_shared")
+  await fs.mkdir(dir, { recursive: true })
+  const body = Array.from(
+    { length: chunksPerDoc },
+    (_, index) => `## Chunk ${index}\n\nbody ${index}`,
+  ).join("\n\n")
+  for (let index = 0; index < docCount; index += 1) {
+    await fs.writeFile(
+      path.join(dir, `chunky-${String(index).padStart(5, "0")}.md`),
+      body,
+      "utf8",
+    )
+  }
+}
+
 const indexOpts = { skipEmbed: true }
 
 test("empty desk → empty index", async () => {
@@ -536,4 +552,28 @@ test("large rebuilds do not exceed SQLite variable limits when no chunks need em
   assert.equal(summary.chunks_inserted, 0)
   assert.equal(summary.semantic_warnings, 0)
   assert.equal(calls, 0)
+})
+
+test("large missing-vector batches append rows without spread argument overflow", { timeout: 30000 }, async () => {
+  const root = await mkRoot()
+  const docsPerBatch = 500
+  const chunksPerDoc = 240
+  await writeManyChunkySharedDocs(root, docsPerBatch, chunksPerDoc)
+
+  let calls = 0
+  const failingFetch = async () => {
+    calls += 1
+    throw new Error("controlled embedding stop")
+  }
+
+  const summary = await rebuildIndex(root, {
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: failingFetch,
+    },
+  })
+  assert.equal(summary.docs_indexed, docsPerBatch)
+  assert.equal(summary.chunks_inserted, docsPerBatch * chunksPerDoc)
+  assert.equal(summary.semantic_warnings, 1)
+  assert.equal(calls, 1)
 })
