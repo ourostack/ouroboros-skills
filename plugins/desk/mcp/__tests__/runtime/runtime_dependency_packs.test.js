@@ -18,9 +18,15 @@ const repoRoot = path.resolve(
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const packageJsonPath = path.join(mcpRoot, "package.json")
 const packageLockPath = path.join(mcpRoot, "package-lock.json")
-const targetPlatform = "darwin"
-const targetArch = "arm64"
 const targetNodeAbi = "127"
+const supportedTargets = [
+  { platform: "darwin", arch: "arm64", sqliteVecPackage: "sqlite-vec-darwin-arm64" },
+  { platform: "darwin", arch: "x64", sqliteVecPackage: "sqlite-vec-darwin-x64" },
+  { platform: "linux", arch: "arm64", sqliteVecPackage: "sqlite-vec-linux-arm64" },
+  { platform: "linux", arch: "x64", sqliteVecPackage: "sqlite-vec-linux-x64" },
+  { platform: "win32", arch: "x64", sqliteVecPackage: "sqlite-vec-windows-x64" },
+]
+const target = supportedTargets[0]
 
 async function loadRuntimeDeps() {
   return import(pathToFileURL(path.join(mcpRoot, "src", "runtime", "runtime-deps.js")))
@@ -69,8 +75,8 @@ function fixtureManifest({
       version: pluginVersion ?? loadJson(packageJsonPath).version,
     },
     platform: {
-      os: targetPlatform,
-      arch: targetArch,
+      os: target.platform,
+      arch: target.arch,
       node_abi: targetNodeAbi,
     },
     package_lock: {
@@ -107,6 +113,72 @@ function dependencyNames(dependencies) {
   return dependencies.map((dependency) => dependency.name).sort()
 }
 
+function packageNameFromLockPath(lockPath) {
+  return lockPath.replace(/^node_modules\//u, "")
+}
+
+function packageLockPathForName(name) {
+  return `node_modules/${name}`
+}
+
+function supportsTarget(entry, { platform, arch }) {
+  return (!Array.isArray(entry.os) || entry.os.includes(platform))
+    && (!Array.isArray(entry.cpu) || entry.cpu.includes(arch))
+}
+
+function isNativeRuntimeDependency(lockPath) {
+  return /^node_modules\/(?:better-sqlite3|sqlite-vec(?:-|$))/u.test(lockPath)
+}
+
+function expectedProductionDependencyClosure({ packageJson, packageLock, platform, arch }) {
+  const queue = Object.keys(packageJson.dependencies).map(packageLockPathForName)
+  const seen = new Set()
+  while (queue.length > 0) {
+    const lockPath = queue.shift()
+    if (seen.has(lockPath)) {
+      continue
+    }
+    const entry = packageLock.packages[lockPath]
+    assert.ok(entry, `lock entry must exist for ${lockPath}`)
+    if (entry.dev || !supportsTarget(entry, { platform, arch })) {
+      continue
+    }
+    seen.add(lockPath)
+    for (const name of Object.keys(entry.dependencies ?? {})) {
+      queue.push(packageLockPathForName(name))
+    }
+    for (const name of Object.keys(entry.optionalDependencies ?? {})) {
+      queue.push(packageLockPathForName(name))
+    }
+    for (const [name, range] of Object.entries(entry.peerDependencies ?? {})) {
+      if (entry.peerDependenciesMeta?.[name]?.optional !== true && range !== undefined) {
+        queue.push(packageLockPathForName(name))
+      }
+    }
+  }
+  return [...seen].sort().map((lockPath) => ({
+    name: packageNameFromLockPath(lockPath),
+    version: packageLock.packages[lockPath].version,
+    lock_path: lockPath,
+    native: isNativeRuntimeDependency(lockPath),
+  }))
+}
+
+function archiveEntriesForProductionDependencies(dependencies) {
+  const entries = [
+    "package.json",
+    "package-lock.json",
+    "runtime-deps.manifest.json",
+  ]
+  for (const dependency of dependencies) {
+    entries.push(`${dependency.lock_path}/package.json`)
+    if (dependency.name === "better-sqlite3") {
+      entries.push(`${dependency.lock_path}/build/Release/better_sqlite3.node`)
+    }
+  }
+  return entries.sort()
+}
+
 function assertIncludesAll(actual, expected, label) {
   for (const item of expected) {
     assert.ok(actual.includes(item), `${label} must include ${item}`)
@@ -128,8 +200,8 @@ test("runtime dependency pack artifact paths are deterministic and repo-relative
     mcpRoot,
     packageJson,
     packageLock,
-    platform: targetPlatform,
-    arch: targetArch,
+    platform: target.platform,
+    arch: target.arch,
     nodeAbi: targetNodeAbi,
   })
 
@@ -138,7 +210,7 @@ test("runtime dependency pack artifact paths are deterministic and repo-relative
     "artifacts",
     "runtime-deps",
     packageJson.version,
-    `${targetPlatform}-${targetArch}-node-${targetNodeAbi}`,
+    `${target.platform}-${target.arch}-node-${targetNodeAbi}`,
     prodDependencyLockHash,
   )
   assert.equal(paths.packDir, expectedDir)
@@ -147,8 +219,23 @@ test("runtime dependency pack artifact paths are deterministic and repo-relative
   assert.equal(paths.checksumPath, path.join(expectedDir, "runtime-deps.sha256"))
   assert.equal(
     paths.relativeArchivePath,
-    `plugins/desk/mcp/artifacts/runtime-deps/${packageJson.version}/${targetPlatform}-${targetArch}-node-${targetNodeAbi}/${prodDependencyLockHash}/runtime-deps.tgz`,
+    `plugins/desk/mcp/artifacts/runtime-deps/${packageJson.version}/${target.platform}-${target.arch}-node-${targetNodeAbi}/${prodDependencyLockHash}/runtime-deps.tgz`,
   )
+
+  for (const supportedTarget of supportedTargets) {
+    const targetPaths = deriveRuntimeDependencyPackPaths({
+      mcpRoot,
+      packageJson,
+      packageLock,
+      platform: supportedTarget.platform,
+      arch: supportedTarget.arch,
+      nodeAbi: targetNodeAbi,
+    })
+    assert.match(
+      targetPaths.relativeArchivePath,
+      new RegExp(`${supportedTarget.platform}-${supportedTarget.arch}-node-${targetNodeAbi}/[a-f0-9]{64}/runtime-deps\\.tgz$`, "u"),
+    )
+  }
 
   const changedLock = structuredClone(packageLock)
   changedLock.packages["node_modules/gray-matter"].version = "4.0.4"
@@ -174,26 +261,46 @@ test("production dependency closure includes native packages and non-native tran
   const packageJson = loadJson(packageJsonPath)
   const packageLock = loadJson(packageLockPath)
 
+  for (const supportedTarget of supportedTargets) {
+    const dependencies = collectProductionDependencyClosure({
+      packageJson,
+      packageLock,
+      platform: supportedTarget.platform,
+      arch: supportedTarget.arch,
+    })
+    const expectedDependencies = expectedProductionDependencyClosure({
+      packageJson,
+      packageLock,
+      platform: supportedTarget.platform,
+      arch: supportedTarget.arch,
+    })
+    const names = dependencyNames(dependencies)
+
+    assert.deepEqual(dependencies, expectedDependencies)
+    assertIncludesAll(names, [
+      "@modelcontextprotocol/sdk",
+      "better-sqlite3",
+      "gray-matter",
+      "js-yaml",
+      "prebuild-install",
+      "section-matter",
+      "sqlite-vec",
+      "zod",
+      supportedTarget.sqliteVecPackage,
+    ], `production dependency closure for ${supportedTarget.platform}-${supportedTarget.arch}`)
+    for (const otherTarget of supportedTargets) {
+      if (otherTarget.sqliteVecPackage !== supportedTarget.sqliteVecPackage) {
+        assert.equal(names.includes(otherTarget.sqliteVecPackage), false)
+      }
+    }
+  }
+
   const dependencies = collectProductionDependencyClosure({
     packageJson,
     packageLock,
-    platform: targetPlatform,
-    arch: targetArch,
+    platform: target.platform,
+    arch: target.arch,
   })
-  const names = dependencyNames(dependencies)
-
-  assertIncludesAll(names, [
-    "@modelcontextprotocol/sdk",
-    "better-sqlite3",
-    "gray-matter",
-    "js-yaml",
-    "prebuild-install",
-    "section-matter",
-    "sqlite-vec",
-    "sqlite-vec-darwin-arm64",
-  ], "production dependency closure")
-  assert.equal(names.includes("sqlite-vec-linux-x64"), false)
-
   const sqlite = dependencies.find((dependency) => dependency.name === "better-sqlite3")
   assert.equal(sqlite.native, true)
   assert.match(sqlite.lock_path, /^node_modules\/better-sqlite3$/u)
@@ -214,8 +321,8 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
   const productionDependencies = collectProductionDependencyClosure({
     packageJson,
     packageLock,
-    platform: targetPlatform,
-    arch: targetArch,
+    platform: target.platform,
+    arch: target.arch,
   })
   const prodDependencyLockHash = productionDependencyLockHash({ packageJson, packageLock })
 
@@ -228,11 +335,61 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
       manifest,
       packageJson,
       packageLock,
-      platform: targetPlatform,
-      arch: targetArch,
+      platform: target.platform,
+      arch: target.arch,
       nodeAbi: targetNodeAbi,
     }),
     [],
+  )
+
+  const malformed = {
+    schema_version: "1",
+    created_at: "",
+    plugin: {
+      name: "desk-mcp",
+      version: "0.0.0",
+    },
+    platform: {
+      os: "",
+      arch: "ppc",
+    },
+    package_lock: {
+      path: "package-lock.json",
+    },
+    archive: {
+      file: "deps.tgz",
+      root_entries: "node_modules/",
+    },
+    production_dependencies: [],
+    provenance: {},
+  }
+  assert.deepEqual(
+    validateRuntimeDependencyPackManifest({
+      manifest: malformed,
+      packageJson,
+      packageLock,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+    }),
+    [
+      "runtime dependency pack manifest schema_version must be 1",
+      "runtime dependency pack manifest created_at must be an ISO timestamp",
+      "runtime dependency pack manifest plugin.name must match package.json",
+      "runtime dependency pack manifest plugin.version must match package.json",
+      "runtime dependency pack manifest platform.os must match target platform",
+      "runtime dependency pack manifest platform.arch must match target arch",
+      "runtime dependency pack manifest platform.node_abi must match target Node ABI",
+      "runtime dependency pack manifest package_lock.path must be plugins/desk/mcp/package-lock.json",
+      "runtime dependency pack manifest package_lock.sha256 must be a sha256 hex digest",
+      "runtime dependency pack manifest package_lock.prod_dependency_lock_hash must be a sha256 hex digest",
+      "runtime dependency pack manifest archive.file must be runtime-deps.tgz",
+      "runtime dependency pack manifest archive.sha256 must be a sha256 hex digest",
+      "runtime dependency pack manifest archive.root_entries must be an array",
+      "runtime dependency pack manifest production_dependencies must not be empty",
+      "runtime dependency pack manifest provenance.builder must be runtime:deps-pack:build",
+      "runtime dependency pack manifest provenance.source is required",
+    ],
   )
 
   const drifted = structuredClone(manifest)
@@ -248,8 +405,8 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
       manifest: drifted,
       packageJson,
       packageLock,
-      platform: targetPlatform,
-      arch: targetArch,
+      platform: target.platform,
+      arch: target.arch,
       nodeAbi: targetNodeAbi,
     }),
     [
@@ -272,24 +429,11 @@ test("runtime dependency archive shape rejects server source and missing depende
   const productionDependencies = collectProductionDependencyClosure({
     packageJson,
     packageLock,
-    platform: targetPlatform,
-    arch: targetArch,
+    platform: target.platform,
+    arch: target.arch,
   })
 
-  const validEntries = [
-    "node_modules/@modelcontextprotocol/sdk/package.json",
-    "node_modules/better-sqlite3/package.json",
-    "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
-    "node_modules/gray-matter/package.json",
-    "node_modules/js-yaml/package.json",
-    "node_modules/prebuild-install/package.json",
-    "node_modules/section-matter/package.json",
-    "node_modules/sqlite-vec/package.json",
-    "node_modules/sqlite-vec-darwin-arm64/package.json",
-    "package.json",
-    "package-lock.json",
-    "runtime-deps.manifest.json",
-  ]
+  const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
   assert.deepEqual(
     validateRuntimeDependencyArchiveShape({
       entries: validEntries,
@@ -313,6 +457,16 @@ test("runtime dependency archive shape rejects server source and missing depende
       "runtime dependency archive must not include mutable MCP source src/server.js",
     ],
   )
+
+  assert.deepEqual(
+    validateRuntimeDependencyArchiveShape({
+      entries: [
+        ...validEntries.filter((entry) => entry !== "node_modules/zod/package.json"),
+      ],
+      productionDependencies,
+    }),
+    ["runtime dependency archive must include non-native dependency zod"],
+  )
 })
 
 test("runtime dependency pack verification checks checksums and unsupported platforms", async () => {
@@ -331,24 +485,11 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     productionDependencies: collectProductionDependencyClosure({
       packageJson,
       packageLock,
-      platform: targetPlatform,
-      arch: targetArch,
+      platform: target.platform,
+      arch: target.arch,
     }),
   })
-  const validEntries = [
-    "node_modules/@modelcontextprotocol/sdk/package.json",
-    "node_modules/better-sqlite3/package.json",
-    "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
-    "node_modules/gray-matter/package.json",
-    "node_modules/js-yaml/package.json",
-    "node_modules/prebuild-install/package.json",
-    "node_modules/section-matter/package.json",
-    "node_modules/sqlite-vec/package.json",
-    "node_modules/sqlite-vec-darwin-arm64/package.json",
-    "package.json",
-    "package-lock.json",
-    "runtime-deps.manifest.json",
-  ]
+  const validEntries = archiveEntriesForProductionDependencies(manifest.production_dependencies)
   const packDir = writePackFixture({ archiveText, checksum: archiveSha, manifest })
   const corruptPackDir = writePackFixture({
     archiveText,
@@ -360,8 +501,8 @@ test("runtime dependency pack verification checks checksums and unsupported plat
       verifyRuntimeDependencyPack({
         packDir,
         mcpRoot,
-        platform: targetPlatform,
-        arch: targetArch,
+        platform: target.platform,
+        arch: target.arch,
         nodeAbi: targetNodeAbi,
         archiveEntries: validEntries,
       }),
@@ -372,8 +513,8 @@ test("runtime dependency pack verification checks checksums and unsupported plat
       verifyRuntimeDependencyPack({
         packDir: corruptPackDir,
         mcpRoot,
-        platform: targetPlatform,
-        arch: targetArch,
+        platform: target.platform,
+        arch: target.arch,
         nodeAbi: targetNodeAbi,
         archiveEntries: validEntries,
       }),
@@ -389,13 +530,13 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         packDir,
         mcpRoot,
         platform: "freebsd",
-        arch: targetArch,
+        arch: target.arch,
         nodeAbi: targetNodeAbi,
         archiveEntries: validEntries,
       }),
       {
         ok: false,
-        errors: [`unsupported runtime dependency pack target freebsd-${targetArch}-node-${targetNodeAbi}`],
+        errors: [`unsupported runtime dependency pack target freebsd-${target.arch}-node-${targetNodeAbi}`],
         manifest,
       },
     )
@@ -426,4 +567,13 @@ test("package declares CI/release scripts for runtime dependency packs", () => {
       .startsWith("#!/usr/bin/env node\n"),
     true,
   )
+})
+
+test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
+  const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
+
+  assert.match(workflow, /runtime:deps-pack:verify/u)
+  assert.match(workflow, /plugins\/desk\/mcp\/artifacts\/runtime-deps\/\*\*/u)
+  assert.match(workflow, /scripts\/build-runtime-deps-pack\.js/u)
+  assert.match(workflow, /scripts\/verify-runtime-deps-pack\.js/u)
 })

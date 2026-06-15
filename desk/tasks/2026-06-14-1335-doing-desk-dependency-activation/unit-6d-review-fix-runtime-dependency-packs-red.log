@@ -1,0 +1,270 @@
+TAP version 13
+# Subtest: runtime dependency pack artifact paths are deterministic and repo-relative
+not ok 1 - runtime dependency pack artifact paths are deterministic and repo-relative
+  ---
+  duration_ms: 1.7515
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:188:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/runtime-deps.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: production dependency closure includes native packages and non-native transitive packages
+not ok 2 - production dependency closure includes native packages and non-native transitive packages
+  ---
+  duration_ms: 0.347875
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:259:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/runtime-deps.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: runtime dependency pack manifest validates lock provenance and dependency-only shape
+not ok 3 - runtime dependency pack manifest validates lock provenance and dependency-only shape
+  ---
+  duration_ms: 0.236458
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:313:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/runtime-deps.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: runtime dependency archive shape rejects server source and missing dependencies
+not ok 4 - runtime dependency archive shape rejects server source and missing dependencies
+  ---
+  duration_ms: 0.185792
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:422:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/runtime-deps.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: runtime dependency pack verification checks checksums and unsupported platforms
+not ok 5 - runtime dependency pack verification checks checksums and unsupported platforms
+  ---
+  duration_ms: 0.463625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:472:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/runtime-deps.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: package declares CI/release scripts for runtime dependency packs
+not ok 6 - package declares CI/release scripts for runtime dependency packs
+  ---
+  duration_ms: 0.859041
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:549:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'node scripts/build-runtime-deps-pack.js'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'node scripts/build-runtime-deps-pack.js'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:552:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CI workflow verifies runtime dependency packs for release-maintained artifacts
+not ok 7 - CI workflow verifies runtime dependency packs for release-maintained artifacts
+  ---
+  duration_ms: 1.837291
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:572:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /runtime:deps-pack:verify/u. Input:
+
+    'name: desk MCP tests\n' +
+      '\n' +
+      '# Runs the desk MCP server test suite through the coverage gate\n' +
+      '# (plugins/desk/mcp `npm run test:coverage`).\n' +
+      '# Skill-manifest validation lives in validate-skills.yml and does NOT exercise\n' +
+      '# the MCP code, so without this job desk-core changes can merge untested.\n' +
+      '# Path-filtered to the MCP package, root validation scripts, and this workflow\n' +
+      '# file to keep unrelated skill/docs edits from triggering a Node build they\n' +
+      "# don't need.\n" +
+      '\n' +
+      'on:\n' +
+      '  pull_request:\n' +
+      '    paths:\n' +
+      '      - "plugins/desk/mcp/**"\n' +
+      '      - "scripts/*.cjs"\n' +
+      '      - ".github/workflows/desk-mcp-tests.yml"\n' +
+      '  push:\n' +
+      '    branches:\n' +
+      '      - main\n' +
+      '    paths:\n' +
+      '      - "plugins/desk/mcp/**"\n' +
+      '      - "scripts/*.cjs"\n' +
+      '      - ".github/workflows/desk-mcp-tests.yml"\n' +
+      '\n' +
+      'jobs:\n' +
+      '  desk-mcp-tests:\n' +
+      '    name: desk MCP test suite\n' +
+      '    runs-on: ubuntu-latest\n' +
+      '    steps:\n' +
+      '      - name: Check out repository\n' +
+      '        uses: actions/checkout@v4\n' +
+      '        with:\n' +
+      '          fetch-depth: 0\n' +
+      '\n' +
+      '      - name: Set up Node\n' +
+      '        uses: actions/setup-node@v4\n' +
+      '        with:\n' +
+      '          # Node 22 (matches validate-skills.yml; current LTS). The test script\n' +
+      '          # uses a `**` glob in `node --test`, which only resolves on Node >= 21,\n' +
+      '          # so do NOT drop below 22 here even though engines floor is >= 20.\n' +
+      '          node-version: "22"\n' +
+      '          cache: "npm"\n' +
+      '          cache-dependency-path: plugins/desk/mcp/package-lock.json\n' +
+      '\n' +
+      '      - name: Install dependencies\n' +
+      '        working-directory: plugins/desk/mcp\n' +
+      '        run: npm ci\n' +
+      '\n' +
+      '      - name: Run desk MCP coverage gate\n' +
+      '        working-directory: plugins/desk/mcp\n' +
+      '        run: npm run test:coverage\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    name: desk MCP tests
+
+    # Runs the desk MCP server test suite through the coverage gate
+    # (plugins/desk/mcp `npm run test:coverage`).
+    # Skill-manifest validation lives in validate-skills.yml and does NOT exercise
+    # the MCP code, so without this job desk-core changes can merge untested.
+    # Path-filtered to the MCP package, root validation scripts, and this workflow
+    # file to keep unrelated skill/docs edits from triggering a Node build they
+    # don't need.
+
+    on:
+      pull_request:
+        paths:
+          - "plugins/desk/mcp/**"
+          - "scripts/*.cjs"
+          - ".github/workflows/desk-mcp-tests.yml"
+      push:
+        branches:
+          - main
+        paths:
+          - "plugins/desk/mcp/**"
+          - "scripts/*.cjs"
+          - ".github/workflows/desk-mcp-tests.yml"
+
+    jobs:
+      desk-mcp-tests:
+        name: desk MCP test suite
+        runs-on: ubuntu-latest
+        steps:
+          - name: Check out repository
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+
+          - name: Set up Node
+            uses: actions/setup-node@v4
+            with:
+              # Node 22 (matches validate-skills.yml; current LTS). The test script
+              # uses a `**` glob in `node --test`, which only resolves on Node >= 21,
+              # so do NOT drop below 22 here even though engines floor is >= 20.
+              node-version: "22"
+              cache: "npm"
+              cache-dependency-path: plugins/desk/mcp/package-lock.json
+
+          - name: Install dependencies
+            working-directory: plugins/desk/mcp
+            run: npm ci
+
+          - name: Run desk MCP coverage gate
+            working-directory: plugins/desk/mcp
+            run: npm run test:coverage
+
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:575:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 0
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 99.323459
