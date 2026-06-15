@@ -4,6 +4,14 @@ import * as path from "node:path"
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
 const VECTOR_ENCODING = "float32-json"
+const ROW_FIELDS = new Set([
+  "chunk_key",
+  "text_hash",
+  "embedding_spec_id",
+  "dimension",
+  "encoding",
+  "vector",
+])
 
 export function deriveVectorPackPaths({
   pluginRoot,
@@ -93,10 +101,11 @@ export async function importVectorPacks({
     .sort()
 
   const seenInRun = new Set()
-  const findChunk = db.prepare(
+  const findChunks = db.prepare(
     `SELECT id, text_hash
      FROM chunks
-     WHERE chunk_key = ?`,
+     WHERE chunk_key = ?
+     ORDER BY id`,
   )
   const hasVector = db.prepare(
     "SELECT chunk_id FROM chunk_vecs WHERE chunk_id = ?",
@@ -117,28 +126,42 @@ export async function importVectorPacks({
 
     const txn = db.transaction((rows) => {
       for (const row of rows) {
+        const chunks = findChunks.all(row.chunk_key)
+        if (chunks.length === 0) {
+          summary.rows_skipped_missing_chunk += 1
+          continue
+        }
+        for (const chunk of chunks) {
+          if (chunk.text_hash !== row.text_hash) {
+            throw new Error(
+              `${path.basename(packPath)} row ${row.row_number}: text_hash mismatch for chunk_key ${row.chunk_key}`,
+            )
+          }
+        }
+
         if (seenInRun.has(row.chunk_key)) {
           summary.rows_skipped_duplicate += 1
           continue
         }
-        const chunk = findChunk.get(row.chunk_key)
-        if (!chunk) {
-          summary.rows_skipped_missing_chunk += 1
-          continue
+
+        let inserted = 0
+        let skipped = 0
+        for (const chunk of chunks) {
+          if (hasVector.get(chunk.id)) {
+            skipped += 1
+            continue
+          }
+          insertVector.run(BigInt(chunk.id), new Float32Array(row.vector))
+          inserted += 1
         }
-        if (chunk.text_hash !== row.text_hash) {
-          throw new Error(
-            `${path.basename(packPath)} row ${row.row_number}: text_hash mismatch for chunk_key ${row.chunk_key}`,
-          )
-        }
-        if (hasVector.get(chunk.id)) {
+        if (inserted === 0) {
           seenInRun.add(row.chunk_key)
-          summary.rows_skipped_duplicate += 1
+          summary.rows_skipped_duplicate += skipped
           continue
         }
-        insertVector.run(BigInt(chunk.id), new Float32Array(row.vector))
         seenInRun.add(row.chunk_key)
-        summary.rows_imported += 1
+        summary.rows_imported += inserted
+        summary.rows_skipped_duplicate += skipped
       }
     })
     txn(pack.rows)
@@ -189,6 +212,12 @@ function parseRows({ packText, expectedSpec, label }) {
 }
 
 function validateRow({ row, rowNumber, expectedSpec, label }) {
+  if (row === null || typeof row !== "object" || Array.isArray(row)) {
+    throw new Error(`${label} row ${rowNumber}: row must be an object`)
+  }
+  if (Object.keys(row).some((key) => !ROW_FIELDS.has(key))) {
+    throw new Error(`${label} row ${rowNumber}: unknown field is not allowed`)
+  }
   if (typeof row.chunk_key !== "string" || !/^ck_[a-f0-9]{40}$/u.test(row.chunk_key)) {
     throw new Error(`${label} row ${rowNumber}: chunk_key is invalid`)
   }

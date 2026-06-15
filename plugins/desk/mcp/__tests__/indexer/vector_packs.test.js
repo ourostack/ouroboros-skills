@@ -169,6 +169,49 @@ function insertChunk(db, { docPath, text, chunkIndex = 0 }) {
   return { docId, chunkId, identity, chunk }
 }
 
+function insertChunkForDoc(db, { docId, docPath, text, chunkIndex = 0 }) {
+  const chunk = {
+    index: chunkIndex,
+    text,
+    heading: null,
+    start_offset: 0,
+    end_offset: text.length,
+  }
+  const identity = chunkIdentity({ docPath, chunk })
+  const chunkId = db
+    .prepare(
+      `INSERT INTO chunks (
+         doc_id,
+         chunk_index,
+         chunk_key,
+         text_hash,
+         embedding_spec_id,
+         chunker_id,
+         normalization_id,
+         text,
+         heading,
+         start_offset,
+         end_offset
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING id`,
+    )
+    .get(
+      docId,
+      chunk.index,
+      identity.chunk_key,
+      identity.text_hash,
+      identity.embedding_spec_id,
+      identity.chunker_id,
+      identity.normalization_id,
+      chunk.text,
+      chunk.heading,
+      chunk.start_offset,
+      chunk.end_offset,
+    ).id
+  return { docId, chunkId, identity, chunk }
+}
+
 test("vector pack paths are canonical, plugin-root relative, and spec-scoped", async () => {
   const { deriveVectorPackPaths } = await loadVectorPackModule()
   const paths = deriveVectorPackPaths({
@@ -396,6 +439,21 @@ test("vector pack validation rejects wrong specs, dimensions, hashes, and malfor
       row: rowFor(identity, 1, { vector: [Infinity, ...vector(1).slice(1)] }),
       pattern: /row 1.*finite numbers/u,
     },
+    {
+      name: "row-not-object",
+      row: null,
+      pattern: /row 1.*object/u,
+    },
+    {
+      name: "row-string",
+      row: "not-an-object",
+      pattern: /row 1.*object/u,
+    },
+    {
+      name: "row-array",
+      row: [],
+      pattern: /row 1.*object/u,
+    },
   ]
 
   for (const entry of cases) {
@@ -433,6 +491,39 @@ test("vector pack validation rejects wrong specs, dimensions, hashes, and malfor
       expectedSpec: ACTIVE_EMBEDDING_SPEC,
     }),
     /row 1.*malformed JSON/u,
+  )
+})
+
+test("vector pack validation rejects unknown row fields before sensitive text can enter packs", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const identity = chunkIdentity({
+    docPath: "trackA/task-1/task.md",
+    chunk: { text: "sensitive row schema text" },
+  })
+  const paths = await writePack({
+    pluginRoot,
+    packId: "unknown-row-field",
+    rows: [
+      rowFor(identity, 1, {
+        text: "sensitive row schema text",
+      }),
+    ],
+  })
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    (error) => {
+      assert.match(error.message, /row 1.*unknown field/u)
+      assert.doesNotMatch(error.message, /sensitive row schema text/u)
+      return true
+    },
   )
 })
 
@@ -676,6 +767,89 @@ test("vector pack import verifies chunk text hashes against the local DB before 
       },
     )
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import inserts vectors for every local chunk that shares a covered chunk key", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const first = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "duplicated semantic chunk",
+      chunkIndex: 0,
+    })
+    const second = insertChunkForDoc(db, {
+      docId: first.docId,
+      docPath: "trackA/task-1/task.md",
+      text: "duplicated semantic chunk",
+      chunkIndex: 1,
+    })
+    assert.equal(first.identity.chunk_key, second.identity.chunk_key)
+    await writePack({
+      pluginRoot,
+      packId: "duplicate-local-chunks",
+      rows: [rowFor(first.identity, 4)],
+    })
+
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(imported.rows_imported, 2)
+    assert.equal(imported.rows_skipped_duplicate, 0)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 2)
+    assertStoredVector(db, first.chunkId, vector(4))
+    assertStoredVector(db, second.chunkId, vector(4))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import rejects contradictory duplicate rows before deduplication", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const chunk = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "duplicate row local chunk",
+      chunkIndex: 0,
+    })
+    await writePack({
+      pluginRoot,
+      packId: "duplicate-a",
+      rows: [rowFor(chunk.identity, 1)],
+    })
+    await writePack({
+      pluginRoot,
+      packId: "duplicate-b",
+      rows: [
+        rowFor(chunk.identity, 2, {
+          text_hash: chunkIdentity({
+            docPath: "trackA/task-1/task.md",
+            chunk: { text: "conflicting duplicate text" },
+          }).text_hash,
+        }),
+      ],
+    })
+
+    await assert.rejects(
+      () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      }),
+      /duplicate-b\.jsonl.*row 1.*text_hash/u,
+    )
   } finally {
     closeDb(db)
   }
