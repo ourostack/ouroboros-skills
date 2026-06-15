@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -59,6 +60,40 @@ function codexMatrixRow() {
   return row
 }
 
+function evidenceSection(content, heading) {
+  const pattern = new RegExp(`## ${heading}\\n([\\s\\S]*?)(?=\\n## |\\n?$)`, "u")
+  const match = content.match(pattern)
+  assert.ok(match, `missing evidence section: ${heading}`)
+  return match[1]
+}
+
+function completeDesktopRealSmoke(section) {
+  return [
+    /^Status: PASS$/m,
+    /^Primitive: codex-desktop-scriptable-activation-smoke$/m,
+    /^Command: codex (?:app|app-server|debug app-server send-message-v2)\b/m,
+    /^Artifact: .+/m,
+    /^Temp CODEX_HOME: PASS$/m,
+    /^Temp HOME: PASS$/m,
+    /^No real Codex config touched: PASS$/m,
+    /^Worker instructions: PASS$/m,
+    /^desk_status: PASS$/m,
+    /You are the desk worker by default\./u,
+    /desk:session-start/u,
+  ].every((pattern) => pattern.test(section))
+}
+
+function completeDesktopFallback(section, codex) {
+  return (
+    /^Status: UNSUPPORTED$/m.test(section) &&
+    /^Unsupported primitive: codex-desktop-scriptable-activation-smoke$/m.test(section) &&
+    /^Fallback: .+/m.test(section) &&
+    /Codex Desktop lacks a stable scriptable activation-smoke primitive/iu.test(codex.fallback_behavior) &&
+    codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive) &&
+    codex.evidence_command_or_doc.includes("codex-smoke-evidence.md")
+  )
+}
+
 test("Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status", async () => {
   const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
   const hostRoot = makeTempHost()
@@ -74,6 +109,8 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
       mode: "global-personal",
       codexRunner: async (request) => {
         runnerCalls.push(request)
+        const configPath = path.join(request.env.CODEX_HOME, "config.toml")
+        const instructionsPath = path.join(request.env.CODEX_HOME, "AGENTS.md")
 
         assert.equal(request.command, "codex")
         assert.ok(request.args.includes("exec"), "smoke must launch a new noninteractive session")
@@ -89,6 +126,23 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
         assert.match(request.prompt, /current instructions/iu)
         assert.match(request.prompt, /desk_status/u)
         assertNoHealthyPathManualSetup(JSON.stringify(request))
+        assert.equal(existsSync(configPath), true, "smoke must materialize temp Codex config before launch")
+        assert.equal(
+          existsSync(instructionsPath),
+          true,
+          "smoke must materialize temp Codex instructions before launch",
+        )
+
+        const generatedConfig = readFileSync(configPath, "utf8")
+        const generatedInstructions = readFileSync(instructionsPath, "utf8")
+        assert.match(generatedConfig, /# BEGIN desk activation: desk@1\.7\.3 mode=global-personal owner=desk-activation/u)
+        assert.match(generatedConfig, /\[plugins\."desk@ourostack"\]/u)
+        assert.match(generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/u)
+        assert.match(generatedConfig, /enabled = true/u)
+        assert.match(generatedInstructions, /# BEGIN desk activation: desk@1\.7\.3 mode=global-personal owner=desk-activation/u)
+        assert.match(generatedInstructions, /You are the desk worker by default\./u)
+        assert.match(generatedInstructions, /desk:session-start/u)
+        assertNoHealthyPathManualSetup(`${generatedConfig}\n${generatedInstructions}`)
 
         return {
           exitCode: 0,
@@ -128,6 +182,11 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
     assert.equal(result.desk_status.root.path, path.join(hostRoot, "desk"))
     assert.equal(result.desk_status.root.source, "activation-config")
     assert.equal(result.desk_status.runtime.loaded_from_source_mirror, true)
+    assert.deepEqual(result.activation, {
+      config_path: path.join(hostRoot, ".codex", "config.toml"),
+      instructions_path: path.join(hostRoot, ".codex", "AGENTS.md"),
+      mode: "global-personal",
+    })
     assert.deepEqual(result.manual_setup, {
       codex_mcp_add: false,
       copied_agent_file: false,
@@ -143,6 +202,7 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
 test("Codex smoke evidence records CLI proof and an exact Desktop App fallback", () => {
   const evidence = readFileSync(evidencePath, "utf8")
   const codex = codexMatrixRow()
+  const desktopSection = evidenceSection(evidence, "Codex Desktop App Activation Surface")
 
   assert.match(evidence, /^Status: PASS$/m)
   assert.match(evidence, /## Codex CLI Activation Smoke[\s\S]*Status: PASS/u)
@@ -155,22 +215,18 @@ test("Codex smoke evidence records CLI proof and an exact Desktop App fallback",
   assert.match(evidence, /developers\.openai\.com\/codex\/guides\/agents-md/u)
   assert.match(evidence, /developers\.openai\.com\/codex\/app-server/u)
 
-  const desktopAppRealSmoke = /## Codex Desktop App Activation Surface[\s\S]*Status: PASS/u.test(evidence)
-  const desktopAppFallback = (
-    /## Codex Desktop App Activation Surface[\s\S]*Status: UNSUPPORTED/u.test(evidence) &&
-    codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive) &&
-    codex.evidence_command_or_doc.includes("codex-smoke-evidence.md") &&
-    /Codex Desktop lacks a stable scriptable activation-smoke primitive/iu.test(codex.fallback_behavior)
-  )
   assert.equal(
-    desktopAppRealSmoke || desktopAppFallback,
+    completeDesktopRealSmoke(desktopSection) || completeDesktopFallback(desktopSection, codex),
     true,
-    "Codex App must have a real smoke artifact or an exact unsupported primitive plus fallback",
+    "Codex App must have detailed real smoke proof or an exact unsupported primitive plus fallback",
   )
 })
 
 test("Codex support matrix points at the smoke contract and evidence artifact", () => {
   const codex = codexMatrixRow()
+  const evidence = readFileSync(evidencePath, "utf8")
+  const desktopSection = evidenceSection(evidence, "Codex Desktop App Activation Surface")
+  const desktopRealSmoke = completeDesktopRealSmoke(desktopSection)
 
   assert.ok(codex.source_paths.includes("plugins/desk/mcp/__tests__/activation/codex_smoke.test.js"))
   assert.ok(
@@ -180,6 +236,9 @@ test("Codex support matrix points at the smoke contract and evidence artifact", 
   )
   assert.match(codex.evidence_command_or_doc, /node --test plugins\/desk\/mcp\/__tests__\/activation\/codex_smoke\.test\.js/u)
   assert.match(codex.evidence_command_or_doc, /codex-smoke-evidence\.md/u)
-  assert.ok(codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive))
+  assert.equal(
+    desktopRealSmoke || codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive),
+    true,
+    "Codex support matrix must either rely on real Desktop smoke evidence or name the unsupported primitive",
+  )
 })
-

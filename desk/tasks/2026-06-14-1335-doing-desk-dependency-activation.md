@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -901,3 +901,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 07:59 Unit 10c cold reviewer gate converged: Gibbs the 2nd found no issues and verified the early status hardening remains read-only/session-start-safe, covers missing/stale/fresh/unknown DB states, malformed roots, unavailable embedding endpoint without fetch calls, no artifact modules, missing index tables, full tests 361/361, 100% coverage, and clean diff check.
 - 2026-06-15 07:59 Unit 10d started: writing red Codex CLI/App smoke tests for activated worker instructions, Desk MCP `desk_status` availability, healthy-path absence of `codex mcp add`/manual copied agent files/uncontrolled AGENTS edits, and explicit Codex App support-matrix fallback when no testable app activation primitive exists.
 - 2026-06-15 08:05 Unit 10d complete: `6e47361` adds the red Codex CLI/App smoke contract and placeholder evidence. Focused red evidence in `unit-10d-codex-smoke-red.log` fails because `plugins/desk/mcp/src/activation/codex-smoke.js` does not exist yet, `codex-smoke-evidence.md` is still `NEEDS_IMPLEMENTATION`, and the Codex support-matrix row does not yet point at the smoke contract or name `codex-desktop-scriptable-activation-smoke`; full MCP suite evidence in `unit-10d-npm-test-red.log` shows 361 passing and the same 3 intentional smoke-contract failures. `git diff --check` passed and Unit 10e owns the green implementation/support-matrix updates.
+- 2026-06-15 08:12 Unit 10d reviewer fix: Planck the 2nd found MAJOR contract holes in the CLI activation proof and Codex Desktop real-smoke branch, plus red-state checklist and range-level artifact whitespace issues. Tightened `codex_smoke.test.js` so the injected Codex runner must see temp `config.toml` and `AGENTS.md` activation artifacts before launch, the result reports temp activation paths, and a Desktop App `PASS` must include a concrete primitive/command/artifact/temp-profile/instructions/`desk_status` proof rather than a placeholder. Marked `All tests pass` unchecked for the intentional red state, scrubbed Unit 10d logs for range-level `git diff --check`, and refreshed focused/full red logs.

@@ -41,4 +41,3 @@ Official documentation anchors used for the contract:
 - https://developers.openai.com/codex/cli/reference#codex-app
 - https://developers.openai.com/codex/cli/reference#codex-app-server
 - https://developers.openai.com/codex/app-server
-
