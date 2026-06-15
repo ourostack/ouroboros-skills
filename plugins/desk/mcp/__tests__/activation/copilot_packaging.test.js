@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert"
 import { existsSync, readFileSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { validateCopilotPackagingContract } from "../../src/activation/copilot-bundle.js"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -113,10 +114,6 @@ function currentCopilotPackagingInput() {
     deskPlugin: loadJson("plugins", "desk", "plugin.json"),
     workSuitePlugin: loadJson("plugins", "work-suite", "plugin.json"),
   }
-}
-
-function validateCopilotPackagingContract() {
-  return []
 }
 
 function expectedCopilotBundle() {
@@ -321,6 +318,14 @@ test("Copilot packaging validation rejects missing root surfaces and stale versi
 })
 
 test("Copilot packaging validation rejects incomplete flattened dependency closure", () => {
+  const missingActivationLock = clone(currentCopilotPackagingInput())
+  missingActivationLock.activation.dependencies =
+    missingActivationLock.activation.dependencies.filter((entry) => entry.id !== "work-suite")
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingActivationLock),
+    ["Copilot activation must lock Work Suite dependency"],
+  )
+
   const missingBundleDependency = clone(currentCopilotPackagingInput())
   missingBundleDependency.bundle.dependency_closure =
     missingBundleDependency.bundle.dependency_closure.filter((entry) => entry.id !== "work-suite")
@@ -329,12 +334,33 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
     ["Copilot flattened bundle must include work-suite dependency closure"],
   )
 
+  const missingBundleClosure = clone(currentCopilotPackagingInput())
+  delete missingBundleClosure.bundle.dependency_closure
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingBundleClosure),
+    ["Copilot flattened bundle must include work-suite dependency closure"],
+  )
+
+  const missingBundleMetadata = clone(currentCopilotPackagingInput())
+  delete missingBundleMetadata.deskPlugin.activation.copilot.dependencies["work-suite"]
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingBundleMetadata),
+    ["Copilot Work Suite dependency must point to generated flattened bundle metadata"],
+  )
+
   const staleBundlePath = clone(currentCopilotPackagingInput())
   staleBundlePath.deskPlugin.activation.copilot.dependencies["work-suite"].bundleMetadata =
     "plugins/desk/activation/old-bundle.json"
   assert.deepEqual(
     validateCopilotPackagingContract(staleBundlePath),
     ["Copilot Work Suite dependency must point to generated flattened bundle metadata"],
+  )
+
+  const missingWorker = clone(currentCopilotPackagingInput())
+  delete missingWorker.deskPlugin.activation.copilot.targets["desk:worker"]
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingWorker),
+    ["Copilot desk:worker target must use agents/worker.agent.md"],
   )
 
   const wrongWorker = clone(currentCopilotPackagingInput())

@@ -1,0 +1,59 @@
+TAP version 13
+# wrote plugins/desk/activation/copilot-root.flattened-bundle.json
+# Subtest: Copilot root plugin metadata exposes Desk worker and MCP without manual registration
+ok 1 - Copilot root plugin metadata exposes Desk worker and MCP without manual registration
+  ---
+  duration_ms: 5.218167
+  type: 'test'
+  ...
+# Subtest: Work Suite root plugin metadata provides the flattened dependency provider
+ok 2 - Work Suite root plugin metadata provides the flattened dependency provider
+  ---
+  duration_ms: 1.177166
+  type: 'test'
+  ...
+# Subtest: Copilot root packaging declares a generated flattened dependency closure
+ok 3 - Copilot root packaging declares a generated flattened dependency closure
+  ---
+  duration_ms: 2.522667
+  type: 'test'
+  ...
+# Subtest: generated Copilot flattened bundle is fresh and package-scripted
+ok 4 - generated Copilot flattened bundle is fresh and package-scripted
+  ---
+  duration_ms: 6.302958
+  type: 'test'
+  ...
+# Subtest: Copilot root evidence and support matrix record flattened packaging as generated
+ok 5 - Copilot root evidence and support matrix record flattened packaging as generated
+  ---
+  duration_ms: 2.306458
+  type: 'test'
+  ...
+# Subtest: Copilot root package docs avoid healthy-path manual dependency setup
+ok 6 - Copilot root package docs avoid healthy-path manual dependency setup
+  ---
+  duration_ms: 2.116583
+  type: 'test'
+  ...
+# Subtest: Copilot packaging validation rejects missing root surfaces and stale versions
+ok 7 - Copilot packaging validation rejects missing root surfaces and stale versions
+  ---
+  duration_ms: 3.0795
+  type: 'test'
+  ...
+# Subtest: Copilot packaging validation rejects incomplete flattened dependency closure
+ok 8 - Copilot packaging validation rejects incomplete flattened dependency closure
+  ---
+  duration_ms: 6.000875
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 223.569042

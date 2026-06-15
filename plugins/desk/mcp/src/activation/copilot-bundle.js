@@ -15,6 +15,7 @@ const workSuitePluginPath = "plugins/work-suite/plugin.json"
 const outputPath = "plugins/desk/activation/copilot-root.flattened-bundle.json"
 const generatorCommand =
   "npm --prefix plugins/desk/mcp run activation:copilot-bundle:generate"
+const copilotWorkerSource = "agents/worker.agent.md"
 
 export function buildCopilotBundle({ activation }) {
   const workSuiteDependency = activation.dependencies.find((dependency) => (
@@ -31,7 +32,7 @@ export function buildCopilotBundle({ activation }) {
       work_suite_plugin: workSuitePluginPath,
     },
     launch: {
-      agent: "plugins/desk/agents/worker.agent.md",
+      agent: `plugins/desk/${copilotWorkerSource}`,
       mcp: "plugins/desk/.mcp.json",
     },
     dependency_closure: [
@@ -52,6 +53,46 @@ export function buildCopilotBundle({ activation }) {
     ],
     manual_steps: [],
   }
+}
+
+export function validateCopilotPackagingContract(input) {
+  const errors = []
+  const workSuiteDependency = input.activation.dependencies.find((dependency) => (
+    dependency.id === "work-suite"
+  ))
+  const lockedWorkSuiteVersion = workSuiteDependency?.lock?.version
+
+  if (input.deskPlugin.agents !== "./agents/") {
+    errors.push("Copilot root plugin metadata must expose ./agents/")
+  }
+  if (input.deskPlugin.skills !== "./skills/") {
+    errors.push("Copilot root plugin metadata must expose ./skills/")
+  }
+  if (input.deskPlugin.mcpServers !== "./.mcp.json") {
+    errors.push("Copilot root plugin metadata must expose ./.mcp.json")
+  }
+  if (input.deskPlugin.version !== input.activation.version) {
+    errors.push(`Copilot root Desk version must match activation version ${input.activation.version}`)
+  }
+  if (lockedWorkSuiteVersion === undefined) {
+    errors.push("Copilot activation must lock Work Suite dependency")
+  } else if (input.workSuitePlugin.version !== lockedWorkSuiteVersion) {
+    errors.push(`Copilot root Work Suite version must match activation lock ${lockedWorkSuiteVersion}`)
+  }
+  if (!hasBundleDependency(input.bundle, "work-suite")) {
+    errors.push("Copilot flattened bundle must include work-suite dependency closure")
+  }
+  if (
+    input.deskPlugin.activation?.copilot?.dependencies?.["work-suite"]?.bundleMetadata
+      !== outputPath
+  ) {
+    errors.push("Copilot Work Suite dependency must point to generated flattened bundle metadata")
+  }
+  if (input.deskPlugin.activation?.copilot?.targets?.["desk:worker"]?.source !== copilotWorkerSource) {
+    errors.push("Copilot desk:worker target must use agents/worker.agent.md")
+  }
+
+  return errors
 }
 
 export function generateCopilotBundleArtifact() {
@@ -76,4 +117,9 @@ function readJson(relativePath) {
 
 function repoPath(relativePath) {
   return path.join(defaultRepoRoot, relativePath)
+}
+
+function hasBundleDependency(bundle, id) {
+  return Array.isArray(bundle.dependency_closure)
+    && bundle.dependency_closure.some((entry) => entry.id === id)
 }
