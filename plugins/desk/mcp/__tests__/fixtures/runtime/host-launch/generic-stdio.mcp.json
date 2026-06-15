@@ -3,7 +3,8 @@
     "desk": {
       "type": "stdio",
       "command": "node",
-      "args": ["${pluginRoot}/mcp/index.js"],
+      "args": ["./index.js"],
+      "cwd": "../../../..",
       "env": {}
     }
   }

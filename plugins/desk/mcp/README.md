@@ -41,14 +41,14 @@ The plugin's sibling `.mcp.json` (at `plugins/desk/.mcp.json`) declares the spaw
     "desk": {
       "type": "stdio",
       "command": "node",
-      "args": ["${pluginRoot}/mcp/index.js"],
+      "args": ["./mcp/index.js"],
       "env": {}
     }
   }
 }
 ```
 
-Hosts materialize `${pluginRoot}` to the installed Desk plugin root before launching. Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
+Plugin-aware hosts load this file from the installed Desk plugin root and launch with plugin-scoped relative paths resolved from that root. Desk does not rely on placeholder substitution inside `.mcp.json`. Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
 
 ## Generic stdio MCP launch
 
@@ -76,7 +76,7 @@ This path provides MCP tools only; there is no worker activation, default agent 
 - `sqlite-vec` — vector search extension
 - `gray-matter` — YAML frontmatter parser
 
-`sqlite-vec` and `better-sqlite3` are native deps; if `npm install` fails on a platform, try `npm install --build-from-source`.
+`sqlite-vec` and `better-sqlite3` are native deps. Healthy plugin activation restores the committed production runtime pack into a writable cache; direct development checkouts can still run `npm install` when intentionally working on the MCP package.
 
 Semantic ranking requires Ollama with `nomic-embed-text` pulled. The MCP resolves the embedding endpoint in this order: explicit test/tool `endpoint`, `DESK_EMBED_ENDPOINT`, `DESK_OLLAMA_ENDPOINT`, `OLLAMA_HOST`, `http://127.0.0.1:11434`, then `http://localhost:11434`. Set `DESK_EMBED_MODEL` to override `nomic-embed-text`, and `DESK_EMBED_TIMEOUT_MS` to adjust the per-endpoint timeout.
 

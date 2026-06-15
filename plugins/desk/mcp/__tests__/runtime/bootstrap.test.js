@@ -544,7 +544,17 @@ test("bootstrap pack verifier rejects missing metadata, drift, corrupt archives,
         arch: fixtureArch,
         nodeAbi: fixtureNodeAbi,
       }),
-      { ok: true, errors: [], manifest: valid.manifest },
+      {
+        ok: true,
+        errors: [],
+        manifest: valid.manifest,
+        archiveEntries: [
+          "node_modules/fixture-package/package.json",
+          "package-lock.json",
+          "package.json",
+          "runtime-deps.manifest.json",
+        ],
+      },
     )
     const longName = "node_modules/fixture-package/deep/from-long-name.js"
     const paxName = "node_modules/fixture-package/deep/from-pax-name.js"

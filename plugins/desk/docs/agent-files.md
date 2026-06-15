@@ -6,7 +6,7 @@ The desk plugin ships a substrate-default engineering agent named `worker`. The 
 |---|---|---|---|
 | `worker.md` | Claude Code | YAML frontmatter + markdown body | A discrete agent selectable via plugin loader / marketplace. Invoke `claude --agent desk:worker`. |
 | `worker.agent.md` | Copilot CLI | YAML frontmatter (`target: github-copilot`, `user-invocable: true`) + markdown body | A discrete agent that appears in Copilot CLI's agent picker. Invoke `copilot --agent worker`. |
-| `worker.toml` | Codex CLI | TOML subagent — `name`, `description`, `developer_instructions` | A subagent invocable via `/agent worker` for an isolated, focused session. **See "Two paths on Codex" below.** |
+| `worker.toml` | Codex CLI | TOML subagent — `name`, `description`, `developer_instructions` | Source format for hosts that expose explicit subagents; Codex's healthy path is activation-owned default behavior. |
 
 ## Install + invoke per harness
 
@@ -29,39 +29,13 @@ copilot --agent worker
 
 The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so no separate Work Suite install is part of the healthy path.
 
-### Codex CLI — two paths
+### Codex CLI / Codex App
 
-Codex plugins ship **skills + MCP + apps + hooks**, but per [Codex's plugin schema](https://developers.openai.com/codex/concepts/customization) they **cannot ship subagents or AGENTS.md content directly**. The agent layer is user-installed. Pick the path that matches what you want:
+Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, enables the bundled plugin-scoped MCP, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.
 
-**Path A — default behavior** (recommended for most operators). Make Codex itself behave like `worker` in every session by appending the canonical body to your `~/.codex/AGENTS.md` (or your project's `AGENTS.md`):
+Use `manual-only` when Desk should remain available as a plugin/MCP substrate without changing default behavior. Use `project-local` when a repo should own its own Desk binding. If a Codex host exposes an explicit subagent surface, `agents/worker.toml` is the source format for that optional layer, but copied agent files are not part of the healthy path.
 
-```bash
-# Append the body of worker.md (everything after the YAML frontmatter)
-# to ~/.codex/AGENTS.md. Substitute the path to your local plugin clone:
-PLUGIN=~/plugins/desk
-
-# Strip the frontmatter block (between the first two --- lines) and append:
-awk '/^---$/{c++; next} c>=2' "$PLUGIN/agents/worker.md" >> ~/.codex/AGENTS.md
-```
-
-Every Codex session after this reads the desk substrate context as part of its always-on guidance. No explicit invocation needed.
-
-**Path B — explicit subagent**. For a power-user setup where you want to keep Codex's default behavior unchanged and spawn `worker` only on demand:
-
-```bash
-mkdir -p ~/.codex/agents
-cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
-```
-
-Then in a Codex session:
-
-```
-/agent worker
-```
-
-Paths A and B compose — you can install both. AGENTS.md handles default behavior; `/agent worker` handles explicit isolated sessions.
-
-For the full Codex plugin install (marketplace entry, MCP server registration, verification), see `desk:codex-onboarding`.
+For verification and repair of marketplace/plugin exposure, plugin-scoped MCP, runtime-pack health, and owned worker-default blocks, see `desk:codex-onboarding`.
 
 ## What if I want a context-specific overlay?
 

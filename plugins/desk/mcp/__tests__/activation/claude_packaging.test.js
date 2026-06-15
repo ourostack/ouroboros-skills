@@ -365,9 +365,10 @@ test("Claude hook and MCP configuration stay plugin-relative and non-manual", ()
   assert.deepEqual(mcp.mcpServers.desk, {
     type: "stdio",
     command: "node",
-    args: ["${pluginRoot}/mcp/index.js"],
+    args: ["./mcp/index.js"],
     env: {},
   })
+  assert.doesNotMatch(JSON.stringify(mcp), /\$\{pluginRoot\}/u)
 })
 
 test("Claude-facing manifests stay version-aligned with activation and marketplace metadata", () => {

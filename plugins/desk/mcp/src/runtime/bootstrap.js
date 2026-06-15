@@ -154,6 +154,7 @@ export function restoreRuntimeDependencies({
     archiveSha,
     target,
     expectedPlugin: verification.manifest.plugin,
+    requiredCacheEntries: verification.archiveEntries,
   })) {
     return { restored: false, runtimeCacheDir }
   }
@@ -262,6 +263,7 @@ export function verifyBootstrapRuntimeDependencyPack({
     ok: errors.length === 0,
     errors,
     manifest,
+    archiveEntries: archiveEntries === undefined ? [] : [...archiveEntries.keys()].sort(),
   }
 }
 
@@ -411,7 +413,7 @@ export function runtimeDependencyPackError({
   ].join("\n"))
 }
 
-function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin }) {
+function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin, requiredCacheEntries = [] }) {
   const markerPath = path.join(runtimeCacheDir, cacheMarkerFile)
   if (!existsSync(markerPath)) {
     return false
@@ -432,6 +434,7 @@ function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPl
       && runtimeManifestArchiveShaIsCurrent(cachedRuntimeManifest, archiveSha)
       && existsSync(path.join(runtimeCacheDir, "node_modules"))
       && existsSync(path.join(runtimeCacheDir, "package-lock.json"))
+      && requiredCacheEntries.every((entry) => existsSync(path.join(runtimeCacheDir, entry)))
   } catch {
     return false
   }

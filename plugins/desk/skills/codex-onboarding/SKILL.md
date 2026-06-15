@@ -53,7 +53,7 @@ enabled = true
 default_tools_approval_mode = "prompt"
 ```
 
-The plugin-scoped MCP declaration should come from Desk's bundled `.mcp.json`, whose entrypoint arg materializes `${pluginRoot}/mcp/index.js`. Do not add a separate healthy-path `mcp_servers.desk` entry unless the selected mode intentionally needs a project-local root override.
+The plugin-scoped MCP declaration should come from Desk's bundled `.mcp.json`, whose entrypoint arg is plugin-scoped (`./mcp/index.js`) and resolved by the host from the installed Desk plugin root. Do not add a separate healthy-path `mcp_servers.desk` entry unless the selected mode intentionally needs a project-local root override.
 
 4. Do not install MCP dependencies inside the plugin and do not register the MCP manually. The healthy path uses the committed runtime dependency pack and a writable runtime cache. Verify the committed pack instead:
 
@@ -64,26 +64,58 @@ cd "$HOME/plugins/desk/mcp" && npm run runtime:deps-pack:verify
 5. For an end-to-end stdio smoke, list the server's tool surface with an explicit temporary runtime cache:
 
 ```bash
-cd "$HOME/plugins/desk/mcp" && node --input-type=module <<'EOF'
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
+node --input-type=module <<'EOF'
+import { spawn } from "node:child_process"
 
 const root = process.env.DESK || `${process.env.HOME}/desk`
-const client = new Client({ name: "desk-smoke", version: "0.0.0" }, { capabilities: {} })
-const transport = new StdioClientTransport({
-  command: "node",
-  args: [`${process.env.HOME}/plugins/desk/mcp/index.js`, "--root", root],
+const mcpRoot = `${process.env.HOME}/plugins/desk/mcp`
+const child = spawn("node", [`${mcpRoot}/index.js`, "--root", root], {
+  cwd: process.env.HOME,
   env: {
     ...process.env,
     DESK_RUNTIME_CACHE_DIR: `${process.env.HOME}/.cache/ouroboros-skills/desk-smoke`,
   },
-  stderr: "pipe",
+  stdio: ["pipe", "pipe", "pipe"],
 })
 
-await client.connect(transport)
-const tools = await client.listTools()
-console.log(tools.tools.map((tool) => tool.name).sort().join("\n"))
-await client.close()
+const stderr = []
+let stdout = ""
+
+function send(id, method, params = {}) {
+  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`)
+}
+
+function waitFor(id) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`timed out waiting for ${id}: ${stderr.join("")}`)), 20000)
+    child.stdout.on("data", function onData(chunk) {
+      stdout += chunk.toString("utf8")
+      const lines = stdout.split("\n")
+      stdout = lines.pop() || ""
+      for (const line of lines) {
+        if (!line.trim()) continue
+        const message = JSON.parse(line)
+        if (message.id === id) {
+          clearTimeout(timeout)
+          child.stdout.off("data", onData)
+          resolve(message)
+        }
+      }
+    })
+  })
+}
+
+child.stderr.on("data", (chunk) => stderr.push(chunk.toString("utf8")))
+send(1, "initialize", {
+  protocolVersion: "2024-11-05",
+  capabilities: {},
+  clientInfo: { name: "desk-smoke", version: "0.0.0" },
+})
+await waitFor(1)
+send(2, "tools/list")
+const tools = await waitFor(2)
+console.log(tools.result.tools.map((tool) => tool.name).sort().join("\n"))
+child.kill("SIGTERM")
 EOF
 ```
 

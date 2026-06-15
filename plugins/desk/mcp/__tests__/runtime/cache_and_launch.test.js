@@ -10,7 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mcpRoot = path.resolve(__dirname, "../..");
 const deskPluginRoot = path.resolve(mcpRoot, "..");
 const fixtureRoot = path.join(mcpRoot, "__tests__/fixtures/runtime");
-const hostLaunchFixture = path.join(fixtureRoot, "host-launch/generic-stdio.mcp.json");
 const runtimeArtifactNames = new Set([
   ".desk-runtime-cache.json",
   "node_modules",
@@ -194,10 +193,6 @@ function assertImmutableStateUnchanged(before) {
   }
 }
 
-function materializeLaunchValue(value, pluginRoot) {
-  return value.replaceAll("${pluginRoot}", pluginRoot);
-}
-
 function mcpServerFromConfig(configPath) {
   const config = readJson(configPath);
   assert.ok(config.mcpServers?.desk, `${configPath} should declare a desk MCP server`);
@@ -237,27 +232,32 @@ function declarationCases(pluginRoot = deskPluginRoot) {
     {
       id: "desk .mcp.json",
       sourcePath: path.join(pluginRoot, ".mcp.json"),
+      configBaseDir: pluginRoot,
       resolveServer: () => mcpServerFromConfig(path.join(pluginRoot, ".mcp.json")),
     },
     {
       id: "desk plugin.json",
       sourcePath: path.join(pluginRoot, "plugin.json"),
+      configBaseDir: pluginRoot,
       resolveServer: () => mcpServerFromManifest(path.join(pluginRoot, "plugin.json"), { pluginRoot }),
     },
     {
       id: "codex plugin.json",
       sourcePath: path.join(pluginRoot, ".codex-plugin/plugin.json"),
+      configBaseDir: pluginRoot,
       resolveServer: () => mcpServerFromManifest(path.join(pluginRoot, ".codex-plugin/plugin.json"), { pluginRoot }),
     },
     {
       id: "claude plugin.json",
       sourcePath: path.join(pluginRoot, ".claude-plugin/plugin.json"),
+      configBaseDir: pluginRoot,
       resolveServer: () => mcpServerFromManifest(path.join(pluginRoot, ".claude-plugin/plugin.json"), { pluginRoot }),
     },
     {
       id: "generic stdio fixture",
-      sourcePath: hostLaunchFixture,
-      resolveServer: () => mcpServerFromConfig(hostLaunchFixture),
+      sourcePath: path.join(pluginRoot, "mcp/__tests__/fixtures/runtime/host-launch/generic-stdio.mcp.json"),
+      configBaseDir: path.join(pluginRoot, "mcp/__tests__/fixtures/runtime/host-launch"),
+      resolveServer: () => mcpServerFromConfig(path.join(pluginRoot, "mcp/__tests__/fixtures/runtime/host-launch/generic-stdio.mcp.json")),
     },
   ];
 }
@@ -266,13 +266,54 @@ function staticLaunchConfigCases() {
   return declarationCases();
 }
 
-function assertCwdIndependentLaunchArgs(id, server, pluginRoot = deskPluginRoot) {
+function assertNoUnsupportedLaunchPlaceholders(id, value) {
+  if (typeof value === "string") {
+    assert.equal(value.includes("${pluginRoot}"), false, `${id} must not rely on undocumented \${pluginRoot} substitution`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      assertNoUnsupportedLaunchPlaceholders(id, item);
+    }
+    return;
+  }
+  if (value !== null && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      assertNoUnsupportedLaunchPlaceholders(id, item);
+    }
+  }
+}
+
+function materializeHostLaunch(server, { configBaseDir }) {
+  assertNoUnsupportedLaunchPlaceholders("MCP launch config", server);
+  const cwd = path.resolve(configBaseDir, server.cwd ?? ".");
+  const command = pathLikeLaunchValue(server.command)
+    ? path.resolve(cwd, server.command)
+    : server.command;
+  const args = (server.args ?? []).map((arg) => (
+    pathLikeLaunchValue(arg) ? path.resolve(cwd, arg) : arg
+  ));
+  return {
+    command,
+    args,
+    cwd,
+  };
+}
+
+function pathLikeLaunchValue(value) {
+  return typeof value === "string"
+    && (value.startsWith("./") || value.startsWith("../") || path.isAbsolute(value));
+}
+
+function assertPluginScopedLaunchArgs(id, declaration) {
+  const server = declaration.resolveServer();
   assert.equal(server.command, "node", `${id} must launch through the host-provided node command`);
-  const args = server.args ?? [];
-  const entrypointArg = args.find((arg) => materializeLaunchValue(arg, pluginRoot).replaceAll("\\", "/").endsWith("/mcp/index.js"));
+  assertNoUnsupportedLaunchPlaceholders(id, server);
+  const launch = materializeHostLaunch(server, { configBaseDir: declaration.configBaseDir });
+  const entrypointArg = launch.args.find((arg) => arg.replaceAll("\\", "/").endsWith("/mcp/index.js"));
   assert.ok(entrypointArg, `${id} must launch plugins/desk/mcp/index.js`);
-  assert.equal(entrypointArg.startsWith("./") || entrypointArg.startsWith("../"), false, `${id} must not use caller-cwd-relative MCP entrypoint args`);
-  assert.equal(path.isAbsolute(materializeLaunchValue(entrypointArg, pluginRoot)), true, `${id} MCP entrypoint arg must materialize to an absolute installed path`);
+  assert.equal(path.isAbsolute(entrypointArg), true, `${id} MCP entrypoint arg must materialize to an absolute installed path`);
+  assert.equal(existsSync(entrypointArg), true, `${id} materialized MCP entrypoint must exist`);
 }
 
 function makeMcpEnvelope(id, method, params = {}) {
@@ -407,10 +448,10 @@ describe("runtime cache and host launch contract", () => {
     }
   });
 
-  it("committed MCP launch configs use cwd-independent installed entrypoint args", async (t) => {
+  it("committed MCP launch configs use plugin-scoped or explicitly cwd-scoped entrypoint args", async (t) => {
     for (const declaration of staticLaunchConfigCases()) {
       await t.test(declaration.id, () => {
-        assertCwdIndependentLaunchArgs(declaration.id, declaration.resolveServer());
+        assertPluginScopedLaunchArgs(declaration.id, declaration);
       });
     }
   });
@@ -457,17 +498,16 @@ describe("runtime cache and host launch contract", () => {
       for (const declaration of declarationCases(installed.pluginRoot)) {
         await t.test(declaration.id, async () => {
           const tempRoot = makeTempRoot("desk-host-launch-");
-          const cwd = ensureDir(path.join(tempRoot, "caller-cwd"));
           const { homeDir } = makeDeskHome(tempRoot);
           const runtimeCacheDir = ensureDir(path.join(tempRoot, "runtime-cache"));
           const server = declaration.resolveServer();
           const nodeShim = prependNodeShimToPath(tempRoot, process.env.PATH);
-          const args = (server.args ?? []).map((arg) => materializeLaunchValue(arg, installed.pluginRoot));
+          const launch = materializeHostLaunch(server, { configBaseDir: declaration.configBaseDir });
 
           await runListToolsSession({
-            command: materializeLaunchValue(server.command, installed.pluginRoot),
-            args,
-            cwd,
+            command: launch.command,
+            args: launch.args,
+            cwd: launch.cwd,
             env: {
               ...process.env,
               ...(server.env ?? {}),
@@ -511,5 +551,29 @@ describe("runtime cache and host launch contract", () => {
     assert.equal(repairedMarker.plugin.version, packageJson.version, "runtime cache marker should be repaired from the committed pack");
     assert.equal(repairedPackageJson.version, packageJson.version, "runtime cache package.json should be restored from the committed pack");
     assert.equal(existsSync(staleRuntimeArtifactPath), false, "stale runtime dependency artifacts should be removed during cache repair");
+  });
+
+  it("repairs cached runtime dependencies when a required runtime file is missing despite current metadata", async () => {
+    const tempRoot = makeTempRoot("desk-runtime-cache-required-file-");
+    const installed = makeInstalledPluginFixture(tempRoot);
+    const runtimeCacheDir = ensureDir(path.join(tempRoot, "runtime-cache"));
+
+    prepareRuntime({ mcpRoot: installed.mcpRoot, env: process.env, runtimeCacheDir });
+    const requiredRuntimeFile = path.join(
+      runtimeCacheDir,
+      "node_modules",
+      "@modelcontextprotocol",
+      "sdk",
+      "dist",
+      "esm",
+      "server",
+      "index.js",
+    );
+    assert.equal(existsSync(requiredRuntimeFile), true, "test setup should restore the MCP SDK runtime file");
+    rmSync(requiredRuntimeFile, { force: true });
+
+    prepareRuntime({ mcpRoot: installed.mcpRoot, env: process.env, runtimeCacheDir });
+
+    assert.equal(existsSync(requiredRuntimeFile), true, "current-marked caches missing required runtime files should be repaired");
   });
 });
