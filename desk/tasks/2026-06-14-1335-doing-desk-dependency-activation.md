@@ -484,7 +484,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/src/snapshots/manifest.js`, `plugins/desk/artifacts/snapshots/README.md`, and fixtures.
 **Acceptance**: Unit 15a tests pass and invalid manifests fail with non-leaking diagnostics.
 
-### ⬜ Unit 15c: Snapshot Manifest And Validation - Coverage & Refactor
+### 🔄 Unit 15c: Snapshot Manifest And Validation - Coverage & Refactor
 **What**: Add coverage for missing fields, wrong types, checksum mismatch, sqlite-vec/runtime mismatch, unexpected source paths, and absolute paths.
 **Output**: Hardened snapshot manifest validation.
 **Acceptance**: 100% coverage on new snapshot manifest code and all manifest tests pass.
@@ -950,3 +950,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 12:53 Unit 15a complete: `7897c38` added snapshot manifest red tests for canonical snapshot paths, manifest/checksum sidecars, embedding/chunker/DB/sqlite-vec/runtime compatibility, artifact/source/document hashes, included pack IDs, creation timestamp, provenance, freshness-vs-compatibility semantics, and source-path safety. Poincare the 2nd found a MAJOR missing `normalization_id` drift assertion and a MINOR missing-field/provenance-subfield gap; `3b1ec97` added those regressions and refreshed `unit-15a-snapshot-manifest-red.log`, which still fails only because `plugins/desk/mcp/src/snapshots/manifest.js` is missing. Parfit the 2nd converged on the fixed red contract.
 - 2026-06-15 12:55 Unit 15b started for snapshot manifest parsing and validation implementation.
 - 2026-06-15 13:14 Unit 15b complete: `88e09f7` added canonical snapshot path derivation, snapshot artifact/manifest/checksum validation, freshness reporting for source/document hashes, snapshot source-path allowlist checks, artifact filename binding, and `plugins/desk/artifacts/snapshots/README.md`. Rawls the 2nd found a BLOCKER for embedded Windows host-path fragments in `source_paths`, a MAJOR leaking unexpected-path diagnostic, and a MINOR loose timestamp parser; `8f02639` fixed all three with regressions and refreshed `unit-15b-review-fix-*` evidence. Boole the 2nd converged on Round 2. Final evidence: manifest tests pass 11/11, full MCP tests pass 462/462, coverage is 100% line/branch/function for changed production files, runtime-pack/generated-artifact/support-matrix/skill/diff checks pass, and build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script.
+- 2026-06-15 13:18 Unit 15c started for snapshot manifest coverage/refactor hardening around missing fields, wrong types, checksum mismatch, sqlite-vec/runtime mismatch, unexpected source paths, and absolute paths.
