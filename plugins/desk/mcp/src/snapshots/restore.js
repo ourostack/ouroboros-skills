@@ -94,7 +94,16 @@ export async function restoreSnapshotToState({
   }
 
   const compressed = await fs.readFile(selected.snapshotPath)
-  const sqliteBytes = zstdDecompressSync(compressed)
+  const sqliteBytes = safeDecompress(compressed)
+  if (!sqliteBytes) {
+    return {
+      restored: false,
+      reason: "snapshot_corrupt",
+      snapshot_id: selected.snapshot_id,
+      state_db_path: stateDbPath,
+      freshness: selected.freshness,
+    }
+  }
   const stateDbSha256 = `sha256:${sha256(sqliteBytes)}`
   await fs.mkdir(path.dirname(stateDbPath), { recursive: true })
   await writeAtomic(stateDbPath, sqliteBytes)
@@ -176,6 +185,14 @@ async function writeAtomic(filePath, bytes) {
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
   await fs.writeFile(tmpPath, bytes)
   await fs.rename(tmpPath, filePath)
+}
+
+function safeDecompress(compressed) {
+  try {
+    return zstdDecompressSync(compressed)
+  } catch {
+    return null
+  }
 }
 
 function requiredPath(value, label) {

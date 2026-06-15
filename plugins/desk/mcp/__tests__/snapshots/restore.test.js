@@ -402,6 +402,61 @@ test("restoreSnapshotToState repairs corrupt metadata and missing state DB marke
   assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
 })
 
+test("restoreSnapshotToState treats corrupt compressed snapshots as cache misses", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+  const snapshot = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-corrupt",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  const corruptBytes = Buffer.from("not zstd data", "utf8")
+  const corruptSha = `sha256:${sha256(corruptBytes)}`
+  const corruptManifest = {
+    ...snapshot.manifest,
+    artifact: {
+      ...snapshot.manifest.artifact,
+      sha256: corruptSha,
+    },
+  }
+  await fs.writeFile(snapshot.snapshotPath, corruptBytes)
+  await fs.writeFile(snapshot.manifestPath, `${JSON.stringify(corruptManifest, null, 2)}\n`, "utf8")
+  await fs.writeFile(snapshot.checksumPath, `${corruptSha}  active-corrupt.sqlite.zst\n`, "utf8")
+
+  const result = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })
+
+  assert.equal(result.restored, false)
+  assert.equal(result.reason, "snapshot_corrupt")
+  assert.equal(result.snapshot_id, "active-corrupt")
+  await assert.rejects(() => fs.stat(indexDbPath(deskRoot)), /ENOENT/u)
+})
+
+test("restoreSnapshotToState surfaces unwritable state paths", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+  await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-only",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  await fs.mkdir(indexDbPath(deskRoot), { recursive: true })
+
+  await assert.rejects(
+    () => restoreSnapshotToState({
+      pluginRoot,
+      deskRoot,
+      ...expectedContext(),
+    }),
+    (error) => error?.code === "EISDIR" || error?.code === "ENOTDIR",
+  )
+})
+
 test("restoreSnapshotToState reports cache miss when no compatible snapshot exists", async () => {
   const { restoreSnapshotToState } = await loadRestoreModule()
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
