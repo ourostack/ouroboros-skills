@@ -1,8 +1,11 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { spawn } from "node:child_process"
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
@@ -14,6 +17,15 @@ const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.met
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const pathsModule = await import(pathToFileURL(path.join(mcpRoot, "src", "util", "paths.js")))
 const entrypoint = await import(pathToFileURL(path.join(mcpRoot, "index.js")))
+const runtimeDeps = await import(pathToFileURL(path.join(mcpRoot, "src", "runtime", "runtime-deps.js")))
+const packageJson = JSON.parse(readFileSync(path.join(mcpRoot, "package.json"), "utf8"))
+const packageLock = JSON.parse(readFileSync(path.join(mcpRoot, "package-lock.json"), "utf8"))
+const hostPackPaths = runtimeDeps.deriveRuntimeDependencyPackPaths({
+  mcpRoot,
+  packageJson,
+  packageLock,
+})
+const hostRuntimePackExists = existsSync(hostPackPaths.archivePath)
 
 function makeFixture() {
   const root = mkdtempSync(path.join(tmpdir(), "desk-activation-config-"))
@@ -24,6 +36,8 @@ function makeFixture() {
     activationRoot: path.join(root, "activation-desk"),
     envRoot: path.join(root, "env-desk"),
     home: path.join(root, "home"),
+    runtimeCache: path.join(root, "runtime-cache"),
+    xdgCache: path.join(root, "xdg-cache"),
   }
   for (const dir of Object.values(dirs)) {
     mkdirSync(dir, { recursive: true })
@@ -214,6 +228,134 @@ test("entrypoint startup root resolution uses parsed activation config and canon
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
+
+test("entrypoint stdio startup uses activation config root for real MCP tool calls", {
+  skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${process.platform}-${process.arch}-node-${process.versions.modules}`,
+}, async () => {
+  const fixture = makeFixture()
+  try {
+    writeActivationConfig(fixture.configPath, fixture.activationRoot)
+    const result = await runTaskCreateThroughEntrypoint(fixture)
+    assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.created.error, undefined, result.stderr || result.stdout)
+    assert.equal(
+      existsSync(path.join(fixture.activationRoot, "activation-check", "from-server", "task.md")),
+      true,
+      "real MCP startup must write through the activation-config root",
+    )
+    assert.equal(
+      existsSync(path.join(fixture.envRoot, "activation-check", "from-server", "task.md")),
+      false,
+      "conflicting DESK root must not receive writes when activation config is present",
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+async function runTaskCreateThroughEntrypoint(fixture) {
+  const child = spawn(process.execPath, [
+    path.join(mcpRoot, "index.js"),
+    "--activation-config",
+    fixture.configPath,
+  ], {
+    cwd: fixture.root,
+    env: {
+      ...process.env,
+      DESK: fixture.envRoot,
+      DESK_RUNTIME_CACHE_DIR: fixture.runtimeCache,
+      HOME: fixture.home,
+      XDG_CACHE_HOME: fixture.xdgCache,
+    },
+    stdio: ["pipe", "pipe", "pipe"],
+  })
+  let stdout = ""
+  let stderr = ""
+  const responses = []
+  let closed
+
+  child.stdout.on("data", (chunk) => {
+    const text = chunk.toString("utf8")
+    stdout += text
+    for (const line of text.split(/\r?\n/u)) {
+      if (line.trim() === "") continue
+      try {
+        responses.push(JSON.parse(line))
+      } catch {
+        // Keep raw stdout for assertion context.
+      }
+    }
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf8")
+  })
+  const closePromise = new Promise((resolve) => {
+    child.once("close", (code, signal) => {
+      closed = { code, signal }
+      resolve(closed)
+    })
+  })
+  try {
+    child.stdin.write(JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "unit-8a", version: "1.0.0" },
+      },
+    }) + "\n")
+    const initialize = await waitForResponse({ closed: () => closed, id: 1, responses, stderr: () => stderr, stdout: () => stdout })
+    child.stdin.write(JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      params: {},
+    }) + "\n")
+    child.stdin.write(JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: "task_create",
+        arguments: {
+          track: "activation-check",
+          slug: "from-server",
+          title: "From server",
+        },
+      },
+    }) + "\n")
+    const created = await waitForResponse({ closed: () => closed, id: 2, responses, stderr: () => stderr, stdout: () => stdout })
+    return {
+      initialize,
+      created,
+      stderr,
+      stdout,
+    }
+  } finally {
+    child.kill("SIGTERM")
+    await closePromise
+  }
+}
+
+function waitForResponse({ closed, id, responses, stderr, stdout, timeoutMs = 10000 }) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      const response = responses.find((message) => message.id === id)
+      if (response !== undefined) {
+        clearInterval(timer)
+        resolve(response)
+      } else if (closed() !== undefined) {
+        clearInterval(timer)
+        reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed())}\nstdout:\n${stdout()}\nstderr:\n${stderr()}`))
+      } else if (Date.now() - started > timeoutMs) {
+        clearInterval(timer)
+        reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout()}\nstderr:\n${stderr()}`))
+      }
+    }, 25)
+  })
+}
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
