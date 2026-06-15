@@ -453,9 +453,10 @@ test("ensureIndex auto-discovers snapshots from the runtime plugin root", async 
 
   const ensured = await withPluginRoot(pluginRoot, () => ensureIndex(deskRoot))
 
-  assert.equal(ensured.built, false)
-  assert.equal(ensured.reason, "snapshot_restored")
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "stale_snapshot_reconciled")
   assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.snapshot.reconciled, true)
   assert.equal(ensured.semantic.missing_vectors, 0)
 })
 
@@ -534,6 +535,97 @@ test("ensureIndex returns snapshot_restored when a restored snapshot is already 
   assert.equal(ensured.reason, "snapshot_restored")
   assert.equal(ensured.snapshot.restored, true)
   assert.equal(ensured.semantic.missing_vectors, 0)
+})
+
+test("ensureIndex reconciles stale snapshot manifests even when mtimes look fresh", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-reconcile-mtime-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-reconcile-mtime-plugin-")
+  const snapshotSourceRoot = await tmpRoot("desk-snapshot-reconcile-mtime-source-")
+  const docPath = "trackA/task-1/task.md"
+  const staleBody = "---\nstatus: processing\n---\nstale manifest body"
+  const currentBody = "---\nstatus: processing\n---\ncurrent manifest body"
+
+  await writeFile(snapshotSourceRoot, docPath, staleBody)
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "manifest-stale-mtime-fresh",
+    sourceDeskRoot: snapshotSourceRoot,
+    documentTreeHash: STALE_DOCUMENT_TREE_HASH,
+    manifestOverrides: {
+      artifact_source_scope_hash: STALE_SOURCE_SCOPE_HASH,
+    },
+  })
+  await writeFile(deskRoot, docPath, currentBody)
+  const old = new Date("2020-01-01T00:00:00.000Z")
+  await fs.utimes(path.join(deskRoot, docPath), old, old)
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: snapshotContext(pluginRoot),
+    skipEmbed: true,
+  })
+
+  assert.equal(ensured.reason, "stale_snapshot_reconciled")
+  assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.snapshot.reconciled, true)
+  assert.equal(ensured.summary.docs_indexed, 1)
+
+  const db = openDb(deskRoot)
+  try {
+    const text = db
+      .prepare("SELECT group_concat(text, '\n') AS text FROM chunks")
+      .get().text
+    assert.match(text, /current manifest body/u)
+    assert.doesNotMatch(text, /stale manifest body/u)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex repairs vectors before returning a fresh restored snapshot", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-fresh-repair-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-fresh-repair-plugin-")
+  const snapshotSourceRoot = await tmpRoot("desk-snapshot-fresh-repair-source-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nfresh snapshot vector pack body"
+  await writeFile(snapshotSourceRoot, docPath, body)
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "fresh-lexical-compatible",
+    sourceDeskRoot: snapshotSourceRoot,
+  })
+  await writeFile(deskRoot, docPath, body)
+  const old = new Date("2020-01-01T00:00:00.000Z")
+  await fs.utimes(path.join(deskRoot, docPath), old, old)
+  await writePack({
+    pluginRoot,
+    packId: "fresh-restored-repair",
+    rows: [rowForDoc({ docPath, body, seed: 17 })],
+  })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("fresh restored vector-pack repair should not call embeddings")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: snapshotContext(pluginRoot),
+    vectorPacks: { pluginRoot },
+    embed: { fetch: failIfCalled },
+  })
+
+  assert.equal(calls, 0)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(17))
+  } finally {
+    closeDb(db)
+  }
 })
 
 test("ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text", async () => {

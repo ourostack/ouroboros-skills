@@ -61,23 +61,25 @@ export async function ensureIndex(deskRoot, opts = {}) {
     if (dbExisted) {
       const fresh = await isIndexFresh(deskRoot, db)
       if (fresh) {
-        if (snapshot) {
+        if (!snapshotNeedsReconcile(snapshot)) {
+          const repair = await maybeRepairMissingEmbeddings(
+            deskRoot,
+            db,
+            effectiveOpts,
+            semanticBefore,
+          )
+          if (repair) return withSnapshot(repair, snapshot)
+          if (snapshot) {
+            return withSnapshot(
+              { built: false, reason: "snapshot_restored", semantic: semanticBefore },
+              snapshot,
+            )
+          }
           return withSnapshot(
-            { built: false, reason: "snapshot_restored", semantic: semanticBefore },
+            { built: false, reason: "fresh", semantic: semanticBefore },
             snapshot,
           )
         }
-        const repair = await maybeRepairMissingEmbeddings(
-          deskRoot,
-          db,
-          effectiveOpts,
-          semanticBefore,
-        )
-        if (repair) return withSnapshot(repair, snapshot)
-        return withSnapshot(
-          { built: false, reason: "fresh", semantic: semanticBefore },
-          snapshot,
-        )
       }
       repairMissing = await shouldRepairMissingEmbeddings(effectiveOpts, semanticBefore)
     }
@@ -121,6 +123,12 @@ export function configureRuntimeArtifacts({ pluginRoot } = {}) {
     ? path.resolve(pluginRoot)
     : null
   return { pluginRoot: configuredArtifactPluginRoot }
+}
+
+function snapshotNeedsReconcile(snapshot) {
+  if (!snapshot?.restored) return false
+  return snapshot.freshness?.artifact_source_scope === "stale" ||
+    snapshot.freshness?.document_tree === "stale"
 }
 
 function resolveSnapshotOptions({ opts, pluginRoot }) {
