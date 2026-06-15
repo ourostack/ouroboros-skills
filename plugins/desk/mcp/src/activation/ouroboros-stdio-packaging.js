@@ -207,7 +207,7 @@ function readmeStatements(readmeSection) {
 
 function readmeClauses(statement) {
   return statement
-    .split(/(?:,|\s+\b(?:but|and|yet|though|although|while|however)\b\s+|;\s*)/iu)
+    .split(/(?:,|:\s+|\s+\b(?:but|and|yet|though|although|while|however|because|since)\b\s+|;\s*)/iu)
     .map((clause) => clause.trim())
     .filter(Boolean)
 }
