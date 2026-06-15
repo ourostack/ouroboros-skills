@@ -239,3 +239,110 @@ test("deactivation uses ledger never-delete boundaries for desk data", async () 
     })
   }
 })
+
+test("deactivation reports a missing ledger as an idempotent no-op", async () => {
+  const { deactivateActivationArtifacts, readActivationLedger } = await loadArtifactLedger()
+
+  withTempHost((root) => {
+    assert.throws(
+      () => readActivationLedger({ hostRoot: root, ledgerPath }),
+      /activation ledger missing: \.codex\/desk-activation-ledger\.json/u,
+    )
+
+    const result = deactivateActivationArtifacts({ hostRoot: root, ledgerPath })
+
+    assert.deepEqual(result, {
+      removed: [],
+      skipped: [
+        {
+          path: ledgerPath,
+          kind: "activation-ledger",
+          reason: "missing-ledger",
+        },
+      ],
+    })
+  })
+})
+
+test("deactivation rejects corrupt ownership ledgers with an actionable diagnostic", async () => {
+  const { deactivateActivationArtifacts } = await loadArtifactLedger()
+
+  withTempHost((root) => {
+    writeHostFile(root, ledgerPath, "{ not json")
+
+    assert.throws(
+      () => deactivateActivationArtifacts({ hostRoot: root, ledgerPath }),
+      /activation ledger corrupt: \.codex\/desk-activation-ledger\.json/u,
+    )
+    assert.equal(readHostFile(root, ledgerPath), "{ not json")
+  })
+})
+
+test("deactivation preserves user-edited generated artifacts and keeps the ledger", async () => {
+  const { applyActivationArtifacts, deactivateActivationArtifacts } = await loadArtifactLedger()
+
+  withTempHost((root) => {
+    applyActivationArtifacts(artifactRequest(root))
+    const editedConfig = `${fixture("generated-config-v1.toml")}
+# user edit outside the generated block
+`
+    writeHostFile(root, ".codex/config.toml", editedConfig)
+
+    const result = deactivateActivationArtifacts({ hostRoot: root, ledgerPath })
+
+    assert.deepEqual(result, {
+      removed: [],
+      skipped: [
+        {
+          path: ".codex/config.toml",
+          kind: "owned-host-config",
+          reason: "content-changed",
+        },
+      ],
+    })
+    assert.equal(readHostFile(root, ".codex/config.toml"), editedConfig)
+    assert.equal(readHostFile(root, "AGENTS.md"), fixture("generated-instructions-v1.md"))
+    assert.equal(existsSync(path.join(root, ledgerPath)), true)
+  })
+})
+
+test("deactivation is idempotent after a successful deactivate", async () => {
+  const { applyActivationArtifacts, deactivateActivationArtifacts } = await loadArtifactLedger()
+
+  withTempHost((root) => {
+    applyActivationArtifacts(artifactRequest(root))
+    deactivateActivationArtifacts({ hostRoot: root, ledgerPath })
+
+    const repeated = deactivateActivationArtifacts({ hostRoot: root, ledgerPath })
+
+    assert.deepEqual(repeated, {
+      removed: [],
+      skipped: [
+        {
+          path: ledgerPath,
+          kind: "activation-ledger",
+          reason: "missing-ledger",
+        },
+      ],
+    })
+  })
+})
+
+test("activation rolls back partial writes when an artifact cannot be written", async () => {
+  const { applyActivationArtifacts } = await loadArtifactLedger()
+
+  withTempHost((root) => {
+    const originalConfig = "# existing config\n"
+    writeHostFile(root, ".codex/config.toml", originalConfig)
+    mkdirSync(path.join(root, "AGENTS.md"))
+
+    assert.throws(
+      () => applyActivationArtifacts(artifactRequest(root)),
+      /activation apply failed; rolled back generated artifacts/u,
+    )
+
+    assert.equal(readHostFile(root, ".codex/config.toml"), originalConfig)
+    assert.equal(existsSync(path.join(root, ledgerPath)), false)
+    assert.equal(existsSync(path.join(root, "AGENTS.md")), true)
+  })
+})

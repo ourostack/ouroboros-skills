@@ -1,0 +1,223 @@
+TAP version 13
+# Subtest: activation artifact ownership writes generated files and a ledger
+ok 1 - activation artifact ownership writes generated files and a ledger
+  ---
+  duration_ms: 5.974417
+  type: 'test'
+  ...
+# Subtest: activation artifact ownership replaces generated artifacts during upgrades
+ok 2 - activation artifact ownership replaces generated artifacts during upgrades
+  ---
+  duration_ms: 2.550583
+  type: 'test'
+  ...
+# Subtest: deactivation removes owned activation blocks while preserving user-authored config
+ok 3 - deactivation removes owned activation blocks while preserving user-authored config
+  ---
+  duration_ms: 1.941708
+  type: 'test'
+  ...
+# Subtest: deactivation uses ledger never-delete boundaries for desk data
+ok 4 - deactivation uses ledger never-delete boundaries for desk data
+  ---
+  duration_ms: 3.044084
+  type: 'test'
+  ...
+# Subtest: deactivation reports a missing ledger as an idempotent no-op
+not ok 5 - deactivation reports a missing ledger as an idempotent no-op
+  ---
+  duration_ms: 1.783958
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:243:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /activation ledger missing: \.codex\/desk-activation-ledger\.json/u. Input:
+    
+    "Error: ENOENT: no such file or directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-BXEdtC/.codex/desk-activation-ledger.json'"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "ENOENT: no such file or directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-BXEdtC/.codex/desk-activation-ledger.json'"
+  stack: |-
+    readFileSync (node:fs:440:20)
+    readActivationLedger (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:44:21)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:248:13
+    getActual (node:assert:609:5)
+    Function.throws (node:assert:757:24)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:247:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:246:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'throws'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:247:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:246:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+not ok 6 - deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+  ---
+  duration_ms: 0.715334
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:267:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /activation ledger corrupt: \.codex\/desk-activation-ledger\.json/u. Input:
+    
+    "SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+  name: 'SyntaxError'
+  stack: |-
+    JSON.parse (<anonymous>)
+    readActivationLedger (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:44:15)
+    deactivateActivationArtifacts (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:48:18)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:274:13
+    getActual (node:assert:609:5)
+    Function.throws (node:assert:757:24)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:273:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:270:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  operator: 'throws'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:273:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:270:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: deactivation preserves user-edited generated artifacts and keeps the ledger
+not ok 7 - deactivation preserves user-edited generated artifacts and keeps the ledger
+  ---
+  duration_ms: 3.099125
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:281:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   removed: [
+    -   removed: [],
+    -   skipped: [
+          {
+            kind: 'owned-host-config',
+            path: '.codex/config.toml',
+    -       reason: 'content-changed'
+          },
+    +     {
+    +       kind: 'owned-codex-instructions',
+    +       path: 'AGENTS.md'
+    +     },
+    +     {
+    +       kind: 'activation-ledger',
+    +       path: '.codex/desk-activation-ledger.json'
+    +     }
+        ],
+    +   skipped: []
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    removed:
+    skipped:
+      0:
+        path: '.codex/config.toml'
+        kind: 'owned-host-config'
+        reason: 'content-changed'
+  actual:
+    removed:
+      0:
+        path: '.codex/config.toml'
+        kind: 'owned-host-config'
+      1:
+        path: 'AGENTS.md'
+        kind: 'owned-codex-instructions'
+      2:
+        path: '.codex/desk-activation-ledger.json'
+        kind: 'activation-ledger'
+    skipped:
+  operator: 'deepStrictEqual'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:293:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:284:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: deactivation is idempotent after a successful deactivate
+not ok 8 - deactivation is idempotent after a successful deactivate
+  ---
+  duration_ms: 1.372084
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:309:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-DxqMuz/.codex/desk-activation-ledger.json'"
+  code: 'ENOENT'
+  stack: |-
+    readFileSync (node:fs:440:20)
+    readActivationLedger (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:44:21)
+    deactivateActivationArtifacts (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:48:18)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:316:22
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:312:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: activation rolls back partial writes when an artifact cannot be written
+not ok 9 - activation rolls back partial writes when an artifact cannot be written
+  ---
+  duration_ms: 1.285375
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:331:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /activation apply failed; rolled back generated artifacts/u. Input:
+    
+    "Error: EISDIR: illegal operation on a directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-U60pY6/AGENTS.md'"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "EISDIR: illegal operation on a directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-U60pY6/AGENTS.md'"
+  stack: |-
+    writeFileSync (node:fs:2437:20)
+    writeHostFile (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:87:3)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:15:5
+    Array.map (<anonymous>)
+    applyActivationArtifacts (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:14:45)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:340:13
+    getActual (node:assert:609:5)
+    Function.throws (node:assert:757:24)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:339:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+  operator: 'throws'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:339:12
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:334:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 4
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 115.798542
