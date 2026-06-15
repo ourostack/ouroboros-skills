@@ -1,4 +1,8 @@
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
+const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
+const OWNED_BLOCK_END_PATTERN = /^# END desk activation\r?$/gm
+const DESK_PLUGIN_SECTION = "[plugins.\"desk@ourostack\"]"
+const DESK_PLUGIN_MCP_SECTION = "[plugins.\"desk@ourostack\".mcp_servers.desk]"
 
 const MODE_CONFIG = {
   "global-personal": {
@@ -44,6 +48,80 @@ function assertCodexCapabilities(manifest) {
     if (!CODEX_CAPABILITIES.has(capability)) {
       throw new Error(`unsupported capability: permission ${capability} not declared by Codex adapter`)
     }
+  }
+}
+
+function findOwnedActivationBlock(content) {
+  const begins = [...content.matchAll(OWNED_BLOCK_BEGIN_PATTERN)]
+  const ends = [...content.matchAll(OWNED_BLOCK_END_PATTERN)]
+
+  if (begins.length > 1 || ends.length > 1) {
+    throw new Error("multiple owned desk activation blocks found")
+  }
+  if (begins.length !== ends.length) {
+    throw new Error("malformed owned desk activation block")
+  }
+  if (begins.length === 0) {
+    return null
+  }
+
+  const begin = begins[0]
+  const end = ends[0]
+  if (end.index < begin.index) {
+    throw new Error("malformed owned desk activation block")
+  }
+
+  let blockEnd = end.index + end[0].length
+  if (content[blockEnd] === "\n") {
+    blockEnd += 1
+  }
+  return {
+    start: begin.index,
+    end: blockEnd,
+  }
+}
+
+function removeOwnedActivationBlock(content) {
+  const ownedBlock = findOwnedActivationBlock(content)
+  if (!ownedBlock) {
+    return content
+  }
+  return `${content.slice(0, ownedBlock.start)}${content.slice(ownedBlock.end)}`
+}
+
+function trimTrailingLineBreaks(content) {
+  return content.replace(/(?:\r?\n)+$/u, "")
+}
+
+function mergeOwnedActivationBlock(existingContent, ownedBlock) {
+  const userContent = trimTrailingLineBreaks(removeOwnedActivationBlock(existingContent))
+  if (!userContent) {
+    return ownedBlock
+  }
+  return `${userContent}\n\n${ownedBlock}`
+}
+
+function sectionHasDisabledEnabled(content, sectionName) {
+  let inSection = false
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = rawLine.trim()
+    if (line.startsWith("[") && line.endsWith("]")) {
+      inSection = line === sectionName
+    } else if (inSection && /^enabled\s*=\s*false\b/u.test(line)) {
+      return true
+    }
+  }
+  return false
+}
+
+function assertNoUserDisabledDeskConfig(config) {
+  if (
+    sectionHasDisabledEnabled(config, DESK_PLUGIN_SECTION) ||
+    sectionHasDisabledEnabled(config, DESK_PLUGIN_MCP_SECTION)
+  ) {
+    throw new Error(
+      "user-authored disabled Desk config must be removed before automatic Desk activation",
+    )
   }
 }
 
@@ -94,9 +172,13 @@ Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${i
 export function materializeCodexActivation(input) {
   const modeConfig = MODE_CONFIG[input.mode]
   assertCodexCapabilities(input.manifest)
-  const generatedConfig = `${input.existingConfig}\n${renderConfigBlock(input, modeConfig)}`
+  const configWithoutOwnedBlock = removeOwnedActivationBlock(input.existingConfig)
+  assertNoUserDisabledDeskConfig(configWithoutOwnedBlock)
+  const generatedConfig = mergeOwnedActivationBlock(input.existingConfig, renderConfigBlock(input, modeConfig))
   const instructionsBlock = renderInstructionsBlock(input, modeConfig)
-  const generatedInstructions = instructionsBlock ? `${input.existingInstructions}\n${instructionsBlock}` : ""
+  const generatedInstructions = instructionsBlock
+    ? mergeOwnedActivationBlock(input.existingInstructions, instructionsBlock)
+    : ""
   const instructionArtifacts = modeConfig.instructionsPath
     ? [
         {

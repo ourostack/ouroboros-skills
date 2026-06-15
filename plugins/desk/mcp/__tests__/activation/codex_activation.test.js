@@ -178,6 +178,19 @@ test("Codex activation preserves user-authored config and instructions with owne
   assert.equal(result.generatedInstructions.match(/# END desk activation/g).length, 1)
 })
 
+test("Codex activation materializes owned blocks into empty host files", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: "",
+    existingInstructions: "",
+  }))
+
+  assert.equal(result.generatedConfig.startsWith("# BEGIN desk activation"), true)
+  assert.equal(result.generatedInstructions.startsWith("# BEGIN desk activation"), true)
+  assert.doesNotMatch(result.generatedConfig, /^\n/)
+  assert.doesNotMatch(result.generatedInstructions, /^\n/)
+})
+
 test("Codex activation replaces existing owned blocks and stays idempotent", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
   const first = materializeCodexActivation(activationInput("global-personal"))
