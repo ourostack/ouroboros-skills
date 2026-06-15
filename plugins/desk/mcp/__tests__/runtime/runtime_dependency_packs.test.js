@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
-import { gzipSync } from "node:zlib"
+import { gunzipSync, gzipSync } from "node:zlib"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -130,6 +130,23 @@ function tarHeader({ name, size }) {
   const checksum = [...header].reduce((sum, byte) => sum + byte, 0)
   header.write(checksum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "ascii")
   return header
+}
+
+function listTarGzEntries(archivePath) {
+  const data = gunzipSync(readFileSync(archivePath))
+  const entries = []
+  for (let offset = 0; offset < data.length;) {
+    const header = data.subarray(offset, offset + 512)
+    if (header.every((byte) => byte === 0)) {
+      break
+    }
+    const rawName = header.toString("utf8", 0, 100).replace(/\0.*$/u, "")
+    const rawSize = header.toString("ascii", 124, 136).replace(/\0.*$/u, "").trim()
+    const size = Number.parseInt(rawSize || "0", 8)
+    entries.push(rawName)
+    offset += 512 + Math.ceil(size / 512) * 512
+  }
+  return entries.sort()
 }
 
 function fixtureManifest({
@@ -803,6 +820,17 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     archiveEntries: missingRuntimeFileEntries,
     manifest: missingRuntimeFileManifest,
   })
+  const missingInferredRuntimeFileEntries = validEntries
+    .filter((entry) => entry !== "node_modules/section-matter/index.js")
+  const missingInferredRuntimeFileManifest = fixtureManifest({
+    archiveSha: sha256(createTarGz(missingInferredRuntimeFileEntries)),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingInferredRuntimeFilePackDir = writePackFixture({
+    archiveEntries: missingInferredRuntimeFileEntries,
+    manifest: missingInferredRuntimeFileManifest,
+  })
   try {
     assert.deepEqual(
       verifyRuntimeDependencyPack({
@@ -861,10 +889,28 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         manifest: missingRuntimeFileManifest,
       },
     )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingInferredRuntimeFilePackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency archive must include runtime file node_modules/section-matter/index.js",
+        ],
+        manifest: missingInferredRuntimeFileManifest,
+      },
+    )
   } finally {
     rmSync(packDir, { recursive: true, force: true })
     rmSync(corruptPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
+    rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
   }
 })
 
@@ -988,6 +1034,10 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.tgz")), true)
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.manifest.json")), true)
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.sha256")), true)
+      const builtEntries = listTarGzEntries(path.join(builtPackDir, "runtime-deps.tgz"))
+      assert.ok(builtEntries.includes("node_modules/section-matter/index.js"))
+      assert.ok(builtEntries.includes("node_modules/@hono/node-server/dist/index.js"))
+      assert.ok(builtEntries.includes("node_modules/sqlite-vec/index.cjs"))
 
       const builtVerifyRun = runNpmScript("runtime:deps-pack:verify", [
         "--pack-dir",
