@@ -93,8 +93,11 @@ function validateGenericStdioHost({ host, evidence, readmeSection, activationSec
     if (!arrayIncludes(host.unsupported_primitives, GENERIC_STDIO_UNSUPPORTED[1])) {
       errors.push("Generic stdio host support must mark plugin-dependency-resolution unsupported")
     }
-    if (!/no worker activation/u.test(host.fallback_behavior ?? "")) {
+    const fallbackBehavior = host.fallback_behavior ?? ""
+    if (!/no worker activation/u.test(fallbackBehavior)) {
       errors.push("Generic stdio fallback must state no worker activation")
+    } else if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
+      errors.push("Generic stdio fallback must not claim plugin dependency resolution")
     }
   }
 
@@ -113,8 +116,11 @@ function validateGenericStdioHost({ host, evidence, readmeSection, activationSec
     if (!arrayIncludes(evidence.unsupported_primitives, GENERIC_STDIO_UNSUPPORTED[1])) {
       errors.push("Generic stdio evidence must mark plugin-dependency-resolution unsupported")
     }
-    if (!/no worker activation/u.test(evidence.fallback_behavior ?? "")) {
+    const fallbackBehavior = evidence.fallback_behavior ?? ""
+    if (!/no worker activation/u.test(fallbackBehavior)) {
       errors.push("Generic stdio evidence fallback must state no worker activation")
+    } else if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
+      errors.push("Generic stdio evidence fallback must not claim plugin dependency resolution")
     }
   }
 
