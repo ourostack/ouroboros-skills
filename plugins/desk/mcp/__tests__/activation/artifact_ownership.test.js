@@ -51,6 +51,23 @@ function sha256(content) {
   return `sha256-${createHash("sha256").update(content).digest("hex")}`
 }
 
+function defaultArtifacts() {
+  return [
+    {
+      owner: "desk-activation",
+      kind: "owned-host-config",
+      path: ".codex/config.toml",
+      content: fixture("generated-config-v1.toml"),
+    },
+    {
+      owner: "desk-activation",
+      kind: "owned-codex-instructions",
+      path: "AGENTS.md",
+      content: fixture("generated-instructions-v1.md"),
+    },
+  ]
+}
+
 function artifactRequest(root, overrides = {}) {
   return {
     hostRoot: root,
@@ -66,21 +83,7 @@ function artifactRequest(root, overrides = {}) {
     },
     neverDelete: ["desk-root-data"],
     now: "2026-06-14T18:30:00.000Z",
-    artifacts: [
-      {
-        owner: "desk-activation",
-        kind: "owned-host-config",
-        path: ".codex/config.toml",
-        content: fixture("generated-config-v1.toml"),
-      },
-      {
-        owner: "desk-activation",
-        kind: "owned-codex-instructions",
-        path: "AGENTS.md",
-        content: fixture("generated-instructions-v1.md"),
-      },
-      ...(overrides.artifacts ?? []),
-    ],
+    artifacts: overrides.artifacts ?? defaultArtifacts(),
   }
 }
 
@@ -143,17 +146,29 @@ test("activation artifact ownership replaces generated artifacts during upgrades
           path: ".codex/config.toml",
           content: fixture("generated-config-v2.toml"),
         },
+        {
+          owner: "desk-activation",
+          kind: "owned-codex-instructions",
+          path: "AGENTS.md",
+          content: fixture("generated-instructions-v2.md"),
+        },
       ],
     }))
 
     const ledger = readActivationLedger({ hostRoot: root, ledgerPath })
     assert.equal(readHostFile(root, ".codex/config.toml"), fixture("generated-config-v2.toml"))
+    assert.equal(readHostFile(root, "AGENTS.md"), fixture("generated-instructions-v2.md"))
     assert.equal(readHostFile(root, ".codex/config.toml").match(/# BEGIN desk activation/g).length, 1)
     assert.equal(ledger.activation.version, "1.7.4")
     assert.equal(ledger.artifacts.filter((artifact) => artifact.path === ".codex/config.toml").length, 1)
+    assert.equal(ledger.artifacts.filter((artifact) => artifact.path === "AGENTS.md").length, 1)
     assert.equal(
       ledger.artifacts.find((artifact) => artifact.path === ".codex/config.toml").content_sha256,
       sha256(fixture("generated-config-v2.toml")),
+    )
+    assert.equal(
+      ledger.artifacts.find((artifact) => artifact.path === "AGENTS.md").content_sha256,
+      sha256(fixture("generated-instructions-v2.md")),
     )
   })
 })

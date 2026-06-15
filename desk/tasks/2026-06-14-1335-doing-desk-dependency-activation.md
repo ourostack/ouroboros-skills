@@ -141,8 +141,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] 100% test coverage on all new code
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements

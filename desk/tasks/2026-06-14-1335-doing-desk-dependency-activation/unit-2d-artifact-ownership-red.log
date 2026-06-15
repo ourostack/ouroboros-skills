@@ -2,9 +2,9 @@ TAP version 13
 # Subtest: activation artifact ownership writes generated files and a ledger
 not ok 1 - activation artifact ownership writes generated files and a ledger
   ---
-  duration_ms: 2.079708
+  duration_ms: 1.54575
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:87:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:90:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -23,9 +23,9 @@ not ok 1 - activation artifact ownership writes generated files and a ledger
 # Subtest: activation artifact ownership replaces generated artifacts during upgrades
 not ok 2 - activation artifact ownership replaces generated artifacts during upgrades
   ---
-  duration_ms: 0.29475
+  duration_ms: 0.251125
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:132:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:135:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -44,9 +44,9 @@ not ok 2 - activation artifact ownership replaces generated artifacts during upg
 # Subtest: deactivation removes owned activation blocks while preserving user-authored config
 not ok 3 - deactivation removes owned activation blocks while preserving user-authored config
   ---
-  duration_ms: 0.188583
+  duration_ms: 0.182583
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:161:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:176:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -65,9 +65,9 @@ not ok 3 - deactivation removes owned activation blocks while preserving user-au
 # Subtest: deactivation never deletes desk data even when it appears in the ledger
 not ok 4 - deactivation never deletes desk data even when it appears in the ledger
   ---
-  duration_ms: 0.184125
+  duration_ms: 0.174875
   type: 'test'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:187:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:202:1'
   failureType: 'testCodeFailure'
   error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js"
   code: 'ERR_MODULE_NOT_FOUND'
@@ -91,4 +91,4 @@ not ok 4 - deactivation never deletes desk data even when it appears in the ledg
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 93.782292
+# duration_ms 85.911292
