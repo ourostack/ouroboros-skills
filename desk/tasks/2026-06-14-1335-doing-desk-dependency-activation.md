@@ -60,7 +60,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Desk MCP launch works from arbitrary current working directories and resolves plugin-relative paths explicitly.
 - [x] Desk MCP startup does not mutate immutable plugin source/cache directories.
 - [x] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
-- [ ] Desk MCP offline startup behavior is tested for snapshot restore, vector-pack import, and lexical fallback.
+- [x] Desk MCP offline startup behavior is tested for snapshot restore, vector-pack import, and lexical fallback.
 - [x] Desk MCP resolves the desk root deterministically from explicit host/session root, activation default config, environment, and safe defaults.
 - [x] Desk MCP health/status reports the resolved root.
 - [x] Desk MCP health/status reports plugin/runtime version.
@@ -74,7 +74,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] A registered `desk_status` MCP tool exposes the health/status schema.
 - [x] Session-start context can surface concise health/status without running expensive repair work.
 - [x] Missing local `.state/desk-index.sqlite` is treated as a normal first-run state.
-- [ ] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
+- [x] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
 - [x] Long-running repairs are deferred, explicitly surfaced, or explicitly invoked rather than silently blocking session start.
 - [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
 - [x] Compatible snapshots are copied into `.state/` before mutation.
@@ -115,11 +115,11 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Existing active/archived search scope behavior is preserved after snapshot restore and vector import.
 - [ ] Existing refs graph behavior is preserved after snapshot restore and vector import.
 - [x] Search responses distinguish semantic, lexical, and hybrid result modes.
-- [ ] Query embedding failure does not imply document vectors are missing.
+- [x] Query embedding failure does not imply document vectors are missing.
 - [ ] Document-vector absence does not prevent lexical search.
 - [x] Manifest version drift between root, Claude, Codex, and Work Suite-related plugin metadata is tested or intentionally documented.
 - [ ] Worker content drift across Claude/Copilot/Codex formats is tested or eliminated by generation.
-- [ ] Tests cover MCP cold start with no local `.state/`.
+- [x] Tests cover MCP cold start with no local `.state/`.
 - [x] Tests cover compatible snapshot restore.
 - [x] Tests cover incompatible snapshot fallback to vector packs.
 - [x] Tests cover full rebuild from docs plus vector packs with embedding endpoint disabled.
@@ -529,7 +529,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated `plugins/desk/mcp/src/tools/status.js`, `plugins/desk/mcp/src/server-helpers.js`, and artifact helper integration.
 **Acceptance**: Unit 17d tests pass, full status fields are populated when modules exist, and offline startup falls back through snapshot, vector packs, then lexical indexing.
 
-### ⬜ Unit 17f: Full Status And Offline Fallback - Coverage & Refactor
+### ✅ Unit 17f: Full Status And Offline Fallback - Coverage & Refactor
 **What**: Add coverage for missing snapshot, incompatible snapshot, missing vector packs, partial vector coverage, unavailable query embedding endpoint, and stale local DB.
 **Output**: Hardened full status/fallback integration.
 **Acceptance**: 100% coverage on new full status/fallback code and all status/fallback tests pass.
@@ -973,3 +973,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 16:11 Unit 17e Round 2 reviewer fix: Copernicus the 3rd found the startup budget still only partially closed because the abandoned rebuild could keep walking discovery or importing vector packs after the budget. `144ed2e` threads `AbortSignal` through `discover`, `isIndexFresh`, `rebuildIndex`, vector-pack validation/import, and `ensureIndex` freshness checks; vector-pack parsing/import now yields between batches so timeout callbacks can fire, aborts propagate instead of being swallowed as unreadable docs, and regressions prove discovery, validation/import, and rebuild forwarding reject aborted startup work. Evidence saved in `unit-17e-review-fix2-red.log`, `unit-17e-review-fix2-green.log`, `unit-17e-review-fix2-discover-green.log`, `unit-17e-review-fix2-test-coverage.log`, `unit-17e-review-fix2-npm-test-green.log`, `unit-17e-review-fix2-runtime-pack-verify-green.log`, `unit-17e-review-fix2-generate-support-matrix-green.log`, `unit-17e-review-fix2-generated-artifacts-green.log`, `unit-17e-review-fix2-validate-skills-green.log`, `unit-17e-review-fix2-build-unavailable.log`, and `unit-17e-review-fix2-diff-check-green.log`; full MCP tests pass 514/514 and coverage is 100% line/branch/function for changed production files.
 - 2026-06-15 16:25 Unit 17e Round 3 reviewer fix: Beauvoir the 3rd found a remaining MAJOR where large vector-pack validation still did whole-file `toString`, SHA, and `split` before timer aborts could fire. `397853c` rewrites vector-pack validation to stream pack bytes, compute SHA incrementally, parse rows line-by-line, preserve manifest fail-fast behavior, and yield with zero-delay timers at chunk/row checkpoints so startup abort timers can fire before registration is delayed by large packs. Evidence saved in `unit-17e-review-fix3-red.log`, `unit-17e-review-fix3-vector-packs-green.log`, `unit-17e-review-fix3-green.log`, `unit-17e-review-fix3-test-coverage.log`, `unit-17e-review-fix3-npm-test-green.log`, `unit-17e-review-fix3-runtime-pack-verify-green.log`, `unit-17e-review-fix3-generate-support-matrix-green.log`, `unit-17e-review-fix3-generated-artifacts-green.log`, `unit-17e-review-fix3-validate-skills-green.log`, `unit-17e-review-fix3-build-unavailable.log`, and `unit-17e-review-fix3-diff-check-green.log`; full MCP tests pass 521/521 and coverage is 100% line/branch/function for changed production files.
 - 2026-06-15 16:30 Unit 17e Round 4 cold reviewer gate converged: Lovelace the 3rd verified the streaming vector-pack validation closes Beauvoir's timer-blocking MAJOR, preserves manifest/checksum/row validation behavior, and keeps the evidence honest. Lovelace noted MINOR trailing-whitespace hygiene in fix3 logs; `b957fbf` scrubs those logs and adds `unit-17e-review-fix3-range-diff-check-green.log`, which proves the scrubbed range passes `git diff --check`.
+- 2026-06-15 16:35 Unit 17f complete: verified the full status/offline fallback coverage matrix without production changes because Unit 17e reviewer fixes already added the remaining missing coverage. Evidence covers missing local DB/cold no-state status, stale local DB status, unavailable query embedding endpoint without probing, partial vector coverage, corrupt/missing snapshot fallback, incompatible snapshot fallback to vector packs, missing vector packs with lexical fallback, cold vector-pack rebuild without snapshots, bounded startup defer, snapshot/vector-pack/lexical startup modes, and 100% coverage for changed production files. Evidence saved in `unit-17f-status-fallback-green.log`, `unit-17f-test-coverage.log`, `unit-17f-npm-test-green.log`, `unit-17f-runtime-pack-verify-green.log`, `unit-17f-generate-support-matrix-green.log`, `unit-17f-generated-artifacts-green.log`, `unit-17f-validate-skills-green.log`, `unit-17f-build-unavailable.log`, and `unit-17f-diff-check-green.log`; focused status/fallback tests pass 54/54, full MCP tests pass 521/521, coverage remains 100% line/branch/function, generated-artifact/runtime-pack/skill validation pass, and build remains unavailable because the MCP package has no `build` script.
