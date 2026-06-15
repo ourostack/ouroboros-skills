@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -449,7 +449,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js`.
 **Acceptance**: Tests fail until rebuild imports packs before live embedding generation.
 
-### 🔄 Unit 13b: Vector Rebuild And Missing Generation - Implementation
+### ✅ Unit 13b: Vector Rebuild And Missing Generation - Implementation
 **What**: Update `rebuildIndex` and related helpers to import shared vectors before embedding and to generate only missing vectors.
 **Output**: Updated `plugins/desk/mcp/src/indexer/index.js`, embedding helpers, and tests.
 **Acceptance**: Unit 13a tests pass and covered chunks do not trigger embedding endpoint calls.
@@ -930,3 +930,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 10:35 Unit 13a complete: added `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js` red tests for fully covered vector packs making zero live embedding calls, partial pack coverage live-generating only missing chunks, and `skipEmbed`/offline rebuild succeeding when vector packs cover all chunks. Targeted red evidence in `unit-13a-vector-rebuild-red.log` fails because `rebuildIndex` ignores `vectorPacks.pluginRoot`, embeds pack-covered chunks live, and never imports pack vectors when `skipEmbed` is set. Terminal `All tests pass` is intentionally unchecked until Unit 13b implements import-before-live-embedding rebuild behavior.
 - 2026-06-15 10:39 Unit 13a cold reviewer gate converged: Bernoulli the 2nd verified the red tests meaningfully force pack-covered chunks to avoid live fetches, partial coverage to fetch only missing chunks, `skipEmbed` to populate vectors from packs, and row identities to use production `chunkBody` plus `chunkIdentity`.
 - 2026-06-15 10:40 Unit 13b started to implement import-before-live-embedding rebuild behavior.
+- 2026-06-15 10:44 Unit 13b complete: `rebuildIndex` now writes docs/chunks first, imports committed vector packs from `opts.vectorPacks.pluginRoot`, and live-generates only remaining missing `chunk_vecs` rows. Saved green evidence in `unit-13b-vector-rebuild-green.log`, `unit-13b-indexer-green.log`, `unit-13b-test-coverage.log`, `unit-13b-npm-test-green.log`, `unit-13b-runtime-pack-verify-green.log`, `unit-13b-generated-artifacts-green.log`, `unit-13b-validate-skills-green.log`, and `unit-13b-diff-check-green.log`; vector rebuild tests pass 3/3, indexer tests pass 13/13, full MCP tests pass 404/404, and coverage is 100% line/branch/function for changed production files.

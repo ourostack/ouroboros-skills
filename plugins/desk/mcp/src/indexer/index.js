@@ -18,6 +18,7 @@ import {
   chunkIdentity,
   writeActiveEmbeddingSpec,
 } from "./spec.js"
+import { importVectorPacks } from "./vector-packs.js"
 
 /**
  * Run the indexer against `deskRoot`. Creates/refreshes
@@ -31,6 +32,10 @@ import {
  * @param {boolean} [opts.skipEmbed] — skip embedding entirely (testing).
  * @param {boolean} [opts.reembedMissing] — reindex unchanged docs whose
  *   chunks exist but do not have vectors.
+ * @param {object} [opts.vectorPacks] — import shared vector packs before
+ *   live embedding generation.
+ * @param {string} [opts.vectorPacks.pluginRoot] — plugin root containing
+ *   artifacts/vector-packs/<embedding-spec-id>/.
  * @returns {Promise<{ docs_indexed: number, docs_skipped: number,
  *                     docs_removed: number, chunks_inserted: number,
  *                     semantic_warnings: number }>}
@@ -97,10 +102,22 @@ export async function rebuildIndex(deskRoot, opts = {}) {
       toReindex.push(doc)
     }
 
-    // Per doc: upsert docs row, replace chunks, embed + write vecs.
+    // Per doc: upsert docs row and replace chunks. Vectors are imported from
+    // committed packs first, then live-generated only for remaining gaps.
     for (const doc of toReindex) {
-      await indexOneDoc(db, doc, opts, summary)
+      indexOneDoc(db, doc, summary)
       summary.docs_indexed += 1
+    }
+
+    if (opts.vectorPacks?.pluginRoot) {
+      await importVectorPacks({
+        db,
+        pluginRoot: opts.vectorPacks.pluginRoot,
+      })
+    }
+
+    if (!opts.skipEmbed) {
+      await embedMissingVectors(db, opts, summary)
     }
 
     // Refs graph — recompute from scratch each pass. Cheap (just a table
@@ -185,34 +202,13 @@ function docHasMissingActiveEmbeddings(db, docId) {
   return row.missing > 0
 }
 
-async function indexOneDoc(db, doc, opts, summary) {
+function indexOneDoc(db, doc, summary) {
   const chunks = chunkBody(doc.body).map((chunk) => ({
     ...chunk,
     ...chunkIdentity({ docPath: doc.path, chunk }),
   }))
 
-  // Embed chunks unless caller asked us to skip. embedChunks returns an
-  // array of either Float32-friendly arrays or nulls; nulls mean Ollama
-  // was unreachable for that chunk (typically because it's been
-  // unreachable for ALL chunks this run).
-  let embeddings = chunks.map(() => null)
-  if (!opts.skipEmbed && chunks.length > 0) {
-    embeddings = await embedChunks(
-      chunks.map((c) => c.text),
-      opts.embed ?? {},
-    )
-    if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
-      summary.semantic_warnings += 1
-      // One log line per run is enough; downstream tools surface the
-      // semantic_unavailable warning at query time.
-      console.warn(
-        "[desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only",
-      )
-    }
-  }
-
-  // Upsert in a transaction so a crash mid-doc doesn't leave a half-indexed
-  // row.
+  // Upsert in a transaction so a crash mid-doc doesn't leave a half-indexed row.
   const txn = db.transaction(() => {
     // Upsert docs row.
     const upsert = db.prepare(
@@ -279,12 +275,9 @@ async function indexOneDoc(db, doc, opts, summary) {
        )
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    const insertVec = db.prepare(
-      `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
-    )
     for (let i = 0; i < chunks.length; i++) {
       const c = chunks[i]
-      const ins = insertChunk.get(
+      insertChunk.get(
         docId,
         c.index,
         c.chunk_key,
@@ -298,13 +291,47 @@ async function indexOneDoc(db, doc, opts, summary) {
         c.end_offset,
       )
       summary.chunks_inserted += 1
+    }
+  })
+  txn()
+}
+
+async function embedMissingVectors(db, opts, summary) {
+  const missing = db
+    .prepare(
+      `SELECT c.id, c.text
+       FROM chunks c
+       LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+       WHERE v.chunk_id IS NULL
+       ORDER BY c.id`,
+    )
+    .all()
+  if (missing.length === 0) return
+
+  const embeddings = await embedChunks(
+    missing.map((c) => c.text),
+    opts.embed ?? {},
+  )
+  if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
+    summary.semantic_warnings += 1
+    // One log line per run is enough; downstream tools surface the
+    // semantic_unavailable warning at query time.
+    console.warn(
+      "[desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only",
+    )
+  }
+
+  const insertVec = db.prepare(
+    `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
+  )
+  const txn = db.transaction(() => {
+    for (let i = 0; i < missing.length; i++) {
       const vec = embeddings[i]
       if (vec) {
         // sqlite-vec's vec0 virtual table requires BigInt for primary-key
         // bind values — plain JS numbers raise "Only integers are allows
-        // for primary key values on chunk_vecs". The ins.id comes back as
-        // a number from better-sqlite3's RETURNING; convert at the bind.
-        insertVec.run(BigInt(ins.id), new Float32Array(vec))
+        // for primary key values on chunk_vecs".
+        insertVec.run(BigInt(missing[i].id), new Float32Array(vec))
       }
     }
   })
