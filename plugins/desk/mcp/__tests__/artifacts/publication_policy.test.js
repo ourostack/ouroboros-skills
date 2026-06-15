@@ -2,11 +2,13 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
+import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { ensureIndex } from "../../src/server-helpers.js"
 
 const mcpRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
@@ -62,8 +64,12 @@ function repoApproval(artifactType, overrides = {}) {
   }
 }
 
-async function listFiles(root) {
-  const files = []
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex")
+}
+
+async function fileHashes(root) {
+  const hashes = {}
   async function walk(current) {
     let entries
     try {
@@ -77,12 +83,92 @@ async function listFiles(root) {
       if (entry.isDirectory()) {
         await walk(abs)
       } else if (entry.isFile()) {
-        files.push(path.relative(root, abs).split(path.sep).join("/"))
+        const relativePath = path.relative(root, abs).split(path.sep).join("/")
+        hashes[relativePath] = sha256(await fs.readFile(abs))
       }
     }
   }
   await walk(root)
-  return files.sort()
+  return Object.fromEntries(Object.entries(hashes).sort(([left], [right]) => left.localeCompare(right)))
+}
+
+async function seedCommittedArtifactFixture(artifactsRoot) {
+  const packDir = path.join(artifactsRoot, "vector-packs", ACTIVE_EMBEDDING_SPEC.id)
+  await fs.mkdir(packDir, { recursive: true })
+  const packId = "committed-empty-pack"
+  const packBody = ""
+  const packSha = sha256(packBody)
+  await fs.writeFile(path.join(packDir, `${packId}.jsonl`), packBody, "utf8")
+  await fs.writeFile(
+    path.join(packDir, `${packId}.manifest.json`),
+    `${JSON.stringify({
+      schema_version: 1,
+      pack_id: packId,
+      embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+      dimension: ACTIVE_EMBEDDING_SPEC.dimension,
+      encoding: "float32-json",
+      row_count: 0,
+      rows_sha256: packSha,
+      created_at: "2026-06-15T00:00:00.000Z",
+      provenance: {
+        builder: "artifact:vector-pack:build",
+        source: "unit-test",
+      },
+    }, null, 2)}\n`,
+    "utf8",
+  )
+  await fs.writeFile(path.join(packDir, `${packId}.sha256`), `${packSha}  ${packId}.jsonl\n`, "utf8")
+
+  const snapshotDir = path.join(artifactsRoot, "snapshots", ACTIVE_EMBEDDING_SPEC.id)
+  await fs.mkdir(snapshotDir, { recursive: true })
+  const snapshotId = "committed-incompatible-snapshot"
+  const snapshotBytes = Buffer.from("committed snapshot bytes", "utf8")
+  const snapshotSha = `sha256:${sha256(snapshotBytes)}`
+  await fs.writeFile(path.join(snapshotDir, `${snapshotId}.sqlite.zst`), snapshotBytes)
+  await fs.writeFile(
+    path.join(snapshotDir, `${snapshotId}.manifest.json`),
+    `${JSON.stringify({
+      schema_version: 1,
+      snapshot_id: snapshotId,
+      embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+      dimension: ACTIVE_EMBEDDING_SPEC.dimension,
+      chunker_id: ACTIVE_EMBEDDING_SPEC.chunker_id,
+      normalization_id: ACTIVE_EMBEDDING_SPEC.normalization_id,
+      db_schema: { id: "intentionally-incompatible", version: 1 },
+      sqlite_vec: { package: "sqlite-vec", version: "0.1.6", table: "vec0" },
+      runtime: {
+        platform: process.platform,
+        arch: process.arch,
+        node_abi: `node-${process.versions.modules}`,
+      },
+      artifact_source_scope_hash: `sha256:${"a".repeat(64)}`,
+      document_tree_hash: `sha256:${"b".repeat(64)}`,
+      included_pack_ids: [packId],
+      created_at: "2026-06-15T00:00:00.000Z",
+      artifact: {
+        file: `${snapshotId}.sqlite.zst`,
+        format: "sqlite-zstd",
+        sha256: snapshotSha,
+        compressed: true,
+      },
+      provenance: {
+        builder: "plugins/desk/mcp/scripts/build-snapshot.js",
+        source: "unit-test",
+        commit: "0123456789abcdef0123456789abcdef01234567",
+      },
+      source_paths: [
+        "plugins/desk/mcp/src/snapshots/restore.js",
+        "plugins/desk/mcp/src/db/schema.sql",
+        "plugins/desk/mcp/package-lock.json",
+      ],
+    }, null, 2)}\n`,
+    "utf8",
+  )
+  await fs.writeFile(
+    path.join(snapshotDir, `${snapshotId}.sha256`),
+    `${snapshotSha}  ${snapshotId}.sqlite.zst\n`,
+    "utf8",
+  )
 }
 
 test("committed publication policy and schema declare conservative privacy defaults", async () => {
@@ -236,8 +322,8 @@ test("ordinary startup does not write committed artifact files", async () => {
   const artifactsRoot = path.join(pluginRoot, "artifacts")
   await fs.mkdir(path.join(deskRoot, "track", "task"), { recursive: true })
   await fs.writeFile(path.join(deskRoot, "track", "task", "task.md"), "# Startup\n", "utf8")
-  await fs.mkdir(path.join(artifactsRoot, "vector-packs"), { recursive: true })
-  const before = await listFiles(artifactsRoot)
+  await seedCommittedArtifactFixture(artifactsRoot)
+  const before = await fileHashes(artifactsRoot)
 
   await ensureIndex(deskRoot, {
     startup: true,
@@ -246,5 +332,5 @@ test("ordinary startup does not write committed artifact files", async () => {
     vectorPacks: { pluginRoot },
   })
 
-  assert.deepEqual(await listFiles(artifactsRoot), before)
+  assert.deepEqual(await fileHashes(artifactsRoot), before)
 })
