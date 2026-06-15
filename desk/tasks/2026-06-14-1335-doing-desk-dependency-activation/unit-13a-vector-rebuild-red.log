@@ -1,0 +1,77 @@
+TAP version 13
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+not ok 1 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 28.612833
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:119:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    2 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:141:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+not ok 2 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 21.341625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:153:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    2 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:179:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+not ok 3 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 11.389375
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:193:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    0 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:213:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 299.549958

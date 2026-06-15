@@ -1,0 +1,218 @@
+// Unit 13a: red contract for rebuilding local vectors from committed packs.
+
+import { test } from "node:test"
+import { strict as assert } from "node:assert"
+import { createHash } from "node:crypto"
+import { promises as fs } from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
+import matter from "gray-matter"
+
+import { closeDb, openDb } from "../../src/db/init.js"
+import { chunkBody } from "../../src/indexer/chunk.js"
+import { rebuildIndex } from "../../src/indexer/index.js"
+import {
+  ACTIVE_EMBEDDING_SPEC,
+  chunkIdentity,
+} from "../../src/indexer/spec.js"
+
+async function tmpRoot(prefix = "desk-vector-rebuild-") {
+  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+}
+
+async function writeFile(root, rel, body) {
+  const abs = path.join(root, rel)
+  await fs.mkdir(path.dirname(abs), { recursive: true })
+  await fs.writeFile(abs, body, "utf8")
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex")
+}
+
+function vector(seed, dimension = ACTIVE_EMBEDDING_SPEC.dimension) {
+  return Array.from({ length: dimension }, (_, index) => ((seed + index) % 19) / 19)
+}
+
+function rowForDoc({ docPath, body, chunkIndex = 0, seed = 1 }) {
+  const chunk = chunkBody(docBody(body))[chunkIndex]
+  assert.ok(chunk, `missing chunk ${chunkIndex} for ${docPath}`)
+  const identity = chunkIdentity({ docPath, chunk })
+  return {
+    chunk_key: identity.chunk_key,
+    text_hash: identity.text_hash,
+    embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+    dimension: ACTIVE_EMBEDDING_SPEC.dimension,
+    encoding: "float32-json",
+    vector: vector(seed),
+  }
+}
+
+function docBody(raw) {
+  return matter(raw).content ?? ""
+}
+
+async function writePack({ pluginRoot, packId, rows }) {
+  const packDir = path.join(
+    pluginRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(packDir, { recursive: true })
+  const packPath = path.join(packDir, `${packId}.jsonl`)
+  const manifestPath = path.join(packDir, `${packId}.manifest.json`)
+  const checksumPath = path.join(packDir, `${packId}.sha256`)
+  const jsonl = `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`
+  const packSha = sha256(jsonl)
+  await fs.writeFile(packPath, jsonl, "utf8")
+  await fs.writeFile(
+    manifestPath,
+    `${JSON.stringify({
+      schema_version: 1,
+      pack_id: packId,
+      embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+      dimension: ACTIVE_EMBEDDING_SPEC.dimension,
+      encoding: "float32-json",
+      row_count: rows.length,
+      rows_sha256: packSha,
+      created_at: "2026-06-15T00:00:00.000Z",
+      provenance: {
+        builder: "artifact:vector-pack:build",
+        source: "unit-test",
+      },
+    }, null, 2)}\n`,
+    "utf8",
+  )
+  await fs.writeFile(checksumPath, `${packSha}  ${packId}.jsonl\n`, "utf8")
+}
+
+function storedVector(db, docPath, chunkIndex) {
+  const row = db
+    .prepare(
+      `SELECT v.embedding
+       FROM chunk_vecs v
+       JOIN chunks c ON c.id = v.chunk_id
+       JOIN docs d ON d.id = c.doc_id
+       WHERE d.path = ? AND c.chunk_index = ?`,
+    )
+    .get(docPath, chunkIndex)
+  assert.ok(row, `missing stored vector for ${docPath} chunk ${chunkIndex}`)
+  const buffer = Buffer.from(row.embedding)
+  const values = []
+  for (let offset = 0; offset < buffer.length; offset += 4) {
+    values.push(buffer.readFloatLE(offset))
+  }
+  return values
+}
+
+function assertVectorApprox(actual, expected) {
+  assert.equal(actual.length, expected.length)
+  for (let index = 0; index < expected.length; index += 1) {
+    assert.ok(
+      Math.abs(actual[index] - expected[index]) < 0.000001,
+      `vector[${index}] expected ${expected[index]}, got ${actual[index]}`,
+    )
+  }
+}
+
+test("rebuildIndex imports fully covered vector packs without live embedding calls", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncovered semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot,
+    packId: "covered",
+    rows: [rowForDoc({ docPath, body, seed: 7 })],
+  })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("embedding endpoint should not be called for covered chunks")
+  }
+
+  const summary = await rebuildIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    embed: { fetch: failIfCalled },
+  })
+  assert.equal(calls, 0)
+  assert.equal(summary.semantic_warnings, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+    assertVectorApprox(storedVector(db, docPath, 0), vector(7))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("rebuildIndex live-generates only chunks missing from vector packs", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncovered semantic body\n\n## Missing\n\nmissing semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot,
+    packId: "partial",
+    rows: [rowForDoc({ docPath, body, chunkIndex: 0, seed: 3 })],
+  })
+
+  const requests = []
+  const fetchMissing = async (_url, request) => {
+    requests.push(JSON.parse(request.body).prompt)
+    return {
+      ok: true,
+      json: async () => ({ embedding: vector(11) }),
+    }
+  }
+
+  const summary = await rebuildIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    embed: { fetch: fetchMissing },
+  })
+  assert.equal(summary.semantic_warnings, 0)
+  assert.equal(requests.length, 1)
+  assert.match(requests[0], /missing semantic body/u)
+  assert.doesNotMatch(requests[0], /covered semantic body/u)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 2)
+    assertVectorApprox(storedVector(db, docPath, 0), vector(3))
+    assertVectorApprox(storedVector(db, docPath, 1), vector(11))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\noffline covered semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot,
+    packId: "offline-covered",
+    rows: [rowForDoc({ docPath, body, seed: 5 })],
+  })
+
+  const summary = await rebuildIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    skipEmbed: true,
+  })
+  assert.equal(summary.semantic_warnings, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+    assertVectorApprox(storedVector(db, docPath, 0), vector(5))
+  } finally {
+    closeDb(db)
+  }
+})
