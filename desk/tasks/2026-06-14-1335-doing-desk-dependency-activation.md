@@ -51,7 +51,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Host adapters never require healthy-path manual MCP registration.
 - [ ] Host adapters never require healthy-path manual `npm install` inside plugin directories.
 - [x] Host adapters never require healthy-path hand-editing of JSON or TOML.
-- [ ] Host support matrix is generated from real schema validation or smoke evidence.
+- [x] Host support matrix is generated from real schema validation or smoke evidence.
 - [x] Host support matrix includes a disposition for Claude, Codex, Copilot/root plugin packaging, Ouroboros/autonomous-agent bundle wiring, and generic stdio MCP use.
 - [ ] Host support docs describe limitations and fallback behavior in host-native language.
 - [ ] Desk MCP startup can run from an installed plugin without manual dependency installation.
@@ -259,7 +259,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/mcp/scripts/generate-support-matrix.js`, `plugins/desk/mcp/package.json` script `activation:support-matrix:generate`, `plugins/desk/activation/support-matrix.json`, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md`.  
 **Acceptance**: Unit 3a tests pass, `npm --prefix plugins/desk/mcp run activation:support-matrix:generate` regenerates `plugins/desk/activation/support-matrix.json`, and generated support matrix matches the evidence artifact exactly.
 
-### ⬜ Unit 3c: Support Matrix Generator - Coverage & Refactor
+### ✅ Unit 3c: Support Matrix Generator - Coverage & Refactor
 **What**: Add edge-case coverage for unknown hosts, missing evidence rows, unsupported primitive diagnostics, and conflicting native/flattened dispositions.  
 **Output**: Hardened support-matrix validation.  
 **Acceptance**: 100% coverage on new support-matrix code and all support-matrix tests pass.
@@ -775,3 +775,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 18:59 Unit 3a cold reviewer gate converged; Meitner verified the evidence columns/host rows, meaningful red test contract, correctly scoped missing-generator failure, clean bookkeeping, and no stale source paths or whitespace issues
 - 2026-06-14 19:05 Unit 3b complete: implemented `plugins/desk/mcp/src/activation/support-matrix.js`, `plugins/desk/mcp/scripts/generate-support-matrix.js`, package script `activation:support-matrix:generate`, and generated `plugins/desk/activation/support-matrix.json` in `0d21a6c`; saved `unit-3b-generate-support-matrix-green.log`, `unit-3b-support-matrix-green.log`, `unit-3b-test-coverage-green.log`, `unit-3b-npm-test-green.log`, `unit-3b-validate-skills-green.log`, and `unit-3b-build-unavailable.log`; verified the generator command, targeted support-matrix tests, 100% coverage for support-matrix code and script, full MCP tests, skill validation, and `git diff --check`
 - 2026-06-14 19:09 Unit 3b cold reviewer gate converged; Kuhn verified npm-prefix generator reproducibility, generated artifact freshness, all five host dispositions, scoped validation, 100% support-matrix coverage, clean diff check, and accurate no-build-script evidence
+- 2026-06-14 19:13 Unit 3c complete: added edge-case coverage for unknown support hosts, missing required evidence rows, unsupported primitive values, and native-or-flattened/transitive-dependency conflicts in `c39457a`, then hardened `plugins/desk/mcp/src/activation/support-matrix.js` in `30b4b9b`; saved `unit-3c-support-matrix-red.log`, `unit-3c-support-matrix-green.log`, `unit-3c-test-coverage-green.log`, `unit-3c-npm-test-green.log`, `unit-3c-validate-skills-green.log`, and `unit-3c-build-unavailable.log`; verified targeted support-matrix tests, 100% coverage for support-matrix code, full MCP tests, skill validation, no build script available, and `git diff --check`
