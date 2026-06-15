@@ -163,31 +163,32 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running)\b/iu,
-    target: /\b(?:desk:worker|worker|agent defaults?|default agent)\b/iu,
+    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled)\b/u,
+    target: /\b(?:desk worker|worker|agent defaults?|default agent)\b/u,
   })
 }
 
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated)\b/iu,
-    target: /\b(?:plugin dependencies|plugin dependency resolution|dependency closure|work suite)\b/iu,
+    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled)\b/u,
+    target: /\b(?:plugin dependencies|plugin dependency resolution|dependency closure|transitive dependencies|work suite)\b/u,
   })
 }
 
 function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
   return readmeStatements(readmeSection)
-    .filter((statement) => /generic stdio/iu.test(statement))
+    .filter((statement) => normalizeClaimText(statement).includes("generic stdio"))
     .some((statement) => readmeClauses(statement)
       .some((clause) => hasPositiveSupportClaim({ clause, action, target })))
 }
 
 function hasPositiveSupportClaim({ clause, action, target }) {
-  const actionMatch = clause.match(action)
+  const normalizedClause = normalizeClaimText(clause)
+  const actionMatch = normalizedClause.match(action)
   return actionMatch !== null
-    && target.test(clause)
-    && !isSupportActionNegated(clause, actionMatch.index)
+    && target.test(normalizedClause)
+    && !isSupportActionNegated(normalizedClause, actionMatch.index)
 }
 
 function readmeStatements(readmeSection) {
@@ -205,12 +206,21 @@ function readmeClauses(statement) {
 }
 
 function isNegativeSupportBoundary(statement) {
-  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|cannot|can't|won't|never|without)\s*$/iu
+  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|cannot|can't|won't|never|without|neither|nor|no\s+longer)\s*$/u
     .test(statement)
 }
 
 function isSupportActionNegated(clause, actionIndex) {
   return isNegativeSupportBoundary(clause.slice(0, actionIndex))
+}
+
+function normalizeClaimText(text) {
+  return text
+    .toLowerCase()
+    .replace(/[`*_]/gu, "")
+    .replace(/[:_-]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
 }
 
 function arrayIncludes(value, expected) {
