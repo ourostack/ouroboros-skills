@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: desk_recall — happy path returns semantic matches
+ok 1 - desk_recall — happy path returns semantic matches
+  ---
+  duration_ms: 148.241208
+  type: 'test'
+  ...
+# Subtest: desk_recall — Ollama-down returns semantic_unavailable error
+ok 2 - desk_recall — Ollama-down returns semantic_unavailable error
+  ---
+  duration_ms: 79.125666
+  type: 'test'
+  ...
+# Subtest: desk_recall — empty topic returns empty results
+ok 3 - desk_recall — empty topic returns empty results
+  ---
+  duration_ms: 10.814708
+  type: 'test'
+  ...
+# Subtest: desk_recall — default embed options use global fetch
+ok 4 - desk_recall — default embed options use global fetch
+  ---
+  duration_ms: 64.082417
+  type: 'test'
+  ...
+# Subtest: desk_recall — scope can restrict archived history
+ok 5 - desk_recall — scope can restrict archived history
+  ---
+  duration_ms: 56.699416
+  type: 'test'
+  ...
+# Subtest: desk_recall — limit is honoured
+ok 6 - desk_recall — limit is honoured
+  ---
+  duration_ms: 58.060125
+  type: 'test'
+  ...
+# Subtest: desk_recall — dedupes by doc_id (one entry per doc)
+ok 7 - desk_recall — dedupes by doc_id (one entry per doc)
+  ---
+  duration_ms: 58.417875
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 624.487708

@@ -1,0 +1,179 @@
+TAP version 13
+# Subtest: search internals cover defensive helper branches
+ok 1 - search internals cover defensive helper branches
+  ---
+  duration_ms: 9.043709
+  type: 'test'
+  ...
+# Subtest: desk_search — happy path returns ranked results with score_breakdown
+ok 2 - desk_search — happy path returns ranked results with score_breakdown
+  ---
+  duration_ms: 140.878042
+  type: 'test'
+  ...
+# Subtest: desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailable=true
+ok 3 - desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailable=true
+  ---
+  duration_ms: 95.136667
+  type: 'test'
+  ...
+# Subtest: desk_search — empty or missing query returns before indexing
+ok 4 - desk_search — empty or missing query returns before indexing
+  ---
+  duration_ms: 0.859916
+  type: 'test'
+  ...
+# Subtest: desk_search — lexical no-match returns empty results with unavailable semantic note
+ok 5 - desk_search — lexical no-match returns empty results with unavailable semantic note
+  ---
+  duration_ms: 62.873834
+  type: 'test'
+  ...
+# Subtest: desk_search — single-character query uses semantic candidates without FTS
+ok 6 - desk_search — single-character query uses semantic candidates without FTS
+  ---
+  duration_ms: 56.004833
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_search — repairs a fresh lexical-only index when embeddings are available
+ok 7 - desk_search — repairs a fresh lexical-only index when embeddings are available
+  ---
+  duration_ms: 48.601417
+  type: 'test'
+  ...
+# Subtest: desk_search — default embed options use global fetch
+ok 8 - desk_search — default embed options use global fetch
+  ---
+  duration_ms: 60.847542
+  type: 'test'
+  ...
+# Subtest: desk_search — default active scope skips archived semantic candidates
+ok 9 - desk_search — default active scope skips archived semantic candidates
+  ---
+  duration_ms: 44.486208
+  type: 'test'
+  ...
+# Subtest: desk_search — track filter narrows to one track
+ok 10 - desk_search — track filter narrows to one track
+  ---
+  duration_ms: 31.958208
+  type: 'test'
+  ...
+# Subtest: desk_search — invalid and empty filters behave as no-ops
+ok 11 - desk_search — invalid and empty filters behave as no-ops
+  ---
+  duration_ms: 39.041292
+  type: 'test'
+  ...
+# Subtest: desk_search — track array filter excludes semantic candidates outside the set
+ok 12 - desk_search — track array filter excludes semantic candidates outside the set
+  ---
+  duration_ms: 32.463917
+  type: 'test'
+  ...
+# Subtest: desk_search — status filter (single value)
+ok 13 - desk_search — status filter (single value)
+  ---
+  duration_ms: 29.379792
+  type: 'test'
+  ...
+# Subtest: desk_search — status filter (array of values)
+ok 14 - desk_search — status filter (array of values)
+  ---
+  duration_ms: 26.783542
+  type: 'test'
+  ...
+# Subtest: desk_search — kind filter narrows by doc kind
+ok 15 - desk_search — kind filter narrows by doc kind
+  ---
+  duration_ms: 27.411208
+  type: 'test'
+  ...
+# Subtest: desk_search — kind array filter narrows by doc kind
+ok 16 - desk_search — kind array filter narrows by doc kind
+  ---
+  duration_ms: 25.684458
+  type: 'test'
+  ...
+# Subtest: desk_search — since filter excludes older docs
+ok 17 - desk_search — since filter excludes older docs
+  ---
+  duration_ms: 26.765958
+  type: 'test'
+  ...
+# Subtest: desk_search — until filter excludes newer docs
+ok 18 - desk_search — until filter excludes newer docs
+  ---
+  duration_ms: 30.935375
+  type: 'test'
+  ...
+# Subtest: desk_search — limit is clamped to [1, 50]
+ok 19 - desk_search — limit is clamped to [1, 50]
+  ---
+  duration_ms: 33.319292
+  type: 'test'
+  ...
+# Subtest: desk_search — state_bias raises active-status docs above terminal-status docs
+ok 20 - desk_search — state_bias raises active-status docs above terminal-status docs
+  ---
+  duration_ms: 26.008166
+  type: 'test'
+  ...
+# Subtest: desk_search — empty query returns empty results
+ok 21 - desk_search — empty query returns empty results
+  ---
+  duration_ms: 20.774458
+  type: 'test'
+  ...
+# Subtest: desk_search — long snippets center around query terms
+ok 22 - desk_search — long snippets center around query terms
+  ---
+  duration_ms: 26.7735
+  type: 'test'
+  ...
+# Subtest: desk_search — long semantic-only snippets fall back when query term is absent
+ok 23 - desk_search — long semantic-only snippets fall back when query term is absent
+  ---
+  duration_ms: 43.180208
+  type: 'test'
+  ...
+# Subtest: desk_search — long snippets handle start and end query-term boundaries
+ok 24 - desk_search — long snippets handle start and end query-term boundaries
+  ---
+  duration_ms: 35.185958
+  type: 'test'
+  ...
+# Subtest: desk_search — active-iteration pin adds the +0.30 bonus
+ok 25 - desk_search — active-iteration pin adds the +0.30 bonus
+  ---
+  duration_ms: 31.046584
+  type: 'test'
+  ...
+# Subtest: desk_search — ignores malformed featured task frontmatter when pinning
+ok 26 - desk_search — ignores malformed featured task frontmatter when pinning
+  ---
+  duration_ms: 24.680542
+  type: 'test'
+  ...
+# Subtest: desk_search — ignores blank featured track and no-op iteration histories
+ok 27 - desk_search — ignores blank featured track and no-op iteration histories
+  ---
+  duration_ms: 34.022875
+  type: 'test'
+  ...
+# Subtest: desk_search — propagates unexpected featured-track read errors
+ok 28 - desk_search — propagates unexpected featured-track read errors
+  ---
+  duration_ms: 30.543125
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1248.827334

@@ -124,6 +124,97 @@ test("validateVectorPackCompaction rejects missing rows and mutated vectors", as
   )
 })
 
+test("validateVectorPackCompaction rejects invalid inputs and row metadata drift", async () => {
+  const { validateVectorPackCompaction } = await loadCompactionModule()
+  const rowA = row({ key: "a", hash: "1", seed: 1 })
+
+  assert.throws(
+    () => validateVectorPackCompaction(),
+    /sourcePacks must be a non-empty array/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({ sourcePacks: [] }),
+    /sourcePacks must be a non-empty array/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({ sourcePacks: [pack("source", [rowA])] }),
+    /compactedPack is required/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [{ pack_id: "bad-source" }],
+      compactedPack: pack("compacted", [rowA]),
+    }),
+    /source pack rows must be an array/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: { pack_id: "bad-compacted" },
+    }),
+    /compacted pack rows must be an array/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("duplicate-compacted", [rowA, clone(rowA)]),
+    }),
+    /duplicate compacted row.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("wrong-spec", [
+        { ...rowA, embedding_spec_id: "other-spec" },
+      ]),
+    }),
+    /embedding_spec_id mismatch.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("wrong-dimension", [
+        { ...rowA, dimension: rowA.dimension + 1 },
+      ]),
+    }),
+    /dimension mismatch.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("wrong-encoding", [
+        { ...rowA, encoding: "base64" },
+      ]),
+    }),
+    /encoding mismatch.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("missing-vector", [
+        { ...rowA, vector: null },
+      ]),
+    }),
+    /vector mismatch.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [{ ...rowA, vector: null }])],
+      compactedPack: pack("valid-vector", [rowA]),
+    }),
+    /vector mismatch.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA])],
+      compactedPack: pack("short-vector", [
+        { ...rowA, vector: rowA.vector.slice(1) },
+      ]),
+    }),
+    /vector mismatch.*ck_a/u,
+  )
+})
+
 test("validateVectorPackCompaction rejects conflicting source duplicates", async () => {
   const { validateVectorPackCompaction } = await loadCompactionModule()
   const rowA = row({ key: "a", hash: "1", seed: 1 })
@@ -219,6 +310,38 @@ test("validateCompactionPreservation compares search scopes and refs graph snaps
   assert.throws(
     () => validateCompactionPreservation({ before, after: mutatedRef }),
     /refs_graph changed/u,
+  )
+})
+
+test("validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays", async () => {
+  const { validateCompactionPreservation } = await loadCompactionModule()
+  assert.throws(
+    () => validateCompactionPreservation(),
+    /before snapshot is required/u,
+  )
+  assert.throws(
+    () => validateCompactionPreservation({ before: {} }),
+    /after snapshot is required/u,
+  )
+  assert.deepEqual(
+    validateCompactionPreservation({
+      before: { search: {}, refs_graph: undefined },
+      after: { search: {}, refs_graph: [] },
+    }),
+    { search_preserved: true, refs_preserved: true },
+  )
+  assert.deepEqual(
+    validateCompactionPreservation({
+      before: {
+        search: {},
+        refs_graph: [{ from: null, to: undefined, ref_kind: null }],
+      },
+      after: {
+        search: {},
+        refs_graph: [{}],
+      },
+    }),
+    { search_preserved: true, refs_preserved: true },
   )
 })
 

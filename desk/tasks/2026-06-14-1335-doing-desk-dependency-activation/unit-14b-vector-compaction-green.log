@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: validateVectorPackCompaction accepts semantically equivalent duplicate merge
+ok 1 - validateVectorPackCompaction accepts semantically equivalent duplicate merge
+  ---
+  duration_ms: 3.181166
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects missing rows and mutated vectors
+ok 2 - validateVectorPackCompaction rejects missing rows and mutated vectors
+  ---
+  duration_ms: 1.068333
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects invalid inputs and row metadata drift
+ok 3 - validateVectorPackCompaction rejects invalid inputs and row metadata drift
+  ---
+  duration_ms: 0.718917
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects conflicting source duplicates
+ok 4 - validateVectorPackCompaction rejects conflicting source duplicates
+  ---
+  duration_ms: 0.243583
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation compares search scopes and refs graph snapshots
+ok 5 - validateCompactionPreservation compares search scopes and refs graph snapshots
+  ---
+  duration_ms: 0.978333
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
+ok 6 - validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
+  ---
+  duration_ms: 0.238542
+  type: 'test'
+  ...
+# Subtest: desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+ok 7 - desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+  ---
+  duration_ms: 151.005333
+  type: 'test'
+  ...
+# Subtest: desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+ok 8 - desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+  ---
+  duration_ms: 103.55125
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 412.375666
