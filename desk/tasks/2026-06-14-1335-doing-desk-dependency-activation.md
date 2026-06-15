@@ -37,8 +37,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
 - [x] Claude packaging declares Work Suite as a dependency when the support matrix marks dependency metadata native for the host format.
 - [x] Claude Agent View/background-session inheritance is validated or explicitly documented as unsupported for the current host version.
-- [ ] Copilot packaging exposes the expected worker agent through native agent/plugin metadata.
-- [ ] Copilot packaging has a flattened dependency strategy for hosts without transitive dependency resolution.
+- [x] Copilot packaging exposes the expected worker agent through native agent/plugin metadata.
+- [x] Copilot packaging has a flattened dependency strategy for hosts without transitive dependency resolution.
 - [x] Codex packaging exposes Desk skills through Codex plugin metadata.
 - [x] Codex packaging exposes Desk MCP through Codex plugin metadata.
 - [x] Codex activation implements global personal worker+Desk default behavior as the primary happy path, with project-local and manual-only invocation modes available as opt-outs.
@@ -117,7 +117,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Search responses distinguish semantic, lexical, and hybrid result modes.
 - [ ] Query embedding failure does not imply document vectors are missing.
 - [ ] Document-vector absence does not prevent lexical search.
-- [ ] Manifest version drift between root, Claude, Codex, and Work Suite-related plugin metadata is tested or intentionally documented.
+- [x] Manifest version drift between root, Claude, Codex, and Work Suite-related plugin metadata is tested or intentionally documented.
 - [ ] Worker content drift across Claude/Copilot/Codex formats is tested or eliminated by generation.
 - [ ] Tests cover MCP cold start with no local `.state/`.
 - [ ] Tests cover compatible snapshot restore.
@@ -284,7 +284,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/copilot_packaging.test.js`.  
 **Acceptance**: Tests fail on current root manifest drift or missing flattened dependency metadata.
 
-### ⬜ Unit 5b: Copilot Root Packaging - Implementation
+### ✅ Unit 5b: Copilot Root Packaging - Implementation
 **What**: Update root/Copilot plugin metadata, add or update Work Suite root plugin metadata, generate flattened-bundle metadata for Desk plus Work Suite, and update `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows. Do not edit the generated support matrix directly.  
 **Output**: Updated `plugins/desk/plugin.json`, `plugins/work-suite/plugin.json`, generated flattened-bundle metadata, Copilot/root evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.  
 **Acceptance**: Unit 5a tests pass, Copilot/root plugin packaging exposes worker behavior without a separate manual Work Suite install in flattened mode, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
@@ -788,3 +788,5 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 20:18 Unit 4c Round 2 cold reviewer gate converged; Heisenberg verified the checklist overclaim and log whitespace findings are closed, `git diff --check 9ea3f97..HEAD` exits 0, targeted Claude packaging tests still pass, full-suite and coverage logs remain credible, and `claude-packaging.js` remains at 100% coverage
 - 2026-06-14 20:19 Unit 5a complete: added Copilot/root packaging red tests in `b72784c`; targeted red run saved to `unit-5a-copilot-packaging-red.log` and fails on stale `plugins/desk/plugin.json` version metadata, missing `plugins/work-suite/plugin.json`, missing generated flattened-bundle metadata, planned-not-supported Copilot/root evidence/support-matrix disposition, and healthy-path docs that still require manual Work Suite installation
 - 2026-06-14 20:24 Unit 5a reviewer fix: Peirce found the flattened-bundle test could be satisfied by hand-edited JSON and the red log had trailing whitespace; tightened `copilot_packaging.test.js` in `574b699` to require `activation:copilot-bundle:generate`, `scripts/generate-copilot-bundle.js`, and freshness against a manifest-derived expected bundle, then refreshed and scrubbed `unit-5a-copilot-packaging-red.log`
+- 2026-06-14 20:26 Unit 5a Round 2 cold reviewer gate converged; Godel verified the generated-bundle freshness/script gap and red-log whitespace finding are closed, `git diff --check 6f892a1..177a10d` exits 0, and the red tests still fail for real current packaging gaps
+- 2026-06-14 20:31 Unit 5b complete: added Copilot/root flattened packaging in `cfa1814` by aligning `plugins/desk/plugin.json` to version `1.7.3`, adding `plugins/work-suite/plugin.json`, pointing the activation manifest's Copilot entrypoint to `agents/worker.agent.md`, adding `plugins/desk/mcp/src/activation/copilot-bundle.js` plus `scripts/generate-copilot-bundle.js`, generating `plugins/desk/activation/copilot-root.flattened-bundle.json`, updating the Copilot/root evidence row, regenerating `plugins/desk/activation/support-matrix.json`, and removing healthy-path Copilot Work Suite manual-install docs; saved `unit-5b-generate-copilot-bundle-green.log`, `unit-5b-generate-support-matrix-green.log`, `unit-5b-copilot-packaging-green.log`, `unit-5b-host-packaging-green.log`, `unit-5b-activation-support-green.log`, `unit-5b-test-coverage-green.log`, `unit-5b-npm-test-green.log`, `unit-5b-validate-skills-green.log`, `unit-5b-diff-check-green.log`, and `unit-5b-build-unavailable.log`; verified targeted Copilot packaging tests, host packaging tests, activation/support-matrix tests, 100% coverage for `copilot-bundle.js` and `generate-copilot-bundle.js`, full Desk MCP tests, skill validation, no build script available, and `git diff --check`
