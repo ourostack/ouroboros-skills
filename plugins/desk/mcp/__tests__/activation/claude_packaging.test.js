@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert"
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import { validateClaudePackagingContract } from "../../src/activation/claude-packaging.js"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -209,10 +210,6 @@ function currentClaudePackagingInput() {
     worker: parseSimpleFrontmatter("plugins", "desk", "agents", "worker.md"),
     workSuitePlugin: loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json"),
   }
-}
-
-function validateClaudePackagingContract() {
-  return []
 }
 
 test("Claude plugin metadata declares native Desk surfaces and Work Suite dependency", () => {
@@ -437,6 +434,13 @@ test("Claude packaging validation rejects missing worker exposure and unsupporte
     ["Claude plugin manifest must not include host activation metadata"],
   )
 
+  const unsupportedWorkSuiteManifestField = clone(currentClaudePackagingInput())
+  unsupportedWorkSuiteManifestField.workSuitePlugin.activation = { claude: {} }
+  assert.deepEqual(
+    validateClaudePackagingContract(unsupportedWorkSuiteManifestField),
+    ["Claude plugin manifest must not include host activation metadata"],
+  )
+
   const unsupportedAgentViewClaim = clone(currentClaudePackagingInput())
   unsupportedAgentViewClaim.claudeActivation.agentView = {
     ...unsupportedAgentViewClaim.claudeActivation.agentView,
@@ -460,4 +464,13 @@ test("Claude packaging validation rejects missing worker exposure and unsupporte
     validateClaudePackagingContract(unsupportedBackgroundClaim),
     ["background-session support requires dispatched-session smoke evidence"],
   )
+
+  const provenAgentViewClaim = clone(currentClaudePackagingInput())
+  provenAgentViewClaim.claudeActivation.agentView = {
+    ...provenAgentViewClaim.claudeActivation.agentView,
+    status: "supported",
+    inheritsPluginContext: true,
+    evidence: "Unit 4c dispatched-session smoke loaded desk:worker with Desk plugin context.",
+  }
+  assert.deepEqual(validateClaudePackagingContract(provenAgentViewClaim), [])
 })
