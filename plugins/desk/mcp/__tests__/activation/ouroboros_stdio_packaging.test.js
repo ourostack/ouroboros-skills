@@ -75,6 +75,33 @@ function sectionBetween(markdown, heading, nextHeadingLevel = "###") {
   return match.groups.body
 }
 
+function sectionByAnchor(markdown, anchor) {
+  const headingPattern = /^(?<level>#{2,6})\s+(?<title>.+)$/gmu
+  const headings = Array.from(markdown.matchAll(headingPattern), (match) => ({
+    anchor: markdownAnchor(match.groups.title),
+    index: match.index,
+    level: match.groups.level.length,
+    bodyStart: match.index + match[0].length,
+  }))
+  const headingIndex = headings.findIndex((heading) => heading.anchor === anchor)
+  assert.notEqual(headingIndex, -1, `missing markdown anchor #${anchor}`)
+
+  const heading = headings[headingIndex]
+  const nextHeading = headings.slice(headingIndex + 1)
+    .find((candidate) => candidate.level <= heading.level)
+  return markdown.slice(heading.bodyStart, nextHeading?.index ?? markdown.length)
+}
+
+function markdownAnchor(title) {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/`/gu, "")
+    .replace(/&/gu, "and")
+    .replace(/[^a-z0-9\s-]/gu, "")
+    .replace(/\s+/gu, "-")
+}
+
 test("Ouroboros/autonomous-agent packaging has a flattened bundle disposition", () => {
   const evidenceRow = findByField(
     normalizedEvidenceRows(),
@@ -117,6 +144,16 @@ test("Ouroboros/autonomous-agent packaging has a flattened bundle disposition", 
   assert.match(evidenceRow.fallback_behavior, /bundle Desk \+ Work Suite/u)
 })
 
+test("Ouroboros activation docs define the evidence anchor and disposition", () => {
+  const activationReadme = readText("plugins", "desk", "activation", "README.md")
+  const section = sectionByAnchor(activationReadme, "ouroboros-autonomous-agent")
+
+  assert.match(section, /supported-flattened/u)
+  assert.match(section, /host-native-plugin-install/u)
+  assert.match(section, /bundle Desk \+ Work Suite/u)
+  assert.match(section, /\$DESK/u)
+})
+
 test("Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding", () => {
   const readme = readText("plugins", "desk", "README.md")
   const section = sectionBetween(readme, "### Under Ouroboros")
@@ -125,8 +162,8 @@ test("Ouroboros docs specify bundle.json plugin closure and $DESK preamble bindi
   assert.match(section, /"plugins"\s*:\s*\[/u)
   assert.match(section, /"desk"/u)
   assert.match(section, /"work-suite"/u)
-  assert.match(section, /\$DESK/u)
-  assert.match(section, /Your desk:\s*\$DESK/u)
+  assert.match(section, /preamble/u)
+  assert.match(section, /\$DESK\s*=\s*~\/AgentBundles\/<agent>\.ouro\/desk\//u)
   assert.doesNotMatch(section, /npm install/u)
 })
 
@@ -171,6 +208,17 @@ test("generic stdio support matrix records an MCP-only degraded disposition", ()
   ], "generic stdio evidence_command_or_doc")
   assert.match(evidenceRow.fallback_behavior, /explicit --root or DESK/u)
   assert.match(evidenceRow.fallback_behavior, /no worker activation/u)
+})
+
+test("generic stdio activation docs define the evidence anchor and disposition", () => {
+  const activationReadme = readText("plugins", "desk", "activation", "README.md")
+  const section = sectionByAnchor(activationReadme, "generic-stdio")
+
+  assert.match(section, /degraded-mcp-only/u)
+  assert.match(section, /agent-defaults/u)
+  assert.match(section, /plugin-dependency-resolution/u)
+  assert.match(section, /explicit --root or DESK/u)
+  assert.match(section, /no worker activation/u)
 })
 
 test("generic stdio docs show explicit root binding and no default worker claim", () => {
