@@ -1,0 +1,188 @@
+TAP version 13
+# Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+not ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+  ---
+  duration_ms: 2.486541
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:46:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - './skills/'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: './skills/'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:50:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: Work Suite Claude metadata declares itself as a native dependency provider
+not ok 2 - Work Suite Claude metadata declares itself as a native dependency provider
+  ---
+  duration_ms: 0.260708
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:65:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - './skills/'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: './skills/'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:68:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: Claude worker agent is exposed without unsupported scoped permission fields
+not ok 3 - Claude worker agent is exposed without unsupported scoped permission fields
+  ---
+  duration_ms: 0.663333
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:76:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:81:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Claude activation metadata records Agent View and background-session disposition
+not ok 4 - Claude activation metadata records Agent View and background-session disposition
+  ---
+  duration_ms: 1.375083
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:88:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+    + undefined
+    - {
+    -   activationSurface: 'plugin-agent',
+    -   default: true,
+    -   source: 'agents/worker.md'
+    - }
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    default: true
+    source: 'agents/worker.md'
+    activationSurface: 'plugin-agent'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:91:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Claude packaging documents its permission and capability boundary
+not ok 5 - Claude packaging documents its permission and capability boundary
+  ---
+  duration_ms: 0.419
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:114:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+    + undefined
+    - {
+    -   generatedArtifacts: [],
+    -   neverDelete: [
+    -     'desk-root-data'
+    -   ],
+    -   requestedCapabilities: [
+    -     'Read',
+    -     'Write',
+    -     'Interactive'
+    -   ],
+    -   unsupportedAgentScopedFields: [
+    -     'hooks',
+    -     'mcpServers',
+    -     'permissionMode'
+    -   ]
+    - }
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    requestedCapabilities:
+      0: 'Read'
+      1: 'Write'
+      2: 'Interactive'
+    generatedArtifacts:
+    neverDelete:
+      0: 'desk-root-data'
+    unsupportedAgentScopedFields:
+      0: 'hooks'
+      1: 'mcpServers'
+      2: 'permissionMode'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:117:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 6 - Claude hook and MCP configuration stay plugin-relative and non-manual
+  ---
+  duration_ms: 0.818209
+  type: 'test'
+  ...
+# Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 7 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+  ---
+  duration_ms: 1.192125
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 2
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 88.719375
