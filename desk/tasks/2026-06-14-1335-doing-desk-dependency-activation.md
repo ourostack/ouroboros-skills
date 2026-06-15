@@ -131,7 +131,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover two machines producing non-conflicting append-only packs.
 - [ ] Tests cover sensitive-path exclusion and no absolute paths in snapshot artifacts.
 - [ ] Tests cover gitignored secret exclusion as product behavior.
-- [ ] Tests cover repeated startup idempotence.
+- [x] Tests cover repeated startup idempotence.
 - [x] Tests cover deactivation/uninstall artifact ownership.
 - [x] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
 - [x] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
@@ -141,8 +141,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [ ] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] 100% test coverage on all new code
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -349,7 +349,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated `plugins/desk/mcp/index.js`, new `plugins/desk/mcp/src/runtime/bootstrap.js`, current-source mirror helpers, and runtime bootstrap fixtures.
 **Acceptance**: Unit 7a tests pass, the real server can start with `plugins/desk/mcp/node_modules` absent, missing runtime dependencies produce actionable non-leaking diagnostics, and no plugin source directory is mutated.
 
-### 🔄 Unit 7c: Dependency-Light MCP Entrypoint - Coverage & Refactor
+### ✅ Unit 7c: Dependency-Light MCP Entrypoint - Coverage & Refactor
 **What**: Add coverage for absent cache, corrupt cache metadata, offline runtime pack unavailable, unsupported platform, production dependency mismatch, native package version mismatch, source mirror stale after source change, source mirror cleanup, implicit-install prevention, and repeated startup.
 **Output**: Hardened dependency-light bootstrap implementation.
 **Acceptance**: 100% coverage on new bootstrap code and all dependency-light entrypoint tests pass.
@@ -861,3 +861,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 04:34 Unit 7b started: implementing dependency-light MCP entrypoint bootstrap from the converged Unit 7a red contract
 - 2026-06-15 04:43 Unit 7b complete: `95e56b5` makes `index.js` dependency-light, restores runtime dependencies from the verified production pack into a writable cache, syncs current MCP source into `source-mirror/<source-hash>/`, dynamically imports `src/server.js` from that mirror, and reports missing/ABI-mismatched packs with actionable non-stack diagnostics; focused dependency-light tests pass 3/3, full MCP tests pass 300/300, generated-artifact and runtime-pack verifiers pass, validate-skills passes, build remains unavailable because no package build script exists, and coverage fails only for new `bootstrap.js` branches carried into Unit 7c
 - 2026-06-15 04:44 Unit 7b cold reviewer gate converged: Raman the 2nd verified the dependency-light entrypoint, cache restore, source-mirror dynamic import, no-install/no-network behavior, no plugin mutation, actionable diagnostics, and evidence logs; Unit 7c started to bring `bootstrap.js` to 100% in-process coverage and harden edge cases
+- 2026-06-15 05:00 Unit 7c complete: `2628a99` hardens bootstrap verification against corrupt or incomplete runtime archives, embedded package metadata drift, bundled mutable source, unsafe tar paths, stale source mirrors, corrupt cache markers, and runtime cache path fallbacks; focused bootstrap tests pass 7/7, dependency-light entrypoint tests pass 3/3, full MCP tests pass 307/307, coverage is 100% line/branch/function for `bootstrap.js` and all changed production files, generated-artifact and runtime-pack verifiers pass, validate-skills passes, and build remains explicitly unavailable because no package build script exists
