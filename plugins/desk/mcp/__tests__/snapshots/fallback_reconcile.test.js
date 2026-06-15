@@ -19,6 +19,7 @@ import {
 import { ensureIndex } from "../../src/server-helpers.js"
 
 const SOURCE_SCOPE_HASH = `sha256:${"a".repeat(64)}`
+const STALE_SOURCE_SCOPE_HASH = `sha256:${"d".repeat(64)}`
 const CURRENT_DOCUMENT_TREE_HASH = `sha256:${"b".repeat(64)}`
 const STALE_DOCUMENT_TREE_HASH = `sha256:${"c".repeat(64)}`
 const DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
@@ -189,8 +190,9 @@ async function writeSnapshotFromDesk({
   sourceDeskRoot,
   documentTreeHash,
   manifestOverrides,
+  rebuildOpts = { skipEmbed: true },
 } = {}) {
-  await rebuildIndex(sourceDeskRoot, { skipEmbed: true })
+  await rebuildIndex(sourceDeskRoot, rebuildOpts)
   const db = openDb(sourceDeskRoot)
   try {
     db.pragma("wal_checkpoint(TRUNCATE)")
@@ -344,21 +346,36 @@ test("ensureIndex restores stale compatible snapshots then reconciles docs, refs
   const snapshotSourceRoot = await tmpRoot("desk-snapshot-reconcile-source-")
   const taskPath = "trackA/task-1/task.md"
   const planningPath = "trackA/task-1/planning.md"
+  const sentinelPath = "trackA/task-1/context.md"
   const staleTask = "---\nstatus: processing\n---\nstale snapshot task body"
   const stalePlanning = "---\n---\nstale planning body"
+  const unchangedSentinel = "---\n---\nunchanged sentinel vector body"
   const currentTask = "---\nstatus: processing\n---\ncurrent reconciled task body"
   const currentPlanning = "---\n---\ncurrent reconciled planning body"
 
   await writeFile(snapshotSourceRoot, taskPath, staleTask)
   await writeFile(snapshotSourceRoot, planningPath, stalePlanning)
+  await writeFile(snapshotSourceRoot, sentinelPath, unchangedSentinel)
   await writeSnapshotFromDesk({
     pluginRoot,
     snapshotId: "stale-compatible",
     sourceDeskRoot: snapshotSourceRoot,
     documentTreeHash: STALE_DOCUMENT_TREE_HASH,
+    manifestOverrides: {
+      artifact_source_scope_hash: STALE_SOURCE_SCOPE_HASH,
+    },
+    rebuildOpts: {
+      embed: {
+        fetch: async () => ({
+          ok: true,
+          json: async () => ({ embedding: vector(19) }),
+        }),
+      },
+    },
   })
   await writeFile(deskRoot, taskPath, currentTask)
   await writeFile(deskRoot, planningPath, currentPlanning)
+  await writeFile(deskRoot, sentinelPath, unchangedSentinel)
 
   const ensured = await ensureIndex(deskRoot, {
     snapshots: snapshotContext(pluginRoot),
@@ -367,6 +384,7 @@ test("ensureIndex restores stale compatible snapshots then reconciles docs, refs
 
   assert.ok(ensured.snapshot, "ensureIndex should report restored snapshot state")
   assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.snapshot.freshness.artifact_source_scope, "stale")
   assert.equal(ensured.snapshot.freshness.document_tree, "stale")
   assert.equal(ensured.snapshot.reconciled, true)
   assert.equal(ensured.reason, "stale_snapshot_reconciled")
@@ -379,7 +397,17 @@ test("ensureIndex restores stale compatible snapshots then reconciles docs, refs
       .get().text
     assert.match(text, /current reconciled task body/u)
     assert.match(text, /current reconciled planning body/u)
+    assert.match(text, /unchanged sentinel vector body/u)
     assert.doesNotMatch(text, /stale snapshot/u)
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM chunks_fts WHERE chunks_fts MATCH ?").get("current").count,
+      2,
+    )
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM chunks_fts WHERE chunks_fts MATCH ?").get("stale").count,
+      0,
+    )
+    assertVectorApprox(storedVector(db, sentinelPath, 0), vector(19))
     const refs = db
       .prepare(
         `SELECT ref_kind
