@@ -304,7 +304,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updated evidence rows, generated `plugins/desk/activation/support-matrix.json`, `plugins/desk/README.md`, and activation docs.  
 **Acceptance**: Unit 6a tests pass, the docs no longer leave the Ouroboros path out of the activation story, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
 
-### ⬜ Unit 6c: Ouroboros And Generic Stdio Packaging - Coverage & Refactor
+### 🔄 Unit 6c: Ouroboros And Generic Stdio Packaging - Coverage & Refactor
 **What**: Add edge-case tests for missing `$DESK` binding, missing bundle metadata, and generic stdio launch without host dependency support.  
 **Output**: Hardened Ouroboros/generic stdio validation.  
 **Acceptance**: 100% coverage on new validation code and all Ouroboros/generic stdio packaging tests pass.

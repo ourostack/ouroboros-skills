@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert"
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import { validateOuroborosStdioPackagingContract } from "../../src/activation/ouroboros-stdio-packaging.js"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -100,6 +101,32 @@ function markdownAnchor(title) {
     .replace(/&/gu, "and")
     .replace(/[^a-z0-9\s-]/gu, "")
     .replace(/\s+/gu, "-")
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function currentOuroborosStdioPackagingInput() {
+  const activationReadme = readText("plugins", "desk", "activation", "README.md")
+  return {
+    activationManifest: loadJson(...activationManifestPath.split("/")),
+    evidenceRows: normalizedEvidenceRows(),
+    ouroborosReadmeSection: sectionBetween(
+      readText("plugins", "desk", "README.md"),
+      "### Under Ouroboros",
+    ),
+    ouroborosActivationSection: sectionByAnchor(
+      activationReadme,
+      "ouroboros-autonomous-agent",
+    ),
+    genericStdioReadmeSection: sectionBetween(
+      readText("plugins", "desk", "mcp", "README.md"),
+      "## Generic stdio MCP launch",
+      "##",
+    ),
+    genericStdioActivationSection: sectionByAnchor(activationReadme, "generic-stdio"),
+  }
 }
 
 test("Ouroboros/autonomous-agent packaging has a flattened bundle disposition", () => {
@@ -232,4 +259,144 @@ test("generic stdio docs show explicit root binding and no default worker claim"
   assert.match(section, /MCP-only/u)
   assert.match(section, /no worker activation/u)
   assert.doesNotMatch(section, /desk:worker is activated by generic stdio/u)
+})
+
+test("Ouroboros/generic stdio packaging validation accepts current artifacts", () => {
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(currentOuroborosStdioPackagingInput()),
+    [],
+  )
+})
+
+test("Ouroboros packaging validation rejects missing bundle metadata and DESK binding", () => {
+  const missingBundleJson = clone(currentOuroborosStdioPackagingInput())
+  missingBundleJson.ouroborosReadmeSection =
+    missingBundleJson.ouroborosReadmeSection.replace("bundle.json", "agent-bundle.json")
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingBundleJson),
+    ["Ouroboros docs must define bundle.json plugin metadata"],
+  )
+
+  const missingDeskPlugin = clone(currentOuroborosStdioPackagingInput())
+  missingDeskPlugin.ouroborosReadmeSection =
+    missingDeskPlugin.ouroborosReadmeSection.replace("\"desk\"", "\"notes\"")
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingDeskPlugin),
+    ["Ouroboros bundle metadata must include desk plugin"],
+  )
+
+  const missingWorkSuitePlugin = clone(currentOuroborosStdioPackagingInput())
+  missingWorkSuitePlugin.ouroborosReadmeSection =
+    missingWorkSuitePlugin.ouroborosReadmeSection.replace("\"work-suite\"", "\"workflow\"")
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingWorkSuitePlugin),
+    ["Ouroboros bundle metadata must include work-suite plugin"],
+  )
+
+  const missingDeskBinding = clone(currentOuroborosStdioPackagingInput())
+  missingDeskBinding.ouroborosReadmeSection =
+    missingDeskBinding.ouroborosReadmeSection.replace(
+      "$DESK = ~/AgentBundles/<agent>.ouro/desk/",
+      "DESK is provided by the host",
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingDeskBinding),
+    ["Ouroboros preamble must bind $DESK to ~/AgentBundles/<agent>.ouro/desk/"],
+  )
+
+  const missingBundleSource = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    missingBundleSource.evidenceRows,
+    "host_id",
+    "ouroboros-autonomous-agent",
+    "test input",
+  ).source_paths = ["plugins/desk/README.md", "plugins/desk/activation/README.md"]
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingBundleSource),
+    ["Ouroboros evidence must reference bundle metadata sources"],
+  )
+})
+
+test("generic stdio packaging validation rejects unsafe or under-specified launches", () => {
+  const unsafeInlineBinding = clone(currentOuroborosStdioPackagingInput())
+  unsafeInlineBinding.genericStdioReadmeSection =
+    unsafeInlineBinding.genericStdioReadmeSection.replace(
+      "DESK=~/desk\nnode /path/to/plugins/desk/mcp/index.js --root \"$DESK\"",
+      "DESK=~/desk node /path/to/plugins/desk/mcp/index.js --root \"$DESK\"",
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(unsafeInlineBinding),
+    [
+      "Generic stdio launch docs must bind $DESK before invoking node",
+      "Generic stdio launch must not use inline DESK assignment with --root \"$DESK\"",
+    ],
+  )
+
+  const missingExplicitRoot = clone(currentOuroborosStdioPackagingInput())
+  missingExplicitRoot.genericStdioReadmeSection =
+    missingExplicitRoot.genericStdioReadmeSection.replaceAll("--root", "--desk-root")
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingExplicitRoot),
+    [
+      "Generic stdio launch docs must pass an explicit --root",
+      "Generic stdio launch docs must bind $DESK before invoking node",
+    ],
+  )
+
+  const workerClaim = clone(currentOuroborosStdioPackagingInput())
+  workerClaim.genericStdioReadmeSection += "\ndesk:worker is activated by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(workerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+})
+
+test("generic stdio packaging validation rejects host dependency support claims", () => {
+  const genericDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  const genericHost = findByField(
+    genericDependencyClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  genericHost.status = "supported"
+  genericHost.dependency_resolution = "flattened"
+  genericHost.capabilities = ["mcp", "agents"]
+  genericHost.unsupported_primitives = ["agent-defaults"]
+  genericHost.fallback_behavior = "start worker after resolving plugin dependencies"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(genericDependencyClaim),
+    [
+      "Generic stdio host support must be degraded",
+      "Generic stdio host support must use manual-host dependency resolution",
+      "Generic stdio host support must expose MCP only",
+      "Generic stdio host support must mark plugin-dependency-resolution unsupported",
+      "Generic stdio fallback must state no worker activation",
+    ],
+  )
+})
+
+test("Ouroboros/generic stdio packaging validation reports missing rows without crashing", () => {
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract({
+      activationManifest: {},
+      evidenceRows: [],
+      ouroborosReadmeSection: "",
+      genericStdioReadmeSection: "",
+    }),
+    [
+      "Ouroboros host support row is required",
+      "Ouroboros evidence row is required",
+      "Ouroboros docs must define bundle.json plugin metadata",
+      "Ouroboros bundle metadata must include desk plugin",
+      "Ouroboros bundle metadata must include work-suite plugin",
+      "Ouroboros preamble must bind $DESK to ~/AgentBundles/<agent>.ouro/desk/",
+      "Generic stdio host support row is required",
+      "Generic stdio evidence row is required",
+      "Generic stdio launch docs must pass an explicit --root",
+      "Generic stdio launch docs must bind $DESK before invoking node",
+      "Generic stdio docs must state MCP-only behavior",
+    ],
+  )
 })
