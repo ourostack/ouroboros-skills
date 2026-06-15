@@ -29,6 +29,7 @@ export function resolveDeskRoot(explicit, options = {}) {
 
 export function resolveDeskRootWithSource({
   activationConfigPath,
+  cwd = process.cwd(),
   env = process.env,
   explicitRoot,
   homeDir = os.homedir(),
@@ -38,7 +39,7 @@ export function resolveDeskRootWithSource({
 
   // 1. Explicit --root argument — if passed, this is authoritative.
   if (hasText(explicitRoot)) {
-    const resolved = path.resolve(expandHome(explicitRoot, homeDir))
+    const resolved = resolveRootPath(explicitRoot, { cwd, homeDir })
     tried.push({ source: "explicit-root", path: resolved })
     if (existsSync(resolved)) return { root: resolved, source: "explicit-root", tried }
     throw new Error(
@@ -48,15 +49,15 @@ export function resolveDeskRootWithSource({
   }
 
   if (hasText(hostSessionRoot)) {
-    const resolved = path.resolve(expandHome(hostSessionRoot, homeDir))
+    const resolved = resolveRootPath(hostSessionRoot, { cwd, homeDir })
     tried.push({ source: "host-session-root", path: resolved })
     if (existsSync(resolved)) return { root: resolved, source: "host-session-root", tried }
     throw new Error(`desk-mcp: host/session root path does not exist: ${resolved}.`)
   }
 
-  const activationConfig = loadActivationConfig({ configPath: activationConfigPath, homeDir })
+  const activationConfig = loadActivationConfig({ configPath: activationConfigPath, cwd, homeDir })
   if (activationConfig !== null) {
-    const resolved = path.resolve(expandHome(activationConfig.desk.root, homeDir))
+    const resolved = resolveRootPath(activationConfig.desk.root, { cwd, homeDir })
     tried.push({ source: "activation-config", path: resolved })
     if (existsSync(resolved)) return { root: resolved, source: "activation-config", tried }
     throw new Error(`desk-mcp: activation config desk.root path does not exist: ${resolved}.`)
@@ -64,7 +65,7 @@ export function resolveDeskRootWithSource({
 
   // $DESK env var.
   if (hasText(env.DESK)) {
-    const resolved = path.resolve(expandHome(env.DESK, homeDir))
+    const resolved = resolveRootPath(env.DESK, { cwd, homeDir })
     tried.push({ source: "env:DESK", path: resolved })
     if (existsSync(resolved)) return { root: resolved, source: "env:DESK", tried }
   }
@@ -91,12 +92,18 @@ export function resolveDeskRootWithSource({
   )
 }
 
-export function loadActivationConfig({ configPath, homeDir = os.homedir() } = {}) {
+export function loadActivationConfig({ configPath, cwd = process.cwd(), homeDir = os.homedir() } = {}) {
   if (!hasText(configPath)) return null
-  const resolvedPath = path.resolve(expandHome(configPath, homeDir))
+  const resolvedPath = resolveRootPath(configPath, { cwd, homeDir })
+  let raw
+  try {
+    raw = readFileSync(resolvedPath, "utf8")
+  } catch {
+    throw new Error(`desk-mcp: activation config ${resolvedPath} could not be read`)
+  }
   let parsed
   try {
-    parsed = JSON.parse(readFileSync(resolvedPath, "utf8"))
+    parsed = JSON.parse(raw)
   } catch {
     throw new Error(`desk-mcp: activation config ${resolvedPath} must be valid JSON`)
   }
@@ -117,6 +124,11 @@ export function expandHome(p, homeDir = os.homedir()) {
 
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0
+}
+
+function resolveRootPath(value, { cwd, homeDir }) {
+  const expanded = expandHome(value, homeDir)
+  return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(cwd, expanded))
 }
 
 function formatTriedEntry(entry) {

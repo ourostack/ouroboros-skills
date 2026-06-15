@@ -155,6 +155,18 @@ test("activation config loader validates schema and redacts malformed JSON conte
   const loadActivationConfig = requireFunction(pathsModule, "loadActivationConfig")
   const fixture = makeFixture()
   try {
+    assert.equal(loadActivationConfig(), null)
+
+    const missingConfigPath = path.join(fixture.root, "missing.activation-config.json")
+    assert.throws(
+      () => loadActivationConfig({ configPath: missingConfigPath }),
+      (err) => {
+        assert.match(err.message, /activation config .* could not be read/u)
+        assert.doesNotMatch(err.message, /must be valid JSON/u)
+        return true
+      },
+    )
+
     const invalidJsonPath = path.join(fixture.root, "invalid.activation-config.json")
     writeFileSync(invalidJsonPath, '{"desk":{"root":"SECRET-DESK-PATH"', "utf8")
     assert.throws(
@@ -187,6 +199,109 @@ test("activation config loader validates schema and redacts malformed JSON conte
     )
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("activation config roots support tilde and relative paths with injectable cwd", () => {
+  const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
+  const fixture = makeFixture()
+  try {
+    const tildeRoot = path.join(fixture.home, "tilde-desk")
+    mkdirSync(tildeRoot, { recursive: true })
+    writeActivationConfig(path.join(fixture.home, "tilde.activation-config.json"), "~/tilde-desk")
+    const tilde = resolveDeskRootWithSource({
+      activationConfigPath: "~/tilde.activation-config.json",
+      env: {},
+      homeDir: fixture.home,
+    })
+    assert.equal(tilde.root, tildeRoot)
+    assert.equal(tilde.source, "activation-config")
+
+    const relativeRoot = path.join(fixture.root, "relative-desk")
+    mkdirSync(relativeRoot, { recursive: true })
+    writeActivationConfig(path.join(fixture.root, "relative.activation-config.json"), "relative-desk")
+    const relative = resolveDeskRootWithSource({
+      activationConfigPath: "relative.activation-config.json",
+      cwd: fixture.root,
+      env: {},
+      homeDir: fixture.home,
+    })
+    assert.equal(relative.root, relativeRoot)
+    assert.equal(relative.source, "activation-config")
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("root resolver reports nonexistent explicit, host-session, and activation roots", () => {
+  const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
+  const fixture = makeFixture()
+  try {
+    const missingExplicit = path.join(fixture.root, "missing-explicit")
+    assert.throws(
+      () => resolveDeskRootWithSource({
+        explicitRoot: missingExplicit,
+        homeDir: fixture.home,
+      }),
+      new RegExp(`--root path does not exist: ${escapeRegExp(missingExplicit)}`, "u"),
+    )
+
+    const missingHostSession = path.join(fixture.root, "missing-host-session")
+    assert.throws(
+      () => resolveDeskRootWithSource({
+        hostSessionRoot: missingHostSession,
+        homeDir: fixture.home,
+      }),
+      new RegExp(`host/session root path does not exist: ${escapeRegExp(missingHostSession)}`, "u"),
+    )
+
+    const missingActivation = path.join(fixture.root, "missing-activation")
+    writeActivationConfig(fixture.configPath, missingActivation)
+    assert.throws(
+      () => resolveDeskRootWithSource({
+        activationConfigPath: fixture.configPath,
+        env: {},
+        homeDir: fixture.home,
+      }),
+      new RegExp(`activation config desk\\.root path does not exist: ${escapeRegExp(missingActivation)}`, "u"),
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("root resolver final diagnostic lists every fallback source attempted in order", () => {
+  const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
+  const root = mkdtempSync(path.join(tmpdir(), "desk-root-diagnostic-"))
+  try {
+    const emptyHome = path.join(root, "empty-home")
+    mkdirSync(emptyHome, { recursive: true })
+    const missingEnvDesk = path.join(root, "missing-env-desk")
+    assert.throws(
+      () => resolveDeskRootWithSource({
+        env: { DESK: missingEnvDesk },
+        homeDir: emptyHome,
+      }),
+      (err) => {
+        assert.match(err.message, /no desk workspace found/u)
+        const expected = [
+          `$DESK=${missingEnvDesk}`,
+          path.join(emptyHome, "ms-desk"),
+          path.join(emptyHome, "desk"),
+          path.join(emptyHome, "worker-workspace"),
+        ]
+        let cursor = -1
+        for (const item of expected) {
+          const next = err.message.indexOf(item)
+          assert.notEqual(next, -1, `${item} must appear in diagnostic`)
+          assert.ok(next > cursor, `${item} must appear after the previous attempted source`)
+          cursor = next
+        }
+        return true
+      },
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })
 
