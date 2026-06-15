@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 1.662833
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.315333
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 1.461708
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 4 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 0.49175
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 5 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.437917
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and uses an owned generated block
+ok 6 - Codex activation preserves user-authored config and uses an owned generated block
+  ---
+  duration_ms: 0.352958
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 7 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.47525
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 87.955334
