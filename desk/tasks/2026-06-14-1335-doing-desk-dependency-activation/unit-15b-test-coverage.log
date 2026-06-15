@@ -1,0 +1,2877 @@
+
+> @ourostack/desk-mcp@1.3.1 test:coverage
+> node scripts/run-coverage.js
+
+TAP version 13
+# Subtest: activation schema exports the supported version and required top-level fields
+ok 1 - activation schema exports the supported version and required top-level fields
+  ---
+  duration_ms: 2.808083
+  type: 'test'
+  ...
+# Subtest: valid activation manifests distinguish substrate dependencies from agent activations
+ok 2 - valid activation manifests distinguish substrate dependencies from agent activations
+  ---
+  duration_ms: 1.338875
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for unknown schema versions with actionable diagnostics
+ok 3 - activation validation fails closed for unknown schema versions with actionable diagnostics
+  ---
+  duration_ms: 0.393833
+  type: 'test'
+  ...
+# Subtest: activation dependencies require version intent, provenance, and lock data
+ok 4 - activation dependencies require version intent, provenance, and lock data
+  ---
+  duration_ms: 0.374209
+  type: 'test'
+  ...
+# Subtest: activation dependencies reject bad identity, semver, pins, and incompatible locks
+ok 5 - activation dependencies reject bad identity, semver, pins, and incompatible locks
+  ---
+  duration_ms: 0.722375
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for contract type and enum fields
+ok 6 - activation validation fails closed for contract type and enum fields
+  ---
+  duration_ms: 8.923583
+  type: 'test'
+  ...
+# Subtest: activation validation requires MCP, root, artifact, host, and permission policy fields
+ok 7 - activation validation requires MCP, root, artifact, host, and permission policy fields
+  ---
+  duration_ms: 0.781792
+  type: 'test'
+  ...
+# Subtest: dependency and activation ordering is deterministic
+ok 8 - dependency and activation ordering is deterministic
+  ---
+  duration_ms: 8.60375
+  type: 'test'
+  ...
+# Subtest: activation validation enforces desk:worker and overlay relationship integrity
+ok 9 - activation validation enforces desk:worker and overlay relationship integrity
+  ---
+  duration_ms: 0.599291
+  type: 'test'
+  ...
+# Subtest: activation validation reports defensive structural errors
+ok 10 - activation validation reports defensive structural errors
+  ---
+  duration_ms: 1.011792
+  type: 'test'
+  ...
+# Subtest: activation dependency ranges support caret, tilde, and exact pins deterministically
+ok 11 - activation dependency ranges support caret, tilde, and exact pins deterministically
+  ---
+  duration_ms: 0.602
+  type: 'test'
+  ...
+# Subtest: unsupported hosts produce host-native fallback diagnostics
+ok 12 - unsupported hosts produce host-native fallback diagnostics
+  ---
+  duration_ms: 0.315291
+  type: 'test'
+  ...
+# Subtest: canonical Desk activation manifest exists and validates
+ok 13 - canonical Desk activation manifest exists and validates
+  ---
+  duration_ms: 0.406292
+  type: 'test'
+  ...
+# Subtest: activation artifact ownership writes generated files and a ledger
+ok 14 - activation artifact ownership writes generated files and a ledger
+  ---
+  duration_ms: 7.867583
+  type: 'test'
+  ...
+# Subtest: activation artifact ownership replaces generated artifacts during upgrades
+ok 15 - activation artifact ownership replaces generated artifacts during upgrades
+  ---
+  duration_ms: 3.111459
+  type: 'test'
+  ...
+# Subtest: deactivation removes owned activation blocks while preserving user-authored config
+ok 16 - deactivation removes owned activation blocks while preserving user-authored config
+  ---
+  duration_ms: 2.739667
+  type: 'test'
+  ...
+# Subtest: deactivation uses ledger never-delete boundaries for desk data
+ok 17 - deactivation uses ledger never-delete boundaries for desk data
+  ---
+  duration_ms: 7.840959
+  type: 'test'
+  ...
+# Subtest: deactivation reports a missing ledger as an idempotent no-op
+ok 18 - deactivation reports a missing ledger as an idempotent no-op
+  ---
+  duration_ms: 0.998667
+  type: 'test'
+  ...
+# Subtest: deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+ok 19 - deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+  ---
+  duration_ms: 5.593625
+  type: 'test'
+  ...
+# Subtest: deactivation preserves user-edited generated artifacts and keeps the ledger
+ok 20 - deactivation preserves user-edited generated artifacts and keeps the ledger
+  ---
+  duration_ms: 2.288625
+  type: 'test'
+  ...
+# Subtest: deactivation is idempotent after a successful deactivate
+ok 21 - deactivation is idempotent after a successful deactivate
+  ---
+  duration_ms: 2.843458
+  type: 'test'
+  ...
+# Subtest: activation rolls back partial writes when an artifact cannot be written
+ok 22 - activation rolls back partial writes when an artifact cannot be written
+  ---
+  duration_ms: 3.609417
+  type: 'test'
+  ...
+# Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+ok 23 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+  ---
+  duration_ms: 1.933083
+  type: 'test'
+  ...
+# Subtest: Work Suite Claude manifest stays a strict-loadable skill provider
+ok 24 - Work Suite Claude manifest stays a strict-loadable skill provider
+  ---
+  duration_ms: 0.1415
+  type: 'test'
+  ...
+# Subtest: Claude worker agent is exposed without unsupported scoped permission fields
+ok 25 - Claude worker agent is exposed without unsupported scoped permission fields
+  ---
+  duration_ms: 0.638
+  type: 'test'
+  ...
+# Subtest: Claude activation metadata records Agent View and background-session disposition
+ok 26 - Claude activation metadata records Agent View and background-session disposition
+  ---
+  duration_ms: 0.443
+  type: 'test'
+  ...
+# Subtest: Claude packaging metadata is backed by fresh evidence and support matrix rows
+ok 27 - Claude packaging metadata is backed by fresh evidence and support matrix rows
+  ---
+  duration_ms: 0.934
+  type: 'test'
+  ...
+# Subtest: Claude packaging documents its permission and capability boundary
+ok 28 - Claude packaging documents its permission and capability boundary
+  ---
+  duration_ms: 0.164834
+  type: 'test'
+  ...
+# Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 29 - Claude hook and MCP configuration stay plugin-relative and non-manual
+  ---
+  duration_ms: 0.366208
+  type: 'test'
+  ...
+# Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 30 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+  ---
+  duration_ms: 0.408875
+  type: 'test'
+  ...
+# Subtest: Claude packaging validation rejects missing Work Suite dependency and stale versions
+ok 31 - Claude packaging validation rejects missing Work Suite dependency and stale versions
+  ---
+  duration_ms: 5.182833
+  type: 'test'
+  ...
+# Subtest: Claude packaging validation rejects missing worker exposure and unsupported Agent View assumptions
+ok 32 - Claude packaging validation rejects missing worker exposure and unsupported Agent View assumptions
+  ---
+  duration_ms: 2.955
+  type: 'test'
+  ...
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 33 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 2.006833
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 34 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.534
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 35 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 9.380625
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 36 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 0.59825
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 37 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.373917
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+ok 38 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 0.250834
+  type: 'test'
+  ...
+# Subtest: Codex activation materializes owned blocks into empty host files
+ok 39 - Codex activation materializes owned blocks into empty host files
+  ---
+  duration_ms: 0.253625
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces existing owned blocks and stays idempotent
+ok 40 - Codex activation replaces existing owned blocks and stays idempotent
+  ---
+  duration_ms: 1.652
+  type: 'test'
+  ...
+# Subtest: Codex activation upgrades older owned blocks without duplicating activation content
+ok 41 - Codex activation upgrades older owned blocks without duplicating activation content
+  ---
+  duration_ms: 0.497875
+  type: 'test'
+  ...
+# Subtest: Codex activation fails closed for malformed owned activation blocks
+ok 42 - Codex activation fails closed for malformed owned activation blocks
+  ---
+  duration_ms: 0.625834
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects duplicate owned activation blocks
+ok 43 - Codex activation rejects duplicate owned activation blocks
+  ---
+  duration_ms: 0.219042
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces an owned block at EOF without adding extra spacing
+ok 44 - Codex activation replaces an owned block at EOF without adding extra spacing
+  ---
+  duration_ms: 0.225
+  type: 'test'
+  ...
+# Subtest: Codex activation does not silently override user-authored disabled Desk config
+ok 45 - Codex activation does not silently override user-authored disabled Desk config
+  ---
+  duration_ms: 1.80275
+  type: 'test'
+  ...
+# Subtest: Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+ok 46 - Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+  ---
+  duration_ms: 0.424584
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 47 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.280542
+  type: 'test'
+  ...
+# Subtest: Codex activation applies generated artifacts through the ownership ledger
+ok 48 - Codex activation applies generated artifacts through the ownership ledger
+  ---
+  duration_ms: 4.143
+  type: 'test'
+  ...
+# Subtest: Codex global activation applies tilde artifacts under the host root ledger
+ok 49 - Codex global activation applies tilde artifacts under the host root ledger
+  ---
+  duration_ms: 4.912584
+  type: 'test'
+  ...
+# Subtest: Codex activation deactivates generated artifacts through the ownership ledger
+ok 50 - Codex activation deactivates generated artifacts through the ownership ledger
+  ---
+  duration_ms: 3.873708
+  type: 'test'
+  ...
+# Subtest: Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+ok 51 - Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+  ---
+  duration_ms: 13.762125
+  type: 'test'
+  ...
+# Subtest: Codex smoke replaces stale temp activation blocks while preserving temp user config
+ok 52 - Codex smoke replaces stale temp activation blocks while preserving temp user config
+  ---
+  duration_ms: 5.645792
+  type: 'test'
+  ...
+# Subtest: Codex smoke supports project-local activation without mutating global defaults
+ok 53 - Codex smoke supports project-local activation without mutating global defaults
+  ---
+  duration_ms: 4.212833
+  type: 'test'
+  ...
+# Subtest: Codex smoke treats manual-only as an opt-out and can clean temp profile files
+ok 54 - Codex smoke treats manual-only as an opt-out and can clean temp profile files
+  ---
+  duration_ms: 5.60425
+  type: 'test'
+  ...
+# Subtest: Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+ok 55 - Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+  ---
+  duration_ms: 9.851583
+  type: 'test'
+  ...
+# Subtest: Codex smoke rejects malformed output and desk_status proof failures
+ok 56 - Codex smoke rejects malformed output and desk_status proof failures
+  ---
+  duration_ms: 6.207083
+  type: 'test'
+  ...
+# Subtest: Codex smoke evidence records CLI proof and an exact Desktop App fallback
+ok 57 - Codex smoke evidence records CLI proof and an exact Desktop App fallback
+  ---
+  duration_ms: 0.902583
+  type: 'test'
+  ...
+# Subtest: Codex support matrix points at the smoke contract and evidence artifact
+ok 58 - Codex support matrix points at the smoke contract and evidence artifact
+  ---
+  duration_ms: 0.173625
+  type: 'test'
+  ...
+# wrote plugins/desk/activation/copilot-root.flattened-bundle.json
+# Subtest: Copilot root plugin metadata exposes Desk worker and MCP without manual registration
+ok 59 - Copilot root plugin metadata exposes Desk worker and MCP without manual registration
+  ---
+  duration_ms: 3.317375
+  type: 'test'
+  ...
+# Subtest: Work Suite root plugin metadata provides the flattened dependency provider
+ok 60 - Work Suite root plugin metadata provides the flattened dependency provider
+  ---
+  duration_ms: 1.3595
+  type: 'test'
+  ...
+# Subtest: Copilot root packaging declares a generated flattened dependency closure
+ok 61 - Copilot root packaging declares a generated flattened dependency closure
+  ---
+  duration_ms: 1.030666
+  type: 'test'
+  ...
+# Subtest: generated Copilot flattened bundle is fresh and package-scripted
+ok 62 - generated Copilot flattened bundle is fresh and package-scripted
+  ---
+  duration_ms: 2.063833
+  type: 'test'
+  ...
+# Subtest: Copilot root evidence and support matrix record flattened packaging as generated
+ok 63 - Copilot root evidence and support matrix record flattened packaging as generated
+  ---
+  duration_ms: 1.962125
+  type: 'test'
+  ...
+# Subtest: Copilot root package docs avoid healthy-path manual dependency setup
+ok 64 - Copilot root package docs avoid healthy-path manual dependency setup
+  ---
+  duration_ms: 0.23975
+  type: 'test'
+  ...
+# Subtest: Copilot packaging validation rejects missing root surfaces and stale versions
+ok 65 - Copilot packaging validation rejects missing root surfaces and stale versions
+  ---
+  duration_ms: 1.925125
+  type: 'test'
+  ...
+# Subtest: Copilot packaging validation rejects incomplete flattened dependency closure
+ok 66 - Copilot packaging validation rejects incomplete flattened dependency closure
+  ---
+  duration_ms: 3.330792
+  type: 'test'
+  ...
+# Subtest: Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+ok 67 - Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+  ---
+  duration_ms: 2.443916
+  type: 'test'
+  ...
+# Subtest: Ouroboros activation docs define the evidence anchor and disposition
+ok 68 - Ouroboros activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.626
+  type: 'test'
+  ...
+# Subtest: Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+ok 69 - Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+  ---
+  duration_ms: 3.293
+  type: 'test'
+  ...
+# Subtest: generic stdio support matrix records an MCP-only degraded disposition
+ok 70 - generic stdio support matrix records an MCP-only degraded disposition
+  ---
+  duration_ms: 0.384417
+  type: 'test'
+  ...
+# Subtest: generic stdio activation docs define the evidence anchor and disposition
+ok 71 - generic stdio activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.128208
+  type: 'test'
+  ...
+# Subtest: generic stdio docs show explicit root binding and no default worker claim
+ok 72 - generic stdio docs show explicit root binding and no default worker claim
+  ---
+  duration_ms: 0.21825
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation accepts current artifacts
+ok 73 - Ouroboros/generic stdio packaging validation accepts current artifacts
+  ---
+  duration_ms: 7.705917
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+ok 74 - Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+  ---
+  duration_ms: 38.067459
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects host-support drift and manual installs
+ok 75 - Ouroboros packaging validation rejects host-support drift and manual installs
+  ---
+  duration_ms: 1.481958
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects evidence row drift
+ok 76 - Ouroboros packaging validation rejects evidence row drift
+  ---
+  duration_ms: 12.986625
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects unsafe or under-specified launches
+ok 77 - generic stdio packaging validation rejects unsafe or under-specified launches
+  ---
+  duration_ms: 148.643666
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects identifier and support-verb claim variants
+ok 78 - generic stdio packaging validation rejects identifier and support-verb claim variants
+  ---
+  duration_ms: 73.193083
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation permits neither/nor negative support wording
+ok 79 - generic stdio packaging validation permits neither/nor negative support wording
+  ---
+  duration_ms: 28.975042
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects host dependency support claims
+ok 80 - generic stdio packaging validation rejects host dependency support claims
+  ---
+  duration_ms: 0.660458
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects fallback dependency support drift
+ok 81 - generic stdio packaging validation rejects fallback dependency support drift
+  ---
+  duration_ms: 1.151542
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects fallback worker activation drift
+ok 82 - generic stdio packaging validation rejects fallback worker activation drift
+  ---
+  duration_ms: 1.8545
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects evidence row support drift
+ok 83 - generic stdio packaging validation rejects evidence row support drift
+  ---
+  duration_ms: 1.364417
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects missing agent-defaults fallback marker
+ok 84 - generic stdio packaging validation rejects missing agent-defaults fallback marker
+  ---
+  duration_ms: 2.479625
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects malformed host support lists
+ok 85 - generic stdio packaging validation rejects malformed host support lists
+  ---
+  duration_ms: 1.738625
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation reports missing rows without crashing
+ok 86 - Ouroboros/generic stdio packaging validation reports missing rows without crashing
+  ---
+  duration_ms: 0.746375
+  type: 'test'
+  ...
+# wrote plugins/desk/activation/support-matrix.json
+# Subtest: host capability evidence declares required columns and host rows
+ok 87 - host capability evidence declares required columns and host rows
+  ---
+  duration_ms: 2.395458
+  type: 'test'
+  ...
+# Subtest: support matrix builder validates manifest host support against evidence
+ok 88 - support matrix builder validates manifest host support against evidence
+  ---
+  duration_ms: 1.561167
+  type: 'test'
+  ...
+# Subtest: support matrix validation reports evidence and freshness mismatches
+ok 89 - support matrix validation reports evidence and freshness mismatches
+  ---
+  duration_ms: 0.639375
+  type: 'test'
+  ...
+# Subtest: support matrix validation rejects host and primitive contract drift
+ok 90 - support matrix validation rejects host and primitive contract drift
+  ---
+  duration_ms: 0.358667
+  type: 'test'
+  ...
+# Subtest: generated support matrix artifact is fresh
+ok 91 - generated support matrix artifact is fresh
+  ---
+  duration_ms: 0.322875
+  type: 'test'
+  ...
+# Subtest: support matrix package script is wired to regenerate the artifact
+ok 92 - support matrix package script is wired to regenerate the artifact
+  ---
+  duration_ms: 2.77875
+  type: 'test'
+  ...
+# \# start of coverage report
+# \# --------------------------------------------------------------
+# \# file          | line % | branch % | funcs % | uncovered lines
+# \# --------------------------------------------------------------
+# \# plugins              |        |          |         |
+# \#  desk                |        |          |         |
+# \#   mcp                |        |          |         |
+# \#    scripts           |        |          |         |
+# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 |
+# \#    src               |        |          |         |
+# \#     coverage         |        |          |         |
+# \#      runner.js       | 100.00 |   100.00 |  100.00 |
+# \# --------------------------------------------------------------
+# \# all files     | 100.00 |   100.00 |  100.00 |
+# \# --------------------------------------------------------------
+# \# end of coverage report
+# [coverage-gate] passed for 2 changed production file(s)
+# Subtest: coverage gate reports a missing coverage report as a hard failure
+ok 93 - coverage gate reports a missing coverage report as a hard failure
+  ---
+  duration_ms: 4.300875
+  type: 'test'
+  ...
+# Subtest: coverage gate requires 100% coverage for new MCP entrypoints, source, MCP scripts, and root scripts
+ok 94 - coverage gate requires 100% coverage for new MCP entrypoints, source, MCP scripts, and root scripts
+  ---
+  duration_ms: 3.597083
+  type: 'test'
+  ...
+# Subtest: coverage gate fails when a required new file is absent from the report
+ok 95 - coverage gate fails when a required new file is absent from the report
+  ---
+  duration_ms: 0.924041
+  type: 'test'
+  ...
+# Subtest: coverage gate accepts relative report keys and flags missing metric blocks
+ok 96 - coverage gate accepts relative report keys and flags missing metric blocks
+  ---
+  duration_ms: 0.890167
+  type: 'test'
+  ...
+# Subtest: coverage exclusions require an explicit owner and reason
+ok 97 - coverage exclusions require an explicit owner and reason
+  ---
+  duration_ms: 3.933084
+  type: 'test'
+  ...
+# Subtest: coverage command parity rejects CI/local drift
+ok 98 - coverage command parity rejects CI/local drift
+  ---
+  duration_ms: 10.564083
+  type: 'test'
+  ...
+# Subtest: coverage runner discovers changed files from git state and falls back from origin/main to main
+ok 99 - coverage runner discovers changed files from git state and falls back from origin/main to main
+  ---
+  duration_ms: 8.397417
+  type: 'test'
+  ...
+# Subtest: coverage runner reports no merge-base diff when neither main ref resolves
+ok 100 - coverage runner reports no merge-base diff when neither main ref resolves
+  ---
+  duration_ms: 0.192917
+  type: 'test'
+  ...
+# Subtest: coverage runner invokes node coverage with include filters and child no-op environment
+ok 101 - coverage runner invokes node coverage with include filters and child no-op environment
+  ---
+  duration_ms: 0.250917
+  type: 'test'
+  ...
+# Subtest: coverage runner parses Node's tree coverage report
+ok 102 - coverage runner parses Node's tree coverage report
+  ---
+  duration_ms: 0.388083
+  type: 'test'
+  ...
+# Subtest: coverage runner returns child status, coverage failures, and success codes
+ok 103 - coverage runner returns child status, coverage failures, and success codes
+  ---
+  duration_ms: 9.105709
+  type: 'test'
+  ...
+# Subtest: coverage runner default wiring uses repo paths, temp files, and stdio
+ok 104 - coverage runner default wiring uses repo paths, temp files, and stdio
+  ---
+  duration_ms: 272.138167
+  type: 'test'
+  ...
+# Subtest: coverage runner no-ops when imported by the child coverage process
+ok 105 - coverage runner no-ops when imported by the child coverage process
+  ---
+  duration_ms: 0.642625
+  type: 'test'
+  ...
+# Subtest: coverage required-file discovery includes production targets and excludes tests
+ok 106 - coverage required-file discovery includes production targets and excludes tests
+  ---
+  duration_ms: 18.732208
+  type: 'test'
+  ...
+# Subtest: coverage runner exists and delegates to the coverage gate
+ok 107 - coverage runner exists and delegates to the coverage gate
+  ---
+  duration_ms: 0.341042
+  type: 'test'
+  ...
+# Subtest: Desk MCP package exposes the local test:coverage command contract
+ok 108 - Desk MCP package exposes the local test:coverage command contract
+  ---
+  duration_ms: 0.118458
+  type: 'test'
+  ...
+# Subtest: Desk MCP CI uses the same local coverage command
+ok 109 - Desk MCP CI uses the same local coverage command
+  ---
+  duration_ms: 0.097708
+  type: 'test'
+  ...
+# Subtest: openDb creates parent .state dir + applies schema idempotently
+ok 110 - openDb creates parent .state dir + applies schema idempotently
+  ---
+  duration_ms: 27.523625
+  type: 'test'
+  ...
+# Subtest: openDb installs all required tables (docs, chunks, refs_graph, meta)
+ok 111 - openDb installs all required tables (docs, chunks, refs_graph, meta)
+  ---
+  duration_ms: 6.071166
+  type: 'test'
+  ...
+# Subtest: schema exposes chunk key and embedding spec metadata surfaces
+ok 112 - schema exposes chunk key and embedding spec metadata surfaces
+  ---
+  duration_ms: 5.926292
+  type: 'test'
+  ...
+# Subtest: migrations upgrade older chunk tables with key and spec metadata columns
+ok 113 - migrations upgrade older chunk tables with key and spec metadata columns
+  ---
+  duration_ms: 14.122
+  type: 'test'
+  ...
+# Subtest: migrations upgrade older docs tables with archive metadata
+ok 114 - migrations upgrade older docs tables with archive metadata
+  ---
+  duration_ms: 10.647458
+  type: 'test'
+  ...
+# Subtest: FTS5 virtual table chunks_fts is queryable
+ok 115 - FTS5 virtual table chunks_fts is queryable
+  ---
+  duration_ms: 6.586875
+  type: 'test'
+  ...
+# Subtest: chunk_vecs vec0 virtual table accepts a 768-dim float vector
+ok 116 - chunk_vecs vec0 virtual table accepts a 768-dim float vector
+  ---
+  duration_ms: 28.01025
+  type: 'test'
+  ...
+# Subtest: insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+ok 117 - insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+  ---
+  duration_ms: 10.961167
+  type: 'test'
+  ...
+# Subtest: meta key set/get roundtrips
+ok 118 - meta key set/get roundtrips
+  ---
+  duration_ms: 6.577958
+  type: 'test'
+  ...
+# Subtest: empty / whitespace body yields zero chunks
+ok 119 - empty / whitespace body yields zero chunks
+  ---
+  duration_ms: 6.535625
+  type: 'test'
+  ...
+# Subtest: single paragraph doc → one chunk, no heading
+ok 120 - single paragraph doc → one chunk, no heading
+  ---
+  duration_ms: 0.246541
+  type: 'test'
+  ...
+# Subtest: H2-bounded doc splits into one chunk per section + preamble
+ok 121 - H2-bounded doc splits into one chunk per section + preamble
+  ---
+  duration_ms: 0.21975
+  type: 'test'
+  ...
+# Subtest: oversized section splits on paragraph boundary
+ok 122 - oversized section splits on paragraph boundary
+  ---
+  duration_ms: 0.146875
+  type: 'test'
+  ...
+# Subtest: code fence is never split mid-fence
+ok 123 - code fence is never split mid-fence
+  ---
+  duration_ms: 0.09125
+  type: 'test'
+  ...
+# Subtest: H2 lookalike inside code fence does not trigger split
+ok 124 - H2 lookalike inside code fence does not trigger split
+  ---
+  duration_ms: 0.090459
+  type: 'test'
+  ...
+# Subtest: active embedding spec is versioned, path-safe, and tied to chunker identity
+ok 125 - active embedding spec is versioned, path-safe, and tied to chunker identity
+  ---
+  duration_ms: 6.195208
+  type: 'test'
+  ...
+# Subtest: normalized text identity is stable across line endings and insignificant whitespace
+ok 126 - normalized text identity is stable across line endings and insignificant whitespace
+  ---
+  duration_ms: 0.617875
+  type: 'test'
+  ...
+# Subtest: chunk identity handles empty text and custom embedding specs
+ok 127 - chunk identity handles empty text and custom embedding specs
+  ---
+  duration_ms: 0.31625
+  type: 'test'
+  ...
+# Subtest: chunk keys are stable when unchanged text moves within a document
+ok 128 - chunk keys are stable when unchanged text moves within a document
+  ---
+  duration_ms: 0.395125
+  type: 'test'
+  ...
+# Subtest: heading and spec identity changes produce distinct chunk keys
+ok 129 - heading and spec identity changes produce distinct chunk keys
+  ---
+  duration_ms: 0.173083
+  type: 'test'
+  ...
+# Subtest: inactive embedding specs are rejected by spec identity helpers
+ok 130 - inactive embedding specs are rejected by spec identity helpers
+  ---
+  duration_ms: 0.128042
+  type: 'test'
+  ...
+# Subtest: discover picks up only the indexable shapes
+ok 131 - discover picks up only the indexable shapes
+  ---
+  duration_ms: 43.726917
+  type: 'test'
+  ...
+# Subtest: discover flags _archive docs with is_archived=true
+ok 132 - discover flags _archive docs with is_archived=true
+  ---
+  duration_ms: 62.962167
+  type: 'test'
+  ...
+# Subtest: discover classifies each doc correctly + extracts frontmatter
+ok 133 - discover classifies each doc correctly + extracts frontmatter
+  ---
+  duration_ms: 28.564875
+  type: 'test'
+  ...
+# Subtest: discover returns hash + mtime for dirty-detection
+ok 134 - discover returns hash + mtime for dirty-detection
+  ---
+  duration_ms: 24.643083
+  type: 'test'
+  ...
+# Subtest: isIndexable matches the intended set
+ok 135 - isIndexable matches the intended set
+  ---
+  duration_ms: 0.137167
+  type: 'test'
+  ...
+# Subtest: classify is purely path-driven
+ok 136 - classify is purely path-driven
+  ---
+  duration_ms: 0.14275
+  type: 'test'
+  ...
+# Subtest: embedChunk returns a 768-dim array on success
+ok 137 - embedChunk returns a 768-dim array on success
+  ---
+  duration_ms: 1.856875
+  type: 'test'
+  ...
+# Subtest: embedChunk returns null when Ollama refuses the connection
+ok 138 - embedChunk returns null when Ollama refuses the connection
+  ---
+  duration_ms: 0.286334
+  type: 'test'
+  ...
+# Subtest: embedChunk returns null on HTTP error (model not pulled, etc.)
+ok 139 - embedChunk returns null on HTTP error (model not pulled, etc.)
+  ---
+  duration_ms: 0.189792
+  type: 'test'
+  ...
+# Subtest: embedChunkDetailed reports endpoint/model diagnostics on failure
+ok 140 - embedChunkDetailed reports endpoint/model diagnostics on failure
+  ---
+  duration_ms: 0.116334
+  type: 'test'
+  ...
+# Subtest: embedChunk tries OLLAMA_HOST before default localhost fallbacks
+ok 141 - embedChunk tries OLLAMA_HOST before default localhost fallbacks
+  ---
+  duration_ms: 0.33
+  type: 'test'
+  ...
+# Subtest: embedding endpoint and model can be resolved from environment
+ok 142 - embedding endpoint and model can be resolved from environment
+  ---
+  duration_ms: 0.100875
+  type: 'test'
+  ...
+# Subtest: embedChunk returns null when embedding dimensionality is wrong
+ok 143 - embedChunk returns null when embedding dimensionality is wrong
+  ---
+  duration_ms: 0.1225
+  type: 'test'
+  ...
+# Subtest: embedChunks stops calling fetch after the first failure
+ok 144 - embedChunks stops calling fetch after the first failure
+  ---
+  duration_ms: 0.158041
+  type: 'test'
+  ...
+# Subtest: embedChunks happy path returns one vector per chunk
+ok 145 - embedChunks happy path returns one vector per chunk
+  ---
+  duration_ms: 0.289542
+  type: 'test'
+  ...
+# Subtest: empty desk → empty index
+ok 146 - empty desk → empty index
+  ---
+  duration_ms: 14.955416
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 147 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 69.669125
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 148 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 14.59975
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 149 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 17.596625
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+ok 150 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 16.998959
+  type: 'test'
+  ...
+# Subtest: unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+ok 151 - unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+  ---
+  duration_ms: 24.321542
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 152 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 124.675459
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 153 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 117.323584
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 154 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 13.921458
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 155 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 44.361083
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 156 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 41.27075
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 157 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 85.260125
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 158 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 14.731792
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+ok 159 - unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+  ---
+  duration_ms: 21.403834
+  type: 'test'
+  ...
+# Subtest: large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+ok 160 - large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+  ---
+  duration_ms: 14928.849125
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: large missing-vector batches append rows without spread argument overflow
+ok 161 - large missing-vector batches append rows without spread argument overflow
+  ---
+  duration_ms: 5733.167792
+  type: 'test'
+  ...
+# Subtest: classify strips desks/<alias>/ and reports the real track + slug
+ok 162 - classify strips desks/<alias>/ and reports the real track + slug
+  ---
+  duration_ms: 1.094542
+  type: 'test'
+  ...
+# Subtest: classify still works for the OFF (non-person) shape
+ok 163 - classify still works for the OFF (non-person) shape
+  ---
+  duration_ms: 0.115375
+  type: 'test'
+  ...
+# Subtest: classify attributes track-local friction under desks/<alias>/ correctly
+ok 164 - classify attributes track-local friction under desks/<alias>/ correctly
+  ---
+  duration_ms: 0.087042
+  type: 'test'
+  ...
+# Subtest: classify keeps cross-cutting friction under desks/<alias>/_meta/friction.md as friction
+ok 165 - classify keeps cross-cutting friction under desks/<alias>/_meta/friction.md as friction
+  ---
+  duration_ms: 0.068041
+  type: 'test'
+  ...
+# Subtest: classify keeps lessons under desks/<alias>/_meta/tips/<topic>.md as lesson
+ok 166 - classify keeps lessons under desks/<alias>/_meta/tips/<topic>.md as lesson
+  ---
+  duration_ms: 0.115917
+  type: 'test'
+  ...
+# Subtest: discover finds task docs across multiple persons' desks
+ok 167 - discover finds task docs across multiple persons' desks
+  ---
+  duration_ms: 40.286958
+  type: 'test'
+  ...
+# Subtest: discover still finds + attributes OFF-mode (top-level) task docs unchanged
+ok 168 - discover still finds + attributes OFF-mode (top-level) task docs unchanged
+  ---
+  duration_ms: 9.718417
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts arbitrary .md under _shared/landscape/
+ok 169 - isIndexable accepts arbitrary .md under _shared/landscape/
+  ---
+  duration_ms: 1.006167
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts .md under _shared/decisions/
+ok 170 - isIndexable accepts .md under _shared/decisions/
+  ---
+  duration_ms: 0.085209
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts nested .md under _shared/
+ok 171 - isIndexable accepts nested .md under _shared/
+  ---
+  duration_ms: 0.06225
+  type: 'test'
+  ...
+# Subtest: isIndexable still rejects non-md under _shared/
+ok 172 - isIndexable still rejects non-md under _shared/
+  ---
+  duration_ms: 0.095041
+  type: 'test'
+  ...
+# Subtest: classify reports a _shared/landscape doc as kind=shared
+ok 173 - classify reports a _shared/landscape doc as kind=shared
+  ---
+  duration_ms: 0.181583
+  type: 'test'
+  ...
+# Subtest: classify reports a _shared/decisions doc as kind=shared
+ok 174 - classify reports a _shared/decisions doc as kind=shared
+  ---
+  duration_ms: 0.059416
+  type: 'test'
+  ...
+# Subtest: discover finds _shared/landscape facts AND person desk tasks together
+ok 175 - discover finds _shared/landscape facts AND person desk tasks together
+  ---
+  duration_ms: 34.127875
+  type: 'test'
+  ...
+# Subtest: discover unchanged when no _shared/ dir present (single-desk)
+ok 176 - discover unchanged when no _shared/ dir present (single-desk)
+  ---
+  duration_ms: 39.995834
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction accepts semantically equivalent duplicate merge
+ok 177 - validateVectorPackCompaction accepts semantically equivalent duplicate merge
+  ---
+  duration_ms: 13.407625
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects missing rows and mutated vectors
+ok 178 - validateVectorPackCompaction rejects missing rows and mutated vectors
+  ---
+  duration_ms: 0.901708
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects invalid inputs and row metadata drift
+ok 179 - validateVectorPackCompaction rejects invalid inputs and row metadata drift
+  ---
+  duration_ms: 2.561958
+  type: 'test'
+  ...
+# Subtest: validateVectorPackCompaction rejects conflicting source duplicates
+ok 180 - validateVectorPackCompaction rejects conflicting source duplicates
+  ---
+  duration_ms: 0.273958
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation compares search scopes and refs graph snapshots
+ok 181 - validateCompactionPreservation compares search scopes and refs graph snapshots
+  ---
+  duration_ms: 0.375166
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation compares object search result rows by content
+ok 182 - validateCompactionPreservation compares object search result rows by content
+  ---
+  duration_ms: 0.231042
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
+ok 183 - validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
+  ---
+  duration_ms: 0.218458
+  type: 'test'
+  ...
+# Subtest: captureCompactionPreservationSnapshot captures archived docs and removed docs
+ok 184 - captureCompactionPreservationSnapshot captures archived docs and removed docs
+  ---
+  duration_ms: 94.877083
+  type: 'test'
+  ...
+# Subtest: captureCompactionPreservationSnapshot preserves duplicate chunk-key multiplicity
+ok 185 - captureCompactionPreservationSnapshot preserves duplicate chunk-key multiplicity
+  ---
+  duration_ms: 83.878958
+  type: 'test'
+  ...
+# Subtest: captureCompactionPreservationSnapshot catches refs graph recomputation
+ok 186 - captureCompactionPreservationSnapshot catches refs graph recomputation
+  ---
+  duration_ms: 133.85275
+  type: 'test'
+  ...
+# Subtest: desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+ok 187 - desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+  ---
+  duration_ms: 140.169042
+  type: 'test'
+  ...
+# Subtest: desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+ok 188 - desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+  ---
+  duration_ms: 112.549583
+  type: 'test'
+  ...
+# Subtest: vector pack paths are canonical, plugin-root relative, and spec-scoped
+ok 189 - vector pack paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.067459
+  type: 'test'
+  ...
+# Subtest: valid vector packs require adjacent manifest and checksum sidecars
+ok 190 - valid vector packs require adjacent manifest and checksum sidecars
+  ---
+  duration_ms: 64.99525
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+ok 191 - vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+  ---
+  duration_ms: 102.707292
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects unknown row fields before sensitive text can enter packs
+ok 192 - vector pack validation rejects unknown row fields before sensitive text can enter packs
+  ---
+  duration_ms: 9.827083
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects malformed manifests before import
+ok 193 - vector pack validation rejects malformed manifests before import
+  ---
+  duration_ms: 64.937375
+  type: 'test'
+  ...
+# Subtest: vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+ok 194 - vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+  ---
+  duration_ms: 119.077709
+  type: 'test'
+  ...
+# Subtest: vector pack import accepts empty active packs as no-op artifacts
+ok 195 - vector pack import accepts empty active packs as no-op artifacts
+  ---
+  duration_ms: 18.593791
+  type: 'test'
+  ...
+# Subtest: vector pack import deduplicates repeated chunk keys across packs after hash verification
+ok 196 - vector pack import deduplicates repeated chunk keys across packs after hash verification
+  ---
+  duration_ms: 94.380792
+  type: 'test'
+  ...
+# Subtest: vector pack import handles missing pack directories and missing local chunks safely
+ok 197 - vector pack import handles missing pack directories and missing local chunks safely
+  ---
+  duration_ms: 17.751458
+  type: 'test'
+  ...
+# Subtest: vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+ok 198 - vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+  ---
+  duration_ms: 19.328208
+  type: 'test'
+  ...
+# Subtest: vector pack import surfaces unexpected artifact directory failures
+ok 199 - vector pack import surfaces unexpected artifact directory failures
+  ---
+  duration_ms: 16.572208
+  type: 'test'
+  ...
+# Subtest: vector pack import verifies chunk text hashes against the local DB before inserting
+ok 200 - vector pack import verifies chunk text hashes against the local DB before inserting
+  ---
+  duration_ms: 16.218916
+  type: 'test'
+  ...
+# Subtest: vector pack import inserts vectors for every local chunk that shares a covered chunk key
+ok 201 - vector pack import inserts vectors for every local chunk that shares a covered chunk key
+  ---
+  duration_ms: 77.200084
+  type: 'test'
+  ...
+# Subtest: vector pack import rejects contradictory duplicate rows before deduplication
+ok 202 - vector pack import rejects contradictory duplicate rows before deduplication
+  ---
+  duration_ms: 139.143916
+  type: 'test'
+  ...
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 203 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 77.00325
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 204 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 78.546
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 205 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 129.97625
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+ok 206 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 104.903
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+ok 207 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 99.361542
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+ok 208 - ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+  ---
+  duration_ms: 23.080875
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves failed probe diagnostics when stale content is skipped
+ok 209 - ensureIndex preserves failed probe diagnostics when stale content is skipped
+  ---
+  duration_ms: 25.68925
+  type: 'test'
+  ...
+# Subtest: ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+ok 210 - ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+  ---
+  duration_ms: 82.625458
+  type: 'test'
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+ok 211 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 184.524667
+  type: 'test'
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 212 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 111.071125
+  type: 'test'
+  ...
+# Subtest: parseArgs captures activation config path without losing root or person
+ok 213 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 1.820584
+  type: 'test'
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+ok 214 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 3.5085
+  type: 'test'
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+ok 215 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 3.061667
+  type: 'test'
+  ...
+# Subtest: activation config roots support tilde and relative paths with injectable cwd
+ok 216 - activation config roots support tilde and relative paths with injectable cwd
+  ---
+  duration_ms: 3.35575
+  type: 'test'
+  ...
+# Subtest: root resolver reports nonexistent explicit, host-session, and activation roots
+ok 217 - root resolver reports nonexistent explicit, host-session, and activation roots
+  ---
+  duration_ms: 1.767833
+  type: 'test'
+  ...
+# Subtest: root resolver final diagnostic lists every fallback source attempted in order
+ok 218 - root resolver final diagnostic lists every fallback source attempted in order
+  ---
+  duration_ms: 0.852166
+  type: 'test'
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+ok 219 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 1.196416
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+ok 220 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 2.122875
+  type: 'test'
+  ...
+# Subtest: entrypoint startup runtime cache resolution uses activation config only
+ok 221 - entrypoint startup runtime cache resolution uses activation config only
+  ---
+  duration_ms: 2.242333
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution lets host/session root override activation config
+ok 222 - entrypoint startup root resolution lets host/session root override activation config
+  ---
+  duration_ms: 3.519292
+  type: 'test'
+  ...
+# Subtest: entrypoint main resolves startup root before launching injected runtime server
+ok 223 - entrypoint main resolves startup root before launching injected runtime server
+  ---
+  duration_ms: 1.803042
+  type: 'test'
+  ...
+# Subtest: entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+ok 224 - entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+  ---
+  duration_ms: 0.698416
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+ok 225 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 1243.074209
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup lets host/session root override activation config root
+ok 226 - entrypoint stdio startup lets host/session root override activation config root
+  ---
+  duration_ms: 1246.56575
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+ok 227 - entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+  ---
+  duration_ms: 1744.02125
+  type: 'test'
+  ...
+# Subtest: runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+ok 228 - runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+  ---
+  duration_ms: 11.012084
+  type: 'test'
+  ...
+# Subtest: prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+ok 229 - prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+  ---
+  duration_ms: 46.54025
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+ok 230 - restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+  ---
+  duration_ms: 16.71625
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+ok 231 - restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+  ---
+  duration_ms: 9.686292
+  type: 'test'
+  ...
+# Subtest: source hashing ignores nested node_modules and mirrors clean up staging directories
+ok 232 - source hashing ignores nested node_modules and mirrors clean up staging directories
+  ---
+  duration_ms: 20.349
+  type: 'test'
+  ...
+# Subtest: bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+ok 233 - bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+  ---
+  duration_ms: 80.935292
+  type: 'test'
+  ...
+# Subtest: extractRuntimeArchive handles tar name variants and rejects unsafe paths
+ok 234 - extractRuntimeArchive handles tar name variants and rejects unsafe paths
+  ---
+  duration_ms: 9.49425
+  type: 'test'
+  ...
+# Subtest: runtime pack diagnostics list expected paths, available targets, and remediation
+ok 235 - runtime pack diagnostics list expected paths, available targets, and remediation
+  ---
+  duration_ms: 19.519167
+  type: 'test'
+  ...
+# Subtest: runtime cache and host launch contract
+    # Subtest: resolves committed host manifest MCP references relative to the installed plugin root
+        # Subtest: desk plugin.json
+        ok 1 - desk plugin.json
+          ---
+          duration_ms: 1.04425
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 2 - codex plugin.json
+          ---
+          duration_ms: 1.108667
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 3 - claude plugin.json
+          ---
+          duration_ms: 0.183791
+          type: 'test'
+          ...
+        1..3
+    ok 1 - resolves committed host manifest MCP references relative to the installed plugin root
+      ---
+      duration_ms: 2.90725
+      type: 'test'
+      ...
+    # Subtest: committed MCP launch configs use plugin-scoped or explicitly cwd-scoped entrypoint args
+        # Subtest: desk .mcp.json
+        ok 1 - desk .mcp.json
+          ---
+          duration_ms: 0.297334
+          type: 'test'
+          ...
+        # Subtest: desk plugin.json
+        ok 2 - desk plugin.json
+          ---
+          duration_ms: 0.277625
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 3 - codex plugin.json
+          ---
+          duration_ms: 0.198625
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 4 - claude plugin.json
+          ---
+          duration_ms: 0.176083
+          type: 'test'
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 0.166541
+          type: 'test'
+          ...
+        1..5
+    ok 2 - committed MCP launch configs use plugin-scoped or explicitly cwd-scoped entrypoint args
+      ---
+      duration_ms: 1.577167
+      type: 'test'
+      ...
+    # Subtest: uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
+    ok 3 - uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
+      ---
+      duration_ms: 2292.797375
+      type: 'test'
+      ...
+    # Subtest: launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
+        # Subtest: desk .mcp.json
+        ok 1 - desk .mcp.json
+          ---
+          duration_ms: 1295.6725
+          type: 'test'
+          ...
+        # Subtest: desk plugin.json
+        ok 2 - desk plugin.json
+          ---
+          duration_ms: 787.810625
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 3 - codex plugin.json
+          ---
+          duration_ms: 623.944833
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 4 - claude plugin.json
+          ---
+          duration_ms: 599.933417
+          type: 'test'
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 583.488792
+          type: 'test'
+          ...
+        1..5
+    ok 4 - launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
+      ---
+      duration_ms: 4558.304333
+      type: 'test'
+      ...
+    # Subtest: repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
+    ok 5 - repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
+      ---
+      duration_ms: 1091.116458
+      type: 'test'
+      ...
+    # Subtest: repairs cached runtime dependencies when a required runtime file is missing despite current metadata
+    ok 6 - repairs cached runtime dependencies when a required runtime file is missing despite current metadata
+      ---
+      duration_ms: 1235.258708
+      type: 'test'
+      ...
+    1..6
+ok 236 - runtime cache and host launch contract
+  ---
+  duration_ms: 9182.812417
+  type: 'suite'
+  ...
+# Subtest: MCP entrypoint is dependency-light before bootstrap
+ok 237 - MCP entrypoint is dependency-light before bootstrap
+  ---
+  duration_ms: 202.764375
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+ok 238 - MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+  ---
+  duration_ms: 2179.905958
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint serves desk_status from the source mirror without session-start indexing
+ok 239 - MCP entrypoint serves desk_status from the source mirror without session-start indexing
+  ---
+  duration_ms: 1655.890458
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+ok 240 - MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+  ---
+  duration_ms: 235.698167
+  type: 'test'
+  ...
+# Subtest: production runtime dependency pack is committed at the current canonical path
+ok 241 - production runtime dependency pack is committed at the current canonical path
+  ---
+  duration_ms: 218.888167
+  type: 'test'
+  ...
+# Subtest: production runtime dependency pack manifest records freshness and dependency-only provenance
+ok 242 - production runtime dependency pack manifest records freshness and dependency-only provenance
+  ---
+  duration_ms: 7.442042
+  type: 'test'
+  ...
+# Subtest: generated artifact freshness script verifies the production runtime dependency pack
+ok 243 - generated artifact freshness script verifies the production runtime dependency pack
+  ---
+  duration_ms: 234.887084
+  type: 'test'
+  ...
+# Subtest: generated artifact verification uses explicit published targets instead of the verifier host
+ok 244 - generated artifact verification uses explicit published targets instead of the verifier host
+  ---
+  duration_ms: 127.393
+  type: 'test'
+  ...
+# Subtest: published runtime pack verifier rejects stale, unsafe, or fixture-only artifacts
+ok 245 - published runtime pack verifier rejects stale, unsafe, or fixture-only artifacts
+  ---
+  duration_ms: 996.017167
+  type: 'test'
+  ...
+# Subtest: CI checks committed generated artifacts before rebuilding runtime dependency packs
+ok 246 - CI checks committed generated artifacts before rebuilding runtime dependency packs
+  ---
+  duration_ms: 2.300625
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack artifact paths are deterministic and repo-relative
+ok 247 - runtime dependency pack artifact paths are deterministic and repo-relative
+  ---
+  duration_ms: 61.915708
+  type: 'test'
+  ...
+# Subtest: production dependency closure includes native packages and non-native transitive packages
+ok 248 - production dependency closure includes native packages and non-native transitive packages
+  ---
+  duration_ms: 7.299917
+  type: 'test'
+  ...
+# Subtest: production dependency closure fails closed for malformed lock inputs
+ok 249 - production dependency closure fails closed for malformed lock inputs
+  ---
+  duration_ms: 1.092584
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack manifest validates lock provenance and dependency-only shape
+ok 250 - runtime dependency pack manifest validates lock provenance and dependency-only shape
+  ---
+  duration_ms: 21.679167
+  type: 'test'
+  ...
+# Subtest: runtime dependency archive shape rejects server source and missing dependencies
+ok 251 - runtime dependency archive shape rejects server source and missing dependencies
+  ---
+  duration_ms: 1778.76425
+  type: 'test'
+  ...
+# Subtest: runtime dependency archive shape scans package runtime files defensively
+ok 252 - runtime dependency archive shape scans package runtime files defensively
+  ---
+  duration_ms: 15.050875
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack verification checks checksums and unsupported platforms
+ok 253 - runtime dependency pack verification checks checksums and unsupported platforms
+  ---
+  duration_ms: 4424.877584
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack verify CLI reports missing and corrupt artifacts cleanly
+ok 254 - runtime dependency pack verify CLI reports missing and corrupt artifacts cleanly
+  ---
+  duration_ms: 519.39475
+  type: 'test'
+  ...
+# Subtest: package declares CI/release scripts for runtime dependency packs
+ok 255 - package declares CI/release scripts for runtime dependency packs
+  ---
+  duration_ms: 2508.721125
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack builder handles long paths and CLI argument edge cases
+ok 256 - runtime dependency pack builder handles long paths and CLI argument edge cases
+  ---
+  duration_ms: 771.996625
+  type: 'test'
+  ...
+# Subtest: CI workflow verifies runtime dependency packs for release-maintained artifacts
+ok 257 - CI workflow verifies runtime dependency packs for release-maintained artifacts
+  ---
+  duration_ms: 2.093292
+  type: 'test'
+  ...
+# Subtest: server scaffolds all 14 expected tool names
+ok 258 - server scaffolds all 14 expected tool names
+  ---
+  duration_ms: 0.986167
+  type: 'test'
+  ...
+# Subtest: path resolver expands ~ and rejects nonexistent roots
+ok 259 - path resolver expands ~ and rejects nonexistent roots
+  ---
+  duration_ms: 1.104958
+  type: 'test'
+  ...
+# Subtest: path resolver — explicit --root wins over env + fallbacks
+ok 260 - path resolver — explicit --root wins over env + fallbacks
+  ---
+  duration_ms: 42.889084
+  type: 'test'
+  ...
+# Subtest: path resolver — $DESK env var used when --root absent
+ok 261 - path resolver — $DESK env var used when --root absent
+  ---
+  duration_ms: 8.620042
+  type: 'test'
+  ...
+# Subtest: path resolver — falls through $HOME canonical locations when env unset
+ok 262 - path resolver — falls through $HOME canonical locations when env unset
+  ---
+  duration_ms: 1.718291
+  type: 'test'
+  ...
+# Subtest: path resolver — prefers ms-desk over desk over worker-workspace
+ok 263 - path resolver — prefers ms-desk over desk over worker-workspace
+  ---
+  duration_ms: 1.624375
+  type: 'test'
+  ...
+# Subtest: path resolver — falls back to worker-workspace as last resort
+ok 264 - path resolver — falls back to worker-workspace as last resort
+  ---
+  duration_ms: 2.258417
+  type: 'test'
+  ...
+# Subtest: path resolver — fatal error lists every path tried
+ok 265 - path resolver — fatal error lists every path tried
+  ---
+  duration_ms: 2.972834
+  type: 'test'
+  ...
+# Subtest: snapshot paths are canonical, plugin-root relative, and spec-scoped
+ok 266 - snapshot paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.285833
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts require manifest fields and checksum sidecars
+ok 267 - valid snapshot artifacts require manifest fields and checksum sidecars
+  ---
+  duration_ms: 18.746959
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts infer sidecars and compare nested manifest metadata
+ok 268 - valid snapshot artifacts infer sidecars and compare nested manifest metadata
+  ---
+  duration_ms: 10.782708
+  type: 'test'
+  ...
+# Subtest: manifest source/document hash mismatch is freshness, not compatibility failure
+ok 269 - manifest source/document hash mismatch is freshness, not compatibility failure
+  ---
+  duration_ms: 0.352
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects compatibility and provenance drift
+ok 270 - snapshot manifest rejects compatibility and provenance drift
+  ---
+  duration_ms: 0.543083
+  type: 'test'
+  ...
+# Subtest: snapshot manifests reject absolute, traversal, and unexpected source paths
+ok 271 - snapshot manifests reject absolute, traversal, and unexpected source paths
+  ---
+  duration_ms: 0.394875
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects checksum mismatch
+ok 272 - snapshot artifact validation rejects checksum mismatch
+  ---
+  duration_ms: 10.186083
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects manifest and snapshot filename drift
+ok 273 - snapshot artifact validation rejects manifest and snapshot filename drift
+  ---
+  duration_ms: 7.967792
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation preserves non-missing filesystem errors
+ok 274 - snapshot artifact validation preserves non-missing filesystem errors
+  ---
+  duration_ms: 7.376125
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects missing and malformed sidecars
+ok 275 - snapshot artifact validation rejects missing and malformed sidecars
+  ---
+  duration_ms: 12.746208
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects missing expected compatibility context and defensive shapes
+ok 276 - snapshot manifest rejects missing expected compatibility context and defensive shapes
+  ---
+  duration_ms: 0.621042
+  type: 'test'
+  ...
+# Subtest: friction_add (no track) writes to _meta/friction.md
+ok 277 - friction_add (no track) writes to _meta/friction.md
+  ---
+  duration_ms: 7.278334
+  type: 'test'
+  ...
+# Subtest: friction_add (with track) writes to <track>/_friction/<date>-<theme>.md
+ok 278 - friction_add (with track) writes to <track>/_friction/<date>-<theme>.md
+  ---
+  duration_ms: 5.295333
+  type: 'test'
+  ...
+# Subtest: friction_add appends with a separator on the second call
+ok 279 - friction_add appends with a separator on the second call
+  ---
+  duration_ms: 5.154583
+  type: 'test'
+  ...
+# Subtest: friction_add defaults theme to 'untitled' if missing
+ok 280 - friction_add defaults theme to 'untitled' if missing
+  ---
+  duration_ms: 4.359333
+  type: 'test'
+  ...
+# Subtest: friction_add requires a body
+ok 281 - friction_add requires a body
+  ---
+  duration_ms: 0.767208
+  type: 'test'
+  ...
+# Subtest: lesson_add creates _meta/tips/<topic-slug>.md with header on first write
+ok 282 - lesson_add creates _meta/tips/<topic-slug>.md with header on first write
+  ---
+  duration_ms: 20.158417
+  type: 'test'
+  ...
+# Subtest: lesson_add appends an `\#\# Update <date>` section when file exists
+ok 283 - lesson_add appends an `\#\# Update <date>` section when file exists
+  ---
+  duration_ms: 7.754791
+  type: 'test'
+  ...
+# Subtest: lesson_add rejects empty topic or body
+ok 284 - lesson_add rejects empty topic or body
+  ---
+  duration_ms: 2.574708
+  type: 'test'
+  ...
+# Subtest: parseArgs reads --person <alias> into args.person
+ok 285 - parseArgs reads --person <alias> into args.person
+  ---
+  duration_ms: 1.032167
+  type: 'test'
+  ...
+# Subtest: parseArgs defaults person to null when --person absent
+ok 286 - parseArgs defaults person to null when --person absent
+  ---
+  duration_ms: 0.148875
+  type: 'test'
+  ...
+# Subtest: parseArgs ignores --person with no value (trailing flag)
+ok 287 - parseArgs ignores --person with no value (trailing flag)
+  ---
+  duration_ms: 0.065167
+  type: 'test'
+  ...
+# Subtest: parseArgs accepts --person before --root (order-independent)
+ok 288 - parseArgs accepts --person before --root (order-independent)
+  ---
+  duration_ms: 0.05125
+  type: 'test'
+  ...
+# Subtest: callTool forwards `person` to the tool impl alongside deskRoot+input
+ok 289 - callTool forwards `person` to the tool impl alongside deskRoot+input
+  ---
+  duration_ms: 7.684333
+  type: 'test'
+  ...
+# Subtest: callTool forwards person:null when no person passed (default-OFF transport)
+ok 290 - callTool forwards person:null when no person passed (default-OFF transport)
+  ---
+  duration_ms: 0.655333
+  type: 'test'
+  ...
+# Subtest: task_create person:ari → desks/ari/<track>/<slug>/task.md
+ok 291 - task_create person:ari → desks/ari/<track>/<slug>/task.md
+  ---
+  duration_ms: 14.75725
+  type: 'test'
+  ...
+# Subtest: task_create person:null → byte-identical top-level path (OFF)
+ok 292 - task_create person:null → byte-identical top-level path (OFF)
+  ---
+  duration_ms: 1.257167
+  type: 'test'
+  ...
+# Subtest: task_create omitted person behaves exactly like person:null
+ok 293 - task_create omitted person behaves exactly like person:null
+  ---
+  duration_ms: 1.4265
+  type: 'test'
+  ...
+# Subtest: task_update under person:ari finds + rewrites the person-scoped task
+ok 294 - task_update under person:ari finds + rewrites the person-scoped task
+  ---
+  duration_ms: 6.281375
+  type: 'test'
+  ...
+# Subtest: task_archive person:ari → desks/ari/<track>/_archive/<slug>/
+ok 295 - task_archive person:ari → desks/ari/<track>/_archive/<slug>/
+  ---
+  duration_ms: 5.871125
+  type: 'test'
+  ...
+# Subtest: track_create person:ari → desks/ari/<slug>/track.md
+ok 296 - track_create person:ari → desks/ari/<slug>/track.md
+  ---
+  duration_ms: 1.520208
+  type: 'test'
+  ...
+# Subtest: track_create person:null → byte-identical top-level (OFF)
+ok 297 - track_create person:null → byte-identical top-level (OFF)
+  ---
+  duration_ms: 0.987916
+  type: 'test'
+  ...
+# Subtest: track_update under person:ari rewrites the person-scoped track
+ok 298 - track_update under person:ari rewrites the person-scoped track
+  ---
+  duration_ms: 2.79175
+  type: 'test'
+  ...
+# Subtest: friction_add track-local person:ari → desks/ari/<track>/_friction/...
+ok 299 - friction_add track-local person:ari → desks/ari/<track>/_friction/...
+  ---
+  duration_ms: 1.720917
+  type: 'test'
+  ...
+# Subtest: friction_add cross-cutting person:ari → desks/ari/_meta/friction.md
+ok 300 - friction_add cross-cutting person:ari → desks/ari/_meta/friction.md
+  ---
+  duration_ms: 1.3345
+  type: 'test'
+  ...
+# Subtest: friction_add cross-cutting person:null → byte-identical _meta/friction.md (OFF)
+ok 301 - friction_add cross-cutting person:null → byte-identical _meta/friction.md (OFF)
+  ---
+  duration_ms: 1.110791
+  type: 'test'
+  ...
+# Subtest: lesson_add person:ari → desks/ari/_meta/tips/<topic>.md
+ok 302 - lesson_add person:ari → desks/ari/_meta/tips/<topic>.md
+  ---
+  duration_ms: 3.886875
+  type: 'test'
+  ...
+# Subtest: lesson_add person:null → byte-identical _meta/tips/<topic>.md (OFF)
+ok 303 - lesson_add person:null → byte-identical _meta/tips/<topic>.md (OFF)
+  ---
+  duration_ms: 3.436208
+  type: 'test'
+  ...
+# Subtest: empty-string person is OFF (top-level path)
+ok 304 - empty-string person is OFF (top-level path)
+  ---
+  duration_ms: 23.33125
+  type: 'test'
+  ...
+# Subtest: whitespace-only person is OFF (top-level path)
+ok 305 - whitespace-only person is OFF (top-level path)
+  ---
+  duration_ms: 4.070292
+  type: 'test'
+  ...
+# Subtest: task_create rejects a path-traversal alias
+ok 306 - task_create rejects a path-traversal alias
+  ---
+  duration_ms: 2.626209
+  type: 'test'
+  ...
+# Subtest: track_create rejects a slash in the alias
+ok 307 - track_create rejects a slash in the alias
+  ---
+  duration_ms: 1.78225
+  type: 'test'
+  ...
+# Subtest: friction_add rejects a path-traversal alias
+ok 308 - friction_add rejects a path-traversal alias
+  ---
+  duration_ms: 3.011917
+  type: 'test'
+  ...
+# Subtest: lesson_add rejects a backslash in the alias
+ok 309 - lesson_add rejects a backslash in the alias
+  ---
+  duration_ms: 0.904917
+  type: 'test'
+  ...
+# Subtest: task_archive rejects a path-traversal alias
+ok 310 - task_archive rejects a path-traversal alias
+  ---
+  duration_ms: 2.167875
+  type: 'test'
+  ...
+# Subtest: desk_recall — happy path returns semantic matches
+ok 311 - desk_recall — happy path returns semantic matches
+  ---
+  duration_ms: 106.284209
+  type: 'test'
+  ...
+# Subtest: desk_recall — Ollama-down returns semantic_unavailable error
+ok 312 - desk_recall — Ollama-down returns semantic_unavailable error
+  ---
+  duration_ms: 80.817792
+  type: 'test'
+  ...
+# Subtest: desk_recall — empty topic returns empty results
+ok 313 - desk_recall — empty topic returns empty results
+  ---
+  duration_ms: 10.12925
+  type: 'test'
+  ...
+# Subtest: desk_recall — default embed options use global fetch
+ok 314 - desk_recall — default embed options use global fetch
+  ---
+  duration_ms: 106.608375
+  type: 'test'
+  ...
+# Subtest: desk_recall — scope can restrict archived history
+ok 315 - desk_recall — scope can restrict archived history
+  ---
+  duration_ms: 77.33625
+  type: 'test'
+  ...
+# Subtest: desk_recall — limit is honoured
+ok 316 - desk_recall — limit is honoured
+  ---
+  duration_ms: 129.280291
+  type: 'test'
+  ...
+# Subtest: desk_recall — dedupes by doc_id (one entry per doc)
+ok 317 - desk_recall — dedupes by doc_id (one entry per doc)
+  ---
+  duration_ms: 81.355625
+  type: 'test'
+  ...
+# Subtest: desk_reindex — empty bundle returns ok with built=true and zero docs
+ok 318 - desk_reindex — empty bundle returns ok with built=true and zero docs
+  ---
+  duration_ms: 24.871125
+  type: 'test'
+  ...
+# Subtest: desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+ok 319 - desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+  ---
+  duration_ms: 31.246583
+  type: 'test'
+  ...
+# Subtest: desk_reindex — second call without force returns built=false reason=fresh
+ok 320 - desk_reindex — second call without force returns built=false reason=fresh
+  ---
+  duration_ms: 21.388084
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+ok 321 - desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+  ---
+  duration_ms: 116.830792
+  type: 'test'
+  ...
+# Subtest: desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+ok 322 - desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+  ---
+  duration_ms: 120.661583
+  type: 'test'
+  ...
+# Subtest: desk_reindex — stale lexical-only indexes repair through default embedding options
+ok 323 - desk_reindex — stale lexical-only indexes repair through default embedding options
+  ---
+  duration_ms: 98.294542
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true drops the DB and rebuilds from scratch
+ok 324 - desk_reindex — force:true drops the DB and rebuilds from scratch
+  ---
+  duration_ms: 35.778167
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true on a fresh root with no DB still succeeds
+ok 325 - desk_reindex — force:true on a fresh root with no DB still succeeds
+  ---
+  duration_ms: 12.593625
+  type: 'test'
+  ...
+# Subtest: search internals cover defensive helper branches
+ok 326 - search internals cover defensive helper branches
+  ---
+  duration_ms: 22.191167
+  type: 'test'
+  ...
+# Subtest: desk_search — happy path returns ranked results with score_breakdown
+ok 327 - desk_search — happy path returns ranked results with score_breakdown
+  ---
+  duration_ms: 155.864792
+  type: 'test'
+  ...
+# Subtest: desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailable=true
+ok 328 - desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailable=true
+  ---
+  duration_ms: 101.087375
+  type: 'test'
+  ...
+# Subtest: desk_search — empty or missing query returns before indexing
+ok 329 - desk_search — empty or missing query returns before indexing
+  ---
+  duration_ms: 0.792292
+  type: 'test'
+  ...
+# Subtest: desk_search — lexical no-match returns empty results with unavailable semantic note
+ok 330 - desk_search — lexical no-match returns empty results with unavailable semantic note
+  ---
+  duration_ms: 114.558417
+  type: 'test'
+  ...
+# Subtest: desk_search — single-character query uses semantic candidates without FTS
+ok 331 - desk_search — single-character query uses semantic candidates without FTS
+  ---
+  duration_ms: 78.742375
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_search — repairs a fresh lexical-only index when embeddings are available
+ok 332 - desk_search — repairs a fresh lexical-only index when embeddings are available
+  ---
+  duration_ms: 71.101042
+  type: 'test'
+  ...
+# Subtest: desk_search — default embed options use global fetch
+ok 333 - desk_search — default embed options use global fetch
+  ---
+  duration_ms: 90.804584
+  type: 'test'
+  ...
+# Subtest: desk_search — default active scope skips archived semantic candidates
+ok 334 - desk_search — default active scope skips archived semantic candidates
+  ---
+  duration_ms: 114.0195
+  type: 'test'
+  ...
+# Subtest: desk_search — track filter narrows to one track
+ok 335 - desk_search — track filter narrows to one track
+  ---
+  duration_ms: 123.432708
+  type: 'test'
+  ...
+# Subtest: desk_search — invalid and empty filters behave as no-ops
+ok 336 - desk_search — invalid and empty filters behave as no-ops
+  ---
+  duration_ms: 148.282959
+  type: 'test'
+  ...
+# Subtest: desk_search — track array filter excludes semantic candidates outside the set
+ok 337 - desk_search — track array filter excludes semantic candidates outside the set
+  ---
+  duration_ms: 91.990041
+  type: 'test'
+  ...
+# Subtest: desk_search — status filter (single value)
+ok 338 - desk_search — status filter (single value)
+  ---
+  duration_ms: 45.771833
+  type: 'test'
+  ...
+# Subtest: desk_search — status filter (array of values)
+ok 339 - desk_search — status filter (array of values)
+  ---
+  duration_ms: 46.358208
+  type: 'test'
+  ...
+# Subtest: desk_search — kind filter narrows by doc kind
+ok 340 - desk_search — kind filter narrows by doc kind
+  ---
+  duration_ms: 73.339792
+  type: 'test'
+  ...
+# Subtest: desk_search — kind array filter narrows by doc kind
+ok 341 - desk_search — kind array filter narrows by doc kind
+  ---
+  duration_ms: 150.538542
+  type: 'test'
+  ...
+# Subtest: desk_search — since filter excludes older docs
+ok 342 - desk_search — since filter excludes older docs
+  ---
+  duration_ms: 126.765042
+  type: 'test'
+  ...
+# Subtest: desk_search — until filter excludes newer docs
+ok 343 - desk_search — until filter excludes newer docs
+  ---
+  duration_ms: 106.161917
+  type: 'test'
+  ...
+# Subtest: desk_search — limit is clamped to [1, 50]
+ok 344 - desk_search — limit is clamped to [1, 50]
+  ---
+  duration_ms: 139.890208
+  type: 'test'
+  ...
+# Subtest: desk_search — state_bias raises active-status docs above terminal-status docs
+ok 345 - desk_search — state_bias raises active-status docs above terminal-status docs
+  ---
+  duration_ms: 138.484833
+  type: 'test'
+  ...
+# Subtest: desk_search — empty query returns empty results
+ok 346 - desk_search — empty query returns empty results
+  ---
+  duration_ms: 81.396333
+  type: 'test'
+  ...
+# Subtest: desk_search — long snippets center around query terms
+ok 347 - desk_search — long snippets center around query terms
+  ---
+  duration_ms: 62.702542
+  type: 'test'
+  ...
+# Subtest: desk_search — long semantic-only snippets fall back when query term is absent
+ok 348 - desk_search — long semantic-only snippets fall back when query term is absent
+  ---
+  duration_ms: 68.318167
+  type: 'test'
+  ...
+# Subtest: desk_search — long snippets handle start and end query-term boundaries
+ok 349 - desk_search — long snippets handle start and end query-term boundaries
+  ---
+  duration_ms: 134.458209
+  type: 'test'
+  ...
+# Subtest: desk_search — active-iteration pin adds the +0.30 bonus
+ok 350 - desk_search — active-iteration pin adds the +0.30 bonus
+  ---
+  duration_ms: 83.89375
+  type: 'test'
+  ...
+# Subtest: desk_search — ignores malformed featured task frontmatter when pinning
+ok 351 - desk_search — ignores malformed featured task frontmatter when pinning
+  ---
+  duration_ms: 78.117666
+  type: 'test'
+  ...
+# Subtest: desk_search — ignores blank featured track and no-op iteration histories
+ok 352 - desk_search — ignores blank featured track and no-op iteration histories
+  ---
+  duration_ms: 188.88625
+  type: 'test'
+  ...
+# Subtest: desk_search — propagates unexpected featured-track read errors
+ok 353 - desk_search — propagates unexpected featured-track read errors
+  ---
+  duration_ms: 81.891458
+  type: 'test'
+  ...
+# Subtest: server.callTool routes task_create to the real implementation
+ok 354 - server.callTool routes task_create to the real implementation
+  ---
+  duration_ms: 14.07625
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with structured body
+ok 355 - server.callTool surfaces tool errors as isError with structured body
+  ---
+  duration_ms: 2.348041
+  type: 'test'
+  ...
+# Subtest: server.callTool routes desk_thread to the real implementation
+ok 356 - server.callTool routes desk_thread to the real implementation
+  ---
+  duration_ms: 12.647458
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names
+ok 357 - server.callTool rejects unknown tool names
+  ---
+  duration_ms: 1.929042
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names even with person set
+ok 358 - server.callTool rejects unknown tool names even with person set
+  ---
+  duration_ms: 0.778375
+  type: 'test'
+  ...
+# Subtest: server.callTool reports registered tools missing from the implementation table
+ok 359 - server.callTool reports registered tools missing from the implementation table
+  ---
+  duration_ms: 0.679542
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with person set
+ok 360 - server.callTool surfaces tool errors as isError with person set
+  ---
+  duration_ms: 0.950417
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces non-Error throws as string messages
+ok 361 - server.callTool surfaces non-Error throws as string messages
+  ---
+  duration_ms: 1.077833
+  type: 'test'
+  ...
+# Subtest: server.callTool defaults omitted input to an empty object
+ok 362 - server.callTool defaults omitted input to an empty object
+  ---
+  duration_ms: 2.08775
+  type: 'test'
+  ...
+# Subtest: server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+ok 363 - server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+  ---
+  duration_ms: 3.937083
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces an invalid-alias throw as isError
+ok 364 - server.callTool surfaces an invalid-alias throw as isError
+  ---
+  duration_ms: 0.877416
+  type: 'test'
+  ...
+# Subtest: server.startServer registers list/call handlers and forwards status context
+ok 365 - server.startServer registers list/call handlers and forwards status context
+  ---
+  duration_ms: 1.492791
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct its default transport
+ok 366 - server.startServer can construct its default transport
+  ---
+  duration_ms: 1.370625
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct server and transport through injected factories
+ok 367 - server.startServer can construct server and transport through injected factories
+  ---
+  duration_ms: 2.88775
+  type: 'test'
+  ...
+# Subtest: server MCP factory helpers construct default SDK instances
+ok 368 - server MCP factory helpers construct default SDK instances
+  ---
+  duration_ms: 4.898542
+  type: 'test'
+  ...
+# Subtest: desk_similar — happy path returns docs near the seed centroid
+ok 369 - desk_similar — happy path returns docs near the seed centroid
+  ---
+  duration_ms: 141.656916
+  type: 'test'
+  ...
+# Subtest: desk_similar — nonexistent path → not_found error
+ok 370 - desk_similar — nonexistent path → not_found error
+  ---
+  duration_ms: 93.388125
+  type: 'test'
+  ...
+# Subtest: desk_similar — missing path arg → invalid_input error
+ok 371 - desk_similar — missing path arg → invalid_input error
+  ---
+  duration_ms: 13.2005
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_similar — seed without embeddings returns semantic_unavailable
+ok 372 - desk_similar — seed without embeddings returns semantic_unavailable
+  ---
+  duration_ms: 34.467792
+  type: 'test'
+  ...
+# Subtest: desk_similar — dedupes by doc_id (one entry per similar doc)
+ok 373 - desk_similar — dedupes by doc_id (one entry per similar doc)
+  ---
+  duration_ms: 116.858833
+  type: 'test'
+  ...
+# Subtest: desk_similar — scope can restrict archived neighbours
+ok 374 - desk_similar — scope can restrict archived neighbours
+  ---
+  duration_ms: 87.795542
+  type: 'test'
+  ...
+# Subtest: desk_status is registered with a session-start-safe description
+ok 375 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 1.188125
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 376 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 4.467375
+  type: 'test'
+  ...
+# Subtest: desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+ok 377 - desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+  ---
+  duration_ms: 42.361125
+  type: 'test'
+  ...
+# Subtest: desk_status reports fresh and unknown freshness states without repair work
+ok 378 - desk_status reports fresh and unknown freshness states without repair work
+  ---
+  duration_ms: 41.602625
+  type: 'test'
+  ...
+# Subtest: desk_status reports no desk root without trying to inspect a local DB
+ok 379 - desk_status reports no desk root without trying to inspect a local DB
+  ---
+  duration_ms: 0.753917
+  type: 'test'
+  ...
+# Subtest: desk_status sanitizes malformed root context and reports nonexistent roots
+ok 380 - desk_status sanitizes malformed root context and reports nonexistent roots
+  ---
+  duration_ms: 1.018792
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 381 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 17.023917
+  type: 'test'
+  ...
+# Subtest: desk_status leaves query embedding unprobed even when the endpoint is unavailable
+ok 382 - desk_status leaves query embedding unprobed even when the endpoint is unavailable
+  ---
+  duration_ms: 1.318334
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 383 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 15.402791
+  type: 'test'
+  ...
+# Subtest: desk_status reports vector coverage against the active embedding spec
+ok 384 - desk_status reports vector coverage against the active embedding spec
+  ---
+  duration_ms: 86.687667
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 385 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 6.028834
+  type: 'test'
+  ...
+# Subtest: desk_status tolerates an existing DB with missing index tables
+ok 386 - desk_status tolerates an existing DB with missing index tables
+  ---
+  duration_ms: 3.71775
+  type: 'test'
+  ...
+# Subtest: task_archive moves the dir into _archive/ and marks status=done
+ok 387 - task_archive moves the dir into _archive/ and marks status=done
+  ---
+  duration_ms: 22.986458
+  type: 'test'
+  ...
+# Subtest: task_archive preserves an already-terminal status
+ok 388 - task_archive preserves an already-terminal status
+  ---
+  duration_ms: 6.613292
+  type: 'test'
+  ...
+# Subtest: task_archive is idempotent when source already archived
+ok 389 - task_archive is idempotent when source already archived
+  ---
+  duration_ms: 10.240916
+  type: 'test'
+  ...
+# Subtest: task_archive throws when neither source nor archive exists
+ok 390 - task_archive throws when neither source nor archive exists
+  ---
+  duration_ms: 1.372
+  type: 'test'
+  ...
+# Subtest: task_archive creates _archive/ dir if missing
+ok 391 - task_archive creates _archive/ dir if missing
+  ---
+  duration_ms: 8.4885
+  type: 'test'
+  ...
+# Subtest: task_create writes a v1 task.md with required + default fields
+ok 392 - task_create writes a v1 task.md with required + default fields
+  ---
+  duration_ms: 19.801458
+  type: 'test'
+  ...
+# Subtest: task_create refuses to overwrite an existing task
+ok 393 - task_create refuses to overwrite an existing task
+  ---
+  duration_ms: 5.110792
+  type: 'test'
+  ...
+# Subtest: task_create accepts optional runtime fields and passes them through
+ok 394 - task_create accepts optional runtime fields and passes them through
+  ---
+  duration_ms: 3.462667
+  type: 'test'
+  ...
+# Subtest: task_create rejects missing required fields
+ok 395 - task_create rejects missing required fields
+  ---
+  duration_ms: 1.584542
+  type: 'test'
+  ...
+# Subtest: task_update merges frontmatter and refreshes `updated`
+ok 396 - task_update merges frontmatter and refreshes `updated`
+  ---
+  duration_ms: 1130.114292
+  type: 'test'
+  ...
+# Subtest: task_update preserves schema_version + created even if caller overrides them
+ok 397 - task_update preserves schema_version + created even if caller overrides them
+  ---
+  duration_ms: 13.796375
+  type: 'test'
+  ...
+# Subtest: task_update appends to body with a blank-line separator
+ok 398 - task_update appends to body with a blank-line separator
+  ---
+  duration_ms: 5.351709
+  type: 'test'
+  ...
+# Subtest: task_update refuses to update a missing task
+ok 399 - task_update refuses to update a missing task
+  ---
+  duration_ms: 2.365792
+  type: 'test'
+  ...
+# Subtest: desk_thread — one hop forward: planning.md → task.md
+ok 400 - desk_thread — one hop forward: planning.md → task.md
+  ---
+  duration_ms: 514.6855
+  type: 'test'
+  ...
+# Subtest: desk_thread — 2-hop forward chain: doing.md → task.md → iteration entry doc
+ok 401 - desk_thread — 2-hop forward chain: doing.md → task.md → iteration entry doc
+  ---
+  duration_ms: 242.503375
+  type: 'test'
+  ...
+# Subtest: desk_thread — backward from task.md surfaces planning + doing + feedback
+ok 402 - desk_thread — backward from task.md surfaces planning + doing + feedback
+  ---
+  duration_ms: 228.433584
+  type: 'test'
+  ...
+# Subtest: desk_thread — both direction returns union of forward + backward
+ok 403 - desk_thread — both direction returns union of forward + backward
+  ---
+  duration_ms: 255.729417
+  type: 'test'
+  ...
+# Subtest: desk_thread — depth limit truncates a long chain
+ok 404 - desk_thread — depth limit truncates a long chain
+  ---
+  duration_ms: 29.068916
+  type: 'test'
+  ...
+# Subtest: desk_thread — cycle in refs_graph doesn't infinite-loop
+ok 405 - desk_thread — cycle in refs_graph doesn't infinite-loop
+  ---
+  duration_ms: 64.953291
+  type: 'test'
+  ...
+# Subtest: desk_thread — not_indexed when start_path is missing
+ok 406 - desk_thread — not_indexed when start_path is missing
+  ---
+  duration_ms: 155.324417
+  type: 'test'
+  ...
+# Subtest: desk_thread — invalid_input when start_path is empty
+ok 407 - desk_thread — invalid_input when start_path is empty
+  ---
+  duration_ms: 20.176958
+  type: 'test'
+  ...
+# Subtest: desk_thread — ordering: start first, then hop_distance asc, then updated_at desc
+ok 408 - desk_thread — ordering: start first, then hop_distance asc, then updated_at desc
+  ---
+  duration_ms: 27.7795
+  type: 'test'
+  ...
+# Subtest: desk_thread — absolute start_path is relativized to deskRoot
+ok 409 - desk_thread — absolute start_path is relativized to deskRoot
+  ---
+  duration_ms: 157.984166
+  type: 'test'
+  ...
+# Subtest: describeRefKind — known ref_kinds produce expected phrasing
+ok 410 - describeRefKind — known ref_kinds produce expected phrasing
+  ---
+  duration_ms: 0.20225
+  type: 'test'
+  ...
+# Subtest: desk_timeline — without query: chronological listing within window
+ok 411 - desk_timeline — without query: chronological listing within window
+  ---
+  duration_ms: 175.010125
+  type: 'test'
+  ...
+# Subtest: desk_timeline — with query: hybrid ranking inside the window
+ok 412 - desk_timeline — with query: hybrid ranking inside the window
+  ---
+  duration_ms: 128.021666
+  type: 'test'
+  ...
+# Subtest: desk_timeline — default embed options use global fetch
+ok 413 - desk_timeline — default embed options use global fetch
+  ---
+  duration_ms: 115.679084
+  type: 'test'
+  ...
+# Subtest: desk_timeline — single-character query uses semantic candidates without FTS
+ok 414 - desk_timeline — single-character query uses semantic candidates without FTS
+  ---
+  duration_ms: 113.797166
+  type: 'test'
+  ...
+# Subtest: desk_timeline — query window skips semantic candidates outside bounds
+ok 415 - desk_timeline — query window skips semantic candidates outside bounds
+  ---
+  duration_ms: 93.168667
+  type: 'test'
+  ...
+# Subtest: desk_timeline — scope can restrict archived entries
+ok 416 - desk_timeline — scope can restrict archived entries
+  ---
+  duration_ms: 107.126584
+  type: 'test'
+  ...
+# Subtest: desk_timeline — `from` alone is honoured
+ok 417 - desk_timeline — `from` alone is honoured
+  ---
+  duration_ms: 99.389375
+  type: 'test'
+  ...
+# Subtest: desk_timeline — `to` alone is honoured
+ok 418 - desk_timeline — `to` alone is honoured
+  ---
+  duration_ms: 86.701625
+  type: 'test'
+  ...
+# Subtest: desk_timeline — no window args lists everything (recency-ordered)
+ok 419 - desk_timeline — no window args lists everything (recency-ordered)
+  ---
+  duration_ms: 116.1535
+  type: 'test'
+  ...
+# Subtest: desk_timeline — no-query snippets trim long first chunks
+ok 420 - desk_timeline — no-query snippets trim long first chunks
+  ---
+  duration_ms: 84.072166
+  type: 'test'
+  ...
+# Subtest: desk_timeline — no-query path tolerates empty docs and missing timestamps
+ok 421 - desk_timeline — no-query path tolerates empty docs and missing timestamps
+  ---
+  duration_ms: 100.574791
+  type: 'test'
+  ...
+# Subtest: desk_timeline — limit clamped to [1, 50]
+ok 422 - desk_timeline — limit clamped to [1, 50]
+  ---
+  duration_ms: 127.352291
+  type: 'test'
+  ...
+# Subtest: track_create writes a v1 track.md with required + default fields
+ok 423 - track_create writes a v1 track.md with required + default fields
+  ---
+  duration_ms: 16.62775
+  type: 'test'
+  ...
+# Subtest: track_create refuses to overwrite an existing track
+ok 424 - track_create refuses to overwrite an existing track
+  ---
+  duration_ms: 3.70825
+  type: 'test'
+  ...
+# Subtest: track_create accepts optional predecessor + planning fields
+ok 425 - track_create accepts optional predecessor + planning fields
+  ---
+  duration_ms: 6.315833
+  type: 'test'
+  ...
+# Subtest: track_create rejects missing required fields
+ok 426 - track_create rejects missing required fields
+  ---
+  duration_ms: 0.825584
+  type: 'test'
+  ...
+# Subtest: track_update merges frontmatter and refreshes `updated`
+ok 427 - track_update merges frontmatter and refreshes `updated`
+  ---
+  duration_ms: 1115.439792
+  type: 'test'
+  ...
+# Subtest: track_update preserves schema_version + created against override
+ok 428 - track_update preserves schema_version + created against override
+  ---
+  duration_ms: 2.131417
+  type: 'test'
+  ...
+# Subtest: track_update appends to body
+ok 429 - track_update appends to body
+  ---
+  duration_ms: 1.978708
+  type: 'test'
+  ...
+# Subtest: track_update refuses to update a missing track
+ok 430 - track_update refuses to update a missing track
+  ---
+  duration_ms: 0.781084
+  type: 'test'
+  ...
+# Subtest: personPrefix returns deskRoot unchanged when person is null
+ok 431 - personPrefix returns deskRoot unchanged when person is null
+  ---
+  duration_ms: 1.12525
+  type: 'test'
+  ...
+# Subtest: personPrefix returns deskRoot unchanged when person is undefined
+ok 432 - personPrefix returns deskRoot unchanged when person is undefined
+  ---
+  duration_ms: 0.078959
+  type: 'test'
+  ...
+# Subtest: personPrefix treats empty string as OFF
+ok 433 - personPrefix treats empty string as OFF
+  ---
+  duration_ms: 0.055917
+  type: 'test'
+  ...
+# Subtest: personPrefix treats whitespace-only person as OFF
+ok 434 - personPrefix treats whitespace-only person as OFF
+  ---
+  duration_ms: 0.051917
+  type: 'test'
+  ...
+# Subtest: personPrefix treats a non-string truthy person as OFF (defensive)
+ok 435 - personPrefix treats a non-string truthy person as OFF (defensive)
+  ---
+  duration_ms: 0.056209
+  type: 'test'
+  ...
+# Subtest: personPrefix joins desks/<alias> for a valid alias
+ok 436 - personPrefix joins desks/<alias> for a valid alias
+  ---
+  duration_ms: 0.070417
+  type: 'test'
+  ...
+# Subtest: personPrefix trims surrounding whitespace from a valid alias
+ok 437 - personPrefix trims surrounding whitespace from a valid alias
+  ---
+  duration_ms: 0.126625
+  type: 'test'
+  ...
+# Subtest: personPrefix accepts aliases with hyphens, underscores, dots-in-name, digits
+ok 438 - personPrefix accepts aliases with hyphens, underscores, dots-in-name, digits
+  ---
+  duration_ms: 0.060292
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on '..' traversal
+ok 439 - personPrefix throws on '..' traversal
+  ---
+  duration_ms: 0.281041
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on an alias containing '..'
+ok 440 - personPrefix throws on an alias containing '..'
+  ---
+  duration_ms: 0.097333
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on a forward-slash in the alias
+ok 441 - personPrefix throws on a forward-slash in the alias
+  ---
+  duration_ms: 0.05575
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on a back-slash in the alias
+ok 442 - personPrefix throws on a back-slash in the alias
+  ---
+  duration_ms: 0.055083
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on an absolute-path alias
+ok 443 - personPrefix throws on an absolute-path alias
+  ---
+  duration_ms: 0.05675
+  type: 'test'
+  ...
+# Subtest: personPrefix throws on a single '.' segment
+ok 444 - personPrefix throws on a single '.' segment
+  ---
+  duration_ms: 0.050625
+  type: 'test'
+  ...
+1..444
+# tests 462
+# suites 1
+# pass 462
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21830.778583
+# start of coverage report
+# -----------------------------------------------------------------------------------
+# file                               | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------------------
+# plugins                            |        |          |         |
+#  desk                              |        |          |         |
+#   mcp                              |        |          |         |
+#    index.js                        | 100.00 |   100.00 |  100.00 |
+#    scripts                         |        |          |         |
+#     build-runtime-deps-pack.js     | 100.00 |   100.00 |  100.00 |
+#     generate-copilot-bundle.js     | 100.00 |   100.00 |  100.00 |
+#     generate-support-matrix.js     | 100.00 |   100.00 |  100.00 |
+#     run-coverage.js                | 100.00 |   100.00 |  100.00 |
+#     verify-runtime-deps-pack.js    | 100.00 |   100.00 |  100.00 |
+#    src                             |        |          |         |
+#     activation                     |        |          |         |
+#      adapters                      |        |          |         |
+#       codex.js                     | 100.00 |   100.00 |  100.00 |
+#      artifact-ledger.js            | 100.00 |   100.00 |  100.00 |
+#      claude-packaging.js           | 100.00 |   100.00 |  100.00 |
+#      codex-smoke.js                | 100.00 |   100.00 |  100.00 |
+#      copilot-bundle.js             | 100.00 |   100.00 |  100.00 |
+#      ouroboros-stdio-packaging.js  | 100.00 |   100.00 |  100.00 |
+#      schema.js                     | 100.00 |   100.00 |  100.00 |
+#      support-matrix.js             | 100.00 |   100.00 |  100.00 |
+#      validate.js                   | 100.00 |   100.00 |  100.00 |
+#     coverage                       |        |          |         |
+#      gate.js                       | 100.00 |   100.00 |  100.00 |
+#      runner.js                     | 100.00 |   100.00 |  100.00 |
+#     db                             |        |          |         |
+#      init.js                       | 100.00 |   100.00 |  100.00 |
+#     indexer                        |        |          |         |
+#      index.js                      | 100.00 |   100.00 |  100.00 |
+#      spec.js                       | 100.00 |   100.00 |  100.00 |
+#      vector-compaction.js          | 100.00 |   100.00 |  100.00 |
+#      vector-packs.js               | 100.00 |   100.00 |  100.00 |
+#     runtime                        |        |          |         |
+#      bootstrap.js                  | 100.00 |   100.00 |  100.00 |
+#      runtime-deps.js               | 100.00 |   100.00 |  100.00 |
+#     server-helpers.js              | 100.00 |   100.00 |  100.00 |
+#     server.js                      | 100.00 |   100.00 |  100.00 |
+#     snapshots                      |        |          |         |
+#      manifest.js                   | 100.00 |   100.00 |  100.00 |
+#     tool-names.js                  | 100.00 |   100.00 |  100.00 |
+#     tools                          |        |          |         |
+#      search.js                     | 100.00 |   100.00 |  100.00 |
+#      status.js                     | 100.00 |   100.00 |  100.00 |
+#     util                           |        |          |         |
+#      paths.js                      | 100.00 |   100.00 |  100.00 |
+# -----------------------------------------------------------------------------------
+# all files                          | 100.00 |   100.00 |  100.00 |
+# -----------------------------------------------------------------------------------
+# end of coverage report
+[coverage-gate] passed for 31 changed production file(s)
