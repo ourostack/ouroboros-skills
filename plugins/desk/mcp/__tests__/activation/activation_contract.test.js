@@ -668,6 +668,17 @@ test("dependency and activation ordering is deterministic", async () => {
   )
 
   assert.deepEqual(orderActivationDependencies({}), [])
+  assert.deepEqual(orderActivationDependencies(null), [])
+  assert.deepEqual(
+    orderActivationDependencies({
+      dependencies: {},
+      provides: {
+        activation_targets: {},
+        overlay_agents: {},
+      },
+    }),
+    [],
+  )
 
   assert.deepEqual(
     orderActivationDependencies({
@@ -1000,6 +1011,13 @@ test("unsupported hosts produce host-native fallback diagnostics", async () => {
 
   assert.equal(noHostSupport.status, "unsupported")
   assert.deepEqual(noHostSupport.unsupported_primitives, ["host-activation"])
+
+  const nullManifestHostSupport = diagnoseHostSupport(null, {
+    host: "codex",
+  })
+
+  assert.equal(nullManifestHostSupport.status, "unsupported")
+  assert.deepEqual(nullManifestHostSupport.unsupported_primitives, ["host-activation"])
 
   const malformedHostSupport = diagnoseHostSupport({
     host_support: {},

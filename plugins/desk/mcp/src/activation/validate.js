@@ -65,17 +65,17 @@ export function validateActivationManifest(manifest) {
 }
 
 export function orderActivationDependencies(manifest) {
-  const dependencies = [...(manifest.dependencies ?? [])]
+  const dependencies = [...arrayOrEmpty(manifest?.dependencies)]
     .sort((left, right) => dependencyRank(left) - dependencyRank(right) || left.id.localeCompare(right.id))
-  const activationTargets = [...(manifest.provides?.activation_targets ?? [])]
+  const activationTargets = [...arrayOrEmpty(manifest?.provides?.activation_targets)]
     .sort((left, right) => left.id.localeCompare(right.id))
-  const overlayAgents = [...(manifest.provides?.overlay_agents ?? [])]
+  const overlayAgents = [...arrayOrEmpty(manifest?.provides?.overlay_agents)]
     .sort((left, right) => left.id.localeCompare(right.id))
   return [...dependencies, ...activationTargets, ...overlayAgents]
 }
 
 export function diagnoseHostSupport(manifest, { host }) {
-  const hostSupport = Array.isArray(manifest.host_support) ? manifest.host_support : []
+  const hostSupport = Array.isArray(manifest?.host_support) ? manifest.host_support : []
   const match = hostSupport.find((entry) => isObject(entry) && entry.host === host)
   if (!match) {
     return {
@@ -411,6 +411,10 @@ function validateStringList(value, path, code, message, errors, allowed = undefi
       return
     }
   }
+}
+
+function arrayOrEmpty(value) {
+  return Array.isArray(value) ? value : []
 }
 
 function dependencyRank(dependency) {
