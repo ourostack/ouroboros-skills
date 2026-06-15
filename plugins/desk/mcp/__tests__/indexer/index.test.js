@@ -20,6 +20,18 @@ async function w(root, rel, body) {
   await fs.writeFile(abs, body, "utf8")
 }
 
+async function writeManyEmptySharedDocs(root, count) {
+  const dir = path.join(root, "_shared")
+  await fs.mkdir(dir, { recursive: true })
+  for (let index = 0; index < count; index += 1) {
+    await fs.writeFile(
+      path.join(dir, `${String(index).padStart(5, "0")}.md`),
+      "",
+      "utf8",
+    )
+  }
+}
+
 const indexOpts = { skipEmbed: true }
 
 test("empty desk → empty index", async () => {
@@ -506,4 +518,22 @@ test("unchanged lexical-only docs do not live-embed unless reembedMissing is ena
   } finally {
     closeDb(db)
   }
+})
+
+test("large rebuilds do not exceed SQLite variable limits when no chunks need embedding", { timeout: 30000 }, async () => {
+  const root = await mkRoot()
+  const docsBeyondLocalSqliteVariableLimit = 32767
+  await writeManyEmptySharedDocs(root, docsBeyondLocalSqliteVariableLimit)
+
+  let calls = 0
+  const fetchShouldNotRun = async () => {
+    calls += 1
+    throw new Error("empty docs should not need embeddings")
+  }
+
+  const summary = await rebuildIndex(root, { embed: { fetch: fetchShouldNotRun } })
+  assert.equal(summary.docs_indexed, docsBeyondLocalSqliteVariableLimit)
+  assert.equal(summary.chunks_inserted, 0)
+  assert.equal(summary.semantic_warnings, 0)
+  assert.equal(calls, 0)
 })

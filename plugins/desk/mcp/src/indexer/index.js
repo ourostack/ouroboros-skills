@@ -20,6 +20,8 @@ import {
 } from "./spec.js"
 import { importVectorPacks } from "./vector-packs.js"
 
+const SQLITE_PARAMETER_BATCH_SIZE = 500
+
 /**
  * Run the indexer against `deskRoot`. Creates/refreshes
  * `<deskRoot>/.state/desk-index.sqlite` and returns a summary.
@@ -300,17 +302,23 @@ function indexOneDoc(db, doc, summary) {
 
 async function embedMissingVectors(db, opts, summary, docIds) {
   if (docIds.length === 0) return
-  const placeholders = docIds.map(() => "?").join(", ")
-  const missing = db
-    .prepare(
-      `SELECT c.id, c.text
-       FROM chunks c
-       LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
-       WHERE v.chunk_id IS NULL
-         AND c.doc_id IN (${placeholders})
-       ORDER BY c.id`,
+  const missing = []
+  for (let start = 0; start < docIds.length; start += SQLITE_PARAMETER_BATCH_SIZE) {
+    const batch = docIds.slice(start, start + SQLITE_PARAMETER_BATCH_SIZE)
+    const placeholders = batch.map(() => "?").join(", ")
+    missing.push(
+      ...db
+        .prepare(
+          `SELECT c.id, c.text
+           FROM chunks c
+           LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+           WHERE v.chunk_id IS NULL
+             AND c.doc_id IN (${placeholders})
+           ORDER BY c.id`,
+        )
+        .all(...batch),
     )
-    .all(...docIds)
+  }
   if (missing.length === 0) return
 
   const embeddings = await embedChunks(
