@@ -96,8 +96,13 @@ function validateGenericStdioHost({ host, evidence, readmeSection, activationSec
     const fallbackBehavior = host.fallback_behavior ?? ""
     if (!/no worker activation/u.test(fallbackBehavior)) {
       errors.push("Generic stdio fallback must state no worker activation")
-    } else if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
-      errors.push("Generic stdio fallback must not claim plugin dependency resolution")
+    } else {
+      if (claimsGenericStdioWorkerActivation(fallbackBehavior)) {
+        errors.push("Generic stdio fallback must not claim worker activation")
+      }
+      if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
+        errors.push("Generic stdio fallback must not claim plugin dependency resolution")
+      }
     }
   }
 
@@ -119,8 +124,13 @@ function validateGenericStdioHost({ host, evidence, readmeSection, activationSec
     const fallbackBehavior = evidence.fallback_behavior ?? ""
     if (!/no worker activation/u.test(fallbackBehavior)) {
       errors.push("Generic stdio evidence fallback must state no worker activation")
-    } else if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
-      errors.push("Generic stdio evidence fallback must not claim plugin dependency resolution")
+    } else {
+      if (claimsGenericStdioWorkerActivation(fallbackBehavior)) {
+        errors.push("Generic stdio evidence fallback must not claim worker activation")
+      }
+      if (claimsGenericStdioDependencyResolution(fallbackBehavior)) {
+        errors.push("Generic stdio evidence fallback must not claim plugin dependency resolution")
+      }
     }
   }
 
@@ -190,7 +200,7 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered)\b/u,
+    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped)\b/u,
     target: /\b(?:desk worker|worker|agent defaults?|default agent)\b/u,
   })
 }
@@ -198,7 +208,7 @@ function claimsGenericStdioWorkerActivation(readmeSection) {
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered)\b/u,
+    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped)\b/u,
     target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
