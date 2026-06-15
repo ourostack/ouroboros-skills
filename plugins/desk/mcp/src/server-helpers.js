@@ -132,6 +132,11 @@ function assignEmbeddingAvailability(target, source, summary) {
     if (source.embedding_diagnostic) {
       target.embedding_diagnostic = source.embedding_diagnostic
     }
+  } else if (source.embedding_available === false) {
+    target.embedding_available = false
+    if (source.embedding_diagnostic) {
+      target.embedding_diagnostic = source.embedding_diagnostic
+    }
   }
   return target
 }
