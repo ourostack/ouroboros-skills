@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs"
+import { createHash } from "node:crypto"
 import * as path from "node:path"
 import { zstdDecompressSync } from "node:zlib"
 import { indexDbPath } from "../db/init.js"
@@ -77,10 +78,11 @@ export async function restoreSnapshotToState({
   const stateDbPath = indexDbPath(deskRoot)
   const stateMetaPath = `${stateDbPath}.snapshot.json`
   const existing = await readJsonOrNull(stateMetaPath)
+  const existingStateSha256 = await fileSha256OrNull(stateDbPath)
   if (
     existing?.snapshot_id === selected.snapshot_id &&
     existing?.artifact_sha256 === selected.manifest.artifact.sha256 &&
-    await fileExists(stateDbPath)
+    existing?.state_db_sha256 === existingStateSha256
   ) {
     return {
       restored: false,
@@ -93,6 +95,7 @@ export async function restoreSnapshotToState({
 
   const compressed = await fs.readFile(selected.snapshotPath)
   const sqliteBytes = zstdDecompressSync(compressed)
+  const stateDbSha256 = `sha256:${sha256(sqliteBytes)}`
   await fs.mkdir(path.dirname(stateDbPath), { recursive: true })
   await writeAtomic(stateDbPath, sqliteBytes)
   await writeAtomic(
@@ -101,6 +104,7 @@ export async function restoreSnapshotToState({
       schema_version: 1,
       snapshot_id: selected.snapshot_id,
       artifact_sha256: selected.manifest.artifact.sha256,
+      state_db_sha256: stateDbSha256,
       restored_at: new Date().toISOString(),
       source_snapshot_path: normalizePath(path.relative(pluginRoot, selected.snapshotPath)),
     }, null, 2)}\n`,
@@ -160,11 +164,11 @@ async function readJsonOrNull(filePath) {
   }
 }
 
-async function fileExists(filePath) {
+async function fileSha256OrNull(filePath) {
   try {
-    return (await fs.stat(filePath)).isFile()
+    return `sha256:${sha256(await fs.readFile(filePath))}`
   } catch {
-    return false
+    return null
   }
 }
 
@@ -183,4 +187,8 @@ function requiredPath(value, label) {
 
 function normalizePath(value) {
   return value.replaceAll(path.sep, "/")
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex")
 }

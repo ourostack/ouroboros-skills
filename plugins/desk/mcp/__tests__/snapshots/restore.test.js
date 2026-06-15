@@ -392,6 +392,14 @@ test("restoreSnapshotToState repairs corrupt metadata and missing state DB marke
     ...expectedContext(),
   })).restored, true)
   assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
+
+  await fs.writeFile(statePath, "tampered sqlite bytes", "utf8")
+  assert.equal((await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })).restored, true)
+  assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
 })
 
 test("restoreSnapshotToState reports cache miss when no compatible snapshot exists", async () => {
