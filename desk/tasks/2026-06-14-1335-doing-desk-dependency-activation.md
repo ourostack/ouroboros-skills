@@ -143,7 +143,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
 - [ ] All tests pass
-- [x] No warnings
+- [ ] No warnings
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**

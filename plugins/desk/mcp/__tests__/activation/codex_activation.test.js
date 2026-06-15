@@ -138,7 +138,7 @@ test("Codex activation preserves user-authored config and uses an owned generate
   assert.equal(result.generatedConfig.match(/# END desk activation/g).length, 1)
 })
 
-test("Codex activation rejects permission escalation beyond the manifest boundary", async () => {
+test("Codex activation rejects unsupported requested host capabilities", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
   const manifest = activationInput("global-personal").manifest
   manifest.permissions.requested_capabilities = ["Read", "Write", "Interactive", "Network"]
