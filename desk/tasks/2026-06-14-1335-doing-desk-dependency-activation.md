@@ -339,7 +339,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened production runtime pack freshness checks.
 **Acceptance**: Production runtime pack checks pass locally, and fixtures alone cannot satisfy the no-manual-install completion criteria.
 
-### ⬜ Unit 7a: Dependency-Light MCP Entrypoint - Tests
+### 🔄 Unit 7a: Dependency-Light MCP Entrypoint - Tests
 **What**: Write failing tests proving `plugins/desk/mcp/index.js` can start dependency preparation without pre-bootstrap imports of plugin-source `src/server.js` or any production/server dependencies. Cover `plugins/desk/mcp/node_modules` absent, no network access, no `npm install`, native ABI mismatch, offline restore from `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, source hash change causing runtime-cache `source-mirror/<source-hash>/` resync, and MCP initialize/list-tools from the synced source mirror after restore.
 **Output**: `plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js`.
 **Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `gray-matter`, `better-sqlite3`, `sqlite-vec`, or any production dependency outside the restored runtime cache.
