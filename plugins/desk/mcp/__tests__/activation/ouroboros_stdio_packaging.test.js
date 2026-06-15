@@ -374,10 +374,30 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
     )
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(malformedJsonBundle),
-    [
-      "Ouroboros bundle metadata must include desk plugin",
-      "Ouroboros bundle metadata must include work-suite plugin",
-    ],
+    ["Ouroboros bundle metadata must be valid JSON"],
+  )
+
+  const malformedJsonBeforeValidJson = clone(currentOuroborosStdioPackagingInput())
+  malformedJsonBeforeValidJson.ouroborosReadmeSection =
+    malformedJsonBeforeValidJson.ouroborosReadmeSection.replace(
+      /```json[\s\S]*?```/u,
+      [
+        "```json",
+        "{",
+        "  \"plugins\": [\"desk\",",
+        "}",
+        "```",
+        "",
+        "Later unrelated JSON must not rescue malformed bundle metadata:",
+        "",
+        "```json",
+        "{ \"plugins\": [\"desk\", \"work-suite\"] }",
+        "```",
+      ].join("\n"),
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(malformedJsonBeforeValidJson),
+    ["Ouroboros bundle metadata must be valid JSON"],
   )
 })
 
@@ -452,6 +472,30 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(equivalentDependencyClaim),
     ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const mixedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  mixedWorkerClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not activate worker automatically, but generic stdio loads the default agent.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(mixedWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const mixedDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  mixedDependencyClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not activate worker, but generic stdio loads Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(mixedDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const negativeBoundaryClaims = clone(currentOuroborosStdioPackagingInput())
+  negativeBoundaryClaims.genericStdioReadmeSection +=
+    "\nGeneric stdio does not activate worker and does not resolve plugin dependencies.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(negativeBoundaryClaims),
+    [],
   )
 })
 
