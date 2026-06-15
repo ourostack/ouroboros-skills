@@ -2,11 +2,12 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { existsSync, readFileSync } from "node:fs"
 import * as path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
 )
+const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const activationManifestPath = "plugins/desk/activation/desk.activation.json"
 const copilotBundlePath = "plugins/desk/activation/copilot-root.flattened-bundle.json"
 const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
@@ -100,6 +101,45 @@ function findByField(rows, field, value, source) {
   return row
 }
 
+function expectedCopilotBundle() {
+  const activation = loadJson(activationManifestPath)
+  const lockedWorkSuiteVersion = activation.dependencies.find((dependency) => (
+    dependency.id === "work-suite"
+  )).lock.version
+
+  return {
+    schema_version: 1,
+    host: "copilot-root",
+    generated_by: copilotBundleCommand,
+    generated_from: {
+      activation_manifest: activationManifestPath,
+      desk_plugin: "plugins/desk/plugin.json",
+      work_suite_plugin: "plugins/work-suite/plugin.json",
+    },
+    launch: {
+      agent: `plugins/desk/${copilotWorkerSource}`,
+      mcp: "plugins/desk/.mcp.json",
+    },
+    dependency_closure: [
+      {
+        id: "desk",
+        version: activation.version,
+        plugin: "plugins/desk/plugin.json",
+        skills: "plugins/desk/skills/",
+        agents: "plugins/desk/agents/",
+        mcpServers: "plugins/desk/.mcp.json",
+      },
+      {
+        id: "work-suite",
+        version: lockedWorkSuiteVersion,
+        plugin: "plugins/work-suite/plugin.json",
+        skills: "plugins/work-suite/skills/",
+      },
+    ],
+    manual_steps: [],
+  }
+}
+
 test("Copilot root plugin metadata exposes Desk worker and MCP without manual registration", () => {
   const activation = loadJson(activationManifestPath)
   const deskPlugin = loadJson("plugins", "desk", "plugin.json")
@@ -166,37 +206,23 @@ test("Copilot root packaging declares a generated flattened dependency closure",
     resolution: "flattened",
     bundleMetadata: copilotBundlePath,
   })
-  assert.deepEqual(bundle, {
-    schema_version: 1,
-    host: "copilot-root",
-    generated_by: copilotBundleCommand,
-    generated_from: {
-      activation_manifest: activationManifestPath,
-      desk_plugin: "plugins/desk/plugin.json",
-      work_suite_plugin: "plugins/work-suite/plugin.json",
-    },
-    launch: {
-      agent: `plugins/desk/${copilotWorkerSource}`,
-      mcp: "plugins/desk/.mcp.json",
-    },
-    dependency_closure: [
-      {
-        id: "desk",
-        version: activation.version,
-        plugin: "plugins/desk/plugin.json",
-        skills: "plugins/desk/skills/",
-        agents: "plugins/desk/agents/",
-        mcpServers: "plugins/desk/.mcp.json",
-      },
-      {
-        id: "work-suite",
-        version: lockedWorkSuiteVersion,
-        plugin: "plugins/work-suite/plugin.json",
-        skills: "plugins/work-suite/skills/",
-      },
-    ],
-    manual_steps: [],
-  })
+  assert.deepEqual(bundle, expectedCopilotBundle())
+})
+
+test("generated Copilot flattened bundle is fresh and package-scripted", async () => {
+  assertFileExists(...copilotBundlePath.split("/"))
+  assertFileExists("plugins", "desk", "mcp", "scripts", "generate-copilot-bundle.js")
+
+  const packageJson = loadJson("plugins", "desk", "mcp", "package.json")
+  assert.equal(
+    packageJson.scripts["activation:copilot-bundle:generate"],
+    "node scripts/generate-copilot-bundle.js",
+  )
+
+  await import(`${pathToFileURL(path.join(mcpRoot, "scripts", "generate-copilot-bundle.js")).href}?test=unit5a`)
+
+  assert.equal(process.exitCode, 0)
+  assert.deepEqual(loadJson(...copilotBundlePath.split("/")), expectedCopilotBundle())
 })
 
 test("Copilot root evidence and support matrix record flattened packaging as generated", () => {
