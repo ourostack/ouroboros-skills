@@ -175,16 +175,16 @@ ok 28 - Codex activation rejects unsupported requested host capabilities
 # \# --------------------------------------------------------------
 # \# file          | line % | branch % | funcs % | uncovered lines
 # \# --------------------------------------------------------------
-# \# plugins              |        |          |         | 
-# \#  desk                |        |          |         | 
-# \#   mcp                |        |          |         | 
-# \#    scripts           |        |          |         | 
-# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 | 
-# \#    src               |        |          |         | 
-# \#     coverage         |        |          |         | 
-# \#      runner.js       | 100.00 |   100.00 |  100.00 | 
+# \# plugins              |        |          |         |
+# \#  desk                |        |          |         |
+# \#   mcp                |        |          |         |
+# \#    scripts           |        |          |         |
+# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 |
+# \#    src               |        |          |         |
+# \#     coverage         |        |          |         |
+# \#      runner.js       | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
-# \# all files     | 100.00 |   100.00 |  100.00 | 
+# \# all files     | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
 # \# end of coverage report
 # [coverage-gate] passed for 2 changed production file(s)
@@ -1381,22 +1381,22 @@ ok 224 - personPrefix throws on a single '.' segment
 # ----------------------------------------------------------------------
 # file                  | line % | branch % | funcs % | uncovered lines
 # ----------------------------------------------------------------------
-# plugins               |        |          |         | 
-#  desk                 |        |          |         | 
-#   mcp                 |        |          |         | 
-#    scripts            |        |          |         | 
-#     run-coverage.js   | 100.00 |   100.00 |  100.00 | 
-#    src                |        |          |         | 
-#     activation        |        |          |         | 
-#      adapters         |        |          |         | 
-#       codex.js        | 100.00 |   100.00 |  100.00 | 
-#      schema.js        | 100.00 |   100.00 |  100.00 | 
-#      validate.js      | 100.00 |   100.00 |  100.00 | 
-#     coverage          |        |          |         | 
-#      gate.js          | 100.00 |   100.00 |  100.00 | 
-#      runner.js        | 100.00 |   100.00 |  100.00 | 
+# plugins               |        |          |         |
+#  desk                 |        |          |         |
+#   mcp                 |        |          |         |
+#    scripts            |        |          |         |
+#     run-coverage.js   | 100.00 |   100.00 |  100.00 |
+#    src                |        |          |         |
+#     activation        |        |          |         |
+#      adapters         |        |          |         |
+#       codex.js        | 100.00 |   100.00 |  100.00 |
+#      schema.js        | 100.00 |   100.00 |  100.00 |
+#      validate.js      | 100.00 |   100.00 |  100.00 |
+#     coverage          |        |          |         |
+#      gate.js          | 100.00 |   100.00 |  100.00 |
+#      runner.js        | 100.00 |   100.00 |  100.00 |
 # ----------------------------------------------------------------------
-# all files             | 100.00 |   100.00 |  100.00 | 
+# all files             | 100.00 |   100.00 |  100.00 |
 # ----------------------------------------------------------------------
 # end of coverage report
 [coverage-gate] passed for 6 changed production file(s)
