@@ -561,16 +561,16 @@ ok 92 - support matrix package script is wired to regenerate the artifact
 # \# --------------------------------------------------------------
 # \# file          | line % | branch % | funcs % | uncovered lines
 # \# --------------------------------------------------------------
-# \# plugins              |        |          |         | 
-# \#  desk                |        |          |         | 
-# \#   mcp                |        |          |         | 
-# \#    scripts           |        |          |         | 
-# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 | 
-# \#    src               |        |          |         | 
-# \#     coverage         |        |          |         | 
-# \#      runner.js       | 100.00 |   100.00 |  100.00 | 
+# \# plugins              |        |          |         |
+# \#  desk                |        |          |         |
+# \#   mcp                |        |          |         |
+# \#    scripts           |        |          |         |
+# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 |
+# \#    src               |        |          |         |
+# \#     coverage         |        |          |         |
+# \#      runner.js       | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
-# \# all files     | 100.00 |   100.00 |  100.00 | 
+# \# all files     | 100.00 |   100.00 |  100.00 |
 # \# --------------------------------------------------------------
 # \# end of coverage report
 # [coverage-gate] passed for 2 changed production file(s)
@@ -3180,55 +3180,55 @@ ok 503 - personPrefix throws on a single '.' segment
 # -----------------------------------------------------------------------------------
 # file                               | line % | branch % | funcs % | uncovered lines
 # -----------------------------------------------------------------------------------
-# plugins                            |        |          |         | 
-#  desk                              |        |          |         | 
-#   mcp                              |        |          |         | 
-#    index.js                        | 100.00 |   100.00 |  100.00 | 
-#    scripts                         |        |          |         | 
-#     build-runtime-deps-pack.js     | 100.00 |   100.00 |  100.00 | 
-#     generate-copilot-bundle.js     | 100.00 |   100.00 |  100.00 | 
-#     generate-support-matrix.js     | 100.00 |   100.00 |  100.00 | 
-#     run-coverage.js                | 100.00 |   100.00 |  100.00 | 
-#     verify-runtime-deps-pack.js    | 100.00 |   100.00 |  100.00 | 
-#    src                             |        |          |         | 
-#     activation                     |        |          |         | 
-#      adapters                      |        |          |         | 
-#       codex.js                     | 100.00 |   100.00 |  100.00 | 
-#      artifact-ledger.js            | 100.00 |   100.00 |  100.00 | 
-#      claude-packaging.js           | 100.00 |   100.00 |  100.00 | 
-#      codex-smoke.js                | 100.00 |   100.00 |  100.00 | 
-#      copilot-bundle.js             | 100.00 |   100.00 |  100.00 | 
-#      ouroboros-stdio-packaging.js  | 100.00 |   100.00 |  100.00 | 
-#      schema.js                     | 100.00 |   100.00 |  100.00 | 
-#      support-matrix.js             | 100.00 |   100.00 |  100.00 | 
-#      validate.js                   | 100.00 |   100.00 |  100.00 | 
-#     coverage                       |        |          |         | 
-#      gate.js                       | 100.00 |   100.00 |  100.00 | 
-#      runner.js                     | 100.00 |   100.00 |  100.00 | 
-#     db                             |        |          |         | 
-#      init.js                       | 100.00 |   100.00 |  100.00 | 
-#     indexer                        |        |          |         | 
-#      discover.js                   | 100.00 |   100.00 |  100.00 | 
-#      index.js                      | 100.00 |   100.00 |  100.00 | 
-#      spec.js                       | 100.00 |   100.00 |  100.00 | 
-#      vector-compaction.js          | 100.00 |   100.00 |  100.00 | 
-#      vector-packs.js               | 100.00 |   100.00 |  100.00 | 
-#     runtime                        |        |          |         | 
-#      bootstrap.js                  | 100.00 |   100.00 |  100.00 | 
-#      runtime-deps.js               | 100.00 |   100.00 |  100.00 | 
-#     server-helpers.js              | 100.00 |   100.00 |  100.00 | 
-#     server.js                      | 100.00 |   100.00 |  100.00 | 
-#     snapshots                      |        |          |         | 
-#      manifest.js                   | 100.00 |   100.00 |  100.00 | 
-#      restore.js                    | 100.00 |   100.00 |  100.00 | 
-#     tool-names.js                  | 100.00 |   100.00 |  100.00 | 
-#     tools                          |        |          |         | 
-#      search.js                     | 100.00 |   100.00 |  100.00 | 
-#      status.js                     | 100.00 |   100.00 |  100.00 | 
-#     util                           |        |          |         | 
-#      paths.js                      | 100.00 |   100.00 |  100.00 | 
+# plugins                            |        |          |         |
+#  desk                              |        |          |         |
+#   mcp                              |        |          |         |
+#    index.js                        | 100.00 |   100.00 |  100.00 |
+#    scripts                         |        |          |         |
+#     build-runtime-deps-pack.js     | 100.00 |   100.00 |  100.00 |
+#     generate-copilot-bundle.js     | 100.00 |   100.00 |  100.00 |
+#     generate-support-matrix.js     | 100.00 |   100.00 |  100.00 |
+#     run-coverage.js                | 100.00 |   100.00 |  100.00 |
+#     verify-runtime-deps-pack.js    | 100.00 |   100.00 |  100.00 |
+#    src                             |        |          |         |
+#     activation                     |        |          |         |
+#      adapters                      |        |          |         |
+#       codex.js                     | 100.00 |   100.00 |  100.00 |
+#      artifact-ledger.js            | 100.00 |   100.00 |  100.00 |
+#      claude-packaging.js           | 100.00 |   100.00 |  100.00 |
+#      codex-smoke.js                | 100.00 |   100.00 |  100.00 |
+#      copilot-bundle.js             | 100.00 |   100.00 |  100.00 |
+#      ouroboros-stdio-packaging.js  | 100.00 |   100.00 |  100.00 |
+#      schema.js                     | 100.00 |   100.00 |  100.00 |
+#      support-matrix.js             | 100.00 |   100.00 |  100.00 |
+#      validate.js                   | 100.00 |   100.00 |  100.00 |
+#     coverage                       |        |          |         |
+#      gate.js                       | 100.00 |   100.00 |  100.00 |
+#      runner.js                     | 100.00 |   100.00 |  100.00 |
+#     db                             |        |          |         |
+#      init.js                       | 100.00 |   100.00 |  100.00 |
+#     indexer                        |        |          |         |
+#      discover.js                   | 100.00 |   100.00 |  100.00 |
+#      index.js                      | 100.00 |   100.00 |  100.00 |
+#      spec.js                       | 100.00 |   100.00 |  100.00 |
+#      vector-compaction.js          | 100.00 |   100.00 |  100.00 |
+#      vector-packs.js               | 100.00 |   100.00 |  100.00 |
+#     runtime                        |        |          |         |
+#      bootstrap.js                  | 100.00 |   100.00 |  100.00 |
+#      runtime-deps.js               | 100.00 |   100.00 |  100.00 |
+#     server-helpers.js              | 100.00 |   100.00 |  100.00 |
+#     server.js                      | 100.00 |   100.00 |  100.00 |
+#     snapshots                      |        |          |         |
+#      manifest.js                   | 100.00 |   100.00 |  100.00 |
+#      restore.js                    | 100.00 |   100.00 |  100.00 |
+#     tool-names.js                  | 100.00 |   100.00 |  100.00 |
+#     tools                          |        |          |         |
+#      search.js                     | 100.00 |   100.00 |  100.00 |
+#      status.js                     | 100.00 |   100.00 |  100.00 |
+#     util                           |        |          |         |
+#      paths.js                      | 100.00 |   100.00 |  100.00 |
 # -----------------------------------------------------------------------------------
-# all files                          | 100.00 |   100.00 |  100.00 | 
+# all files                          | 100.00 |   100.00 |  100.00 |
 # -----------------------------------------------------------------------------------
 # end of coverage report
 [coverage-gate] passed for 33 changed production file(s)
