@@ -101,6 +101,24 @@ function findByField(rows, field, value, source) {
   return row
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function currentCopilotPackagingInput() {
+  const activation = loadJson(activationManifestPath)
+  return {
+    activation,
+    bundle: loadJson(...copilotBundlePath.split("/")),
+    deskPlugin: loadJson("plugins", "desk", "plugin.json"),
+    workSuitePlugin: loadJson("plugins", "work-suite", "plugin.json"),
+  }
+}
+
+function validateCopilotPackagingContract() {
+  return []
+}
+
 function expectedCopilotBundle() {
   const activation = loadJson(activationManifestPath)
   const lockedWorkSuiteVersion = activation.dependencies.find((dependency) => (
@@ -261,4 +279,68 @@ test("Copilot root package docs avoid healthy-path manual dependency setup", () 
   assert.doesNotMatch(readme, /copilot plugin install ourostack\/ouroboros-skills:plugins\/work-suite/u)
   assert.doesNotMatch(agentDocs, /Copilot CLI doesn't auto-resolve transitive plugin deps/u)
   assert.doesNotMatch(workSuiteReadme, /copilot plugin install ourostack\/ouroboros-skills:plugins\/work-suite/u)
+})
+
+test("Copilot packaging validation rejects missing root surfaces and stale versions", () => {
+  assert.deepEqual(validateCopilotPackagingContract(currentCopilotPackagingInput()), [])
+
+  const missingAgents = clone(currentCopilotPackagingInput())
+  delete missingAgents.deskPlugin.agents
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingAgents),
+    ["Copilot root plugin metadata must expose ./agents/"],
+  )
+
+  const missingSkills = clone(currentCopilotPackagingInput())
+  missingSkills.deskPlugin.skills = undefined
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingSkills),
+    ["Copilot root plugin metadata must expose ./skills/"],
+  )
+
+  const missingMcp = clone(currentCopilotPackagingInput())
+  missingMcp.deskPlugin.mcpServers = "./missing-mcp.json"
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingMcp),
+    ["Copilot root plugin metadata must expose ./.mcp.json"],
+  )
+
+  const staleDeskVersion = clone(currentCopilotPackagingInput())
+  staleDeskVersion.deskPlugin.version = "1.7.2"
+  assert.deepEqual(
+    validateCopilotPackagingContract(staleDeskVersion),
+    ["Copilot root Desk version must match activation version 1.7.3"],
+  )
+
+  const staleWorkSuiteVersion = clone(currentCopilotPackagingInput())
+  staleWorkSuiteVersion.workSuitePlugin.version = "1.4.8"
+  assert.deepEqual(
+    validateCopilotPackagingContract(staleWorkSuiteVersion),
+    ["Copilot root Work Suite version must match activation lock 1.4.9"],
+  )
+})
+
+test("Copilot packaging validation rejects incomplete flattened dependency closure", () => {
+  const missingBundleDependency = clone(currentCopilotPackagingInput())
+  missingBundleDependency.bundle.dependency_closure =
+    missingBundleDependency.bundle.dependency_closure.filter((entry) => entry.id !== "work-suite")
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingBundleDependency),
+    ["Copilot flattened bundle must include work-suite dependency closure"],
+  )
+
+  const staleBundlePath = clone(currentCopilotPackagingInput())
+  staleBundlePath.deskPlugin.activation.copilot.dependencies["work-suite"].bundleMetadata =
+    "plugins/desk/activation/old-bundle.json"
+  assert.deepEqual(
+    validateCopilotPackagingContract(staleBundlePath),
+    ["Copilot Work Suite dependency must point to generated flattened bundle metadata"],
+  )
+
+  const wrongWorker = clone(currentCopilotPackagingInput())
+  wrongWorker.deskPlugin.activation.copilot.targets["desk:worker"].source = "agents/worker.md"
+  assert.deepEqual(
+    validateCopilotPackagingContract(wrongWorker),
+    ["Copilot desk:worker target must use agents/worker.agent.md"],
+  )
 })
