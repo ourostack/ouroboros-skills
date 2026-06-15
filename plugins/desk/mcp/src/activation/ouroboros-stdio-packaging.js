@@ -21,6 +21,7 @@ export function validateOuroborosStdioPackagingContract(input) {
     host: findHostSupport(input, GENERIC_STDIO_HOST),
     evidence: findEvidenceRow(input, GENERIC_STDIO_HOST),
     readmeSection: input?.genericStdioReadmeSection ?? "",
+    activationSection: input?.genericStdioActivationSection ?? "",
   }, errors)
   return errors
 }
@@ -68,7 +69,7 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
   }
 }
 
-function validateGenericStdioHost({ host, evidence, readmeSection }, errors) {
+function validateGenericStdioHost({ host, evidence, readmeSection, activationSection }, errors) {
   if (host === undefined) {
     errors.push("Generic stdio host support row is required")
   } else {
@@ -111,10 +112,11 @@ function validateGenericStdioHost({ host, evidence, readmeSection }, errors) {
   if (!/no worker activation/u.test(readmeSection)) {
     errors.push("Generic stdio docs must state no worker activation")
   }
-  if (claimsGenericStdioWorkerActivation(readmeSection)) {
+  const supportClaimSections = `${readmeSection}\n${activationSection}`
+  if (claimsGenericStdioWorkerActivation(supportClaimSections)) {
     errors.push("Generic stdio docs must not claim worker activation")
   }
-  if (claimsGenericStdioDependencyResolution(readmeSection)) {
+  if (claimsGenericStdioDependencyResolution(supportClaimSections)) {
     errors.push("Generic stdio docs must not claim plugin dependency resolution")
   }
 }
@@ -178,11 +180,14 @@ function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
   return readmeStatements(readmeSection)
     .filter((statement) => /generic stdio/iu.test(statement))
     .some((statement) => readmeClauses(statement)
-      .some((clause) => (
-        !isNegativeSupportBoundary(clause)
-        && action.test(clause)
-        && target.test(clause)
-      )))
+      .some((clause) => hasPositiveSupportClaim({ clause, action, target })))
+}
+
+function hasPositiveSupportClaim({ clause, action, target }) {
+  const actionMatch = clause.match(action)
+  return actionMatch !== null
+    && target.test(clause)
+    && !isSupportActionNegated(clause, actionMatch.index)
 }
 
 function readmeStatements(readmeSection) {
@@ -200,7 +205,12 @@ function readmeClauses(statement) {
 }
 
 function isNegativeSupportBoundary(statement) {
-  return /\b(?:does not|do not|cannot|can't|no|without)\b/iu.test(statement)
+  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|cannot|can't|won't|never|without)\s*$/iu
+    .test(statement)
+}
+
+function isSupportActionNegated(clause, actionIndex) {
+  return isNegativeSupportBoundary(clause.slice(0, actionIndex))
 }
 
 function arrayIncludes(value, expected) {
