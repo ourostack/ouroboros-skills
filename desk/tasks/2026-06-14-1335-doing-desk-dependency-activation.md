@@ -444,7 +444,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened vector-pack validation/import code.
 **Acceptance**: 100% coverage on new vector-pack import code and all vector-pack validation tests pass.
 
-### ⬜ Unit 13a: Vector Rebuild And Missing Generation - Tests
+### 🔄 Unit 13a: Vector Rebuild And Missing Generation - Tests
 **What**: Write failing tests for rebuilding a local DB from docs plus vector packs with embedding endpoint disabled, zero live embedding calls when packs fully cover chunks, and live generation only for missing chunk keys with a mocked endpoint.
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js`.
 **Acceptance**: Tests fail until rebuild imports packs before live embedding generation.
@@ -926,3 +926,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 10:20 Unit 12c started for vector-pack coverage/refactor hardening: empty packs, inactive-spec packs, and same-run duplicate chunk keys across packs need explicit coverage beyond the Unit 12b review-fix regressions.
 - 2026-06-15 10:25 Unit 12c complete: expanded vector-pack coverage for empty active packs as no-op artifacts, duplicate chunk keys across packs after hash verification, inactive-spec directories ignored by active import, and inactive manifests rejected when placed under the active-spec pack directory. Saved green evidence in `unit-12c-vector-packs-green.log`, `unit-12c-test-coverage.log`, `unit-12c-npm-test-green.log`, `unit-12c-runtime-pack-verify-green.log`, `unit-12c-generated-artifacts-green.log`, `unit-12c-validate-skills-green.log`, and `unit-12c-diff-check-green.log`; focused vector-pack tests pass 14/14, full MCP tests pass 401/401, and coverage is 100% line/branch/function for changed production files.
 - 2026-06-15 10:29 Unit 12c cold reviewer gate converged: Feynman the 2nd found no blocker/major issues, verified the empty-pack, cross-pack duplicate, and inactive-spec coverage is meaningful, and accepted validator-level missing-checksum/corrupt-JSONL coverage because `importVectorPacks` always validates packs before import.
+- 2026-06-15 10:31 Unit 13a started for vector rebuild red tests: prove rebuild imports shared vector packs before live embeddings, makes zero embedding calls when packs cover all chunks, and only calls live embeddings for missing chunks.
