@@ -1,13 +1,16 @@
-// Resolve the desk root path from --root flag, DESK env var, or a fallback
-// chain of canonical workspace locations under $HOME.
+// Resolve the desk root path from --root flag, host/session defaults, an
+// activation config, DESK env var, or a fallback chain of canonical workspace
+// locations under $HOME.
 //
 // Resolution order:
 //   1. Explicit --root argument (if path exists)
-//   2. $DESK env var (if set and path exists)
-//   3. $HOME/ms-desk/ (if exists)
-//   4. $HOME/desk/ (if exists)
-//   5. $HOME/worker-workspace/ (legacy operators may still have this)
-//   6. Fail — listing every path tried, so the operator can diagnose
+//   2. Host/session root (if provided and path exists)
+//   3. Activation config desk.root (if provided and path exists)
+//   4. $DESK env var (if set and path exists)
+//   5. $HOME/ms-desk/ (if exists)
+//   6. $HOME/desk/ (if exists)
+//   7. $HOME/worker-workspace/ (legacy operators may still have this)
+//   8. Fail — listing every path tried, so the operator can diagnose
 //
 // We don't auto-create the dir here; consumers expect to point at an
 // existing desk workspace. The fallback chain exists so the most common
@@ -15,53 +18,110 @@
 
 import * as path from "node:path"
 import * as os from "node:os"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
-export function resolveDeskRoot(explicit) {
+export function resolveDeskRoot(explicit, options = {}) {
+  return resolveDeskRootWithSource({
+    ...options,
+    explicitRoot: explicit,
+  }).root
+}
+
+export function resolveDeskRootWithSource({
+  activationConfigPath,
+  env = process.env,
+  explicitRoot,
+  homeDir = os.homedir(),
+  hostSessionRoot,
+} = {}) {
   const tried = []
 
   // 1. Explicit --root argument — if passed, this is authoritative.
-  if (explicit) {
-    const resolved = path.resolve(expandHome(explicit))
-    tried.push(`--root ${resolved}`)
-    if (existsSync(resolved)) return resolved
+  if (hasText(explicitRoot)) {
+    const resolved = path.resolve(expandHome(explicitRoot, homeDir))
+    tried.push({ source: "explicit-root", path: resolved })
+    if (existsSync(resolved)) return { root: resolved, source: "explicit-root", tried }
     throw new Error(
       `desk-mcp: --root path does not exist: ${resolved}. ` +
         `Pass --root <path> pointing at an existing desk workspace, or set $DESK.`,
     )
   }
 
-  // 2. $DESK env var.
-  if (process.env.DESK) {
-    const resolved = path.resolve(expandHome(process.env.DESK))
-    tried.push(`$DESK=${resolved}`)
-    if (existsSync(resolved)) return resolved
+  if (hasText(hostSessionRoot)) {
+    const resolved = path.resolve(expandHome(hostSessionRoot, homeDir))
+    tried.push({ source: "host-session-root", path: resolved })
+    if (existsSync(resolved)) return { root: resolved, source: "host-session-root", tried }
+    throw new Error(`desk-mcp: host/session root path does not exist: ${resolved}.`)
   }
 
-  // 3-5. Canonical fallback locations under $HOME.
-  const home = os.homedir()
+  const activationConfig = loadActivationConfig({ configPath: activationConfigPath, homeDir })
+  if (activationConfig !== null) {
+    const resolved = path.resolve(expandHome(activationConfig.desk.root, homeDir))
+    tried.push({ source: "activation-config", path: resolved })
+    if (existsSync(resolved)) return { root: resolved, source: "activation-config", tried }
+    throw new Error(`desk-mcp: activation config desk.root path does not exist: ${resolved}.`)
+  }
+
+  // $DESK env var.
+  if (hasText(env.DESK)) {
+    const resolved = path.resolve(expandHome(env.DESK, homeDir))
+    tried.push({ source: "env:DESK", path: resolved })
+    if (existsSync(resolved)) return { root: resolved, source: "env:DESK", tried }
+  }
+
+  // Canonical fallback locations under $HOME.
+  const home = homeDir
   const fallbacks = [
-    path.join(home, "ms-desk"),
-    path.join(home, "desk"),
-    path.join(home, "worker-workspace"),
+    { source: "fallback:ms-desk", path: path.join(home, "ms-desk") },
+    { source: "fallback:desk", path: path.join(home, "desk") },
+    { source: "fallback:worker-workspace", path: path.join(home, "worker-workspace") },
   ]
   for (const candidate of fallbacks) {
     tried.push(candidate)
-    if (existsSync(candidate)) return candidate
+    if (existsSync(candidate.path)) {
+      return { root: candidate.path, source: candidate.source, tried }
+    }
   }
 
-  // 6. Fail with diagnostic listing every path tried.
+  // Fail with diagnostic listing every path tried.
   throw new Error(
     `desk-mcp: no desk workspace found. Tried (in order):\n` +
-      tried.map((t) => `  - ${t}`).join("\n") +
+      tried.map((entry) => `  - ${formatTriedEntry(entry)}`).join("\n") +
       `\nPass --root <path> pointing at an existing desk workspace, or set $DESK.`,
   )
 }
 
-export function expandHome(p) {
-  if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2))
-  if (p === "~") return os.homedir()
+export function loadActivationConfig({ configPath, homeDir = os.homedir() } = {}) {
+  if (!hasText(configPath)) return null
+  const resolvedPath = path.resolve(expandHome(configPath, homeDir))
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(resolvedPath, "utf8"))
+  } catch {
+    throw new Error(`desk-mcp: activation config ${resolvedPath} must be valid JSON`)
+  }
+  if (parsed?.schema_version !== 1) {
+    throw new Error("desk-mcp: activation config schema_version must be 1")
+  }
+  if (!hasText(parsed?.desk?.root)) {
+    throw new Error("desk-mcp: activation config desk.root must be a non-empty string")
+  }
+  return parsed
+}
+
+export function expandHome(p, homeDir = os.homedir()) {
+  if (p.startsWith("~/")) return path.join(homeDir, p.slice(2))
+  if (p === "~") return homeDir
   return p
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+function formatTriedEntry(entry) {
+  if (entry.source === "env:DESK") return `$DESK=${entry.path}`
+  return entry.path
 }
 
 // ── Shared-workspace write-prefix ─────────────────────────────────────────────

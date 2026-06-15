@@ -14,7 +14,7 @@ import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import * as path from "node:path"
 import { importRuntimeServer } from "./src/runtime/bootstrap.js"
-import { resolveDeskRoot } from "./src/util/paths.js"
+import { resolveDeskRootWithSource } from "./src/util/paths.js"
 
 export function parseArgs(argv) {
   const args = { root: null, person: null }
@@ -23,14 +23,25 @@ export function parseArgs(argv) {
       args.root = argv[++i]
     } else if (argv[i] === "--person" && argv[i + 1]) {
       args.person = argv[++i]
+    } else if (argv[i] === "--activation-config" && argv[i + 1]) {
+      args.activationConfig = argv[++i]
     }
   }
   return args
 }
 
+export function resolveStartupDeskRoot({ args, env = process.env, homeDir } = {}) {
+  return resolveDeskRootWithSource({
+    activationConfigPath: args?.activationConfig,
+    env,
+    explicitRoot: args?.root,
+    homeDir,
+  })
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
-  const deskRoot = resolveDeskRoot(args.root)
+  const { root: deskRoot } = resolveStartupDeskRoot({ args })
   const { startServer } = await importRuntimeServer({
     mcpRoot: path.dirname(fileURLToPath(import.meta.url)),
   })
