@@ -87,8 +87,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Snapshot artifacts are compressed or otherwise size-managed.
 - [x] Runtime chooses the newest compatible snapshot for the active embedding spec and ignores inactive-spec snapshots.
 - [x] Snapshot restore corruption is treated as a cache miss.
-- [ ] Snapshot restore falls back to vector packs automatically.
-- [ ] Stale but compatible snapshots are reconciled incrementally instead of fully discarded.
+- [x] Snapshot restore falls back to vector packs automatically.
+- [x] Stale but compatible snapshots are reconciled incrementally instead of fully discarded.
 - [ ] Vector packs live outside `.state/` at `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl` with adjacent manifest and checksum files.
 - [ ] Vector-pack rows include chunk key, text verification hash, embedding spec ID, dimension, encoding, and vector data.
 - [ ] Vector-pack files include or reference checksums.
@@ -120,13 +120,13 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Manifest version drift between root, Claude, Codex, and Work Suite-related plugin metadata is tested or intentionally documented.
 - [ ] Worker content drift across Claude/Copilot/Codex formats is tested or eliminated by generation.
 - [ ] Tests cover MCP cold start with no local `.state/`.
-- [ ] Tests cover compatible snapshot restore.
-- [ ] Tests cover incompatible snapshot fallback to vector packs.
+- [x] Tests cover compatible snapshot restore.
+- [x] Tests cover incompatible snapshot fallback to vector packs.
 - [x] Tests cover full rebuild from docs plus vector packs with embedding endpoint disabled.
 - [x] Tests assert zero live embedding calls when vector packs fully cover chunks.
 - [x] Tests cover missing-vector live generation with a mocked embedding endpoint.
-- [ ] Tests cover stale snapshot incremental reconcile.
-- [ ] Tests cover corrupted snapshot fallback.
+- [x] Tests cover stale snapshot incremental reconcile.
+- [x] Tests cover corrupted snapshot fallback.
 - [x] Tests cover corrupted vector-pack rejection.
 - [ ] Tests cover two machines producing non-conflicting append-only packs.
 - [ ] Tests cover sensitive-path exclusion and no absolute paths in snapshot artifacts.
@@ -509,7 +509,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/snapshots/fallback_reconcile.test.js`.
 **Acceptance**: Tests fail until fallback and freshness/reconcile semantics exist.
 
-### 🔄 Unit 17b: Snapshot Fallback And Stale Reconcile - Implementation
+### ✅ Unit 17b: Snapshot Fallback And Stale Reconcile - Implementation
 **What**: Wire snapshot restore into index startup/rebuild with vector-pack fallback and stale reconcile.
 **Output**: Updated `server-helpers.js`, indexer startup flow, and snapshot helpers.
 **Acceptance**: Unit 17a tests pass, incompatible snapshots are cache misses, and stale compatible snapshots restore then reconcile.
@@ -961,3 +961,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 14:00 Unit 17a started for snapshot fallback/reconcile red tests covering corrupt/incompatible snapshot fallback to vector packs, freshness-only source/document hash mismatch, stale compatible restore-then-reconcile, and refs/search preservation after reconcile.
 - 2026-06-15 14:07 Unit 17a complete: `7925819` added red integration tests in `plugins/desk/mcp/__tests__/snapshots/fallback_reconcile.test.js` for corrupt snapshot fallback to vector packs without live embedding calls, incompatible snapshot cache miss before vector-pack fallback, and stale compatible restore-then-reconcile. Linnaeus the 2nd found MAJOR false-green risks around proving restore-first behavior and freshness coverage plus a MINOR FTS/search gap; `2caf463` added an unchanged snapshot-only vector sentinel, explicit `artifact_source_scope` and `document_tree` stale freshness assertions, and direct `chunks_fts` current/stale term checks. Final red evidence in `unit-17a-review-fix-fallback-reconcile-red.log` fails because `ensureIndex` does not yet report snapshot integration/metadata, and Ampere the 2nd converged on the hardened Unit 17a contract.
 - 2026-06-15 14:11 Unit 17b started for wiring snapshot restore into `ensureIndex`, vector-pack fallback, and stale compatible restore-then-reconcile behavior.
+- 2026-06-15 14:46 Unit 17b complete: `ensureIndex` now restores compatible snapshots before local index mutation, defaults runtime artifact discovery for production callers, configures the installed plugin root when the MCP runs from a runtime source mirror, falls back from corrupt/incompatible snapshots to vector packs, reconciles manifest-stale snapshots even when mtimes look fresh, and repairs fresh restored lexical snapshots from vector packs before returning. Evidence saved in `unit-17b-*.log`, `unit-17b-review-fix-*.log`, `unit-17b-review-fix2-*.log`, and `unit-17b-review-fix3-*.log`; full MCP tests and coverage gate pass, build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script, and Beauvoir the 2nd converged on the final Unit 17b reviewer gate.
