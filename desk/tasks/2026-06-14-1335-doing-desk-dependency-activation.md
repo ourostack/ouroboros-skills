@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -519,7 +519,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened snapshot fallback/reconcile flow.
 **Acceptance**: 100% coverage on new fallback/reconcile code and all fallback tests pass.
 
-### 🔄 Unit 17d: Full Status And Offline Fallback - Tests
+### ✅ Unit 17d: Full Status And Offline Fallback - Tests
 **What**: Write failing tests that extend `desk_status` and startup fallback after vector-pack and snapshot modules exist. Cover embedding spec, snapshot state, vector-pack state, document-vector coverage, query embedding availability, lexical availability, degraded modes, and offline startup with snapshot/vector-pack/lexical fallback.
 **Output**: `plugins/desk/mcp/__tests__/tools/status_artifacts.test.js` and extended `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`.
 **Acceptance**: Tests fail until full artifact-aware status and offline fallback are wired after Units 11-17.
@@ -965,3 +965,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 14:51 Unit 17c started for hardening snapshot fallback/reconcile coverage around stale docs, deleted docs, archived docs, missing packs, and embedding endpoint disabled during fallback.
 - 2026-06-15 14:57 Unit 17c complete: `2f9268d` added fallback/reconcile edge coverage for deleting snapshot-only docs, refreshing stale archived docs, treating corrupt snapshots with no vector packs as lexical fallback, and preserving graceful degraded mode when the embedding endpoint is disabled. Evidence saved in `unit-17c-fallback-reconcile-green.log`, `unit-17c-server-helpers-coverage-green.log`, `unit-17c-npm-test-green.log`, `unit-17c-test-coverage-green.log`, `unit-17c-runtime-pack-verify-green.log`, `unit-17c-generate-support-matrix-green.log`, `unit-17c-generated-artifacts-green.log`, `unit-17c-validate-skills-green.log`, `unit-17c-build-unavailable.log`, and `unit-17c-diff-check-green.log`; focused fallback tests pass 13/13, focused coverage is 100% line/branch/function for `server-helpers.js`, full MCP tests pass 490/490, package coverage remains 100%, generated-artifact/runtime-pack/skill validation pass, and build remains unavailable because the MCP package has no `build` script.
 - 2026-06-15 14:59 Unit 17c cold reviewer gate converged: Carver the 2nd verified the deleted-doc, archived-doc, missing-pack, disabled-embedding, coverage, log, and doing-doc claims with no findings. Unit 17d started for red tests covering artifact-aware `desk_status` and offline startup fallback through snapshot, vector-pack, and lexical modes.
+- 2026-06-15 15:06 Unit 17d complete: `0a70cd7` added red status/startup contracts in `plugins/desk/mcp/__tests__/tools/status_artifacts.test.js` and `plugins/desk/mcp/__tests__/runtime/startup_budget.test.js`. Targeted red evidence in `unit-17d-status-startup-red.log` fails because startup does not yet call bounded `ensureIndex`, does not forward startup fallback context, and `desk_status` still reports snapshot/vector-pack modules as `not_installed`; existing `desk_status` tests still pass 12/12 in `unit-17d-existing-status-green.log`, and `unit-17d-diff-check-green.log` is clean. Terminal `All tests pass` is intentionally unchecked until Unit 17e makes the new status/offline fallback contract green.
