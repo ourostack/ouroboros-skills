@@ -18,6 +18,28 @@ const immutableFixtureDirs = [
   path.join(fixtureRoot, "immutable/host-cache-source"),
   path.join(fixtureRoot, "immutable/readonly-plugin-cache"),
 ];
+const immutablePluginSourceSkipPaths = [
+  path.join(mcpRoot, "node_modules"),
+];
+const forbiddenPluginArtifactPaths = [
+  path.join(deskPluginRoot, ".desk-runtime-cache.json"),
+  path.join(deskPluginRoot, ".state"),
+  path.join(deskPluginRoot, "node_modules"),
+  path.join(deskPluginRoot, "runtime-cache"),
+  path.join(deskPluginRoot, "source-mirror"),
+  path.join(mcpRoot, ".desk-runtime-cache.json"),
+  path.join(mcpRoot, ".state"),
+  path.join(mcpRoot, "runtime-cache"),
+  path.join(mcpRoot, "source-mirror"),
+];
+const runtimeArtifactNames = new Set([
+  ".desk-runtime-cache.json",
+  "node_modules",
+  "package-lock.json",
+  "package.json",
+  "runtime-cache",
+  "source-mirror",
+]);
 
 const bootstrapModule = await import(pathToFileURL(path.join(mcpRoot, "src/runtime/bootstrap.js")).href);
 const runtimeDepsModule = await import(pathToFileURL(path.join(mcpRoot, "src/runtime/runtime-deps.js")).href);
@@ -74,20 +96,45 @@ function hasRuntimeDeps(cacheDir) {
 }
 
 function assertNoDeskStateRuntimeDeps(deskRoot) {
-  const stateDir = path.join(deskRoot, ".state");
-  assert.equal(existsSync(path.join(stateDir, "node_modules")), false, "runtime node_modules must not be written under desk .state");
-  assert.equal(existsSync(path.join(stateDir, "package.json")), false, "runtime package.json must not be written under desk .state");
-  assert.equal(existsSync(path.join(stateDir, "package-lock.json")), false, "runtime package-lock.json must not be written under desk .state");
-  assert.equal(existsSync(path.join(stateDir, ".desk-runtime-cache.json")), false, "runtime marker must not be written under desk .state");
+  assert.deepEqual(
+    findRuntimeArtifactsUnder(path.join(deskRoot, ".state")),
+    [],
+    "runtime dependency artifacts must not be written anywhere under desk .state",
+  );
 }
 
-function listTree(dirPath) {
+function findRuntimeArtifactsUnder(rootPath) {
+  if (!existsSync(rootPath)) return [];
+  const matches = [];
+  const walk = (current, relativePrefix = "") => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const relativePath = path.join(relativePrefix, entry.name);
+      const absolutePath = path.join(current, entry.name);
+      if (runtimeArtifactNames.has(entry.name)) {
+        matches.push(relativePath);
+        if (entry.isDirectory()) continue;
+      }
+      if (entry.isDirectory()) walk(absolutePath, relativePath);
+    }
+  };
+  walk(rootPath);
+  return matches.sort();
+}
+
+function assertNoRuntimeArtifactsUnder(rootPath, message) {
+  assert.deepEqual(findRuntimeArtifactsUnder(rootPath), [], message);
+}
+
+function listTree(dirPath, { skipPaths = [] } = {}) {
   if (!existsSync(dirPath)) return [];
   const entries = [];
   const walk = (current, relativePrefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const relativePath = path.join(relativePrefix, entry.name);
       const absolutePath = path.join(current, entry.name);
+      if (skipPaths.some((skipPath) => absolutePath === skipPath || absolutePath.startsWith(`${skipPath}${path.sep}`))) {
+        continue;
+      }
       const stat = statSync(absolutePath);
       entries.push({
         path: relativePath,
@@ -102,16 +149,46 @@ function listTree(dirPath) {
   return entries;
 }
 
-function snapshotImmutableDirs() {
-  return new Map(immutableFixtureDirs.map((dirPath) => [dirPath, listTree(dirPath)]));
+function snapshotPath(targetPath) {
+  if (!existsSync(targetPath)) return { exists: false };
+  const stat = statSync(targetPath);
+  if (!stat.isDirectory()) {
+    return {
+      exists: true,
+      type: "file",
+      size: stat.size,
+      mtimeMs: stat.mtimeMs,
+    };
+  }
+  return {
+    exists: true,
+    type: "dir",
+    entries: listTree(targetPath),
+  };
 }
 
-function assertImmutableDirsUnchanged(before) {
-  for (const [dirPath, expected] of before.entries()) {
+function snapshotImmutableState() {
+  return {
+    fixtureDirs: new Map(immutableFixtureDirs.map((dirPath) => [dirPath, listTree(dirPath)])),
+    pluginArtifacts: new Map(forbiddenPluginArtifactPaths.map((targetPath) => [targetPath, snapshotPath(targetPath)])),
+    pluginSourceTree: listTree(deskPluginRoot, { skipPaths: immutablePluginSourceSkipPaths }),
+  };
+}
+
+function assertImmutableStateUnchanged(before) {
+  assert.deepEqual(
+    listTree(deskPluginRoot, { skipPaths: immutablePluginSourceSkipPaths }),
+    before.pluginSourceTree,
+    `${deskPluginRoot} must not be mutated by runtime startup`,
+  );
+  for (const [dirPath, expected] of before.fixtureDirs.entries()) {
     assert.deepEqual(listTree(dirPath), expected, `${dirPath} should not be mutated by runtime startup`);
     assert.equal(existsSync(path.join(dirPath, "node_modules")), false, `${dirPath} must not receive node_modules`);
     assert.equal(existsSync(path.join(dirPath, ".desk-runtime-cache.json")), false, `${dirPath} must not receive runtime markers`);
     assert.equal(existsSync(path.join(dirPath, "source-mirror")), false, `${dirPath} must not receive source mirrors`);
+  }
+  for (const [targetPath, expected] of before.pluginArtifacts.entries()) {
+    assert.deepEqual(snapshotPath(targetPath), expected, `${targetPath} must not be created or mutated by runtime startup`);
   }
 }
 
@@ -128,10 +205,29 @@ function mcpServerFromConfig(configPath) {
 function mcpServerFromManifest(manifestPath) {
   const manifest = readJson(manifestPath);
   if (typeof manifest.mcpServers === "string") {
-    return mcpServerFromConfig(path.resolve(deskPluginRoot, manifest.mcpServers));
+    const configPath = path.resolve(path.dirname(manifestPath), manifest.mcpServers);
+    assert.equal(existsSync(configPath), true, `${manifestPath} mcpServers must resolve relative to the manifest file: ${configPath}`);
+    return mcpServerFromConfig(configPath);
   }
   assert.ok(manifest.mcpServers?.desk, `${manifestPath} should declare or reference a desk MCP server`);
   return manifest.mcpServers.desk;
+}
+
+function manifestCases() {
+  return [
+    {
+      id: "desk plugin.json",
+      sourcePath: path.join(deskPluginRoot, "plugin.json"),
+    },
+    {
+      id: "codex plugin.json",
+      sourcePath: path.join(deskPluginRoot, ".codex-plugin/plugin.json"),
+    },
+    {
+      id: "claude plugin.json",
+      sourcePath: path.join(deskPluginRoot, ".claude-plugin/plugin.json"),
+    },
+  ];
 }
 
 function declarationCases() {
@@ -162,6 +258,27 @@ function declarationCases() {
       server: mcpServerFromConfig(hostLaunchFixture),
     },
   ];
+}
+
+function staticLaunchConfigCases() {
+  return [
+    {
+      id: "desk .mcp.json",
+      server: mcpServerFromConfig(path.join(deskPluginRoot, ".mcp.json")),
+    },
+    {
+      id: "generic stdio fixture",
+      server: mcpServerFromConfig(hostLaunchFixture),
+    },
+  ];
+}
+
+function assertCwdIndependentLaunchArgs(id, server) {
+  const args = server.args ?? [];
+  const entrypointArg = args.find((arg) => materializeLaunchValue(arg, deskPluginRoot).replaceAll("\\", "/").endsWith("/mcp/index.js"));
+  assert.ok(entrypointArg, `${id} must launch plugins/desk/mcp/index.js`);
+  assert.equal(entrypointArg.startsWith("./") || entrypointArg.startsWith("../"), false, `${id} must not use caller-cwd-relative MCP entrypoint args`);
+  assert.equal(path.isAbsolute(materializeLaunchValue(entrypointArg, deskPluginRoot)), true, `${id} MCP entrypoint arg must materialize to an absolute installed path`);
 }
 
 function makeMcpEnvelope(id, method, params = {}) {
@@ -259,6 +376,11 @@ async function runIndexListTools({ args, cwd, env }) {
   });
 }
 
+function materializeLaunchCommand(command, pluginRoot) {
+  const materialized = materializeLaunchValue(command, pluginRoot);
+  return materialized === "node" ? process.execPath : materialized;
+}
+
 function makeDeskHome(tempRoot) {
   const homeDir = ensureDir(path.join(tempRoot, "home"));
   const deskRoot = ensureDir(path.join(homeDir, "ms-desk"));
@@ -266,6 +388,20 @@ function makeDeskHome(tempRoot) {
 }
 
 describe("runtime cache and host launch contract", () => {
+  it("resolves committed host manifest MCP references relative to each manifest file", () => {
+    for (const manifest of manifestCases()) {
+      const server = mcpServerFromManifest(manifest.sourcePath);
+      assert.equal(server.type, "stdio", `${manifest.id} should resolve a stdio MCP server`);
+      assert.ok(Array.isArray(server.args), `${manifest.id} should resolve launch args`);
+    }
+  });
+
+  it("committed MCP launch configs use cwd-independent installed entrypoint args", () => {
+    for (const declaration of staticLaunchConfigCases()) {
+      assertCwdIndependentLaunchArgs(declaration.id, declaration.server);
+    }
+  });
+
   it("uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state", async (t) => {
     if (!runtimePackExists()) {
       t.skip("host-specific runtime dependency pack is not present");
@@ -297,8 +433,8 @@ describe("runtime cache and host launch contract", () => {
     });
 
     assert.equal(hasRuntimeDeps(activationCache), true, "activation config runtimeCacheDir should receive runtime dependencies");
-    assert.equal(hasRuntimeDeps(envCache), false, "DESK_RUNTIME_CACHE_DIR should not be used when activation config supplies runtimeCacheDir");
-    assert.equal(hasRuntimeDeps(path.join(xdgCache, "ouroboros-skills/desk")), false, "XDG cache fallback should not be used");
+    assertNoRuntimeArtifactsUnder(envCache, "DESK_RUNTIME_CACHE_DIR should not be used when activation config supplies runtimeCacheDir");
+    assertNoRuntimeArtifactsUnder(path.join(xdgCache, "ouroboros-skills", "desk"), "XDG cache fallback should not be used");
     assertNoDeskStateRuntimeDeps(deskRoot);
   });
 
@@ -308,7 +444,7 @@ describe("runtime cache and host launch contract", () => {
       return;
     }
 
-    const before = snapshotImmutableDirs();
+    const before = snapshotImmutableState();
 
     for (const declaration of declarationCases()) {
       await t.test(declaration.id, async () => {
@@ -320,7 +456,7 @@ describe("runtime cache and host launch contract", () => {
         const args = (server.args ?? []).map((arg) => materializeLaunchValue(arg, deskPluginRoot));
 
         await runListToolsSession({
-          command: materializeLaunchValue(server.command, deskPluginRoot),
+          command: materializeLaunchCommand(server.command, deskPluginRoot),
           args,
           cwd,
           env: {
@@ -334,10 +470,10 @@ describe("runtime cache and host launch contract", () => {
       });
     }
 
-    assertImmutableDirsUnchanged(before);
+    assertImmutableStateUnchanged(before);
   });
 
-  it("repairs cached runtime dependencies when the cache marker belongs to a different plugin version", async (t) => {
+  it("repairs cached runtime dependencies when the cache marker and dependency artifacts are stale", async (t) => {
     if (!runtimePackExists()) {
       t.skip("host-specific runtime dependency pack is not present");
       return;
@@ -351,10 +487,19 @@ describe("runtime cache and host launch contract", () => {
     const marker = readJson(markerPath);
     marker.plugin.version = "0.0.0-incompatible";
     writeJson(markerPath, marker);
+    const cachedPackageJsonPath = path.join(runtimeCacheDir, "package.json");
+    const cachedPackageJson = readJson(cachedPackageJsonPath);
+    cachedPackageJson.version = "0.0.0-incompatible";
+    writeJson(cachedPackageJsonPath, cachedPackageJson);
+    const staleRuntimeArtifactPath = path.join(runtimeCacheDir, "node_modules/.stale-runtime-artifact");
+    writeFileSync(staleRuntimeArtifactPath, "stale runtime artifact\n");
 
     prepareRuntime({ mcpRoot, env: process.env, runtimeCacheDir });
     const repairedMarker = readJson(markerPath);
+    const repairedPackageJson = readJson(cachedPackageJsonPath);
 
     assert.equal(repairedMarker.plugin.version, packageJson.version, "runtime cache marker should be repaired from the committed pack");
+    assert.equal(repairedPackageJson.version, packageJson.version, "runtime cache package.json should be restored from the committed pack");
+    assert.equal(existsSync(staleRuntimeArtifactPath), false, "stale runtime dependency artifacts should be removed during cache repair");
   });
 });
