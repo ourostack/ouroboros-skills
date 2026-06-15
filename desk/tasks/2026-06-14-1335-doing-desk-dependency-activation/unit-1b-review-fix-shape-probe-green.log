@@ -1,0 +1,5 @@
+overlayAgentsObject: ok=false errors=1
+targetEntrypointsArray: ok=false errors=1
+overlayInheritsNumber: ok=false errors=1
+overlayInheritsObject: ok=false errors=1
+diagnoseMalformedHostSupport: unsupported

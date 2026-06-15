@@ -75,7 +75,8 @@ export function orderActivationDependencies(manifest) {
 }
 
 export function diagnoseHostSupport(manifest, { host }) {
-  const match = (manifest.host_support ?? []).find((entry) => entry.host === host)
+  const hostSupport = Array.isArray(manifest.host_support) ? manifest.host_support : []
+  const match = hostSupport.find((entry) => isObject(entry) && entry.host === host)
   if (!match) {
     return {
       host,
@@ -310,14 +311,21 @@ function validateProvides(provides, dependencyIds, errors) {
     validateId(overlay.id, `${path}.id`, "invalid_overlay_agent_id", "overlay agent id must be a stable lowercase id", errors)
     validateEnum(overlay.kind, `${path}.kind`, OVERLAY_AGENT_KINDS, "invalid_overlay_agent_kind", "overlay agent kind is not supported", errors)
     validateText(overlay.launch_as, `${path}.launch_as`, "invalid_overlay_launch_as", "overlay launch_as must be text", errors)
+    if (!Array.isArray(overlay.inherits)) {
+      errors.push(diagnostic(`${path}.inherits`, "invalid_overlay_inherits", "overlay inherits must be an array"))
+    } else {
+      validateStringList(overlay.inherits, `${path}.inherits`, "invalid_overlay_inherits", "overlay inherits must contain text activation ids", errors)
+    }
     if (allActivationIds.has(overlay.id)) {
       errors.push(diagnostic(`${path}.id`, "duplicate_activation_id", `duplicate activation id ${overlay.id}`))
     }
     allActivationIds.add(overlay.id)
     validateDependsOn(`${overlay.id}.depends_on`, overlay.depends_on, dependencyIds, errors)
-    for (const inherited of overlay.inherits ?? []) {
-      if (!targetIds.has(inherited)) {
-        errors.push(diagnostic(`${overlay.id}.inherits`, "unknown_activation_inherit", `${overlay.id} inherits unknown target ${inherited}`))
+    if (Array.isArray(overlay.inherits)) {
+      for (const inherited of overlay.inherits) {
+        if (typeof inherited === "string" && !targetIds.has(inherited)) {
+          errors.push(diagnostic(`${overlay.id}.inherits`, "unknown_activation_inherit", `${overlay.id} inherits unknown target ${inherited}`))
+        }
       }
     }
   }

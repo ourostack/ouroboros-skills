@@ -480,6 +480,48 @@ test("activation validation fails closed for contract type and enum fields", asy
       /provides\.overlay_agents.*invalid_overlay_agents/i,
     ],
   )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: 42 },
+        ],
+      },
+    })),
+    [
+      /provides\.overlay_agents\[0\]\.inherits.*invalid_overlay_inherits/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: {} },
+        ],
+      },
+    })),
+    [
+      /provides\.overlay_agents\[0\]\.inherits.*invalid_overlay_inherits/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: [42] },
+        ],
+      },
+    })),
+    [
+      /provides\.overlay_agents\[0\]\.inherits.*invalid_overlay_inherits/i,
+    ],
+  )
 })
 
 test("activation validation requires MCP, root, artifact, host, and permission policy fields", async () => {
@@ -958,6 +1000,15 @@ test("unsupported hosts produce host-native fallback diagnostics", async () => {
 
   assert.equal(noHostSupport.status, "unsupported")
   assert.deepEqual(noHostSupport.unsupported_primitives, ["host-activation"])
+
+  const malformedHostSupport = diagnoseHostSupport({
+    host_support: {},
+  }, {
+    host: "codex",
+  })
+
+  assert.equal(malformedHostSupport.status, "unsupported")
+  assert.deepEqual(malformedHostSupport.unsupported_primitives, ["host-activation"])
 
   const bareHost = diagnoseHostSupport({
     host_support: [
