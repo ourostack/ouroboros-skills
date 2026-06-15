@@ -619,6 +619,38 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     validateOuroborosStdioPackagingContract(activationReadmeIdentifierClaim),
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
+
+  const yetDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  yetDependencyClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not support desk:worker, yet generic stdio supports Work Suite without requiring a plugin installer.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(yetDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const yetIdentifierClaim = clone(currentOuroborosStdioPackagingInput())
+  yetIdentifierClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not load agent-defaults, yet generic stdio loads `work-suite` automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(yetIdentifierClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const thoughDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  thoughDependencyClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio does not support desk:worker, though generic stdio provides plugin-dependency-resolution automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(thoughDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const whileDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  whileDependencyClaim.genericStdioReadmeSection +=
+    "\nWhile generic stdio does not support desk:worker, generic stdio exposes Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(whileDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
 })
 
 test("generic stdio packaging validation permits neither/nor negative support wording", () => {
@@ -627,6 +659,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nGeneric stdio neither activates worker nor resolves plugin dependencies.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(neitherNorNegative),
+    [],
+  )
+
+  const contractionNegative = clone(currentOuroborosStdioPackagingInput())
+  contractionNegative.genericStdioReadmeSection +=
+    "\nGeneric stdio doesn't support desk:worker.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(contractionNegative),
+    [],
+  )
+
+  const postActionNegativeTarget = clone(currentOuroborosStdioPackagingInput())
+  postActionNegativeTarget.genericStdioReadmeSection +=
+    "\nGeneric stdio starts the MCP server, not worker activation.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(postActionNegativeTarget),
     [],
   )
 })
