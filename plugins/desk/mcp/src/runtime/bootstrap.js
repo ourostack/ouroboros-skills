@@ -223,12 +223,76 @@ export function verifyBootstrapRuntimeDependencyPack({
       }
     }
   }
+  const archiveEntries = archiveBytes === undefined ? undefined : readRuntimeArchiveEntries(archiveBytes, errors)
+  if (manifest !== undefined && archiveEntries !== undefined) {
+    const archivePackageJson = parseArchiveJson(archiveEntries.get("package.json"), "package.json", errors)
+    const archivePackageLock = archiveEntries.get("package-lock.json")
+    parseArchiveJson(archivePackageLock, "package-lock.json", errors)
+    parseArchiveJson(archiveEntries.get("runtime-deps.manifest.json"), "runtime-deps.manifest.json", errors)
+    if (archivePackageJson !== undefined) {
+      if (archivePackageJson.name !== manifest.plugin?.name || archivePackageJson.version !== manifest.plugin?.version) {
+        errors.push("runtime dependency archive package.json must match sidecar manifest plugin metadata")
+      }
+    }
+    if (archivePackageLock !== undefined && sha256(archivePackageLock) !== manifest.package_lock?.sha256) {
+      errors.push("runtime dependency archive package-lock.json sha256 must match sidecar manifest")
+    }
+    for (const entry of archiveEntries.keys()) {
+      if (entry === "index.js" || entry.startsWith("src/")) {
+        errors.push(`runtime dependency archive must not include mutable MCP source ${entry}`)
+      }
+    }
+  }
 
   return {
     ok: errors.length === 0,
     errors,
     manifest,
   }
+}
+
+function readRuntimeArchiveEntries(archiveBytes, errors) {
+  let data
+  try {
+    data = gunzipSync(archiveBytes)
+  } catch {
+    errors.push("runtime dependency archive runtime-deps.tgz must be a readable gzip tar archive")
+    return undefined
+  }
+  const entries = new Map()
+  let pendingLongName
+  let pendingPaxPath
+  for (let offset = 0; offset < data.length;) {
+    const header = data.subarray(offset, offset + 512)
+    if (header.length < 512 || header.every((byte) => byte === 0)) {
+      break
+    }
+    const type = header.toString("ascii", 156, 157)
+    const size = parseTarSize(header)
+    const bodyStart = offset + 512
+    const bodyEnd = bodyStart + size
+    const body = data.subarray(bodyStart, bodyEnd)
+    const name = pendingPaxPath
+      ?? pendingLongName
+      ?? tarEntryName(header)
+    if (type === "L") {
+      pendingLongName = body.toString("utf8").replace(/\0.*$/u, "")
+    } else if (type === "x") {
+      pendingPaxPath = paxPath(body)
+    } else {
+      if (type === "0" || type === "\0") {
+        try {
+          entries.set(safeArchivePath(name), Buffer.from(body))
+        } catch (err) {
+          errors.push(err.message)
+        }
+      }
+      pendingLongName = undefined
+      pendingPaxPath = undefined
+    }
+    offset += 512 + Math.ceil(size / 512) * 512
+  }
+  return entries
 }
 
 export function syncSourceMirror({ mcpRoot, runtimeCacheDir }) {
@@ -467,6 +531,19 @@ function expandHome(value, env) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"))
+}
+
+function parseArchiveJson(bytes, entry, errors) {
+  if (bytes === undefined) {
+    errors.push(`runtime dependency archive must include root ${entry}`)
+    return undefined
+  }
+  try {
+    return JSON.parse(bytes.toString("utf8"))
+  } catch {
+    errors.push(`runtime dependency archive ${entry} must be valid JSON`)
+    return undefined
+  }
 }
 
 function hasText(value) {
