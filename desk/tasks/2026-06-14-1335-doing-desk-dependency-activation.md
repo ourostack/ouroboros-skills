@@ -61,7 +61,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Desk MCP startup does not mutate immutable plugin source/cache directories.
 - [ ] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
 - [ ] Desk MCP offline startup behavior is tested for snapshot restore, vector-pack import, and lexical fallback.
-- [ ] Desk MCP resolves the desk root deterministically from explicit host/session root, activation default config, environment, and safe defaults.
+- [x] Desk MCP resolves the desk root deterministically from explicit host/session root, activation default config, environment, and safe defaults.
 - [ ] Desk MCP health/status reports the resolved root.
 - [ ] Desk MCP health/status reports plugin/runtime version.
 - [ ] Desk MCP health/status reports DB schema ID/version.
@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -359,7 +359,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/runtime/activation_config.test.js`.
 **Acceptance**: Tests fail until explicit `--root` or host/session root overrides activation default config, activation default config precedes `$DESK` and home fallbacks, and `plugins/desk/mcp/index.js`, server startup, and activation config use the same resolver in `plugins/desk/mcp/src/util/paths.js`.
 
-### 🔄 Unit 8b: Activation Config And Root Resolution - Implementation
+### ✅ Unit 8b: Activation Config And Root Resolution - Implementation
 **What**: Extend `plugins/desk/mcp/src/util/paths.js` as the canonical path/root module. Add activation-config loading and root-source diagnostics without creating a competing runtime paths module.
 **Output**: Updated `plugins/desk/mcp/src/util/paths.js` and activation config helpers used by `index.js` and status/startup code.
 **Acceptance**: Unit 8a tests pass and root resolution order is explicit `--root` or host/session root, activation default config, `$DESK`, then existing home fallbacks.
@@ -869,3 +869,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 05:17 Unit 8a reviewer fix: Russell the 2nd found a BLOCKER that helper-only tests could let `index.js` startup continue ignoring activation config; `c46206b` adds a real stdio MCP smoke that starts `plugins/desk/mcp/index.js` with `--activation-config` and conflicting `$DESK`, calls `task_create`, and proves writes must land in the activation-config root; refreshed red evidence in `unit-8a-review-fix-activation-config-red.log` now fails on the real startup path as well as missing helper exports
 - 2026-06-15 05:18 Unit 8a Round 2 cold reviewer gate converged: Russell the 2nd verified the real stdio startup smoke closes the helper-only loophole, the red log includes the startup failure, and no new BLOCKER or MAJOR red-contract issue was introduced
 - 2026-06-15 05:18 Unit 8b started: implementing activation-config loading and canonical root-source resolution in `plugins/desk/mcp/src/util/paths.js`, then wiring `plugins/desk/mcp/index.js` startup through the shared resolver
+- 2026-06-15 05:25 Unit 8b complete: `de9c356` adds activation config parsing to the MCP entrypoint, centralizes root resolution in `plugins/desk/mcp/src/util/paths.js` with explicit/host-session/activation/`$DESK`/home-fallback precedence and source reporting, preserves legacy `resolveDeskRoot` behavior, and proves real stdio startup writes through the activation-config root; saved green evidence in `unit-8b-activation-config-green.log`, `unit-8b-dependency-light-entrypoint-green.log`, `unit-8b-test-coverage.log`, `unit-8b-npm-test-green.log`, `unit-8b-generated-artifacts-green.log`, `unit-8b-runtime-pack-verify-green.log`, `unit-8b-validate-skills-green.log`, and `unit-8b-build-unavailable.log`; full MCP tests pass 313/313 and coverage is 100% line/branch/function for all changed production files
