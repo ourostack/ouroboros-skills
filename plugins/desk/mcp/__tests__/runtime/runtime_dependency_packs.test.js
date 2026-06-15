@@ -199,7 +199,7 @@ function assertArchiveFileMatchesInstalledNodeModule(archiveContents, entry) {
   )
 }
 
-function assertArchiveFilesMatchInstalledRuntime(archiveContents, expectedEntries) {
+function assertArchiveFilesMatchInstalledRuntime(archiveContents, expectedEntries, { manifestPath } = {}) {
   assert.deepEqual(
     [...archiveContents.keys()].sort(),
     expectedEntries,
@@ -207,6 +207,12 @@ function assertArchiveFilesMatchInstalledRuntime(archiveContents, expectedEntrie
   )
   for (const entry of expectedEntries) {
     if (entry === "runtime-deps.manifest.json") {
+      assert.notEqual(manifestPath, undefined, "built runtime dependency archive manifest sidecar path is required")
+      assert.deepEqual(
+        archiveContents.get(entry),
+        readFileSync(manifestPath),
+        "built runtime dependency archive embedded manifest bytes must match the sidecar manifest",
+      )
       continue
     }
     assertArchiveFileMatchesInstalledNodeModule(archiveContents, entry)
@@ -267,11 +273,39 @@ function dependencyNames(dependencies) {
 }
 
 function packageNameFromLockPath(lockPath) {
-  return lockPath.replace(/^node_modules\//u, "")
+  const match = lockPath.match(/(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)$/u)
+  assert.notEqual(match, null, `lock path must end in a package node_modules segment: ${lockPath}`)
+  return match[1]
 }
 
-function packageLockPathForName(name) {
+function packageLockPathForName(name, packageLock, fromLockPath) {
+  if (fromLockPath !== undefined) {
+    for (const candidateRoot of packageAncestorLockPaths(fromLockPath)) {
+      const nestedCandidate = `${candidateRoot}/node_modules/${name}`
+      if (packageLock.packages[nestedCandidate] !== undefined) {
+        return nestedCandidate
+      }
+    }
+  }
   return `node_modules/${name}`
+}
+
+function packageAncestorLockPaths(lockPath) {
+  const ancestors = []
+  let current = lockPath
+  while (current !== undefined) {
+    ancestors.push(current)
+    current = parentPackageLockPath(current)
+  }
+  return ancestors
+}
+
+function parentPackageLockPath(lockPath) {
+  const nestedMarkerIndex = lockPath.lastIndexOf("/node_modules/")
+  if (nestedMarkerIndex === -1) {
+    return undefined
+  }
+  return lockPath.slice(0, nestedMarkerIndex)
 }
 
 function supportsTarget(entry, { platform, arch }) {
@@ -284,7 +318,8 @@ function isNativeRuntimeDependency(lockPath) {
 }
 
 function expectedProductionDependencyClosure({ packageJson, packageLock, platform, arch }) {
-  const queue = Object.keys(packageJson.dependencies).map(packageLockPathForName)
+  const queue = Object.keys(packageJson.dependencies)
+    .map((name) => packageLockPathForName(name, packageLock))
   const seen = new Set()
   while (queue.length > 0) {
     const lockPath = queue.shift()
@@ -298,14 +333,14 @@ function expectedProductionDependencyClosure({ packageJson, packageLock, platfor
     }
     seen.add(lockPath)
     for (const name of Object.keys(entry.dependencies ?? {})) {
-      queue.push(packageLockPathForName(name))
+      queue.push(packageLockPathForName(name, packageLock, lockPath))
     }
     for (const name of Object.keys(entry.optionalDependencies ?? {})) {
-      queue.push(packageLockPathForName(name))
+      queue.push(packageLockPathForName(name, packageLock, lockPath))
     }
     for (const [name, range] of Object.entries(entry.peerDependencies ?? {})) {
       if (entry.peerDependenciesMeta?.[name]?.optional !== true && range !== undefined) {
-        queue.push(packageLockPathForName(name))
+        queue.push(packageLockPathForName(name, packageLock, lockPath))
       }
     }
   }
@@ -678,6 +713,17 @@ test("production dependency closure includes native packages and non-native tran
   const jsYaml = dependencies.find((dependency) => dependency.name === "js-yaml")
   assert.equal(jsYaml.native, false)
   assert.equal(jsYaml.version, "3.14.2")
+
+  assert.deepEqual(
+    dependencies
+      .filter((dependency) => dependency.name === "content-type")
+      .map((dependency) => ({ lock_path: dependency.lock_path, version: dependency.version }))
+      .sort((left, right) => left.lock_path.localeCompare(right.lock_path)),
+    [
+      { lock_path: "node_modules/content-type", version: "1.0.5" },
+      { lock_path: "node_modules/type-is/node_modules/content-type", version: "2.0.0" },
+    ],
+  )
 })
 
 test("runtime dependency pack manifest validates lock provenance and dependency-only shape", async () => {
@@ -1218,7 +1264,11 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       assert.ok(builtEntries.includes("node_modules/express/lib/express.js"))
       assert.equal(requiredRuntimeFilesByPackage.has("section-matter"), false)
       const builtArchiveContents = extractTarGzContents(builtArchivePath)
-      assertArchiveFilesMatchInstalledRuntime(builtArchiveContents, validEntries)
+      assertArchiveFilesMatchInstalledRuntime(
+        builtArchiveContents,
+        validEntries,
+        { manifestPath: path.join(builtPackDir, "runtime-deps.manifest.json") },
+      )
 
       const builtVerifyRun = runNpmScript("runtime:deps-pack:verify", [
         "--pack-dir",
