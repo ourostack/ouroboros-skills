@@ -473,21 +473,34 @@ function workflowStepWorkingDirectory(stepBlock) {
 
 function workflowStepRunsMcpScript(stepBlock, scriptName) {
   const runText = workflowStepRunText(stepBlock)
-  const escapedScriptName = escapeRegExp(scriptName)
   const runsCommand = runText.split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#"))
-    .some((line) => (
-      new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+run\\s+${escapedScriptName}\\b`, "u").test(line)
-      || new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+--prefix\\s+plugins/desk/mcp\\s+run\\s+${escapedScriptName}\\b`, "u").test(line)
-    ))
+    .some((line) => workflowLineRunsMcpScript(line, scriptName))
   if (!runsCommand) {
     return false
   }
   return (
     workflowStepWorkingDirectory(stepBlock) === "plugins/desk/mcp"
-    || new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s]+\\s+)*npm\\s+--prefix\\s+plugins/desk/mcp\\s+run\\s+${escapedScriptName}\\b`, "um").test(runText)
+    || runText.split(/\r?\n/u)
+      .map((line) => line.trim())
+      .some((line) => workflowLineRunsMcpScript(line, scriptName, { requirePrefix: true }))
   )
+}
+
+function workflowLineRunsMcpScript(line, scriptName, { requirePrefix = false } = {}) {
+  const envPrefix = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*`
+  const escapedScriptName = escapeRegExp(scriptName)
+  const prefixPattern = String.raw`npm\s+--prefix\s+plugins/desk/mcp\s+run\s+${escapedScriptName}(?:\s+(?<prefixArgs>.*)|$)`
+  const workingDirPattern = String.raw`npm\s+run\s+${escapedScriptName}(?:\s+(?<workingDirArgs>.*)|$)`
+  const match = line.match(new RegExp(`^${envPrefix}(?:${prefixPattern}${requirePrefix ? "" : `|${workingDirPattern}`})`, "u"))
+  const args = match?.groups?.prefixArgs ?? match?.groups?.workingDirArgs ?? ""
+  return match !== null && workflowScriptArgsAreReal(args)
+}
+
+function workflowScriptArgsAreReal(args) {
+  return !/(?:^|\s)--help(?:\s|$)/u.test(args)
+    && !/(?:^|\s)(?:\|\||&&|\||;)(?:\s|$)/u.test(args)
 }
 
 function assertWorkflowJobRunsMcpScript(jobSection, jobName, scriptName) {
@@ -945,6 +958,16 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     checksum: "0".repeat(64),
     manifest,
   })
+  const staleManifestArchiveShaManifest = fixtureManifest({
+    archiveSha: "f".repeat(64),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const staleManifestArchiveShaPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    checksum: archiveSha,
+    manifest: staleManifestArchiveShaManifest,
+  })
   const missingRuntimeFileEntries = validEntries
     .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js")
   const missingRuntimeFileManifest = fixtureManifest({
@@ -991,6 +1014,21 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         ok: false,
         errors: ["runtime dependency pack checksum mismatch for runtime-deps.tgz"],
         manifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: staleManifestArchiveShaPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency pack manifest archive.sha256 must match runtime-deps.tgz"],
+        manifest: staleManifestArchiveShaManifest,
       },
     )
 
@@ -1045,6 +1083,7 @@ test("runtime dependency pack verification checks checksums and unsupported plat
   } finally {
     rmSync(packDir, { recursive: true, force: true })
     rmSync(corruptPackDir, { recursive: true, force: true })
+    rmSync(staleManifestArchiveShaPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
     rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
   }
@@ -1273,6 +1312,35 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
     },
     /workflow job desk-mcp-tests must run runtime:deps-pack:build/u,
   )
+  for (const fakeRunLine of [
+    "npm run runtime:deps-pack:build -- --help",
+    "npm run runtime:deps-pack:build || true",
+    "npm run runtime:deps-pack:build:fake",
+  ]) {
+    assert.throws(
+      () => {
+        const fakeWorkflow = [
+          "name: fake",
+          "on:",
+          "  pull_request:",
+          "    paths:",
+          "      - \"plugins/desk/mcp/**\"",
+          "jobs:",
+          "  desk-mcp-tests:",
+          "    steps:",
+          "      - name: Fake runtime dependency build",
+          "        working-directory: plugins/desk/mcp",
+          `        run: ${fakeRunLine}`,
+        ].join("\n")
+        assertWorkflowJobRunsMcpScript(
+          workflowJob(fakeWorkflow, "desk-mcp-tests"),
+          "desk-mcp-tests",
+          "runtime:deps-pack:build",
+        )
+      },
+      /workflow job desk-mcp-tests must run runtime:deps-pack:build/u,
+    )
+  }
   assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:build")
   assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:verify")
   for (const [eventName, pathFilters] of [
