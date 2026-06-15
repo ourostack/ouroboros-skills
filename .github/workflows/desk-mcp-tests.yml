@@ -56,6 +56,9 @@ jobs:
         working-directory: plugins/desk/mcp
         run: npm run test:coverage
 
+      - name: Verify committed generated artifacts
+        run: node scripts/test-desk-generated-artifacts.cjs
+
       - name: Build runtime dependency pack
         working-directory: plugins/desk/mcp
         run: npm run runtime:deps-pack:build
