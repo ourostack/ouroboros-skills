@@ -271,7 +271,7 @@ test("Ouroboros/generic stdio packaging validation accepts current artifacts", (
 test("Ouroboros packaging validation rejects missing bundle metadata and DESK binding", () => {
   const missingBundleJson = clone(currentOuroborosStdioPackagingInput())
   missingBundleJson.ouroborosReadmeSection =
-    missingBundleJson.ouroborosReadmeSection.replace("bundle.json", "agent-bundle.json")
+    missingBundleJson.ouroborosReadmeSection.replace("bundle.json", "agent metadata")
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(missingBundleJson),
     ["Ouroboros docs must define bundle.json plugin metadata"],
@@ -314,6 +314,30 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(missingBundleSource),
     ["Ouroboros evidence must reference bundle metadata sources"],
+  )
+})
+
+test("Ouroboros packaging validation rejects host-support drift and manual installs", () => {
+  const hostSupportDrift = clone(currentOuroborosStdioPackagingInput())
+  const ouroborosHost = findByField(
+    hostSupportDrift.activationManifest.host_support,
+    "host",
+    "ouroboros-autonomous-agent",
+    "test input",
+  )
+  ouroborosHost.dependency_resolution = "manual-host"
+  ouroborosHost.capabilities = "skills"
+  ouroborosHost.unsupported_primitives = "host-native-plugin-install"
+  hostSupportDrift.ouroborosReadmeSection += "\nnpm install plugins/desk/mcp\n"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(hostSupportDrift),
+    [
+      "Ouroboros host support must use flattened dependency resolution",
+      "Ouroboros host support must expose agents, skills, and mcp",
+      "Ouroboros host support must mark host-native-plugin-install unsupported",
+      "Ouroboros healthy path must not require npm install",
+    ],
   )
 })
 
@@ -377,7 +401,97 @@ test("generic stdio packaging validation rejects host dependency support claims"
   )
 })
 
+test("generic stdio packaging validation rejects missing agent-defaults fallback marker", () => {
+  const missingAgentDefaultsMarker = clone(currentOuroborosStdioPackagingInput())
+  const genericHost = findByField(
+    missingAgentDefaultsMarker.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  genericHost.unsupported_primitives = ["plugin-dependency-resolution"]
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingAgentDefaultsMarker),
+    ["Generic stdio host support must mark agent-defaults unsupported"],
+  )
+
+  const missingFallback = clone(currentOuroborosStdioPackagingInput())
+  const fallbackHost = findByField(
+    missingFallback.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  delete fallbackHost.fallback_behavior
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingFallback),
+    ["Generic stdio fallback must state no worker activation"],
+  )
+})
+
+test("generic stdio packaging validation rejects malformed host support lists", () => {
+  const nonArrayCapabilities = clone(currentOuroborosStdioPackagingInput())
+  const capabilitiesHost = findByField(
+    nonArrayCapabilities.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  capabilitiesHost.capabilities = "mcp"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(nonArrayCapabilities),
+    ["Generic stdio host support must expose MCP only"],
+  )
+
+  const wrongSingleCapability = clone(currentOuroborosStdioPackagingInput())
+  const wrongCapabilityHost = findByField(
+    wrongSingleCapability.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  wrongCapabilityHost.capabilities = ["agents"]
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(wrongSingleCapability),
+    ["Generic stdio host support must expose MCP only"],
+  )
+
+  const nonArrayUnsupported = clone(currentOuroborosStdioPackagingInput())
+  const unsupportedHost = findByField(
+    nonArrayUnsupported.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  )
+  unsupportedHost.unsupported_primitives = "agent-defaults"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(nonArrayUnsupported),
+    [
+      "Generic stdio host support must mark agent-defaults unsupported",
+      "Generic stdio host support must mark plugin-dependency-resolution unsupported",
+    ],
+  )
+})
+
 test("Ouroboros/generic stdio packaging validation reports missing rows without crashing", () => {
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(),
+    [
+      "Ouroboros host support row is required",
+      "Ouroboros evidence row is required",
+      "Ouroboros docs must define bundle.json plugin metadata",
+      "Ouroboros bundle metadata must include desk plugin",
+      "Ouroboros bundle metadata must include work-suite plugin",
+      "Ouroboros preamble must bind $DESK to ~/AgentBundles/<agent>.ouro/desk/",
+      "Generic stdio host support row is required",
+      "Generic stdio evidence row is required",
+      "Generic stdio launch docs must pass an explicit --root",
+      "Generic stdio launch docs must bind $DESK before invoking node",
+      "Generic stdio docs must state MCP-only behavior",
+    ],
+  )
+
   assert.deepEqual(
     validateOuroborosStdioPackagingContract({
       activationManifest: {},
@@ -397,6 +511,21 @@ test("Ouroboros/generic stdio packaging validation reports missing rows without 
       "Generic stdio launch docs must pass an explicit --root",
       "Generic stdio launch docs must bind $DESK before invoking node",
       "Generic stdio docs must state MCP-only behavior",
+    ],
+  )
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract({
+      activationManifest: { host_support: [null] },
+      evidenceRows: [null],
+      ouroborosReadmeSection: currentOuroborosStdioPackagingInput().ouroborosReadmeSection,
+      genericStdioReadmeSection: currentOuroborosStdioPackagingInput().genericStdioReadmeSection,
+    }),
+    [
+      "Ouroboros host support row is required",
+      "Ouroboros evidence row is required",
+      "Generic stdio host support row is required",
+      "Generic stdio evidence row is required",
     ],
   )
 })
