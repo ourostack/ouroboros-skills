@@ -42,9 +42,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Codex packaging exposes Desk skills through Codex plugin metadata.
 - [x] Codex packaging exposes Desk MCP through Codex plugin metadata.
 - [x] Codex activation implements global personal worker+Desk default behavior as the primary happy path, with project-local and manual-only invocation modes available as opt-outs.
-- [ ] Codex CLI smoke tests prove that a new session sees worker behavior and Desk MCP tools after activation.
-- [ ] Codex App support is proven by a real smoke artifact when the app exposes a testable activation surface, or the support matrix records the exact unsupported primitive and fallback behavior.
-- [ ] Codex smoke tests prove there is no healthy-path `codex mcp add`, copied agent file, or manual/uncontrolled AGENTS append/copy step.
+- [x] Codex CLI smoke tests prove that a new session sees worker behavior and Desk MCP tools after activation.
+- [x] Codex App support is proven by a real smoke artifact when the app exposes a testable activation surface, or the support matrix records the exact unsupported primitive and fallback behavior.
+- [x] Codex smoke tests prove there is no healthy-path `codex mcp add`, copied agent file, or manual/uncontrolled AGENTS append/copy step.
 - [x] Host adapters preserve and merge user-authored instructions/config safely instead of overwriting them.
 - [ ] Host adapters document and test their permission/capability boundary.
 - [x] Generated activation artifacts respect host permission/capability boundaries.
@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -404,7 +404,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/codex_smoke.test.js` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md`.
 **Acceptance**: Tests/evidence fail until Codex CLI smoke proves worker+Desk activation and Codex App has either a real smoke artifact or a support-matrix row naming the exact unsupported primitive and fallback behavior.
 
-### 🔄 Unit 10e: Codex CLI/App Smoke - Implementation
+### ✅ Unit 10e: Codex CLI/App Smoke - Implementation
 **What**: Implement the Codex smoke harness and support-matrix evidence updates. Use only temp Codex homes/profiles/sessions and never the user's real Codex config.
 **Output**: Updated smoke harness, `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md`, Codex support-matrix evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.
 **Acceptance**: Unit 10d tests/evidence pass, CLI activation sees worker instructions and `desk_status`, Codex App is either smoke-proven or explicitly unsupported with fallback evidence, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
@@ -903,3 +903,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 08:05 Unit 10d complete: `6e47361` adds the red Codex CLI/App smoke contract and placeholder evidence. Focused red evidence in `unit-10d-codex-smoke-red.log` fails because `plugins/desk/mcp/src/activation/codex-smoke.js` does not exist yet, `codex-smoke-evidence.md` is still `NEEDS_IMPLEMENTATION`, and the Codex support-matrix row does not yet point at the smoke contract or name `codex-desktop-scriptable-activation-smoke`; full MCP suite evidence in `unit-10d-npm-test-red.log` shows 361 passing and the same 3 intentional smoke-contract failures. `git diff --check` passed and Unit 10e owns the green implementation/support-matrix updates.
 - 2026-06-15 08:12 Unit 10d reviewer fix: Planck the 2nd found MAJOR contract holes in the CLI activation proof and Codex Desktop real-smoke branch, plus red-state checklist and range-level artifact whitespace issues. Tightened `codex_smoke.test.js` so the injected Codex runner must see temp `config.toml` and `AGENTS.md` activation artifacts before launch, the result reports temp activation paths, and a Desktop App `PASS` must include a concrete primitive/command/artifact/temp-profile/instructions/`desk_status` proof rather than a placeholder. Marked `All tests pass` unchecked for the intentional red state, scrubbed Unit 10d logs for range-level `git diff --check`, and refreshed focused/full red logs.
 - 2026-06-15 08:16 Unit 10d Round 2 cold reviewer gate converged: Volta the 2nd verified Planck's activation-artifact, Desktop App PASS, checklist, and range-level diff-check findings are closed; Unit 10e started to implement the smoke harness, evidence artifact, and regenerated Codex support-matrix row.
+- 2026-06-15 08:23 Unit 10e complete: `f1157b4` adds `plugins/desk/mcp/src/activation/codex-smoke.js`, which applies owned Codex activation into a temp host root, launches an injectable `codex exec --json --ephemeral` runner with temp `CODEX_HOME`/`HOME`/`DESK`, parses the smoke proof, and reports no manual setup. Updated `codex-smoke-evidence.md`, Codex host support metadata, `host-capability-evidence.md`, the unsupported primitive allowlists, and regenerated `plugins/desk/activation/support-matrix.json` with `codex-desktop-scriptable-activation-smoke` plus fallback behavior. Saved green evidence in `unit-10e-codex-smoke-green.log`, `unit-10e-activation-contract-green.log`, `unit-10e-support-matrix-green.log`, `unit-10e-generate-support-matrix-green.log`, `unit-10e-npm-test-green.log`, `unit-10e-test-coverage.log`, `unit-10e-runtime-pack-verify-green.log`, `unit-10e-generated-artifacts-green.log`, `unit-10e-validate-skills-green.log`, and `unit-10e-diff-check-green.log`; full MCP tests pass 364/364, coverage is 100% line/branch/function, generated artifacts and runtime pack verification pass, and build remains unavailable because no package build script exists.
