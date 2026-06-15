@@ -30,6 +30,11 @@ const forbiddenPluginArtifactPaths = [
   path.join(mcpRoot, "runtime-cache"),
   path.join(mcpRoot, "source-mirror"),
 ];
+const mutablePluginSourcePaths = [
+  path.join(deskPluginRoot, "activation"),
+  path.join(mcpRoot, "artifacts", "runtime-deps"),
+  path.join(mcpRoot, "node_modules"),
+];
 const runtimeArtifactNames = new Set([
   ".desk-runtime-cache.json",
   "node_modules",
@@ -159,13 +164,16 @@ function assertNoRuntimeArtifactsUnder(rootPath, message) {
   assert.deepEqual(findRuntimeArtifactsUnder(rootPath), [], message);
 }
 
-function listTree(dirPath) {
+function listTree(dirPath, { skipPaths = [] } = {}) {
   if (!existsSync(dirPath)) return [];
   const entries = [];
   const walk = (current, relativePrefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const relativePath = path.join(relativePrefix, entry.name);
       const absolutePath = path.join(current, entry.name);
+      if (skipPaths.some((skipPath) => absolutePath === skipPath || absolutePath.startsWith(`${skipPath}${path.sep}`))) {
+        continue;
+      }
       const stat = statSync(absolutePath);
       entries.push({
         path: relativePath,
@@ -202,10 +210,16 @@ function snapshotImmutableState() {
   return {
     fixtureDirs: new Map(immutableFixtureDirs.map((dirPath) => [dirPath, listTree(dirPath)])),
     pluginArtifacts: new Map(forbiddenPluginArtifactPaths.map((targetPath) => [targetPath, snapshotPath(targetPath)])),
+    pluginSourceTree: listTree(deskPluginRoot, { skipPaths: mutablePluginSourcePaths }),
   };
 }
 
 function assertImmutableStateUnchanged(before) {
+  assert.deepEqual(
+    listTree(deskPluginRoot, { skipPaths: mutablePluginSourcePaths }),
+    before.pluginSourceTree,
+    `${deskPluginRoot} plugin source must not be mutated by runtime startup`,
+  );
   for (const [dirPath, expected] of before.fixtureDirs.entries()) {
     assert.deepEqual(listTree(dirPath), expected, `${dirPath} should not be mutated by runtime startup`);
     assert.equal(existsSync(path.join(dirPath, "node_modules")), false, `${dirPath} must not receive node_modules`);
@@ -227,11 +241,11 @@ function mcpServerFromConfig(configPath) {
   return config.mcpServers.desk;
 }
 
-function mcpServerFromManifest(manifestPath) {
+function mcpServerFromManifest(manifestPath, { pluginRoot = deskPluginRoot } = {}) {
   const manifest = readJson(manifestPath);
   if (typeof manifest.mcpServers === "string") {
-    const configPath = path.resolve(path.dirname(manifestPath), manifest.mcpServers);
-    assert.equal(existsSync(configPath), true, `${manifestPath} mcpServers must resolve relative to the manifest file: ${configPath}`);
+    const configPath = path.resolve(pluginRoot, manifest.mcpServers);
+    assert.equal(existsSync(configPath), true, `${manifestPath} mcpServers must resolve relative to the installed plugin root: ${configPath}`);
     return mcpServerFromConfig(configPath);
   }
   assert.ok(manifest.mcpServers?.desk, `${manifestPath} should declare or reference a desk MCP server`);
@@ -420,7 +434,7 @@ function prependNodeShimToPath(tempRoot, existingPath) {
 }
 
 describe("runtime cache and host launch contract", () => {
-  it("resolves committed host manifest MCP references relative to each manifest file", async (t) => {
+  it("resolves committed host manifest MCP references relative to the installed plugin root", async (t) => {
     for (const manifest of manifestCases()) {
       await t.test(manifest.id, () => {
         const server = mcpServerFromManifest(manifest.sourcePath);
