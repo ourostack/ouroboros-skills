@@ -873,6 +873,31 @@ test("generic stdio packaging validation rejects host dependency support claims"
   )
 })
 
+test("generic stdio packaging validation rejects evidence row support drift", () => {
+  const genericEvidenceDrift = clone(currentOuroborosStdioPackagingInput())
+  const genericEvidence = findByField(
+    genericEvidenceDrift.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  )
+  genericEvidence.disposition = "supported-flattened"
+  genericEvidence.source_paths = ["plugins/desk/.mcp.json"]
+  genericEvidence.unsupported_primitives = []
+  genericEvidence.fallback_behavior = "resolves plugin dependencies and starts worker activation"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(genericEvidenceDrift),
+    [
+      "Generic stdio evidence must record degraded-mcp-only disposition",
+      "Generic stdio evidence must reference MCP launch docs and activation docs",
+      "Generic stdio evidence must mark agent-defaults unsupported",
+      "Generic stdio evidence must mark plugin-dependency-resolution unsupported",
+      "Generic stdio evidence fallback must state no worker activation",
+    ],
+  )
+})
+
 test("generic stdio packaging validation rejects missing agent-defaults fallback marker", () => {
   const missingAgentDefaultsMarker = clone(currentOuroborosStdioPackagingInput())
   const genericHost = findByField(
