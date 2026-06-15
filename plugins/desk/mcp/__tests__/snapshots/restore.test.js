@@ -169,7 +169,7 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
   const activeNewer = await writeSnapshot({
     pluginRoot,
-    snapshotId: "active-newer",
+    snapshotId: "zz-active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
   })
   const invalidRuntime = await writeSnapshot({
@@ -196,7 +196,7 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
   })
   const activeOlder = await writeSnapshot({
     pluginRoot,
-    snapshotId: "active-older",
+    snapshotId: "aa-active-older",
     createdAt: "2026-06-15T00:00:00.000Z",
   })
   await setSnapshotMtime(activeNewer, new Date("2026-06-15T00:00:00.000Z"))
@@ -214,12 +214,12 @@ test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ign
 
   assert.deepEqual(
     new Set(discovered.compatible.map((candidate) => candidate.snapshot_id)),
-    new Set(["active-older", "active-newer"]),
+    new Set(["aa-active-older", "zz-active-newer"]),
   )
   assert.equal(ignoredById.get("inactive-newest"), "inactive_embedding_spec")
   assert.equal(ignoredById.get("active-invalid-runtime"), "incompatible_manifest")
   assert.equal(ignoredById.get("active-invalid-checksum"), "incompatible_manifest")
-  assert.equal(selected.snapshot_id, "active-newer")
+  assert.equal(selected.snapshot_id, "zz-active-newer")
   assert.equal(selected.manifest.created_at, "2026-06-15T01:00:00.000Z")
 })
 
@@ -229,7 +229,7 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
   const newer = await writeSnapshot({
     pluginRoot,
-    snapshotId: "active-newer",
+    snapshotId: "zz-active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
     sqliteBytes: Buffer.from("newer sqlite bytes", "utf8"),
   })
@@ -242,7 +242,7 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   })
   const older = await writeSnapshot({
     pluginRoot,
-    snapshotId: "active-older",
+    snapshotId: "aa-active-older",
     createdAt: "2026-06-15T00:00:00.000Z",
     sqliteBytes: Buffer.from("older sqlite bytes", "utf8"),
   })
@@ -261,7 +261,7 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
 
   assert.equal(result.restored, true)
   assert.equal(result.reason, "snapshot_restored")
-  assert.equal(result.snapshot_id, "active-newer")
+  assert.equal(result.snapshot_id, "zz-active-newer")
   assert.equal(result.state_db_path, indexDbPath(deskRoot))
   assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), newer.sqliteBytes)
   assert.deepEqual(await fingerprint(repoArtifactPaths), before)
