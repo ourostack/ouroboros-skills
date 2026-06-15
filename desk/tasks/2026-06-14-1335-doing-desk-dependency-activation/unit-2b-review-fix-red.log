@@ -1,0 +1,131 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+not ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 2.220083
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:58:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - './hooks/hooks.json'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: './hooks/hooks.json'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:64:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.448792
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+not ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 1.083708
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:95:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - '~/.codex/AGENTS.md'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '~/.codex/AGENTS.md'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:102:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+not ok 4 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 0.281541
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:128:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'AGENTS.md'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'AGENTS.md'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:135:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+not ok 5 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.253625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:147:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:154:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+not ok 6 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 0.264417
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:165:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'startsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:174:45)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 7 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.574084
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 2
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92.856625

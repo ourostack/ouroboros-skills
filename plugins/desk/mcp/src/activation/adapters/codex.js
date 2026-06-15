@@ -4,29 +4,26 @@ const MODE_CONFIG = {
   "global-personal": {
     scope: "global",
     configPath: "~/.codex/config.toml",
-    defaultAgent: "desk:worker",
-    mcpAutoStart: true,
-    manualOnly: false,
-    projectLocal: false,
-    workerDefault: true,
+    instructionsPath: "~/.codex/AGENTS.md",
+    workerContext: "by default",
+    pluginMcpEnabled: true,
+    directMcp: false,
   },
   "project-local": {
     scope: "project",
     configPath: ".codex/config.toml",
-    defaultAgent: "desk:worker",
-    mcpAutoStart: true,
-    manualOnly: false,
-    projectLocal: true,
-    workerDefault: true,
+    instructionsPath: "AGENTS.md",
+    workerContext: "by default in this project",
+    pluginMcpEnabled: false,
+    directMcp: true,
   },
   "manual-only": {
     scope: "global",
     configPath: "~/.codex/config.toml",
-    defaultAgent: "",
-    mcpAutoStart: false,
-    manualOnly: true,
-    projectLocal: false,
-    workerDefault: false,
+    instructionsPath: null,
+    workerContext: "",
+    pluginMcpEnabled: false,
+    directMcp: false,
   },
 }
 
@@ -36,6 +33,10 @@ function tomlString(value) {
 
 function tomlArray(values) {
   return `[${values.map(tomlString).join(", ")}]`
+}
+
+function tomlBool(value) {
+  return value ? "true" : "false"
 }
 
 function assertCodexCapabilities(manifest) {
@@ -48,49 +49,44 @@ function assertCodexCapabilities(manifest) {
 
 function renderConfigBlock(input, modeConfig) {
   const { manifest } = input
-  const workSuite = manifest.dependencies.find((dependency) => dependency.id === "work-suite")
-  const capabilities = manifest.permissions.requested_capabilities
-  const artifacts = manifest.permissions.generated_artifacts
-  const protectedArtifacts = manifest.permissions.never_delete
+  const pluginMcpPolicy = `[plugins."${manifest.id}@ourostack".mcp_servers.desk]
+enabled = ${tomlBool(modeConfig.pluginMcpEnabled)}`
+  const approvalPolicy = modeConfig.pluginMcpEnabled
+    ? `
+default_tools_approval_mode = "prompt"`
+    : ""
+  const directMcp = modeConfig.directMcp
+    ? `
+
+[mcp_servers.desk]
+command = "node"
+args = ${tomlArray([`${input.pluginRoot}/mcp/index.js`, "--root", input.deskRoot])}
+cwd = "."
+enabled = true
+default_tools_approval_mode = "prompt"`
+    : ""
 
   return `# BEGIN desk activation: ${manifest.id}@${manifest.version} mode=${input.mode} owner=desk-activation
-[desk.activation]
-id = ${tomlString(manifest.id)}
-version = ${tomlString(manifest.version)}
-mode = ${tomlString(input.mode)}
-scope = ${tomlString(modeConfig.scope)}
-desk_root = ${tomlString(input.deskRoot)}
-runtime_cache_dir = ${tomlString(input.runtimeCacheDir)}
-default_agent = ${tomlString(modeConfig.defaultAgent)}
-mcp_auto_start = ${modeConfig.mcpAutoStart}
-manual_only = ${modeConfig.manualOnly}
-project_local = ${modeConfig.projectLocal}
+[plugins."work-suite@ourostack"]
+enabled = true
 
-[desk.activation.dependencies.work-suite]
-path = ${tomlString(input.workSuitePluginRoot)}
-version = ${tomlString(workSuite.lock.version)}
-resolution = "flattened"
+[plugins."${manifest.id}@ourostack"]
+enabled = true
 
-[desk.activation.mcp_servers.desk]
-transport = "stdio"
-command = "node"
-args = [${tomlString(`${input.pluginRoot}/mcp/index.js`)}]
-manual_registration = false
+${pluginMcpPolicy}${approvalPolicy}${directMcp}
+# END desk activation
+`
+}
 
-[desk.activation.agents.worker]
-id = "desk:worker"
-source = ${tomlString(`${input.pluginRoot}/agents/worker.toml`)}
-copy_to_host = false
-default = ${modeConfig.workerDefault}
+function renderInstructionsBlock(input, modeConfig) {
+  if (!modeConfig.instructionsPath) {
+    return ""
+  }
 
-[desk.activation.permissions]
-requested_capabilities = ${tomlArray(capabilities)}
-generated_artifacts = ${tomlArray(artifacts)}
-never_delete = ${tomlArray(protectedArtifacts)}
+  return `# BEGIN desk activation: ${input.manifest.id}@${input.manifest.version} mode=${input.mode} owner=desk-activation
+You are the desk worker ${modeConfig.workerContext}.
 
-[desk.activation.opt_out]
-project_local = true
-manual_only = true
+Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work, with harsh sub-agent reviewer gates when the task calls for them.
 # END desk activation
 `
 }
@@ -99,11 +95,23 @@ export function materializeCodexActivation(input) {
   const modeConfig = MODE_CONFIG[input.mode]
   assertCodexCapabilities(input.manifest)
   const generatedConfig = `${input.existingConfig}\n${renderConfigBlock(input, modeConfig)}`
+  const instructionsBlock = renderInstructionsBlock(input, modeConfig)
+  const generatedInstructions = instructionsBlock ? `${input.existingInstructions}\n${instructionsBlock}` : ""
+  const instructionArtifacts = modeConfig.instructionsPath
+    ? [
+        {
+          owner: "desk-activation",
+          kind: "owned-codex-instructions",
+          path: modeConfig.instructionsPath,
+        },
+      ]
+    : []
 
   return {
     mode: input.mode,
     scope: modeConfig.scope,
     configPath: modeConfig.configPath,
+    instructionsPath: modeConfig.instructionsPath,
     manualSetupSteps: [],
     permissions: {
       requestedCapabilities: input.manifest.permissions.requested_capabilities,
@@ -115,7 +123,9 @@ export function materializeCodexActivation(input) {
         kind: "owned-host-config",
         path: modeConfig.configPath,
       },
+      ...instructionArtifacts,
     ],
     generatedConfig,
+    generatedInstructions,
   }
 }

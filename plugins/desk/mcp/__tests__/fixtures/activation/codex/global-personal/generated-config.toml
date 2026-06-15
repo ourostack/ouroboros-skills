@@ -3,41 +3,13 @@ model = "gpt-5.4"
 approval_policy = "on-request"
 
 # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
-[desk.activation]
-id = "desk"
-version = "1.7.3"
-mode = "global-personal"
-scope = "global"
-desk_root = "~/desk"
-runtime_cache_dir = "~/.cache/ouroboros-skills/desk"
-default_agent = "desk:worker"
-mcp_auto_start = true
-manual_only = false
-project_local = false
+[plugins."work-suite@ourostack"]
+enabled = true
 
-[desk.activation.dependencies.work-suite]
-path = "plugins/work-suite"
-version = "1.4.9"
-resolution = "flattened"
+[plugins."desk@ourostack"]
+enabled = true
 
-[desk.activation.mcp_servers.desk]
-transport = "stdio"
-command = "node"
-args = ["plugins/desk/mcp/index.js"]
-manual_registration = false
-
-[desk.activation.agents.worker]
-id = "desk:worker"
-source = "plugins/desk/agents/worker.toml"
-copy_to_host = false
-default = true
-
-[desk.activation.permissions]
-requested_capabilities = ["Read", "Write", "Interactive"]
-generated_artifacts = ["owned-host-config", "activation-ledger"]
-never_delete = ["desk-root-data"]
-
-[desk.activation.opt_out]
-project_local = true
-manual_only = true
+[plugins."desk@ourostack".mcp_servers.desk]
+enabled = true
+default_tools_approval_mode = "prompt"
 # END desk activation

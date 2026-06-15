@@ -17,6 +17,7 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
   "activation": {
     "codex": {
       "defaultMode": "global-personal",
@@ -28,12 +29,19 @@
       "targets": {
         "desk:worker": {
           "default": true,
-          "source": "agents/worker.toml"
+          "source": "agents/worker.toml",
+          "activationSurface": "global-or-project-agents-md"
         }
       },
+      "nativeSurfaces": [
+        "plugins.<plugin>.enabled",
+        "plugins.<plugin>.mcp_servers.<server>",
+        "mcp_servers.<server>",
+        "AGENTS.md"
+      ],
       "mcpServers": {
         "desk": {
-          "launch": "host-native",
+          "launch": "plugin-bundled",
           "manualRegistration": false
         }
       },
