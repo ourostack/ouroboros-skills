@@ -291,6 +291,8 @@ function isExternalSupportAssignment({ clause, targetMatch }) {
       .test(beforeTarget)
     || /^\s+(?:(?:dependency\s+(?:closure|resolution|support)|activation)\s+)?(?:(?:must|should|can|could|will|would|may|might)\s+)?(?:be\s+)?(?:provided|supplied|installed|loaded|configured|handled|managed|resolved|bundled|wired|bootstrapped|prepared|delivered|enabled|exposed)\s+by\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
       .test(afterTarget)
+    || /^\s+(?:(?:must|should|can|could|will|would|may|might|is|are|was|were)\s+)?(?:be\s+)?built\s+into\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
+      .test(afterTarget)
 }
 
 function readmeStatements(readmeSection) {
