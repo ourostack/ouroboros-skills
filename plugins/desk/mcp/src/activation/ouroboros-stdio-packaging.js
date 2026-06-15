@@ -215,16 +215,16 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped|spawns?|spawned|bundles?|bundled)\b/u,
-    target: /\b(?:desk worker|worker|agent defaults?|default agent)\b/u,
+    action: /\b(?:activates?|activated|activating|starts?|started|starting|launches?|launched|launching|loads?|loaded|loading|runs?|running|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
+    target: /\b(?:desk worker|worker activation|agent defaults?|default agent|worker)\b/u,
   })
 }
 
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped|spawns?|spawned|bundles?|bundled)\b/u,
-    target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
+    action: /\b(?:resolves?|resolved|resolving|loads?|loaded|loading|includes?|included|including|installs?|installed|installing|activates?|activated|activating|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
+    target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|work suite dependency closure|work suite dependency resolution|work suite dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
 
@@ -236,9 +236,6 @@ function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
 
 function hasPositiveSupportClaim({ clause, action, target }) {
   const normalizedClause = normalizeClaimText(clause)
-  if (isExternalSupportAssignment(normalizedClause)) {
-    return false
-  }
   const actionMatches = allMatches(action, normalizedClause)
   const targetMatches = allMatches(target, normalizedClause)
   return actionMatches.some((actionMatch) => (
@@ -249,15 +246,20 @@ function hasPositiveSupportClaim({ clause, action, target }) {
         actionIndex: actionMatch.index,
         targetIndex: targetMatch.index,
       })
+      && !isExternalSupportAssignment({
+        clause: normalizedClause,
+        targetMatch,
+      })
     ))
   ))
 }
 
-function isExternalSupportAssignment(clause) {
+function isExternalSupportAssignment({ clause, targetMatch }) {
+  const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
   return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
     .test(clause)
-    || /\bby\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
-    .test(clause)
+    || /^\s+(?:(?:dependency\s+(?:closure|resolution|support)|activation)\s+)?(?:(?:must|should|can|could|will|would|may|might)\s+)?(?:be\s+)?(?:provided|supplied|installed|loaded|configured|handled|managed|resolved|bundled|wired|bootstrapped|prepared|delivered|enabled|exposed)\s+by\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
+      .test(afterTarget)
 }
 
 function readmeStatements(readmeSection) {
@@ -275,7 +277,7 @@ function readmeClauses(statement) {
 }
 
 function isNegativeSupportBoundary(statement) {
-  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|doesn't|don't|didn't|wouldn't|couldn't|shouldn't|mustn't|isn't|aren't|wasn't|weren't|cannot|can't|won't|never|without|neither|nor|no\s+longer)\s*$/u
+  return /\b(?:(?:does|do|did|will|would|can|could|should|must|may|might|is|are|was|were)\s+not|doesn't|don't|didn't|wouldn't|couldn't|shouldn't|mustn't|isn't|aren't|wasn't|weren't|cannot|can't|won't|never|without|neither|nor|no\s+longer)(?:\s+(?:automatically|currently|directly|implicitly|silently|itself|also|ever|actually|fully|natively|locally|manually|still|now|yet))*\s*$/u
     .test(statement)
 }
 
