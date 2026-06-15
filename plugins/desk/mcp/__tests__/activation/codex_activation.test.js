@@ -1,6 +1,12 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
-import { readFileSync } from "node:fs"
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs"
+import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -9,6 +15,7 @@ const repoRoot = path.resolve(
 )
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const fixturesRoot = path.join(mcpRoot, "__tests__", "fixtures", "activation", "codex")
+const ledgerPath = ".codex/desk-activation-ledger.json"
 
 const existingConfig = `# user-authored Codex config
 model = "gpt-5.4"
@@ -29,6 +36,19 @@ function loadJson(...segments) {
 
 function loadFixture(mode, fileName) {
   return readFileSync(path.join(fixturesRoot, mode, fileName), "utf8")
+}
+
+function withTempHost(fn) {
+  const root = mkdtempSync(path.join(tmpdir(), "desk-codex-activation-"))
+  try {
+    return fn(root)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+function readHostFile(root, relativePath) {
+  return readFileSync(path.join(root, relativePath), "utf8")
 }
 
 function activationInput(mode, overrides = {}) {
@@ -401,4 +421,102 @@ test("Codex activation rejects unsupported requested host capabilities", async (
     () => materializeCodexActivation(activationInput("global-personal", { manifest })),
     /permission.*Network.*not declared|unsupported capability/i,
   )
+})
+
+test("Codex activation applies generated artifacts through the ownership ledger", async () => {
+  const { applyCodexActivation } = await loadCodexAdapter()
+
+  withTempHost((root) => {
+    const result = applyCodexActivation(activationInput("project-local", {
+      hostRoot: root,
+      ledgerPath,
+      now: "2026-06-14T19:00:00.000Z",
+    }))
+
+    assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("project-local", "generated-config.toml"))
+    assert.equal(readHostFile(root, "AGENTS.md"), loadFixture("project-local", "generated-instructions.md"))
+    assert.equal(result.activation.mode, "project-local")
+    assert.equal(result.ledger.activation.host, "codex")
+    assert.equal(result.ledger.activation.generated_by, "codex-adapter")
+    assert.deepEqual(result.ledger.never_delete, ["desk-root-data"])
+    assert.deepEqual(
+      result.ledger.artifacts.map((artifact) => ({
+        owner: artifact.owner,
+        kind: artifact.kind,
+        path: artifact.path,
+        updated_at: artifact.updated_at,
+      })),
+      [
+        {
+          owner: "desk-activation",
+          kind: "owned-host-config",
+          path: ".codex/config.toml",
+          updated_at: "2026-06-14T19:00:00.000Z",
+        },
+        {
+          owner: "desk-activation",
+          kind: "owned-codex-instructions",
+          path: "AGENTS.md",
+          updated_at: "2026-06-14T19:00:00.000Z",
+        },
+      ],
+    )
+    assert.equal(existsSync(path.join(root, ledgerPath)), true)
+  })
+})
+
+test("Codex global activation applies tilde artifacts under the host root ledger", async () => {
+  const { applyCodexActivation, deactivateCodexActivation } = await loadCodexAdapter()
+
+  withTempHost((root) => {
+    const result = applyCodexActivation(activationInput("global-personal", {
+      hostRoot: root,
+    }))
+
+    assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("global-personal", "generated-config.toml"))
+    assert.equal(readHostFile(root, ".codex/AGENTS.md"), loadFixture("global-personal", "generated-instructions.md"))
+    assert.deepEqual(
+      result.ledger.artifacts.map((artifact) => artifact.path),
+      [".codex/config.toml", ".codex/AGENTS.md"],
+    )
+    assert.match(result.ledger.updated_at, /^\d{4}-\d{2}-\d{2}T/)
+    assert.equal(existsSync(path.join(root, ledgerPath)), true)
+
+    const deactivation = deactivateCodexActivation({ hostRoot: root })
+    assert.deepEqual(
+      deactivation.removed.map((artifact) => ({ path: artifact.path, kind: artifact.kind })),
+      [
+        { path: ".codex/config.toml", kind: "owned-host-config" },
+        { path: ".codex/AGENTS.md", kind: "owned-codex-instructions" },
+        { path: ledgerPath, kind: "activation-ledger" },
+      ],
+    )
+    assert.equal(existsSync(path.join(root, ledgerPath)), false)
+  })
+})
+
+test("Codex activation deactivates generated artifacts through the ownership ledger", async () => {
+  const { applyCodexActivation, deactivateCodexActivation } = await loadCodexAdapter()
+
+  withTempHost((root) => {
+    applyCodexActivation(activationInput("project-local", {
+      hostRoot: root,
+      ledgerPath,
+      now: "2026-06-14T19:00:00.000Z",
+    }))
+
+    const result = deactivateCodexActivation({ hostRoot: root, ledgerPath })
+
+    assert.equal(readHostFile(root, ".codex/config.toml"), existingConfig)
+    assert.equal(readHostFile(root, "AGENTS.md"), existingInstructions)
+    assert.deepEqual(
+      result.removed.map((artifact) => ({ path: artifact.path, kind: artifact.kind })),
+      [
+        { path: ".codex/config.toml", kind: "owned-host-config" },
+        { path: "AGENTS.md", kind: "owned-codex-instructions" },
+        { path: ledgerPath, kind: "activation-ledger" },
+      ],
+    )
+    assert.equal(existsSync(path.join(root, ledgerPath)), false)
+  })
 })

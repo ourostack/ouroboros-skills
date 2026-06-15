@@ -44,13 +44,14 @@ export function readActivationLedger({ hostRoot, ledgerPath }) {
   return JSON.parse(readFileSync(hostPath(hostRoot, ledgerPath), "utf8"))
 }
 
-export function deactivateActivationArtifacts({ hostRoot, ledgerPath, neverDelete }) {
+export function deactivateActivationArtifacts({ hostRoot, ledgerPath }) {
   const ledger = readActivationLedger({ hostRoot, ledgerPath })
+  const neverDelete = new Set(ledger.never_delete)
   const removed = []
   const skipped = []
 
   for (const artifact of ledger.artifacts) {
-    if (neverDelete.includes(artifact.kind)) {
+    if (neverDelete.has(artifact.kind)) {
       skipped.push({
         path: artifact.path,
         kind: artifact.kind,

@@ -1,0 +1,134 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 3.08825
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.487458
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 2.1715
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 4 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 0.723042
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 5 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.42575
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+ok 6 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 0.215541
+  type: 'test'
+  ...
+# Subtest: Codex activation materializes owned blocks into empty host files
+ok 7 - Codex activation materializes owned blocks into empty host files
+  ---
+  duration_ms: 0.241334
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces existing owned blocks and stays idempotent
+ok 8 - Codex activation replaces existing owned blocks and stays idempotent
+  ---
+  duration_ms: 0.326208
+  type: 'test'
+  ...
+# Subtest: Codex activation upgrades older owned blocks without duplicating activation content
+ok 9 - Codex activation upgrades older owned blocks without duplicating activation content
+  ---
+  duration_ms: 0.519958
+  type: 'test'
+  ...
+# Subtest: Codex activation fails closed for malformed owned activation blocks
+ok 10 - Codex activation fails closed for malformed owned activation blocks
+  ---
+  duration_ms: 0.706666
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects duplicate owned activation blocks
+ok 11 - Codex activation rejects duplicate owned activation blocks
+  ---
+  duration_ms: 0.204416
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces an owned block at EOF without adding extra spacing
+ok 12 - Codex activation replaces an owned block at EOF without adding extra spacing
+  ---
+  duration_ms: 0.137833
+  type: 'test'
+  ...
+# Subtest: Codex activation does not silently override user-authored disabled Desk config
+ok 13 - Codex activation does not silently override user-authored disabled Desk config
+  ---
+  duration_ms: 1.509292
+  type: 'test'
+  ...
+# Subtest: Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+ok 14 - Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+  ---
+  duration_ms: 0.225167
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 15 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.16
+  type: 'test'
+  ...
+# Subtest: Codex activation applies generated artifacts through the ownership ledger
+not ok 16 - Codex activation applies generated artifacts through the ownership ledger
+  ---
+  duration_ms: 0.986292
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:426:1'
+  failureType: 'testCodeFailure'
+  error: 'applyCodexActivation is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:430:20
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:44:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:429:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation deactivates generated artifacts through the ownership ledger
+not ok 17 - Codex activation deactivates generated artifacts through the ownership ledger
+  ---
+  duration_ms: 0.537042
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:468:1'
+  failureType: 'testCodeFailure'
+  error: 'applyCodexActivation is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:472:5
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:44:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:471:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 15
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 94.097291

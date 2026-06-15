@@ -199,41 +199,43 @@ test("deactivation removes owned activation blocks while preserving user-authore
   })
 })
 
-test("deactivation never deletes desk data even when it appears in the ledger", async () => {
+test("deactivation uses ledger never-delete boundaries for desk data", async () => {
   const {
     applyActivationArtifacts,
     deactivateActivationArtifacts,
     readActivationLedger,
   } = await loadArtifactLedger()
 
-  withTempHost((root) => {
-    applyActivationArtifacts(artifactRequest(root))
-    const deskDataPath = ".desk/.state/desk-index.sqlite"
-    writeHostFile(root, deskDataPath, "pretend sqlite bytes")
-    const ledger = readActivationLedger({ hostRoot: root, ledgerPath })
-    ledger.artifacts.push({
-      owner: "desk-activation",
-      kind: "desk-root-data",
-      path: deskDataPath,
-      content_sha256: sha256("pretend sqlite bytes"),
-      updated_at: "2026-06-14T18:30:00.000Z",
-    })
-    writeHostFile(root, ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`)
-
-    const result = deactivateActivationArtifacts({
-      hostRoot: root,
-      ledgerPath,
-      neverDelete: ["desk-root-data"],
-    })
-
-    assert.equal(readHostFile(root, deskDataPath), "pretend sqlite bytes")
-    assert.deepEqual(result.skipped, [
-      {
-        path: deskDataPath,
+  for (const callerNeverDelete of [undefined, []]) {
+    withTempHost((root) => {
+      applyActivationArtifacts(artifactRequest(root))
+      const deskDataPath = ".desk/.state/desk-index.sqlite"
+      writeHostFile(root, deskDataPath, "pretend sqlite bytes")
+      const ledger = readActivationLedger({ hostRoot: root, ledgerPath })
+      ledger.artifacts.push({
+        owner: "desk-activation",
         kind: "desk-root-data",
-        reason: "never-delete",
-      },
-    ])
-    assert.equal(existsSync(path.join(root, ledgerPath)), false)
-  })
+        path: deskDataPath,
+        content_sha256: sha256("pretend sqlite bytes"),
+        updated_at: "2026-06-14T18:30:00.000Z",
+      })
+      writeHostFile(root, ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`)
+
+      const request = { hostRoot: root, ledgerPath }
+      if (callerNeverDelete !== undefined) {
+        request.neverDelete = callerNeverDelete
+      }
+      const result = deactivateActivationArtifacts(request)
+
+      assert.equal(readHostFile(root, deskDataPath), "pretend sqlite bytes")
+      assert.deepEqual(result.skipped, [
+        {
+          path: deskDataPath,
+          kind: "desk-root-data",
+          reason: "never-delete",
+        },
+      ])
+      assert.equal(existsSync(path.join(root, ledgerPath)), false)
+    })
+  }
 })

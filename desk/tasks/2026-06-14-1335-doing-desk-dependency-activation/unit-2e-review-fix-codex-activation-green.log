@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 2.6125
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.538583
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 6.786792
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 4 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 1.491167
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 5 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.456916
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+ok 6 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 0.304042
+  type: 'test'
+  ...
+# Subtest: Codex activation materializes owned blocks into empty host files
+ok 7 - Codex activation materializes owned blocks into empty host files
+  ---
+  duration_ms: 0.269708
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces existing owned blocks and stays idempotent
+ok 8 - Codex activation replaces existing owned blocks and stays idempotent
+  ---
+  duration_ms: 0.346958
+  type: 'test'
+  ...
+# Subtest: Codex activation upgrades older owned blocks without duplicating activation content
+ok 9 - Codex activation upgrades older owned blocks without duplicating activation content
+  ---
+  duration_ms: 0.546041
+  type: 'test'
+  ...
+# Subtest: Codex activation fails closed for malformed owned activation blocks
+ok 10 - Codex activation fails closed for malformed owned activation blocks
+  ---
+  duration_ms: 1.298041
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects duplicate owned activation blocks
+ok 11 - Codex activation rejects duplicate owned activation blocks
+  ---
+  duration_ms: 0.289917
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces an owned block at EOF without adding extra spacing
+ok 12 - Codex activation replaces an owned block at EOF without adding extra spacing
+  ---
+  duration_ms: 0.170375
+  type: 'test'
+  ...
+# Subtest: Codex activation does not silently override user-authored disabled Desk config
+ok 13 - Codex activation does not silently override user-authored disabled Desk config
+  ---
+  duration_ms: 1.296084
+  type: 'test'
+  ...
+# Subtest: Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+ok 14 - Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+  ---
+  duration_ms: 0.252
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 15 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.180709
+  type: 'test'
+  ...
+# Subtest: Codex activation applies generated artifacts through the ownership ledger
+ok 16 - Codex activation applies generated artifacts through the ownership ledger
+  ---
+  duration_ms: 2.176542
+  type: 'test'
+  ...
+# Subtest: Codex global activation applies tilde artifacts under the host root ledger
+ok 17 - Codex global activation applies tilde artifacts under the host root ledger
+  ---
+  duration_ms: 2.9695
+  type: 'test'
+  ...
+# Subtest: Codex activation deactivates generated artifacts through the ownership ledger
+ok 18 - Codex activation deactivates generated artifacts through the ownership ledger
+  ---
+  duration_ms: 1.648708
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111.07975

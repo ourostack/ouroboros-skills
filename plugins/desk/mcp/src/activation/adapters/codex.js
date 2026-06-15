@@ -1,4 +1,10 @@
+import {
+  applyActivationArtifacts,
+  deactivateActivationArtifacts,
+} from "../artifact-ledger.js"
+
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
+const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
 const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
 const OWNED_BLOCK_END_PATTERN = /^# END desk activation\r?$/gm
 const DESK_PLUGIN_PATH = ["plugins", "desk@ourostack"]
@@ -415,6 +421,19 @@ Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${i
 `
 }
 
+function hostRelativePath(artifactPath) {
+  return artifactPath.startsWith("~/")
+    ? artifactPath.slice(2)
+    : artifactPath
+}
+
+function generatedArtifactContent(activation, artifact) {
+  if (artifact.kind === "owned-codex-instructions") {
+    return activation.generatedInstructions
+  }
+  return activation.generatedConfig
+}
+
 export function materializeCodexActivation(input) {
   const modeConfig = MODE_CONFIG[input.mode]
   assertCodexCapabilities(input.manifest)
@@ -456,4 +475,33 @@ export function materializeCodexActivation(input) {
     generatedConfig,
     generatedInstructions,
   }
+}
+
+export function applyCodexActivation(input) {
+  const activation = materializeCodexActivation(input)
+  const { ledger } = applyActivationArtifacts({
+    hostRoot: input.hostRoot,
+    ledgerPath: input.ledgerPath ?? CODEX_ACTIVATION_LEDGER_PATH,
+    activation: {
+      id: input.manifest.id,
+      version: input.manifest.version,
+      host: "codex",
+      mode: input.mode,
+      owner: "desk-activation",
+      generatedBy: "codex-adapter",
+    },
+    neverDelete: input.manifest.permissions.never_delete,
+    now: input.now ?? new Date().toISOString(),
+    artifacts: activation.generatedArtifacts.map((artifact) => ({
+      ...artifact,
+      path: hostRelativePath(artifact.path),
+      content: generatedArtifactContent(activation, artifact),
+    })),
+  })
+
+  return { activation, ledger }
+}
+
+export function deactivateCodexActivation({ hostRoot, ledgerPath = CODEX_ACTIVATION_LEDGER_PATH }) {
+  return deactivateActivationArtifacts({ hostRoot, ledgerPath })
 }
