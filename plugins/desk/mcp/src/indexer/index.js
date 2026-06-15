@@ -121,6 +121,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
       summary.vector_packs = vectorPackImportStatus(await importVectorPacks({
         db,
         pluginRoot: opts.vectorPacks.pluginRoot,
+        signal: opts.signal,
       }))
     }
 
@@ -400,7 +401,7 @@ function refreshRefs(db, docs) {
  * inside rebuildIndex. This is just for the boot-time "do we need to do
  * anything?" decision.
  */
-export async function isIndexFresh(deskRoot, db) {
+export async function isIndexFresh(deskRoot, db, { signal } = {}) {
   const row = db
     .prepare("SELECT value FROM meta WHERE key = 'last_indexed_at'")
     .get()
@@ -408,8 +409,9 @@ export async function isIndexFresh(deskRoot, db) {
   const indexedMs = Date.parse(row.value)
   if (Number.isNaN(indexedMs)) return false
   // Walk discover() targets and bail on the first newer mtime.
-  const docs = await discover(deskRoot)
+  const docs = await discover(deskRoot, { signal })
   for (const d of docs) {
+    throwIfAborted(signal)
     if (d.mtime > indexedMs) return false
   }
   return true

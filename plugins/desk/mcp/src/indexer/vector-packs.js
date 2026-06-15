@@ -12,6 +12,7 @@ const ROW_FIELDS = new Set([
   "encoding",
   "vector",
 ])
+const ROW_ABORT_CHECK_INTERVAL = 100
 
 export function deriveVectorPackPaths({
   pluginRoot,
@@ -43,24 +44,26 @@ export async function validateVectorPackFile({
   manifestPath,
   checksumPath,
   expectedSpec = ACTIVE_EMBEDDING_SPEC,
+  signal,
 } = {}) {
+  throwIfAborted(signal)
   const label = path.basename(packPath ?? "vector-pack")
   if (typeof packPath !== "string" || packPath.trim() === "") {
     throw new Error(`${label} pack path is required`)
   }
   const resolvedManifestPath = manifestPath ?? sidecarPath(packPath, ".manifest.json")
   const resolvedChecksumPath = checksumPath ?? sidecarPath(packPath, ".sha256")
-  const packBytes = await readRequiredFile(packPath, `${label} pack`)
+  const packBytes = await readRequiredFile(packPath, `${label} pack`, signal)
   const packText = packBytes.toString("utf8")
   const packSha = sha256(packBytes)
-  const manifest = await readRequiredJson(resolvedManifestPath, `${label} manifest`)
-  const checksum = await readRequiredChecksum(resolvedChecksumPath, `${label} checksum`)
+  const manifest = await readRequiredJson(resolvedManifestPath, `${label} manifest`, signal)
+  const checksum = await readRequiredChecksum(resolvedChecksumPath, `${label} checksum`, signal)
 
   if (checksum !== packSha) {
     throw new Error(`${label}: checksum mismatch for vector pack`)
   }
   validateManifest({ manifest, expectedSpec, packSha, label })
-  const rows = parseRows({ packText, expectedSpec, label })
+  const rows = await parseRows({ packText, expectedSpec, label, signal })
   if (manifest.row_count !== rows.length) {
     throw new Error(`${label}: manifest row_count must match vector pack rows`)
   }
@@ -77,7 +80,9 @@ export async function importVectorPacks({
   db,
   pluginRoot,
   expectedSpec = ACTIVE_EMBEDDING_SPEC,
+  signal,
 } = {}) {
+  throwIfAborted(signal)
   const packDir = path.join(pluginRoot, "artifacts", "vector-packs", expectedSpec.id)
   const summary = {
     packs_considered: 0,
@@ -94,6 +99,7 @@ export async function importVectorPacks({
     if (error.code === "ENOENT") return summary
     throw error
   }
+  throwIfAborted(signal)
 
   const packFiles = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
@@ -115,17 +121,21 @@ export async function importVectorPacks({
   )
 
   for (const packPath of packFiles) {
+    throwIfAborted(signal)
     summary.packs_considered += 1
     const pack = await validateVectorPackFile({
       packPath,
       manifestPath: sidecarPath(packPath, ".manifest.json"),
       checksumPath: sidecarPath(packPath, ".sha256"),
       expectedSpec,
+      signal,
     })
+    throwIfAborted(signal)
     summary.packs_imported += 1
 
     const txn = db.transaction((rows) => {
       for (const row of rows) {
+        throwIfAborted(signal)
         const chunks = findChunks.all(row.chunk_key)
         if (chunks.length === 0) {
           summary.rows_skipped_missing_chunk += 1
@@ -147,6 +157,7 @@ export async function importVectorPacks({
         let inserted = 0
         let skipped = 0
         for (const chunk of chunks) {
+          throwIfAborted(signal)
           if (hasVector.get(chunk.id)) {
             skipped += 1
             continue
@@ -164,7 +175,11 @@ export async function importVectorPacks({
         summary.rows_skipped_duplicate += skipped
       }
     })
-    txn(pack.rows)
+    for (let index = 0; index < pack.rows.length; index += ROW_ABORT_CHECK_INTERVAL) {
+      throwIfAborted(signal)
+      txn(pack.rows.slice(index, index + ROW_ABORT_CHECK_INTERVAL))
+      await yieldToAbortSignal(signal)
+    }
   }
 
   return summary
@@ -192,10 +207,14 @@ function validateManifest({ manifest, expectedSpec, packSha, label }) {
   }
 }
 
-function parseRows({ packText, expectedSpec, label }) {
+async function parseRows({ packText, expectedSpec, label, signal }) {
+  throwIfAborted(signal)
   const rows = []
   const lines = packText.split(/\n/u)
   for (let index = 0; index < lines.length; index += 1) {
+    if (index % ROW_ABORT_CHECK_INTERVAL === 0) {
+      await yieldToAbortSignal(signal)
+    }
     const line = lines[index]
     if (line.trim() === "") continue
     const rowNumber = index + 1
@@ -208,6 +227,7 @@ function parseRows({ packText, expectedSpec, label }) {
     validateRow({ row, rowNumber, expectedSpec, label })
     rows.push({ ...row, row_number: rowNumber })
   }
+  throwIfAborted(signal)
   return rows
 }
 
@@ -244,9 +264,12 @@ function validateRow({ row, rowNumber, expectedSpec, label }) {
   }
 }
 
-async function readRequiredFile(filePath, label) {
+async function readRequiredFile(filePath, label, signal) {
+  throwIfAborted(signal)
   try {
-    return await fs.readFile(filePath)
+    const bytes = await fs.readFile(filePath)
+    throwIfAborted(signal)
+    return bytes
   } catch (error) {
     if (error.code === "ENOENT") {
       throw new Error(`${label} missing`)
@@ -255,8 +278,8 @@ async function readRequiredFile(filePath, label) {
   }
 }
 
-async function readRequiredJson(filePath, label) {
-  const bytes = await readRequiredFile(filePath, label)
+async function readRequiredJson(filePath, label, signal) {
+  const bytes = await readRequiredFile(filePath, label, signal)
   try {
     return JSON.parse(bytes.toString("utf8"))
   } catch {
@@ -264,8 +287,8 @@ async function readRequiredJson(filePath, label) {
   }
 }
 
-async function readRequiredChecksum(filePath, label) {
-  const bytes = await readRequiredFile(filePath, label)
+async function readRequiredChecksum(filePath, label, signal) {
+  const bytes = await readRequiredFile(filePath, label, signal)
   const match = bytes.toString("utf8").match(/^\s*([a-f0-9]{64})\b/u)
   if (!match) {
     throw new Error(`${label} must start with a sha256 digest`)
@@ -279,6 +302,19 @@ function sidecarPath(packPath, suffix) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex")
+}
+
+async function yieldToAbortSignal(signal) {
+  throwIfAborted(signal)
+  await new Promise((resolve) => setImmediate(resolve))
+  throwIfAborted(signal)
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  const err = new Error("operation aborted")
+  err.name = "AbortError"
+  throw err
 }
 
 function assertPathSafeId(value, label) {

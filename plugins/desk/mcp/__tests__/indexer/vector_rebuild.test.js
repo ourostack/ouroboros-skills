@@ -263,6 +263,33 @@ test("rebuildIndex rejects immediately when startup abort signal is already trip
   )
 })
 
+test("rebuildIndex forwards startup abort signal into vector-pack import", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  await writePack({
+    pluginRoot,
+    packId: "abort-forwarding",
+    rows: [],
+  })
+  let reads = 0
+  const signal = {
+    get aborted() {
+      reads += 1
+      return reads >= 6
+    },
+  }
+
+  await assert.rejects(
+    rebuildIndex(deskRoot, {
+      vectorPacks: { pluginRoot },
+      skipEmbed: true,
+      signal,
+    }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
+  assert.ok(reads >= 6, `expected vector-pack import to observe signal; saw ${reads} reads`)
+})
+
 test("ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings", async () => {
   const deskRoot = await tmpRoot()
   const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")

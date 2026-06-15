@@ -704,6 +704,51 @@ test("vector pack import accepts empty active packs as no-op artifacts", async (
   }
 })
 
+test("vector pack validation and import reject when startup abort signal is tripped", async () => {
+  const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  const controller = new AbortController()
+  try {
+    const chunk = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "aborted vector pack chunk",
+      chunkIndex: 0,
+    })
+    const paths = await writePack({
+      pluginRoot,
+      packId: "aborted-pack",
+      rows: [rowFor(chunk.identity, 8)],
+    })
+    controller.abort()
+
+    await assert.rejects(
+      () => validateVectorPackFile({
+        packPath: paths.packPath,
+        manifestPath: paths.manifestPath,
+        checksumPath: paths.checksumPath,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+        signal: controller.signal,
+      }),
+      (err) => err.name === "AbortError" && err.message === "operation aborted",
+    )
+    await assert.rejects(
+      () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+        signal: controller.signal,
+      }),
+      (err) => err.name === "AbortError" && err.message === "operation aborted",
+    )
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
 test("vector pack import deduplicates repeated chunk keys across packs after hash verification", async () => {
   const { importVectorPacks } = await loadVectorPackModule()
   const root = await tmpRoot()

@@ -61,7 +61,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
     const semanticBefore = getSemanticCoverage(db)
     let repairMissing = false
     if (dbExisted) {
-      const fresh = await isIndexFresh(deskRoot, db)
+      const fresh = await isIndexFresh(deskRoot, db, { signal: effectiveOpts.signal })
       if (fresh) {
         if (!snapshotNeedsReconcile(snapshot)) {
           const repair = await maybeRepairMissingEmbeddings(
