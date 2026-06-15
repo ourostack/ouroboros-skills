@@ -182,6 +182,39 @@ function backgroundSessionDisposition(claudeActivation) {
   }
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function currentClaudePackagingInput() {
+  const activation = loadJson(activationManifestPath)
+  const evidenceRow = findByField(
+    normalizedEvidenceRows(readText(evidencePath)),
+    "host_id",
+    "claude",
+    evidencePath,
+  )
+  const supportMatrix = loadJson(supportMatrixPath)
+  return {
+    activation,
+    claudeActivation: activation.host_activation?.claude,
+    deskPlugin: loadJson("plugins", "desk", ".claude-plugin", "plugin.json"),
+    evidenceRow,
+    supportMatrixRow: findByField(
+      supportMatrix.hosts,
+      "host_id",
+      "claude",
+      supportMatrixPath,
+    ),
+    worker: parseSimpleFrontmatter("plugins", "desk", "agents", "worker.md"),
+    workSuitePlugin: loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json"),
+  }
+}
+
+function validateClaudePackagingContract() {
+  return []
+}
+
 test("Claude plugin metadata declares native Desk surfaces and Work Suite dependency", () => {
   const deskPlugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
   const workSuitePlugin = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
@@ -355,4 +388,76 @@ test("Claude-facing manifests stay version-aligned with activation and marketpla
   assert.equal(workSuiteClaude.version, activation.dependencies.find((dependency) => (
     dependency.id === "work-suite"
   )).lock.version)
+})
+
+test("Claude packaging validation rejects missing Work Suite dependency and stale versions", () => {
+  assert.deepEqual(validateClaudePackagingContract(currentClaudePackagingInput()), [])
+
+  const missingDependency = clone(currentClaudePackagingInput())
+  missingDependency.deskPlugin.dependencies = []
+  assert.deepEqual(
+    validateClaudePackagingContract(missingDependency),
+    ["missing Work Suite dependency in Claude plugin metadata"],
+  )
+
+  const staleDependencyRange = clone(currentClaudePackagingInput())
+  staleDependencyRange.deskPlugin.dependencies[0].version = "^2.0.0"
+  assert.deepEqual(
+    validateClaudePackagingContract(staleDependencyRange),
+    ["Claude Work Suite dependency range must be ^1.4.0"],
+  )
+
+  const staleProviderVersion = clone(currentClaudePackagingInput())
+  staleProviderVersion.workSuitePlugin.version = "1.5.0"
+  assert.deepEqual(
+    validateClaudePackagingContract(staleProviderVersion),
+    ["Work Suite Claude version must match activation lock 1.4.9"],
+  )
+})
+
+test("Claude packaging validation rejects missing worker exposure and unsupported Agent View assumptions", () => {
+  const missingPluginWorker = clone(currentClaudePackagingInput())
+  missingPluginWorker.deskPlugin.agents = []
+  assert.deepEqual(
+    validateClaudePackagingContract(missingPluginWorker),
+    ["Claude plugin metadata must expose ./agents/worker.md"],
+  )
+
+  const staleActivationWorker = clone(currentClaudePackagingInput())
+  staleActivationWorker.claudeActivation.targets["desk:worker"].source = "agents/worker.agent.md"
+  assert.deepEqual(
+    validateClaudePackagingContract(staleActivationWorker),
+    ["Claude activation target desk:worker must use agents/worker.md"],
+  )
+
+  const unsupportedManifestField = clone(currentClaudePackagingInput())
+  unsupportedManifestField.deskPlugin.activation = { claude: {} }
+  assert.deepEqual(
+    validateClaudePackagingContract(unsupportedManifestField),
+    ["Claude plugin manifest must not include host activation metadata"],
+  )
+
+  const unsupportedAgentViewClaim = clone(currentClaudePackagingInput())
+  unsupportedAgentViewClaim.claudeActivation.agentView = {
+    ...unsupportedAgentViewClaim.claudeActivation.agentView,
+    status: "supported",
+    inheritsPluginContext: true,
+    evidence: "Claude Code help exposes `claude agents --agent`.",
+  }
+  assert.deepEqual(
+    validateClaudePackagingContract(unsupportedAgentViewClaim),
+    ["Agent View support requires dispatched-session smoke evidence"],
+  )
+
+  const unsupportedBackgroundClaim = clone(currentClaudePackagingInput())
+  unsupportedBackgroundClaim.claudeActivation.backgroundSessionInheritance = {
+    ...unsupportedBackgroundClaim.claudeActivation.backgroundSessionInheritance,
+    status: "supported",
+    inheritsPluginContext: true,
+    evidence: "Claude Code help exposes background agent flags.",
+  }
+  assert.deepEqual(
+    validateClaudePackagingContract(unsupportedBackgroundClaim),
+    ["background-session support requires dispatched-session smoke evidence"],
+  )
 })
