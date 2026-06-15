@@ -274,8 +274,10 @@ function isSupportActionTargetCompatible({ clause, actionMatch, targetMatch }) {
   if (!/^(?:has|have|had|having)$/u.test(actionMatch[0])) {
     return true
   }
+  const beforeTarget = clause.slice(actionMatch.index + actionMatch[0].length, targetMatch.index)
   const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
-  return /^\s+built\s+in\b/u.test(afterTarget)
+  return /^\s+(?:an?\s+)?built\s+in\s*$/u.test(beforeTarget)
+    || /^\s+built\s+in\b/u.test(afterTarget)
 }
 
 function isExternalSupportAssignment({ clause, targetMatch }) {
@@ -283,9 +285,9 @@ function isExternalSupportAssignment({ clause, targetMatch }) {
   const afterTarget = clause.slice(targetMatch.index + targetMatch[0].length)
   return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
     .test(clause)
-    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?(?:requires?|needs?|depends\s+on)\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+to\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activate|start|launch|load|run|support|provide|expose|enable|handle|manage|wire|bootstrap|configure|prepare|supply|deliver|set\s+up|ship|spawn|bundle|resolve|include|install)\s*$/u
+    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?(?:requires?|needs?|depends\s+on)\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+to\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activate|start|launch|load|run|support|provide|expose|enable|handle|manage|wire|bootstrap|configure|prepare|supply|deliver|set\s+up|ship|spawn|bundle|resolve|include|install|preload|bring\s+in|come\s+with|give\s+you|have\s+(?:an?\s+)?built\s+in)\s*$/u
       .test(beforeTarget)
-    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?relies\s+on\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+(?:that|which)\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activates?|starts?|launches?|loads?|runs?|supports?|provides?|exposes?|enables?|handles?|manages?|wires?|bootstraps?|configures?|prepares?|supplies|supply|delivers?|sets?\s+up|ships?|spawns?|bundles?|resolves?|includes?|installs?)\s*$/u
+    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?relies\s+on\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+(?:that|which)\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activates?|starts?|launches?|loads?|runs?|supports?|provides?|exposes?|enables?|handles?|manages?|wires?|bootstraps?|configures?|prepares?|supplies|supply|delivers?|sets?\s+up|ships?|spawns?|bundles?|resolves?|includes?|installs?|preloads?|brings?\s+in|brought\s+in|bringing\s+in|comes?\s+with|came\s+with|coming\s+with|gives?\s+you|gave\s+you|giving\s+you|(?:has|have|had|having)\s+(?:an?\s+)?built\s+in)\s*$/u
       .test(beforeTarget)
     || /^\s+(?:(?:dependency\s+(?:closure|resolution|support)|activation)\s+)?(?:(?:must|should|can|could|will|would|may|might)\s+)?(?:be\s+)?(?:provided|supplied|installed|loaded|configured|handled|managed|resolved|bundled|wired|bootstrapped|prepared|delivered|enabled|exposed)\s+by\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
       .test(afterTarget)
