@@ -5,7 +5,7 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import * as path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -17,10 +17,6 @@ const generatedArtifactsScriptPath = path.join(repoRoot, "scripts", "test-desk-g
 const workflowPath = path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml")
 const require = createRequire(import.meta.url)
 const generatedArtifacts = require(generatedArtifactsScriptPath)
-
-async function loadRuntimeDeps() {
-  return import(pathToFileURL(path.join(mcpRoot, "src", "runtime", "runtime-deps.js")))
-}
 
 function loadJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"))
@@ -169,64 +165,50 @@ function workflowStepOrder(jobSection) {
 }
 
 test("production runtime dependency pack is committed at the current canonical path", async () => {
-  const {
-    deriveRuntimeDependencyPackPaths,
-    productionDependencyLockHash,
-    verifyRuntimeDependencyPack,
-  } = await loadRuntimeDeps()
   const packageJson = loadJson(packageJsonPath)
-  const packageLock = loadJson(packageLockPath)
-  const prodDependencyLockHash = productionDependencyLockHash({ packageJson, packageLock })
-  const target = `${process.platform}-${process.arch}-node-${process.versions.modules}`
-  const paths = deriveRuntimeDependencyPackPaths({
+  const expectations = await generatedArtifacts.productionRuntimePackExpectations({
+    repoRoot,
     mcpRoot,
-    packageJson,
-    packageLock,
-    platform: process.platform,
-    arch: process.arch,
-    nodeAbi: process.versions.modules,
   })
-  const expectedPackDir = path.join(
-    mcpRoot,
-    "artifacts",
-    "runtime-deps",
-    packageJson.version,
-    target,
-    prodDependencyLockHash,
-  )
-  const requiredFiles = [
-    paths.archivePath,
-    paths.manifestPath,
-    paths.checksumPath,
-  ]
 
-  assert.equal(paths.packDir, expectedPackDir)
-  assert.equal(repoPath(paths.packDir).startsWith("plugins/desk/mcp/artifacts/runtime-deps/"), true)
-  assert.equal(repoPath(paths.packDir).includes("__tests__/fixtures"), false)
-  assert.deepEqual(
-    requiredFiles.filter((filePath) => !existsSync(filePath)).map(repoPath),
-    [],
-    "production runtime dependency pack files must be present under the canonical current lock path",
-  )
-  assert.deepEqual(
-    requiredFiles.filter((filePath) => !gitTracksFile(filePath)).map(repoPath),
-    [],
-    "production runtime dependency pack files must be tracked by git, not generated only in a local workspace",
-  )
+  assert.deepEqual(expectations.map((expectation) => expectation.target), ["darwin-arm64-node-127"])
+  for (const expectation of expectations) {
+    const expectedPackDir = path.join(
+      mcpRoot,
+      "artifacts",
+      "runtime-deps",
+      packageJson.version,
+      expectation.target,
+      expectation.prodDependencyLockHash,
+    )
+    const requiredFiles = [
+      expectation.paths.archivePath,
+      expectation.paths.manifestPath,
+      expectation.paths.checksumPath,
+    ]
 
-  const verification = verifyRuntimeDependencyPack({
-    packDir: paths.packDir,
-    mcpRoot,
-    platform: process.platform,
-    arch: process.arch,
-    nodeAbi: process.versions.modules,
-  })
-  assert.deepEqual(verification.errors, [])
-  assert.equal(verification.ok, true)
+    assert.equal(expectation.paths.packDir, expectedPackDir)
+    assert.equal(repoPath(expectation.paths.packDir).startsWith("plugins/desk/mcp/artifacts/runtime-deps/"), true)
+    assert.equal(repoPath(expectation.paths.packDir).includes("__tests__/fixtures"), false)
+    assert.deepEqual(
+      requiredFiles.filter((filePath) => !existsSync(filePath)).map(repoPath),
+      [],
+      "production runtime dependency pack files must be present under the canonical current lock path",
+    )
+    assert.deepEqual(
+      requiredFiles.filter((filePath) => !gitTracksFile(filePath)).map(repoPath),
+      [],
+      "production runtime dependency pack files must be tracked by git, not generated only in a local workspace",
+    )
+
+    const verification = generatedArtifacts.verifyPublishedRuntimeDependencyPack({ expectation })
+    assert.deepEqual(verification.errors, [])
+    assert.equal(verification.ok, true)
+  }
 })
 
 test("production runtime dependency pack manifest records freshness and dependency-only provenance", async () => {
-  const expectation = await generatedArtifacts.productionRuntimePackExpectation({
+  const [expectation] = await generatedArtifacts.productionRuntimePackExpectations({
     repoRoot,
     mcpRoot,
   })
@@ -241,9 +223,9 @@ test("production runtime dependency pack manifest records freshness and dependen
   assert.equal(manifest.schema_version, 1)
   assert.equal(manifest.plugin.name, packageJson.name)
   assert.equal(manifest.plugin.version, packageJson.version)
-  assert.equal(manifest.platform.os, process.platform)
-  assert.equal(manifest.platform.arch, process.arch)
-  assert.equal(manifest.platform.node_abi, process.versions.modules)
+  assert.equal(manifest.platform.os, expectation.platform)
+  assert.equal(manifest.platform.arch, expectation.arch)
+  assert.equal(manifest.platform.node_abi, expectation.nodeAbi)
   assert.equal(manifest.package_lock.path, "plugins/desk/mcp/package-lock.json")
   assert.equal(manifest.package_lock.sha256, sha256(readFileSync(packageLockPath)))
   assert.equal(manifest.package_lock.prod_dependency_lock_hash, expectation.prodDependencyLockHash)
@@ -276,6 +258,50 @@ test("generated artifact freshness script verifies the production runtime depend
   )
 
   assert.equal(result.status, 0, `${result.stdout}${result.stderr}`)
+})
+
+test("generated artifact verification uses explicit published targets instead of the verifier host", async () => {
+  const expectations = await generatedArtifacts.productionRuntimePackExpectations({
+    repoRoot,
+    mcpRoot,
+  })
+  const linuxHostExpectation = await generatedArtifacts.productionRuntimePackExpectation({
+    repoRoot,
+    mcpRoot,
+    platform: "linux",
+    arch: "x64",
+    nodeAbi: "127",
+  })
+  const explicitTargetExpectations = await generatedArtifacts.productionRuntimePackExpectations({
+    repoRoot,
+    mcpRoot,
+    targets: [{ platform: "linux", arch: "x64", nodeAbi: "127" }],
+  })
+  const stdout = []
+  const stderr = []
+
+  assert.deepEqual(
+    generatedArtifacts.publishedRuntimePackTargets(),
+    [{ platform: "darwin", arch: "arm64", nodeAbi: "127" }],
+  )
+  assert.equal(expectations[0].target, "darwin-arm64-node-127")
+  assert.equal(linuxHostExpectation.target, "linux-x64-node-127")
+  assert.deepEqual(explicitTargetExpectations.map((expectation) => expectation.target), ["linux-x64-node-127"])
+  assert.notEqual(linuxHostExpectation.paths.packDir, expectations[0].paths.packDir)
+
+  const result = await generatedArtifacts.verifyGeneratedArtifacts({
+    repoRoot,
+    mcpRoot,
+    io: {
+      stdout: { write: (text) => stdout.push(text) },
+      stderr: { write: (text) => stderr.push(text) },
+    },
+  })
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.expectations.map((expectation) => expectation.target), ["darwin-arm64-node-127"])
+  assert.match(stdout.join(""), /darwin-arm64-node-127/u)
+  assert.equal(stderr.join(""), "")
 })
 
 test("CI checks committed generated artifacts before rebuilding runtime dependency packs", () => {
