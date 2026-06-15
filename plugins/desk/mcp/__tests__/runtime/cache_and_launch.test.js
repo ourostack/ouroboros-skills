@@ -450,9 +450,8 @@ describe("runtime cache and host launch contract", () => {
 
   it("launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories", async (t) => {
     const installRoot = makeUntrackedTempRoot("desk-host-launch-install-");
-    const installed = makeInstalledPluginFixture(installRoot);
-
     try {
+      const installed = makeInstalledPluginFixture(installRoot);
       const before = snapshotImmutableState(installed);
 
       for (const declaration of declarationCases(installed.pluginRoot)) {
