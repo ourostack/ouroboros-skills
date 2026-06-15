@@ -2,79 +2,79 @@ TAP version 13
 # Subtest: activation schema exports the supported version and required top-level fields
 ok 1 - activation schema exports the supported version and required top-level fields
   ---
-  duration_ms: 2.412667
+  duration_ms: 2.392792
   type: 'test'
   ...
 # Subtest: valid activation manifests distinguish substrate dependencies from agent activations
 ok 2 - valid activation manifests distinguish substrate dependencies from agent activations
   ---
-  duration_ms: 1.119375
+  duration_ms: 1.147125
   type: 'test'
   ...
 # Subtest: activation validation fails closed for unknown schema versions with actionable diagnostics
 ok 3 - activation validation fails closed for unknown schema versions with actionable diagnostics
   ---
-  duration_ms: 0.3205
+  duration_ms: 0.315875
   type: 'test'
   ...
 # Subtest: activation dependencies require version intent, provenance, and lock data
 ok 4 - activation dependencies require version intent, provenance, and lock data
   ---
-  duration_ms: 0.480417
+  duration_ms: 0.472625
   type: 'test'
   ...
 # Subtest: activation dependencies reject bad identity, semver, pins, and incompatible locks
 ok 5 - activation dependencies reject bad identity, semver, pins, and incompatible locks
   ---
-  duration_ms: 1.083708
+  duration_ms: 1.260208
   type: 'test'
   ...
 # Subtest: activation validation fails closed for contract type and enum fields
 ok 6 - activation validation fails closed for contract type and enum fields
   ---
-  duration_ms: 1.269667
+  duration_ms: 1.511208
   type: 'test'
   ...
 # Subtest: activation validation requires MCP, root, artifact, host, and permission policy fields
 ok 7 - activation validation requires MCP, root, artifact, host, and permission policy fields
   ---
-  duration_ms: 0.900958
+  duration_ms: 0.887208
   type: 'test'
   ...
 # Subtest: dependency and activation ordering is deterministic
 ok 8 - dependency and activation ordering is deterministic
   ---
-  duration_ms: 8.849875
+  duration_ms: 8.66475
   type: 'test'
   ...
 # Subtest: activation validation enforces desk:worker and overlay relationship integrity
 ok 9 - activation validation enforces desk:worker and overlay relationship integrity
   ---
-  duration_ms: 0.731625
+  duration_ms: 0.61825
   type: 'test'
   ...
 # Subtest: activation validation reports defensive structural errors
 ok 10 - activation validation reports defensive structural errors
   ---
-  duration_ms: 1.083625
+  duration_ms: 1.029375
   type: 'test'
   ...
 # Subtest: activation dependency ranges support caret, tilde, and exact pins deterministically
 ok 11 - activation dependency ranges support caret, tilde, and exact pins deterministically
   ---
-  duration_ms: 0.48125
+  duration_ms: 0.475083
   type: 'test'
   ...
 # Subtest: unsupported hosts produce host-native fallback diagnostics
 ok 12 - unsupported hosts produce host-native fallback diagnostics
   ---
-  duration_ms: 0.266042
+  duration_ms: 0.267292
   type: 'test'
   ...
 # Subtest: canonical Desk activation manifest exists and validates
 ok 13 - canonical Desk activation manifest exists and validates
   ---
-  duration_ms: 0.251917
+  duration_ms: 0.232541
   type: 'test'
   ...
 1..13
@@ -85,4 +85,4 @@ ok 13 - canonical Desk activation manifest exists and validates
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 99.931167
+# duration_ms 105.04975

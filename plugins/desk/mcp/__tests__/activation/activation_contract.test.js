@@ -435,6 +435,18 @@ test("activation validation fails closed for contract type and enum fields", asy
   assertInvalid(
     validateActivationManifest(validManifest({
       provides: {
+        activation_targets: [{ ...target, entrypoints: [] }],
+        overlay_agents: [overlay],
+      },
+    })),
+    [
+      /provides\.activation_targets\[0\]\.entrypoints.*invalid_activation_entrypoint/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
         activation_targets: [{ ...target, entrypoints: { codex: 42 } }],
         overlay_agents: [overlay],
       },
@@ -453,6 +465,19 @@ test("activation validation fails closed for contract type and enum fields", asy
     })),
     [
       /provides\.activation_targets\[0\]\.entrypoints.*invalid_activation_entrypoint/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: { desk: target },
+        overlay_agents: {},
+      },
+    })),
+    [
+      /provides\.activation_targets.*invalid_activation_targets/i,
+      /provides\.overlay_agents.*invalid_overlay_agents/i,
     ],
   )
 })

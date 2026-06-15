@@ -266,6 +266,12 @@ function validateProvides(provides, dependencyIds, errors) {
   validateRequiredObject(provides, "provides", ["activation_targets", "overlay_agents"], errors)
   if (!isObject(provides)) return
 
+  if (!Array.isArray(provides.activation_targets)) {
+    errors.push(diagnostic("provides.activation_targets", "invalid_activation_targets", "activation_targets must be an array"))
+  }
+  if (!Array.isArray(provides.overlay_agents)) {
+    errors.push(diagnostic("provides.overlay_agents", "invalid_overlay_agents", "overlay_agents must be an array"))
+  }
   const targets = Array.isArray(provides.activation_targets) ? provides.activation_targets : []
   const overlays = Array.isArray(provides.overlay_agents) ? provides.overlay_agents : []
   const targetIds = new Set()
@@ -330,7 +336,10 @@ function validateDependsOn(path, dependsOn, dependencyIds, errors) {
 }
 
 function validateEntrypoints(entrypoints, path, errors) {
-  if (!isObject(entrypoints)) return
+  if (!isObject(entrypoints)) {
+    errors.push(diagnostic(path, "invalid_activation_entrypoint", "activation entrypoints must map supported hosts to text paths"))
+    return
+  }
   const entries = Object.entries(entrypoints)
   if (entries.length === 0) {
     errors.push(diagnostic(path, "invalid_activation_entrypoint", "activation entrypoints must map supported hosts to text paths"))
