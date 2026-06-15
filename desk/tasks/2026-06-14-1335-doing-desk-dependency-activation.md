@@ -434,7 +434,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` with fixtures under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`.
 **Acceptance**: Tests fail until vector-pack validation/import exists.
 
-### ⬜ Unit 12b: Vector Pack Validation And Import - Implementation
+### 🔄 Unit 12b: Vector Pack Validation And Import - Implementation
 **What**: Implement vector-pack parser, checksum verification, row validation, idempotent import, duplicate handling, and multi-pack import from `plugins/desk/artifacts/vector-packs/`.
 **Output**: `plugins/desk/mcp/src/indexer/vector-packs.js`, `plugins/desk/artifacts/vector-packs/README.md`, and fixture data.
 **Acceptance**: Unit 12a tests pass, bad packs fail with non-leaking diagnostics, and repeated imports are idempotent.
@@ -919,3 +919,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 09:37 Unit 11c Round 2 cold reviewer gate converged: Einstein the 2nd verified the partial missing-chunk MAJOR is closed and no new issues were introduced. Unit 12a started for vector-pack validation/import red tests.
 - 2026-06-15 09:44 Unit 12a complete: `df2f053` adds vector-pack red tests in `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` plus fixture contract docs under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`. Targeted red evidence in `unit-12a-vector-packs-red.log` fails because `plugins/desk/mcp/src/indexer/vector-packs.js` does not exist yet; the contract covers canonical spec-scoped pack paths, adjacent manifest/checksum sidecars, row schema validation, wrong spec/dimension/hash rejection, malformed encodings/vectors, non-leaking diagnostics, idempotent import, duplicate chunk-key dedupe, multi-pack append-only import, and local DB text-hash verification. Terminal `All tests pass` is intentionally unchecked until Unit 12b makes the red contract green.
 - 2026-06-15 09:48 Unit 12a reviewer fix: Fermat the 2nd found MAJOR gaps where the red contract did not prove actual vector bytes/chunk-id mapping and did not require checksum-sidecar verification. `074aa6e` adds Float32 buffer assertions for imported vectors by `chunk_id`, plus missing-checksum and checksum-mismatch rejection cases. Refreshed targeted red evidence in `unit-12a-review-fix-red.log` still fails for the intended missing `plugins/desk/mcp/src/indexer/vector-packs.js` module.
+- 2026-06-15 09:48 Unit 12a Round 2 cold reviewer gate converged: Pascal the 2nd verified the vector-byte/chunk-id mapping and checksum-sidecar contract gaps are closed. Unit 12b started for the green parser/import implementation.
