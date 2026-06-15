@@ -48,8 +48,23 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
 
   if (evidence === undefined) {
     errors.push("Ouroboros evidence row is required")
-  } else if (!includesAll(evidence.source_paths, REQUIRED_OUROBOROS_BUNDLE_SOURCES)) {
-    errors.push("Ouroboros evidence must reference bundle metadata sources")
+  } else {
+    if (evidence.disposition !== "supported-flattened") {
+      errors.push("Ouroboros evidence must record supported-flattened disposition")
+    }
+    if (!includesAll(evidence.source_paths, REQUIRED_OUROBOROS_BUNDLE_SOURCES)) {
+      errors.push("Ouroboros evidence must reference bundle metadata sources")
+    }
+    if (!arrayIncludes(evidence.unsupported_primitives, "host-native-plugin-install")) {
+      errors.push("Ouroboros evidence must mark host-native-plugin-install unsupported")
+    }
+    const fallbackBehavior = evidence.fallback_behavior ?? ""
+    if (!/bundle Desk \+ Work Suite/u.test(fallbackBehavior)) {
+      errors.push("Ouroboros evidence fallback must describe bundled Desk and Work Suite")
+    }
+    if (!/\$DESK/u.test(fallbackBehavior)) {
+      errors.push("Ouroboros evidence fallback must describe $DESK binding")
+    }
   }
 
   if (!readmeSection.includes("bundle.json")) {
@@ -240,6 +255,8 @@ function hasPositiveSupportClaim({ clause, action, target }) {
 
 function isExternalSupportAssignment(clause) {
   return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
+    .test(clause)
+    || /\bby\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
     .test(clause)
 }
 

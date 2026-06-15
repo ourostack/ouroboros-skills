@@ -486,6 +486,21 @@ test("Ouroboros packaging validation rejects evidence row drift", () => {
       "Ouroboros evidence fallback must describe $DESK binding",
     ],
   )
+
+  const missingFallback = clone(currentOuroborosStdioPackagingInput())
+  delete findByField(
+    missingFallback.evidenceRows,
+    "host_id",
+    "ouroboros-autonomous-agent",
+    "test input",
+  ).fallback_behavior
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(missingFallback),
+    [
+      "Ouroboros evidence fallback must describe bundled Desk and Work Suite",
+      "Ouroboros evidence fallback must describe $DESK binding",
+    ],
+  )
 })
 
 test("generic stdio packaging validation rejects unsafe or under-specified launches", () => {
