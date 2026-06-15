@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: desk_status is registered with a session-start-safe description
+ok 1 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 0.979791
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 2 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 3.153041
+  type: 'test'
+  ...
+# Subtest: desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+ok 3 - desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+  ---
+  duration_ms: 16.852625
+  type: 'test'
+  ...
+# Subtest: desk_status reports fresh and unknown freshness states without repair work
+ok 4 - desk_status reports fresh and unknown freshness states without repair work
+  ---
+  duration_ms: 18.072208
+  type: 'test'
+  ...
+# Subtest: desk_status reports no desk root without trying to inspect a local DB
+ok 5 - desk_status reports no desk root without trying to inspect a local DB
+  ---
+  duration_ms: 0.262708
+  type: 'test'
+  ...
+# Subtest: desk_status sanitizes malformed root context and reports nonexistent roots
+ok 6 - desk_status sanitizes malformed root context and reports nonexistent roots
+  ---
+  duration_ms: 0.532333
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 7 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 6.22325
+  type: 'test'
+  ...
+# Subtest: desk_status leaves query embedding unprobed even when the endpoint is unavailable
+ok 8 - desk_status leaves query embedding unprobed even when the endpoint is unavailable
+  ---
+  duration_ms: 0.751833
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 9 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 6.6185
+  type: 'test'
+  ...
+# Subtest: desk_status reports vector coverage against the active embedding spec
+ok 10 - desk_status reports vector coverage against the active embedding spec
+  ---
+  duration_ms: 18.605334
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 11 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 3.18825
+  type: 'test'
+  ...
+# Subtest: desk_status tolerates an existing DB with missing index tables
+ok 12 - desk_status tolerates an existing DB with missing index tables
+  ---
+  duration_ms: 2.13125
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 325.045958
