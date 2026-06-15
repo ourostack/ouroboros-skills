@@ -215,7 +215,7 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|activating|starts?|started|starting|launches?|launched|launching|loads?|loaded|loading|runs?|running|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
+    action: /\b(?:activates?|activated|activating|starts?|started|starting|launches?|launched|launching|loads?|loaded|loading|runs?|running|includes?|included|including|installs?|installed|installing|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
     target: /\b(?:desk worker|worker activation|agent defaults?|default agent|worker)\b/u,
   })
 }
@@ -270,6 +270,8 @@ function isExternalSupportAssignment({ clause, targetMatch }) {
   return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
     .test(clause)
     || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?(?:requires?|needs?|depends\s+on)\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+to\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activate|start|launch|load|run|support|provide|expose|enable|handle|manage|wire|bootstrap|configure|prepare|supply|deliver|set\s+up|ship|spawn|bundle|resolve|include|install)\s*$/u
+      .test(beforeTarget)
+    || /^(?:(?:generic\s+stdio|this\s+path|the\s+generic\s+stdio\s+path)\s+)?relies\s+on\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\s+(?:that|which)\s+(?:(?:manually|explicitly|separately|externally|independently|directly)\s+)*(?:activates?|starts?|launches?|loads?|runs?|supports?|provides?|exposes?|enables?|handles?|manages?|wires?|bootstraps?|configures?|prepares?|supplies|supply|delivers?|sets?\s+up|ships?|spawns?|bundles?|resolves?|includes?|installs?)\s*$/u
       .test(beforeTarget)
     || /^\s+(?:(?:dependency\s+(?:closure|resolution|support)|activation)\s+)?(?:(?:must|should|can|could|will|would|may|might)\s+)?(?:be\s+)?(?:provided|supplied|installed|loaded|configured|handled|managed|resolved|bundled|wired|bootstrapped|prepared|delivered|enabled|exposed)\s+by\s+(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
       .test(afterTarget)
