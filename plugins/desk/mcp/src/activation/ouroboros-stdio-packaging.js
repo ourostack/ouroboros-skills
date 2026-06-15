@@ -200,7 +200,7 @@ function parseJson(text) {
 function claimsGenericStdioWorkerActivation(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped)\b/u,
+    action: /\b(?:activates?|activated|starts?|started|launches?|launched|loads?|loaded|runs?|running|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped|spawns?|spawned|bundles?|bundled)\b/u,
     target: /\b(?:desk worker|worker|agent defaults?|default agent)\b/u,
   })
 }
@@ -208,7 +208,7 @@ function claimsGenericStdioWorkerActivation(readmeSection) {
 function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
-    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped)\b/u,
+    action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled|handles?|handled|manages?|managed|wires?|wired|bootstraps?|bootstrapped|configures?|configured|prepares?|prepared|supplies?|supplied|delivers?|delivered|sets?\s+up|set\s+up|ships?|shipped|spawns?|spawned|bundles?|bundled)\b/u,
     target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
@@ -221,6 +221,9 @@ function hasGenericStdioSupportClaim({ readmeSection, action, target }) {
 
 function hasPositiveSupportClaim({ clause, action, target }) {
   const normalizedClause = normalizeClaimText(clause)
+  if (isExternalSupportAssignment(normalizedClause)) {
+    return false
+  }
   const actionMatches = allMatches(action, normalizedClause)
   const targetMatches = allMatches(target, normalizedClause)
   return actionMatches.some((actionMatch) => (
@@ -233,6 +236,11 @@ function hasPositiveSupportClaim({ clause, action, target }) {
       })
     ))
   ))
+}
+
+function isExternalSupportAssignment(clause) {
+  return /^(?:a\s+|an\s+)?(?:separate|external|another)\s+(?:host|overlay)(?:\s+or\s+(?:host|overlay))*\b/u
+    .test(clause)
 }
 
 function readmeStatements(readmeSection) {
