@@ -199,25 +199,18 @@ function assertArchiveFileMatchesInstalledNodeModule(archiveContents, entry) {
   )
 }
 
-function representativeNativeRuntimeArchiveEntry(productionDependencies) {
-  for (const dependency of productionDependencies) {
-    if (dependency.native !== true) {
+function assertArchiveFilesMatchInstalledRuntime(archiveContents, expectedEntries) {
+  assert.deepEqual(
+    [...archiveContents.keys()].sort(),
+    expectedEntries,
+    "built runtime dependency archive must contain exactly the expected production runtime files",
+  )
+  for (const entry of expectedEntries) {
+    if (entry === "runtime-deps.manifest.json") {
       continue
     }
-    if (!existsSync(path.join(mcpRoot, dependency.lock_path))) {
-      continue
-    }
-    for (const runtimeFile of runtimeFilesForDependency(dependency)) {
-      if (!/\.(?:node|dylib|so|dll)$/u.test(runtimeFile)) {
-        continue
-      }
-      const entry = `${dependency.lock_path}/${runtimeFile}`
-      if (existsSync(path.join(mcpRoot, entry))) {
-        return entry
-      }
-    }
+    assertArchiveFileMatchesInstalledNodeModule(archiveContents, entry)
   }
-  return undefined
 }
 
 function fixtureManifest({
@@ -352,73 +345,7 @@ function runtimeFilesForDependency(dependency) {
 
 function inferRuntimeFilesForDependency(dependency) {
   const packageDir = path.join(mcpRoot, dependency.lock_path)
-  const packageJson = loadJson(path.join(packageDir, "package.json"))
-  const candidatePaths = [
-    ...packageEntrypointCandidates(packageJson),
-    "index.js",
-    "index.cjs",
-    "index.mjs",
-    "dist/index.js",
-    "dist/index.mjs",
-    "lib/index.js",
-  ]
-  const runtimeFiles = []
-  for (const candidatePath of unique(candidatePaths)) {
-    const normalizedPath = normalizePackageRuntimePath(candidatePath)
-    if (normalizedPath === undefined) {
-      continue
-    }
-    const resolvedPath = path.join(packageDir, normalizedPath)
-    if (isRuntimeFilePath(resolvedPath)) {
-      runtimeFiles.push(normalizedPath)
-      continue
-    }
-    if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
-      runtimeFiles.push(...runtimeFilesUnderPackageDir(packageDir, resolvedPath).slice(0, 1))
-    }
-  }
-  if (runtimeFiles.length === 0) {
-    runtimeFiles.push(...runtimeFilesUnderPackageDir(packageDir, packageDir).slice(0, 1))
-  }
-  return unique(runtimeFiles)
-}
-
-function packageEntrypointCandidates(packageJson) {
-  const candidates = []
-  for (const field of ["main", "module"]) {
-    if (typeof packageJson[field] === "string") {
-      candidates.push(packageJson[field])
-    }
-  }
-  if (typeof packageJson.bin === "string") {
-    candidates.push(packageJson.bin)
-  } else if (typeof packageJson.bin === "object" && packageJson.bin !== null) {
-    candidates.push(...Object.values(packageJson.bin).filter((value) => typeof value === "string"))
-  }
-  candidates.push(...exportEntrypointCandidates(packageJson.exports))
-  return candidates
-}
-
-function exportEntrypointCandidates(value) {
-  if (typeof value === "string") {
-    return [value]
-  }
-  if (typeof value !== "object" || value === null) {
-    return []
-  }
-  return Object.values(value).flatMap(exportEntrypointCandidates)
-}
-
-function normalizePackageRuntimePath(packagePath) {
-  const normalizedPath = packagePath.replace(/^\.\//u, "")
-  if (
-    normalizedPath === "package.json"
-    || normalizedPath.includes("*")
-    || normalizedPath.startsWith("../")
-  ) {
-    return undefined
-  }
-  return normalizedPath
+  return runtimeFilesUnderPackageDir(packageDir, packageDir)
 }
 
 function runtimeFilesUnderPackageDir(packageDir, startDir) {
@@ -878,6 +805,8 @@ test("runtime dependency archive shape rejects server source and missing depende
   })
 
   const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
+  assert.ok(validEntries.includes("node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js"))
+  assert.ok(validEntries.includes("node_modules/express/lib/express.js"))
   assert.deepEqual(
     validateRuntimeDependencyArchiveShape({
       entries: validEntries,
@@ -944,6 +873,28 @@ test("runtime dependency archive shape rejects server source and missing depende
     }),
     [
       "runtime dependency archive must include runtime file node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+    ],
+  )
+
+  assert.deepEqual(
+    validateRuntimeDependencyArchiveShape({
+      entries: validEntries
+        .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js"),
+      productionDependencies,
+    }),
+    [
+      "runtime dependency archive must include runtime file node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js",
+    ],
+  )
+
+  assert.deepEqual(
+    validateRuntimeDependencyArchiveShape({
+      entries: validEntries
+        .filter((entry) => entry !== "node_modules/express/lib/express.js"),
+      productionDependencies,
+    }),
+    [
+      "runtime dependency archive must include runtime file node_modules/express/lib/express.js",
     ],
   )
 
@@ -1224,15 +1175,11 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       assert.ok(builtEntries.includes("node_modules/section-matter/index.js"))
       assert.ok(builtEntries.includes("node_modules/@hono/node-server/dist/index.js"))
       assert.ok(builtEntries.includes("node_modules/sqlite-vec/index.cjs"))
+      assert.ok(builtEntries.includes("node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js"))
+      assert.ok(builtEntries.includes("node_modules/express/lib/express.js"))
       assert.equal(requiredRuntimeFilesByPackage.has("section-matter"), false)
       const builtArchiveContents = extractTarGzContents(builtArchivePath)
-      assertArchiveFileMatchesInstalledNodeModule(
-        builtArchiveContents,
-        "node_modules/section-matter/index.js",
-      )
-      const nativeRuntimeEntry = representativeNativeRuntimeArchiveEntry(productionDependencies)
-      assert.notEqual(nativeRuntimeEntry, undefined, "runtime dependency test fixture must find an installed native runtime file")
-      assertArchiveFileMatchesInstalledNodeModule(builtArchiveContents, nativeRuntimeEntry)
+      assertArchiveFilesMatchInstalledRuntime(builtArchiveContents, validEntries)
 
       const builtVerifyRun = runNpmScript("runtime:deps-pack:verify", [
         "--pack-dir",
