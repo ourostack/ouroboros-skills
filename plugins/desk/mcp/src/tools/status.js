@@ -1,5 +1,6 @@
-import { readFileSync, existsSync } from "node:fs"
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
 import { fileURLToPath } from "node:url"
+import * as path from "node:path"
 import Database from "better-sqlite3"
 import * as sqliteVec from "sqlite-vec"
 import { EMBEDDING_DIM, resolveEmbeddingModel } from "../indexer/embed.js"
@@ -18,23 +19,21 @@ const EMBEDDING_SPEC = {
 }
 
 export async function desk_status({ deskRoot, statusContext = {} }) {
-  const localDb = inspectLocalDb(deskRoot)
-  const root = {
-    path: deskRoot,
-    source: statusContext.root?.source ?? "unknown",
-    tried: statusContext.root?.tried ?? [],
-  }
+  const root = rootStatus(deskRoot, statusContext.root)
   const runtime = runtimeStatus(statusContext.runtime ?? {})
+  const localDb = root.valid
+    ? inspectLocalDb(root.path)
+    : unavailableLocalDb(root.path === null ? null : indexDbPath(root.path), "root_unavailable")
 
   return {
-    status: "ok",
+    status: root.valid ? "ok" : "error",
     root,
     runtime,
     local_db: localDb.local_db,
     db_schema: localDb.local_db.schema,
     active_embedding_spec: EMBEDDING_SPEC,
-    snapshots: { restore_state: "not_checked" },
-    vector_packs: { import_state: "not_checked" },
+    snapshots: { restore_state: "not_checked", module_state: "not_installed" },
+    vector_packs: { import_state: "not_checked", module_state: "not_installed" },
     document_vectors: localDb.document_vectors,
     query_embedding: {
       available: "not_checked",
@@ -49,46 +48,33 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
 function inspectLocalDb(deskRoot) {
   const dbPath = indexDbPath(deskRoot)
   if (!existsSync(dbPath)) {
-    return {
-      local_db: {
-        path: dbPath,
-        exists: false,
-        schema: { id: DB_SCHEMA.id, version: null },
-        state: "missing",
-      },
-      lexical_index: {
-        available: false,
-        state: "missing_local_db",
-      },
-      document_vectors: {
-        state: "missing_local_db",
-        chunks_total: 0,
-        vectors_indexed: 0,
-        missing_vectors: 0,
-        coverage: null,
-      },
-    }
+    return unavailableLocalDb(dbPath, "missing")
   }
 
   const db = new Database(dbPath, { readonly: true, fileMustExist: true })
   try {
     sqliteVec.load(db)
-    const chunksTotal = countRows(db, "chunks")
-    const vectorsIndexed = countRows(db, "chunk_vecs")
+    const chunksTableExists = tableExists(db, "chunks")
+    const vectorsTableExists = tableExists(db, "chunk_vecs")
+    const lexicalAvailable = tableExists(db, "chunks_fts")
+    const chunksTotal = chunksTableExists ? countRows(db, "chunks") : 0
+    const vectorsIndexed = vectorsTableExists ? countRows(db, "chunk_vecs") : 0
     const missingVectors = Math.max(0, chunksTotal - vectorsIndexed)
+    const freshness = inspectFreshness(deskRoot, db)
     return {
       local_db: {
         path: dbPath,
         exists: true,
         schema: DB_SCHEMA,
-        state: "available",
+        state: freshness.state === "stale" ? "stale" : "available",
+        freshness,
       },
       lexical_index: {
-        available: tableExists(db, "chunks_fts"),
-        state: ["missing", "available"][Number(tableExists(db, "chunks_fts"))],
+        available: lexicalAvailable,
+        state: ["missing", "available"][Number(lexicalAvailable)],
       },
       document_vectors: {
-        state: "available",
+        state: vectorsTableExists ? "available" : "missing",
         chunks_total: chunksTotal,
         vectors_indexed: vectorsIndexed,
         missing_vectors: missingVectors,
@@ -97,6 +83,56 @@ function inspectLocalDb(deskRoot) {
     }
   } finally {
     db.close()
+  }
+}
+
+function unavailableLocalDb(dbPath, state) {
+  return {
+    local_db: {
+      path: dbPath,
+      exists: false,
+      schema: { id: DB_SCHEMA.id, version: null },
+      state,
+      freshness: { state: "unknown", reason: state },
+    },
+    lexical_index: {
+      available: false,
+      state: state === "missing" ? "missing_local_db" : state,
+    },
+    document_vectors: {
+      state: state === "missing" ? "missing_local_db" : state,
+      chunks_total: 0,
+      vectors_indexed: 0,
+      missing_vectors: 0,
+      coverage: null,
+    },
+  }
+}
+
+function rootStatus(deskRoot, rootContext = {}) {
+  const pathValue = typeof deskRoot === "string" && deskRoot.trim().length > 0
+    ? deskRoot
+    : null
+  const source = typeof rootContext?.source === "string" && rootContext.source.trim().length > 0
+    ? rootContext.source
+    : "unknown"
+  const tried = Array.isArray(rootContext?.tried)
+    ? rootContext.tried.filter(isRootAttempt)
+    : []
+  const exists = pathValue === null ? false : existsSync(pathValue)
+  const malformed_context = rootContext !== null
+    && typeof rootContext === "object"
+    && (rootContext.source !== undefined && source === "unknown"
+      || rootContext.tried !== undefined && !Array.isArray(rootContext.tried))
+
+  return {
+    path: pathValue,
+    source,
+    tried,
+    exists,
+    valid: exists,
+    diagnostic: exists ? null : rootDiagnostic(pathValue),
+    malformed_context,
   }
 }
 
@@ -119,6 +155,57 @@ function runtimeStatus(runtime) {
   }
 }
 
+function inspectFreshness(deskRoot, db) {
+  if (!tableExists(db, "meta")) {
+    return { state: "unknown", reason: "meta_table_missing" }
+  }
+  const lastIndexedAt = metaValue(db, "last_indexed_at")
+  if (lastIndexedAt === null) {
+    return { state: "unknown", reason: "last_indexed_at_missing" }
+  }
+  const indexedMs = Date.parse(lastIndexedAt)
+  if (Number.isNaN(indexedMs)) {
+    return { state: "unknown", reason: "last_indexed_at_invalid", last_indexed_at: lastIndexedAt }
+  }
+  const newest = newestMarkdownFile(deskRoot)
+  if (newest === null) {
+    return { state: "fresh", last_indexed_at: lastIndexedAt, newest_document: null }
+  }
+  return {
+    state: newest.mtime_ms > indexedMs ? "stale" : "fresh",
+    last_indexed_at: lastIndexedAt,
+    newest_document: newest,
+  }
+}
+
+function newestMarkdownFile(deskRoot) {
+  let newest = null
+  for (const file of markdownFiles(deskRoot)) {
+    const stat = statSync(path.join(deskRoot, file))
+    const candidate = { path: file, mtime_ms: stat.mtimeMs }
+    if (newest === null || candidate.mtime_ms > newest.mtime_ms) {
+      newest = candidate
+    }
+  }
+  return newest
+}
+
+function markdownFiles(root, current = root) {
+  const out = []
+  for (const entry of readdirSync(current, { withFileTypes: true })) {
+    if (shouldSkipDir(entry.name)) {
+      continue
+    }
+    const absolute = path.join(current, entry.name)
+    if (entry.isDirectory()) {
+      out.push(...markdownFiles(root, absolute))
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      out.push(path.relative(root, absolute))
+    }
+  }
+  return out
+}
+
 function defaultTarget() {
   return `${process.platform}-${process.arch}-node-${process.versions.modules}`
 }
@@ -131,12 +218,33 @@ function tableExists(db, table) {
   return db.prepare("SELECT 1 AS found FROM sqlite_master WHERE name = ?").get(table) !== undefined
 }
 
+function metaValue(db, key) {
+  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key)
+  return row?.value ?? null
+}
+
+function isRootAttempt(value) {
+  return value !== null
+    && typeof value === "object"
+    && typeof value.source === "string"
+    && typeof value.path === "string"
+}
+
+function rootDiagnostic(pathValue) {
+  return pathValue === null ? "missing_desk_root" : "desk_root_not_found"
+}
+
+function shouldSkipDir(name) {
+  return name === ".state" || name === ".git" || name === "node_modules"
+}
+
 function summaryFor({ root, localDb }) {
   return [
     `Desk root ${root.path} resolved from ${root.source}.`,
+    root.valid ? null : `Root diagnostic: ${root.diagnostic}.`,
     localDb.local_db.exists
       ? `Local DB is ${localDb.local_db.state}.`
       : "Local DB is missing; this is normal on first run.",
     "Snapshot restore, vector-pack import, and query embedding probes were not run.",
-  ].join(" ")
+  ].filter(Boolean).join(" ")
 }

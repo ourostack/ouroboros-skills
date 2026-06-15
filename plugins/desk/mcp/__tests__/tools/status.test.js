@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs"
 import Database from "better-sqlite3"
@@ -13,7 +14,7 @@ import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
+import { closeDb, indexDbPath, openDb, setMeta } from "../../src/db/init.js"
 import { callTool, TOOL_IMPLS } from "../../src/server.js"
 import { TOOL_DESCRIPTIONS, TOOL_NAMES } from "../../src/tool-names.js"
 
@@ -85,12 +86,158 @@ test("desk_status reports root, runtime, missing DB, and deferred repair state w
     assert.equal(body.document_vectors.state, "missing_local_db")
     assert.equal(body.query_embedding.available, "not_checked")
     assert.equal(body.snapshots.restore_state, "not_checked")
+    assert.equal(body.snapshots.module_state, "not_installed")
     assert.equal(body.vector_packs.import_state, "not_checked")
+    assert.equal(body.vector_packs.module_state, "not_installed")
     assert.match(body.summary, /activation-config/iu)
     assert.equal(existsSync(dbPath), false, "status must not create the local index DB")
     assert.equal(existsSync(path.dirname(dbPath)), false, "status must not create .state during first-run checks")
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing", async () => {
+  const root = makeRoot()
+  try {
+    mkdirSync(path.join(root, "ops", "status-check"), { recursive: true })
+    const olderPath = path.join(root, "ops", "status-check", "a-older.md")
+    const newerPath = path.join(root, "ops", "status-check", "z-newer.md")
+    writeFileSync(
+      olderPath,
+      "---\nschema_version: 1\nstatus: in_progress\n---\n\n# Older\n",
+      "utf8",
+    )
+    writeFileSync(newerPath, "# Newer\n", "utf8")
+    utimesSync(olderPath, new Date("2001-01-01T00:00:00.000Z"), new Date("2001-01-01T00:00:00.000Z"))
+    utimesSync(newerPath, new Date("2002-01-01T00:00:00.000Z"), new Date("2002-01-01T00:00:00.000Z"))
+    const db = openDb(root)
+    try {
+      setMeta(db, "last_indexed_at", "2000-01-01T00:00:00.000Z")
+    } finally {
+      closeDb(db)
+    }
+
+    const beforeStatus = readFileSync(newerPath, "utf8")
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.local_db.exists, true)
+    assert.equal(body.local_db.state, "stale")
+    assert.equal(body.local_db.freshness.state, "stale")
+    assert.equal(body.local_db.freshness.last_indexed_at, "2000-01-01T00:00:00.000Z")
+    assert.equal(body.local_db.freshness.newest_document.path, path.join("ops", "status-check", "z-newer.md"))
+    assert.equal(readFileSync(newerPath, "utf8"), beforeStatus)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports fresh and unknown freshness states without repair work", async () => {
+  const noDocsRoot = makeRoot()
+  const invalidMetaRoot = makeRoot()
+  const freshRoot = makeRoot()
+  try {
+    let db = openDb(noDocsRoot)
+    try {
+      setMeta(db, "last_indexed_at", "2000-01-01T00:00:00.000Z")
+    } finally {
+      closeDb(db)
+    }
+    const noDocsBody = parseToolResult(await callTool({
+      deskRoot: noDocsRoot,
+      name: "desk_status",
+      input: {},
+    }))
+    assert.equal(noDocsBody.local_db.freshness.state, "fresh")
+    assert.equal(noDocsBody.local_db.freshness.newest_document, null)
+
+    db = openDb(invalidMetaRoot)
+    try {
+      setMeta(db, "last_indexed_at", "not-a-date")
+    } finally {
+      closeDb(db)
+    }
+    const invalidMetaBody = parseToolResult(await callTool({
+      deskRoot: invalidMetaRoot,
+      name: "desk_status",
+      input: {},
+    }))
+    assert.equal(invalidMetaBody.local_db.freshness.state, "unknown")
+    assert.equal(invalidMetaBody.local_db.freshness.reason, "last_indexed_at_invalid")
+    assert.equal(invalidMetaBody.local_db.freshness.last_indexed_at, "not-a-date")
+
+    mkdirSync(path.join(freshRoot, "ops"), { recursive: true })
+    writeFileSync(path.join(freshRoot, "ops", "fresh.md"), "# Fresh\n", "utf8")
+    db = openDb(freshRoot)
+    try {
+      setMeta(db, "last_indexed_at", "2999-01-01T00:00:00.000Z")
+    } finally {
+      closeDb(db)
+    }
+    const freshBody = parseToolResult(await callTool({
+      deskRoot: freshRoot,
+      name: "desk_status",
+      input: {},
+    }))
+    assert.equal(freshBody.local_db.freshness.state, "fresh")
+    assert.equal(freshBody.local_db.freshness.newest_document.path, path.join("ops", "fresh.md"))
+  } finally {
+    rmSync(noDocsRoot, { recursive: true, force: true })
+    rmSync(invalidMetaRoot, { recursive: true, force: true })
+    rmSync(freshRoot, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports no desk root without trying to inspect a local DB", async () => {
+  const body = parseToolResult(await callTool({
+    name: "desk_status",
+    input: {},
+  }))
+
+  assert.equal(body.status, "error")
+  assert.equal(body.root.path, null)
+  assert.equal(body.root.exists, false)
+  assert.equal(body.root.valid, false)
+  assert.equal(body.root.diagnostic, "missing_desk_root")
+  assert.equal(body.local_db.path, null)
+  assert.equal(body.local_db.state, "root_unavailable")
+  assert.equal(body.lexical_index.state, "root_unavailable")
+  assert.equal(body.document_vectors.state, "root_unavailable")
+  assert.match(body.summary, /missing_desk_root/u)
+})
+
+test("desk_status sanitizes malformed root context and reports nonexistent roots", async () => {
+  const parent = makeRoot()
+  const root = path.join(parent, "removed")
+  try {
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        root: {
+          source: 42,
+          tried: "this is not a tried list",
+        },
+      },
+    }))
+
+    assert.equal(body.status, "error")
+    assert.equal(body.root.path, root)
+    assert.equal(body.root.source, "unknown")
+    assert.deepEqual(body.root.tried, [])
+    assert.equal(body.root.exists, false)
+    assert.equal(body.root.valid, false)
+    assert.equal(body.root.diagnostic, "desk_root_not_found")
+    assert.equal(body.root.malformed_context, true)
+    assert.equal(body.local_db.path, indexDbPath(root))
+    assert.equal(body.local_db.state, "root_unavailable")
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
   }
 })
 
@@ -126,6 +273,39 @@ test("desk_status reports existing DB coverage without probing query embeddings"
     assert.equal(body.query_embedding.available, "not_checked")
     assert.equal(fetchCalls, 0, "status must not call the embedding endpoint")
   } finally {
+    globalThis.fetch = originalFetch
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status leaves query embedding unprobed even when the endpoint is unavailable", async () => {
+  const root = makeRoot()
+  const originalFetch = globalThis.fetch
+  const originalEndpoint = process.env.DESK_EMBED_ENDPOINT
+  let fetchCalls = 0
+  try {
+    process.env.DESK_EMBED_ENDPOINT = "http://127.0.0.1:1/api/embeddings"
+    globalThis.fetch = async () => {
+      fetchCalls += 1
+      throw new Error("embedding endpoint unavailable")
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.query_embedding.available, "not_checked")
+    assert.equal(body.query_embedding.spec_id, "ollama:nomic-embed-text:768")
+    assert.match(body.query_embedding.note, /does not probe/u)
+    assert.equal(fetchCalls, 0)
+  } finally {
+    if (originalEndpoint === undefined) {
+      delete process.env.DESK_EMBED_ENDPOINT
+    } else {
+      process.env.DESK_EMBED_ENDPOINT = originalEndpoint
+    }
     globalThis.fetch = originalFetch
     rmSync(root, { recursive: true, force: true })
   }
@@ -192,6 +372,30 @@ test("desk_status reports lexical index absence without mutating an existing DB"
     assert.equal(body.local_db.exists, true)
     assert.equal(body.lexical_index.available, false)
     assert.equal(body.lexical_index.state, "missing")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status tolerates an existing DB with missing index tables", async () => {
+  const root = makeRoot()
+  const dbPath = indexDbPath(root)
+  try {
+    mkdirSync(path.dirname(dbPath), { recursive: true })
+    const db = new Database(dbPath)
+    db.close()
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.local_db.exists, true)
+    assert.equal(body.lexical_index.available, false)
+    assert.equal(body.document_vectors.state, "missing")
+    assert.equal(body.document_vectors.chunks_total, 0)
+    assert.equal(body.document_vectors.vectors_indexed, 0)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
