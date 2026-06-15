@@ -289,6 +289,172 @@ test("activation dependencies reject bad identity, semver, pins, and incompatibl
       /upgrade|pin|regenerate/i,
     ],
   )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        validManifest().dependencies[0],
+        validManifest().dependencies[1],
+        { ...validManifest().dependencies[1] },
+      ],
+    })),
+    [/dependencies\[2\]\.id.*duplicate_dependency_id/i],
+  )
+})
+
+test("activation validation fails closed for contract type and enum fields", async () => {
+  const { validateActivationManifest } = await loadActivationContract()
+  const target = validManifest().provides.activation_targets[0]
+  const overlay = validManifest().provides.overlay_agents[0]
+
+  const result = validateActivationManifest(validManifest({
+    id: "Desk With Spaces",
+    version: "v1",
+    dependencies: [
+      {
+        ...validManifest().dependencies[0],
+        kind: "library",
+        provenance: {
+          source: 42,
+          package: "",
+        },
+        lock: {
+          version: "1.7.3",
+          integrity: 7,
+        },
+      },
+      validManifest().dependencies[1],
+    ],
+    mcp_servers: [
+      {
+        ...validManifest().mcp_servers[0],
+        id: "Desk With Spaces",
+        command: 42,
+        args: ["mcp/index.js", 7],
+        launch: "shell",
+      },
+    ],
+    desk_root: {
+      policy: "ambient",
+      precedence: ["activation", "ambient"],
+      opt_out_modes: ["manual-only", "surprise-me"],
+    },
+    artifacts: {
+      embeddings: {
+        ...validManifest().artifacts.embeddings,
+        spec_id: 42,
+        vector_packs: "write-through",
+      },
+      snapshots: {
+        restore: "newest-compatible",
+        stale_reconcile: "overwrite",
+      },
+    },
+    host_support: [
+      {
+        ...validManifest().host_support[0],
+        host: "Codex With Spaces",
+        status: "maybe",
+        dependency_resolution: "telepathy",
+        fallback_behavior: 42,
+        capabilities: ["mcp", "root-shell"],
+        unsupported_primitives: ["agent-defaults", 42],
+      },
+    ],
+    permissions: {
+      requested_capabilities: ["Read", "Root"],
+      generated_artifacts: ["owned-host-config", "user-home"],
+      never_delete: ["desk-root-data", "temp-cache"],
+    },
+    provides: {
+      activation_targets: [
+        {
+          ...target,
+          id: "Desk Worker",
+          kind: "daemon",
+          default: "yes",
+          entrypoints: {
+            ...target.entrypoints,
+            unknown: "agents/worker.md",
+          },
+        },
+      ],
+      overlay_agents: [
+        { ...overlay, id: "Example Worker", kind: "agent", launch_as: 42 },
+      ],
+    },
+  }))
+
+  assertInvalid(result, [
+    /^id.*invalid_activation_id/im,
+    /^version.*invalid_activation_version/im,
+    /dependencies\[0\]\.kind.*invalid_dependency_kind/i,
+    /dependencies\[0\]\.provenance\.source.*invalid_dependency_provenance/i,
+    /dependencies\[0\]\.provenance\.package.*invalid_dependency_provenance/i,
+    /dependencies\[0\]\.lock\.integrity.*invalid_dependency_integrity/i,
+    /mcp_servers\[0\]\.id.*invalid_mcp_id/i,
+    /mcp_servers\[0\]\.command.*invalid_mcp_command/i,
+    /mcp_servers\[0\]\.args.*invalid_mcp_args/i,
+    /mcp_servers\[0\]\.launch.*invalid_mcp_launch/i,
+    /desk_root\.policy.*invalid_desk_root_policy/i,
+    /desk_root\.precedence.*invalid_desk_root_precedence/i,
+    /desk_root\.opt_out_modes.*invalid_opt_out_mode/i,
+    /artifacts\.embeddings\.vector_packs.*invalid_vector_pack_policy/i,
+    /artifacts\.embeddings\.spec_id.*invalid_embedding_spec/i,
+    /artifacts\.snapshots\.stale_reconcile.*invalid_snapshot_reconcile/i,
+    /host_support\[0\]\.host.*invalid_host_id/i,
+    /host_support\[0\]\.status.*invalid_host_status/i,
+    /host_support\[0\]\.dependency_resolution.*invalid_dependency_resolution/i,
+    /host_support\[0\]\.fallback_behavior.*invalid_fallback_behavior/i,
+    /host_support\[0\]\.capabilities.*invalid_host_capability/i,
+    /host_support\[0\]\.unsupported_primitives.*invalid_unsupported_primitive/i,
+    /permissions\.requested_capabilities.*invalid_requested_capability/i,
+    /permissions\.generated_artifacts.*invalid_generated_artifact/i,
+    /permissions\.never_delete.*invalid_never_delete_boundary/i,
+    /provides\.activation_targets\[0\]\.id.*invalid_activation_target_id/i,
+    /provides\.activation_targets\[0\]\.kind.*invalid_activation_target_kind/i,
+    /provides\.activation_targets\[0\]\.default.*invalid_activation_default/i,
+    /provides\.activation_targets\[0\]\.entrypoints.*invalid_activation_entrypoint/i,
+    /provides\.overlay_agents\[0\]\.id.*invalid_overlay_agent_id/i,
+    /provides\.overlay_agents\[0\]\.kind.*invalid_overlay_agent_kind/i,
+    /provides\.overlay_agents\[0\]\.launch_as.*invalid_overlay_launch_as/i,
+  ])
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [{ ...target, entrypoints: undefined }],
+        overlay_agents: [overlay],
+      },
+    })),
+    [
+      /provides\.activation_targets\[0\]\.entrypoints.*missing_required_field/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [{ ...target, entrypoints: { codex: 42 } }],
+        overlay_agents: [overlay],
+      },
+    })),
+    [
+      /provides\.activation_targets\[0\]\.entrypoints.*invalid_activation_entrypoint/i,
+    ],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [{ ...target, entrypoints: {} }],
+        overlay_agents: [overlay],
+      },
+    })),
+    [
+      /provides\.activation_targets\[0\]\.entrypoints.*invalid_activation_entrypoint/i,
+    ],
+  )
 })
 
 test("activation validation requires MCP, root, artifact, host, and permission policy fields", async () => {
@@ -656,6 +822,16 @@ test("activation dependency ranges support caret, tilde, and exact pins determin
       version_range: "1.4.9",
       lock: { ...workSuite.lock, version: "1.4.9" },
     },
+    {
+      ...workSuite,
+      version_range: "^0.2.3",
+      lock: { ...workSuite.lock, version: "0.2.9" },
+    },
+    {
+      ...workSuite,
+      version_range: "^0.0.3",
+      lock: { ...workSuite.lock, version: "0.0.3" },
+    },
   ]) {
     const result = validateActivationManifest(validManifest({ dependencies: [desk, dependency] }))
     assert.equal(result.ok, true, diagnostics(result))
@@ -669,6 +845,48 @@ test("activation dependency ranges support caret, tilde, and exact pins determin
           ...workSuite,
           version_range: "1.4.9",
           lock: { ...workSuite.lock, version: "1.4.8" },
+        },
+      ],
+    })),
+    [/dependencies\[1\]\.lock\.version.*incompatible_dependency_version/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        desk,
+        {
+          ...workSuite,
+          version_range: "^0.2.3",
+          lock: { ...workSuite.lock, version: "0.3.0" },
+        },
+      ],
+    })),
+    [/dependencies\[1\]\.lock\.version.*incompatible_dependency_version/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        desk,
+        {
+          ...workSuite,
+          version_range: "^0.2.3",
+          lock: { ...workSuite.lock, version: "0.2.2" },
+        },
+      ],
+    })),
+    [/dependencies\[1\]\.lock\.version.*incompatible_dependency_version/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      dependencies: [
+        desk,
+        {
+          ...workSuite,
+          version_range: "^0.0.3",
+          lock: { ...workSuite.lock, version: "0.0.4" },
         },
       ],
     })),
