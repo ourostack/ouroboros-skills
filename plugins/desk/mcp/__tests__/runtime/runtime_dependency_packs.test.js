@@ -27,6 +27,40 @@ const supportedTargets = [
   { platform: "win32", arch: "x64", sqliteVecPackage: "sqlite-vec-windows-x64" },
 ]
 const target = supportedTargets[0]
+const requiredRuntimeFilesByPackage = new Map([
+  ["@modelcontextprotocol/sdk", [
+    "dist/esm/server/index.js",
+    "dist/esm/server/stdio.js",
+    "dist/esm/types.js",
+  ]],
+  ["better-sqlite3", [
+    "lib/index.js",
+    "lib/database.js",
+    "build/Release/better_sqlite3.node",
+  ]],
+  ["gray-matter", [
+    "index.js",
+    "lib/parse.js",
+  ]],
+  ["js-yaml", [
+    "index.js",
+    "lib/js-yaml.js",
+    "lib/js-yaml/loader.js",
+  ]],
+  ["sqlite-vec", [
+    "index.cjs",
+    "index.mjs",
+  ]],
+  ["sqlite-vec-darwin-arm64", ["vec0.dylib"]],
+  ["sqlite-vec-darwin-x64", ["vec0.dylib"]],
+  ["sqlite-vec-linux-arm64", ["vec0.so"]],
+  ["sqlite-vec-linux-x64", ["vec0.so"]],
+  ["sqlite-vec-windows-x64", ["vec0.dll"]],
+  ["zod", [
+    "index.cjs",
+    "index.js",
+  ]],
+])
 
 async function loadRuntimeDeps() {
   return import(pathToFileURL(path.join(mcpRoot, "src", "runtime", "runtime-deps.js")))
@@ -172,11 +206,21 @@ function archiveEntriesForProductionDependencies(dependencies) {
   ]
   for (const dependency of dependencies) {
     entries.push(`${dependency.lock_path}/package.json`)
-    if (dependency.name === "better-sqlite3") {
-      entries.push(`${dependency.lock_path}/build/Release/better_sqlite3.node`)
+    for (const runtimeFile of requiredRuntimeFilesByPackage.get(dependency.name) ?? []) {
+      entries.push(`${dependency.lock_path}/${runtimeFile}`)
     }
   }
   return entries.sort()
+}
+
+function workflowPathFilters(workflow) {
+  return [...workflow.matchAll(/^\s+- "([^"]+)"\s*$/gmu)]
+    .map((match) => match[1])
+}
+
+function workflowRunCommands(workflow) {
+  return [...workflow.matchAll(/^\s*run:\s+(.+?)\s*$/gmu)]
+    .map((match) => match[1])
 }
 
 function assertIncludesAll(actual, expected, label) {
@@ -241,6 +285,20 @@ test("runtime dependency pack artifact paths are deterministic and repo-relative
   changedLock.packages["node_modules/gray-matter"].version = "4.0.4"
   assert.notEqual(
     productionDependencyLockHash({ packageJson, packageLock: changedLock }),
+    prodDependencyLockHash,
+  )
+
+  const changedTransitiveLock = structuredClone(packageLock)
+  changedTransitiveLock.packages["node_modules/zod"].version = "3.25.77"
+  assert.notEqual(
+    productionDependencyLockHash({ packageJson, packageLock: changedTransitiveLock }),
+    prodDependencyLockHash,
+  )
+
+  const changedNativeLock = structuredClone(packageLock)
+  changedNativeLock.packages["node_modules/sqlite-vec-darwin-arm64"].version = "0.1.10"
+  assert.notEqual(
+    productionDependencyLockHash({ packageJson, packageLock: changedNativeLock }),
     prodDependencyLockHash,
   )
 
@@ -397,8 +455,17 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
   drifted.package_lock.prod_dependency_lock_hash = "1".repeat(64)
   drifted.archive.contains_server_source = true
   drifted.archive.root_entries.push("src/server.js")
-  drifted.production_dependencies = drifted.production_dependencies
-    .filter((dependency) => dependency.name !== "gray-matter")
+  drifted.production_dependencies = drifted.production_dependencies.map((dependency) => {
+    if (dependency.name === "gray-matter") {
+      return { ...dependency, version: "0.0.0", lock_path: "node_modules/not-gray-matter", native: true }
+    }
+    return dependency
+  })
+    .filter((dependency) => dependency.name !== "js-yaml")
+  drifted.production_dependencies.push(
+    drifted.production_dependencies.find((dependency) => dependency.name === "zod"),
+    { name: "left-pad", version: "1.3.0", lock_path: "node_modules/left-pad", native: false },
+  )
 
   assert.deepEqual(
     validateRuntimeDependencyPackManifest({
@@ -414,7 +481,12 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
       "runtime dependency pack manifest package_lock.prod_dependency_lock_hash must match production dependency closure",
       "runtime dependency pack manifest must not mark server source as archived",
       "runtime dependency pack archive root_entries must not include server source path src/server.js",
-      "runtime dependency pack manifest must include production dependency gray-matter",
+      "runtime dependency pack manifest dependency gray-matter version must match package-lock.json",
+      "runtime dependency pack manifest dependency gray-matter lock_path must match production closure",
+      "runtime dependency pack manifest dependency gray-matter native flag must match production closure",
+      "runtime dependency pack manifest must include production dependency js-yaml",
+      "runtime dependency pack manifest must not include duplicate production dependency zod",
+      "runtime dependency pack manifest must not include non-production dependency left-pad",
     ],
   )
 })
@@ -456,6 +528,26 @@ test("runtime dependency archive shape rejects server source and missing depende
       "runtime dependency archive must not include mutable MCP source index.js",
       "runtime dependency archive must not include mutable MCP source src/server.js",
     ],
+  )
+
+  assert.deepEqual(
+    validateRuntimeDependencyArchiveShape({
+      entries: validEntries
+        .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js"),
+      productionDependencies,
+    }),
+    [
+      "runtime dependency archive must include runtime file node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+    ],
+  )
+
+  assert.deepEqual(
+    validateRuntimeDependencyArchiveShape({
+      entries: validEntries
+        .filter((entry) => entry !== "node_modules/sqlite-vec/index.cjs"),
+      productionDependencies,
+    }),
+    ["runtime dependency archive must include runtime file node_modules/sqlite-vec/index.cjs"],
   )
 
   assert.deepEqual(
@@ -571,9 +663,11 @@ test("package declares CI/release scripts for runtime dependency packs", () => {
 
 test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
   const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
+  const pathFilters = workflowPathFilters(workflow)
+  const runCommands = workflowRunCommands(workflow)
 
-  assert.match(workflow, /runtime:deps-pack:verify/u)
-  assert.match(workflow, /plugins\/desk\/mcp\/artifacts\/runtime-deps\/\*\*/u)
-  assert.match(workflow, /scripts\/build-runtime-deps-pack\.js/u)
-  assert.match(workflow, /scripts\/verify-runtime-deps-pack\.js/u)
+  assert.ok(runCommands.includes("npm run runtime:deps-pack:verify"))
+  assert.ok(pathFilters.includes("plugins/desk/mcp/artifacts/runtime-deps/**"))
+  assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/build-runtime-deps-pack.js"))
+  assert.ok(pathFilters.includes("plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"))
 })
