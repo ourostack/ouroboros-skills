@@ -141,8 +141,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [ ] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] 100% test coverage on all new code
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -329,7 +329,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/runtime/production_runtime_pack.test.js`, updates to `scripts/test-desk-generated-artifacts.cjs`, and expected verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Tests fail until production `runtime-deps.tgz`, `runtime-deps.manifest.json`, and `runtime-deps.sha256` exist under the canonical path, not only fixtures.
 
-### 🔄 Unit 6h: Production Runtime Dependency Pack Publication - Implementation
+### ✅ Unit 6h: Production Runtime Dependency Pack Publication - Implementation
 **What**: Generate, verify, and commit the current production runtime dependency pack with `plugins/desk/mcp/node_modules` absent from the launch fixture, no network, no `npm install`, no bundled server source, and no plugin-source mutation. Record exact commands, manifest/checksum, package-lock hash, and platform/arch/ABI.
 **Output**: Production files under `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/` and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/runtime-pack-artifacts.md`.
 **Acceptance**: Unit 6g tests pass, generated runtime dependency pack artifacts are committed, and the dependency pack can support a runtime-cache current-source mirror without `plugins/desk/mcp/node_modules`.
@@ -851,3 +851,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 03:39 Unit 6g complete: added production runtime dependency pack publication red tests and generated-artifact verification in `497cb8c`; targeted red logs saved to `unit-6g-production-runtime-pack-red.log` and `unit-6g-generated-artifacts-red.log`, failing because the current `1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be` pack trio is not yet committed; terminal coverage/all-tests criteria intentionally unchecked until Units 6h-6i make the checks green
 - 2026-06-15 03:45 Unit 6g reviewer fix: Galileo the 2nd found the workflow-order check could be satisfied by comments/echo/failure-masked text; `4d65dd3` replaces it with step-level workflow parsing, adds a fake-workflow regression, scrubs the original red-log whitespace, and saves review-fix red evidence in `unit-6g-review-fix-production-runtime-pack-red.log` and `unit-6g-review-fix-generated-artifacts-red.log`
 - 2026-06-15 03:46 Unit 6g Round 2 cold reviewer gate converged; Galileo the 2nd verified the workflow-order check now parses real steps, the red-log whitespace issue is closed across the unit range, and the remaining red state is the intended missing production runtime pack trio
+- 2026-06-15 03:53 Unit 6h complete: published the current production runtime dependency pack in `5ab0f54` under `plugins/desk/mcp/artifacts/runtime-deps/1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be/`, fixed the runtime pack test cleanup so the full suite no longer deletes committed artifacts, and recorded manifest/checksum/command evidence in `runtime-pack-artifacts.md`; verified `runtime:deps-pack:verify`, production runtime pack tests, generated-artifact freshness, no mutable MCP source in the archive, full MCP tests 295/295, coverage 100%, `node scripts/validate-skills.cjs`, and expected missing `npm run build`
