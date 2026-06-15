@@ -231,6 +231,89 @@ test("support matrix validation reports evidence and freshness mismatches", asyn
   )
 })
 
+test("support matrix validation rejects host and primitive contract drift", async () => {
+  const {
+    buildSupportMatrix,
+    parseHostCapabilityEvidence,
+    validateSupportMatrix,
+  } = await loadSupportMatrix()
+  const manifest = loadJson(manifestPath)
+  const evidence = parseHostCapabilityEvidence({
+    content: loadText(evidencePath),
+    sourcePath: evidencePath,
+  })
+  const matrix = buildSupportMatrix({
+    manifest,
+    evidence,
+    sources: {
+      activationManifest: manifestPath,
+      hostCapabilityEvidence: evidencePath,
+    },
+  })
+
+  const missingRequiredEvidence = {
+    ...evidence,
+    hosts: evidence.hosts.filter((row) => row.host_id !== "copilot-root"),
+  }
+  assert.deepEqual(
+    validateSupportMatrix({
+      matrix: { ...matrix, hosts: missingRequiredEvidence.hosts },
+      manifest,
+      evidence: missingRequiredEvidence,
+    }),
+    ["missing required evidence row for host copilot-root"],
+  )
+
+  const unknownHostEvidence = {
+    ...evidence,
+    hosts: [
+      ...evidence.hosts,
+      {
+        ...evidence.hosts[0],
+        host_id: "mystery-host",
+      },
+    ],
+  }
+  assert.deepEqual(
+    validateSupportMatrix({
+      matrix: { ...matrix, hosts: unknownHostEvidence.hosts },
+      manifest,
+      evidence: unknownHostEvidence,
+    }),
+    ["unknown support matrix host mystery-host"],
+  )
+
+  const invalidPrimitiveEvidence = {
+    ...evidence,
+    hosts: evidence.hosts.map((row) => row.host_id === "generic-stdio"
+      ? { ...row, unsupported_primitives: ["agent-defaults", "surprise-primitive"] }
+      : row),
+  }
+  assert.deepEqual(
+    validateSupportMatrix({
+      matrix: { ...matrix, hosts: invalidPrimitiveEvidence.hosts },
+      manifest,
+      evidence: invalidPrimitiveEvidence,
+    }),
+    ["unsupported primitive surprise-primitive for host generic-stdio"],
+  )
+
+  const nativeFlattenedConflictEvidence = {
+    ...evidence,
+    hosts: evidence.hosts.map((row) => row.host_id === "claude"
+      ? { ...row, unsupported_primitives: ["transitive-dependency-resolution"] }
+      : row),
+  }
+  assert.deepEqual(
+    validateSupportMatrix({
+      matrix: { ...matrix, hosts: nativeFlattenedConflictEvidence.hosts },
+      manifest,
+      evidence: nativeFlattenedConflictEvidence,
+    }),
+    ["native-or-flattened disposition conflicts with unsupported transitive dependencies for host claude"],
+  )
+})
+
 test("generated support matrix artifact is fresh", async () => {
   const {
     buildSupportMatrix,
