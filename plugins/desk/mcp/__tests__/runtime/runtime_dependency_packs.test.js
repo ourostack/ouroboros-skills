@@ -23,6 +23,7 @@ const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const packageJsonPath = path.join(mcpRoot, "package.json")
 const packageLockPath = path.join(mcpRoot, "package-lock.json")
 const targetNodeAbi = "127"
+const embeddedArchiveShaMarker = "<archive-sha256-recorded-in-sidecar>"
 const supportedTargets = [
   { platform: "darwin", arch: "arm64", sqliteVecPackage: "sqlite-vec-darwin-arm64" },
   { platform: "darwin", arch: "x64", sqliteVecPackage: "sqlite-vec-darwin-x64" },
@@ -83,26 +84,23 @@ function makeTempDir() {
 }
 
 function writePackFixture({
+  archiveEntryBytes,
   archiveEntries,
   checksum,
   manifest,
 } = {}) {
   const packDir = makeTempDir()
-  const archiveBytes = createTarGz(archiveEntries)
+  const archiveBytes = createTarGz(archiveEntries, archiveEntryBytes ?? archiveEntryBytesForManifest(manifest))
   writeFileSync(path.join(packDir, "runtime-deps.tgz"), archiveBytes)
   writeFileSync(path.join(packDir, "runtime-deps.sha256"), `${checksum ?? sha256(archiveBytes)}  runtime-deps.tgz\n`, "utf8")
-  writeFileSync(
-    path.join(packDir, "runtime-deps.manifest.json"),
-    JSON.stringify(manifest, null, 2),
-    "utf8",
-  )
+  writeFileSync(path.join(packDir, "runtime-deps.manifest.json"), JSON.stringify(manifest, null, 2), "utf8")
   return packDir
 }
 
-function createTarGz(entries) {
+function createTarGz(entries, entryBytes = {}) {
   const blocks = []
   for (const entry of entries) {
-    const body = Buffer.from(`fixture for ${entry}\n`, "utf8")
+    const body = entryBytes[entry] ?? Buffer.from(`fixture for ${entry}\n`, "utf8")
     blocks.push(tarHeader({ name: entry, size: body.length }))
     blocks.push(body)
     const padding = (512 - (body.length % 512)) % 512
@@ -112,6 +110,21 @@ function createTarGz(entries) {
   }
   blocks.push(Buffer.alloc(1024))
   return gzipSync(Buffer.concat(blocks))
+}
+
+function archiveEntryBytesForManifest(manifest) {
+  return {
+    "runtime-deps.manifest.json": Buffer.from(
+      JSON.stringify(embeddedManifestForArchive(manifest), null, 2),
+      "utf8",
+    ),
+  }
+}
+
+function embeddedManifestForArchive(manifest) {
+  const embeddedManifest = structuredClone(manifest)
+  embeddedManifest.archive.sha256 = embeddedArchiveShaMarker
+  return embeddedManifest
 }
 
 function tarHeader({ name, size }) {
@@ -209,9 +222,9 @@ function assertArchiveFilesMatchInstalledRuntime(archiveContents, expectedEntrie
     if (entry === "runtime-deps.manifest.json") {
       assert.notEqual(manifestPath, undefined, "built runtime dependency archive manifest sidecar path is required")
       assert.deepEqual(
-        archiveContents.get(entry),
-        readFileSync(manifestPath),
-        "built runtime dependency archive embedded manifest bytes must match the sidecar manifest",
+        JSON.parse(archiveContents.get(entry).toString("utf8")),
+        embeddedManifestForArchive(loadJson(manifestPath)),
+        "built runtime dependency archive embedded manifest must match sidecar manifest metadata",
       )
       continue
     }
@@ -266,6 +279,34 @@ function fixtureManifest({
       source: "unit-6d fixture",
     },
   }
+}
+
+function fixtureManifestForArchiveEntries({
+  archiveEntryBytes,
+  archiveEntries,
+  packageLockSha,
+  prodDependencyLockHash,
+  productionDependencies,
+  pluginVersion,
+} = {}) {
+  const provisionalManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    packageLockSha,
+    prodDependencyLockHash,
+    productionDependencies,
+    pluginVersion,
+  })
+  const archiveSha = sha256(createTarGz(
+    archiveEntries,
+    archiveEntryBytes ?? archiveEntryBytesForManifest(provisionalManifest),
+  ))
+  return fixtureManifest({
+    archiveSha,
+    packageLockSha,
+    prodDependencyLockHash,
+    productionDependencies,
+    pluginVersion,
+  })
 }
 
 function dependencyNames(dependencies) {
@@ -506,7 +547,15 @@ function workflowStepWorkingDirectory(stepBlock) {
   return match?.[1]?.replace(/^["']|["']$/gu, "")
 }
 
+function workflowStepAllowsFailure(stepBlock) {
+  const match = stepBlock.match(/^\s*continue-on-error:\s+(.+?)\s*$/mu)
+  return match !== null && !/^["']?false["']?$/iu.test(match[1])
+}
+
 function workflowStepRunsMcpScript(stepBlock, scriptName) {
+  if (workflowStepAllowsFailure(stepBlock)) {
+    return false
+  }
   const runText = workflowStepRunText(stepBlock)
   const runsCommand = runText.split(/\r?\n/u)
     .map((line) => line.trim())
@@ -646,6 +695,13 @@ test("runtime dependency pack artifact paths are deterministic and repo-relative
   changedNativeLock.packages["node_modules/sqlite-vec-darwin-arm64"].version = "0.1.10"
   assert.notEqual(
     productionDependencyLockHash({ packageJson, packageLock: changedNativeLock }),
+    prodDependencyLockHash,
+  )
+
+  const changedNestedLock = structuredClone(packageLock)
+  changedNestedLock.packages["node_modules/type-is/node_modules/content-type"].version = "2.0.1"
+  assert.notEqual(
+    productionDependencyLockHash({ packageJson, packageLock: changedNestedLock }),
     prodDependencyLockHash,
   )
 
@@ -992,12 +1048,12 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     arch: target.arch,
   })
   const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
-  const archiveSha = sha256(createTarGz(validEntries))
-  const manifest = fixtureManifest({
-    archiveSha,
+  const manifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
     productionDependencies,
   })
+  const archiveSha = manifest.archive.sha256
   const packDir = writePackFixture({ archiveEntries: validEntries, checksum: archiveSha, manifest })
   const corruptPackDir = writePackFixture({
     archiveEntries: validEntries,
@@ -1014,10 +1070,24 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     checksum: archiveSha,
     manifest: staleManifestArchiveShaManifest,
   })
+  const embeddedManifestMismatchBytes = {
+    "runtime-deps.manifest.json": Buffer.from("placeholder embedded manifest\n", "utf8"),
+  }
+  const embeddedManifestMismatchManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    archiveEntryBytes: embeddedManifestMismatchBytes,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const embeddedManifestMismatchPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    archiveEntryBytes: embeddedManifestMismatchBytes,
+    manifest: embeddedManifestMismatchManifest,
+  })
   const missingRuntimeFileEntries = validEntries
     .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js")
-  const missingRuntimeFileManifest = fixtureManifest({
-    archiveSha: sha256(createTarGz(missingRuntimeFileEntries)),
+  const missingRuntimeFileManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: missingRuntimeFileEntries,
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
     productionDependencies,
   })
@@ -1027,8 +1097,8 @@ test("runtime dependency pack verification checks checksums and unsupported plat
   })
   const missingInferredRuntimeFileEntries = validEntries
     .filter((entry) => entry !== "node_modules/section-matter/index.js")
-  const missingInferredRuntimeFileManifest = fixtureManifest({
-    archiveSha: sha256(createTarGz(missingInferredRuntimeFileEntries)),
+  const missingInferredRuntimeFileManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: missingInferredRuntimeFileEntries,
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
     productionDependencies,
   })
@@ -1075,6 +1145,21 @@ test("runtime dependency pack verification checks checksums and unsupported plat
         ok: false,
         errors: ["runtime dependency pack manifest archive.sha256 must match runtime-deps.tgz"],
         manifest: staleManifestArchiveShaManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: embeddedManifestMismatchPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive embedded manifest must match sidecar manifest metadata"],
+        manifest: embeddedManifestMismatchManifest,
       },
     )
 
@@ -1130,6 +1215,7 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     rmSync(packDir, { recursive: true, force: true })
     rmSync(corruptPackDir, { recursive: true, force: true })
     rmSync(staleManifestArchiveShaPackDir, { recursive: true, force: true })
+    rmSync(embeddedManifestMismatchPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
     rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
   }
@@ -1181,8 +1267,8 @@ test("package declares CI/release scripts for runtime dependency packs", async (
   })
   const prodDependencyLockHash = productionDependencyLockHash({ packageJson, packageLock })
   const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
-  const validManifest = fixtureManifest({
-    archiveSha: sha256(createTarGz(validEntries)),
+  const validManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
     prodDependencyLockHash,
     productionDependencies,
   })
@@ -1192,8 +1278,8 @@ test("package declares CI/release scripts for runtime dependency packs", async (
   })
   const invalidEntries = validEntries
     .filter((entry) => entry !== "node_modules/sqlite-vec/index.cjs")
-  const invalidManifest = fixtureManifest({
-    archiveSha: sha256(createTarGz(invalidEntries)),
+  const invalidManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: invalidEntries,
     prodDependencyLockHash,
     productionDependencies,
   })
@@ -1391,6 +1477,30 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
       /workflow job desk-mcp-tests must run runtime:deps-pack:build/u,
     )
   }
+  assert.throws(
+    () => {
+      const fakeWorkflow = [
+        "name: fake",
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - name: Failure-masked runtime dependency build",
+        "        working-directory: plugins/desk/mcp",
+        "        continue-on-error: true",
+        "        run: npm run runtime:deps-pack:build",
+      ].join("\n")
+      assertWorkflowJobRunsMcpScript(
+        workflowJob(fakeWorkflow, "desk-mcp-tests"),
+        "desk-mcp-tests",
+        "runtime:deps-pack:build",
+      )
+    },
+    /workflow job desk-mcp-tests must run runtime:deps-pack:build/u,
+  )
   assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:build")
   assertWorkflowJobRunsMcpScript(deskMcpJob, "desk-mcp-tests", "runtime:deps-pack:verify")
   for (const [eventName, pathFilters] of [
