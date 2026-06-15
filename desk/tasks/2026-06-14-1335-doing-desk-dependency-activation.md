@@ -141,8 +141,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] 100% test coverage on all new code
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -339,7 +339,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened production runtime pack freshness checks.
 **Acceptance**: Production runtime pack checks pass locally, and fixtures alone cannot satisfy the no-manual-install completion criteria.
 
-### 🔄 Unit 7a: Dependency-Light MCP Entrypoint - Tests
+### ✅ Unit 7a: Dependency-Light MCP Entrypoint - Tests
 **What**: Write failing tests proving `plugins/desk/mcp/index.js` can start dependency preparation without pre-bootstrap imports of plugin-source `src/server.js` or any production/server dependencies. Cover `plugins/desk/mcp/node_modules` absent, no network access, no `npm install`, native ABI mismatch, offline restore from `plugins/desk/mcp/artifacts/runtime-deps/<plugin-version>/<platform>-<arch>-node-<abi>/<prod-dependency-lock-hash>/runtime-deps.tgz`, source hash change causing runtime-cache `source-mirror/<source-hash>/` resync, and MCP initialize/list-tools from the synced source mirror after restore.
 **Output**: `plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js`.
 **Acceptance**: Tests fail until the entrypoint can run its bootstrap path without statically importing the MCP SDK, `gray-matter`, `better-sqlite3`, `sqlite-vec`, or any production dependency outside the restored runtime cache.
@@ -856,3 +856,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 04:04 Unit 6h Round 2 cold reviewer gate converged; Epicurus the 2nd verified the CI-target blocker is closed, generated-artifact verification now uses explicit published targets and archive metadata, host-native `runtime:deps-pack:verify` remains green, and no new BLOCKER/MAJOR was introduced
 - 2026-06-15 04:10 Unit 6i complete: hardened production runtime pack freshness checks in `f580d30` with temp-pack negative coverage for missing production packs, checksum mismatch, stale package-lock hash, stale production dependency lock hash, stale platform metadata, accidentally bundled MCP source, and fixture-only false positives; verified production runtime pack tests 6/6, generated-artifact freshness, host-native runtime pack verify, full MCP tests 297/297, coverage 100%, `node scripts/validate-skills.cjs`, and expected missing `npm run build`
 - 2026-06-15 04:11 Unit 6i cold reviewer gate converged; Dalton the 2nd re-ran diff hygiene, production runtime pack tests, generated-artifact verifier, host-native runtime pack verify, full MCP tests, coverage, validate-skills, and build-unavailable checks, and confirmed fixture-only or wrong-target artifacts cannot satisfy the no-manual-install criteria
+- 2026-06-15 04:22 Unit 7a complete: added dependency-light MCP entrypoint red tests in `303b4a1`; targeted red run saved to `unit-7a-dependency-light-entrypoint-red.log` and fails because `index.js` statically imports `./src/server.js`, a copied MCP package without `node_modules` exits before MCP initialize/list-tools with `ERR_MODULE_NOT_FOUND` for `@modelcontextprotocol/sdk`, and the missing/ABI-mismatched runtime-pack path reports a stack trace instead of actionable runtime-pack diagnostics; terminal coverage/all-tests criteria intentionally unchecked until Unit 7b makes the new tests green
