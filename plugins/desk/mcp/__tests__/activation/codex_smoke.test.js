@@ -423,13 +423,17 @@ test("Codex smoke reports missing Codex binary and failed MCP launch without sta
         codexRunner: async () => ({
           exitCode: 1,
           stdout: "",
-          stderr: "MCP server desk failed to initialize",
+          stderr: [
+            "MCP server desk failed to initialize",
+            "    at launchDesk (/tmp/desk-smoke.js:10:5)",
+            "    at async startServer (/tmp/server.js:22:3)",
+          ].join("\n"),
         }),
       }),
       (error) => {
         assert.match(error.message, /Codex CLI smoke failed with exit code 1/u)
         assert.match(error.message, /MCP server desk failed to initialize/u)
-        assert.doesNotMatch(error.message, /at .*codex-smoke/u)
+        assert.doesNotMatch(error.message, /\bat\s+(?:async\s+)?\S+/u)
         return true
       },
     )

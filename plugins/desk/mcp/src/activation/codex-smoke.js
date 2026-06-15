@@ -12,6 +12,7 @@ const CODEX_HOME_DIR = ".codex"
 const DEFAULT_MODE = "global-personal"
 const PROJECT_DESK_ROOT = ".desk"
 const MANUAL_ONLY_REASON = "manual-only opt-out"
+const STACK_FRAME_PATTERN = /^\s*at (?:async )?\S.*(?:\r?\n|$)/gmu
 
 const smokePrompt = [
   "Report the current instructions you loaded, list available MCP tool names,",
@@ -80,8 +81,12 @@ async function invokeCodexRunner(codexRunner, request) {
 
 function assertExitCode(runnerOutput) {
   if (runnerOutput.exitCode !== 0) {
-    const stderr = String(runnerOutput.stderr ?? "").trim()
-    throw new Error(`Codex CLI smoke failed with exit code ${runnerOutput.exitCode}: ${stderr}`)
+    const stderrSummary = String(runnerOutput.stderr ?? "")
+      .replace(STACK_FRAME_PATTERN, "")
+      .trim()
+      .replace(/\r?\n+/gu, "; ")
+    const stderrSuffix = stderrSummary ? `: ${stderrSummary}` : ""
+    throw new Error(`Codex CLI smoke failed with exit code ${runnerOutput.exitCode}${stderrSuffix}`)
   }
 }
 
