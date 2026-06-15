@@ -374,6 +374,104 @@ async function runMcpListToolsSession(fixture, { timeoutMs = 10000 } = {}) {
   }
 }
 
+async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
+  const child = spawn(process.execPath, [
+    path.join(fixture.mcpRoot, "index.js"),
+    "--root",
+    fixture.deskRoot,
+  ], {
+    cwd: fixture.mcpRoot,
+    env: fixtureEnv(fixture),
+    stdio: ["pipe", "pipe", "pipe"],
+  })
+  let stdout = ""
+  let stderr = ""
+  const responses = []
+  let closed
+
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString("utf8")
+    for (const line of chunk.toString("utf8").split(/\r?\n/u)) {
+      if (line.trim().length === 0) continue
+      try {
+        responses.push(JSON.parse(line))
+      } catch {
+        // Keep raw stdout for assertion context.
+      }
+    }
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf8")
+  })
+  const closePromise = new Promise((resolve) => {
+    child.once("close", (code, signal) => {
+      closed = { code, signal }
+      resolve(closed)
+    })
+  })
+
+  const waitForResponse = (id) => new Promise((resolve, reject) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      const response = responses.find((message) => message.id === id)
+      if (response !== undefined) {
+        clearInterval(timer)
+        resolve(response)
+      } else if (closed !== undefined) {
+        clearInterval(timer)
+        reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed)}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
+      } else if (Date.now() - started > timeoutMs) {
+        clearInterval(timer)
+        reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
+      }
+    }, 25)
+  })
+
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "unit-10a", version: "1.0.0" },
+    },
+  }) + "\n")
+  const initialize = await waitForResponse(1)
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    method: "notifications/initialized",
+    params: {},
+  }) + "\n")
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/list",
+    params: {},
+  }) + "\n")
+  const tools = await waitForResponse(2)
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: {
+      name: "desk_status",
+      arguments: {},
+    },
+  }) + "\n")
+  const status = await waitForResponse(3)
+  child.kill("SIGTERM")
+  await closePromise
+  return {
+    code: 0,
+    initialize,
+    tools,
+    status,
+    stdout,
+    stderr,
+  }
+}
+
 async function runEntrypointExpectingFailure(fixture, { timeoutMs = 5000 } = {}) {
   return spawnNode([
     path.join(fixture.mcpRoot, "index.js"),
@@ -518,6 +616,48 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
       "list-tools response must be served from the updated source mirror",
     )
     assert.equal(existsSync(path.join(fixture.mcpRoot, "node_modules")), false)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("MCP entrypoint serves desk_status from the source mirror without session-start indexing", {
+  skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${hostTarget}`,
+}, async () => {
+  const fixture = makeFixture()
+  try {
+    mkdirSync(path.join(fixture.deskRoot, "ops", "status-check"), { recursive: true })
+    writeFileSync(
+      path.join(fixture.deskRoot, "ops", "status-check", "task.md"),
+      "---\nschema_version: 1\nstatus: in_progress\n---\n\n# Status Check\n\nThis file would be indexed if startup ran repair work.\n",
+      "utf8",
+    )
+
+    const result = await runMcpStatusSession(fixture)
+    assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.tools.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.status.error, undefined, result.stderr || result.stdout)
+    assert.ok(
+      result.tools.result.tools.some((tool) => tool.name === "desk_status"),
+      "list-tools response must expose desk_status from the restored runtime server",
+    )
+    assert.equal(result.status.result.isError, undefined, JSON.stringify(result.status.result))
+    const body = JSON.parse(result.status.result.content[0].text)
+    assert.equal(body.status, "ok")
+    assert.equal(body.root.path, fixture.deskRoot)
+    assert.equal(body.local_db.exists, false)
+    assert.equal(body.local_db.state, "missing")
+    assert.equal(body.runtime.loaded_from_source_mirror, true)
+    assert.ok(
+      body.runtime.source_mirror_path.startsWith(path.join(fixture.runtimeCacheDir, "source-mirror")),
+      `expected source mirror under runtime cache, got ${body.runtime.source_mirror_path}`,
+    )
+    assert.equal(
+      existsSync(path.join(fixture.deskRoot, ".state", "desk-index.sqlite")),
+      false,
+      "session-start status must not create or rebuild the local index DB",
+    )
+    assertNoBootstrapSideEffects(fixture)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }

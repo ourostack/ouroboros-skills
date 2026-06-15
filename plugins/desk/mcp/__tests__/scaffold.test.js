@@ -1,4 +1,4 @@
-// Scaffold test: assert the server registers all 13 tool names.
+// Scaffold test: assert the server registers all 14 tool names.
 //
 // Boots the server in-process (no actual stdio transport, no actual desk
 // dir) and pulls the TOOL_NAMES export. Asserts the canonical 13 are
@@ -31,9 +31,11 @@ const EXPECTED_TOOLS = [
   "desk_thread",
   // Index management
   "desk_reindex",
+  // Health/status
+  "desk_status",
 ]
 
-test("server scaffolds all 13 expected tool names", () => {
+test("server scaffolds all 14 expected tool names", () => {
   for (const name of EXPECTED_TOOLS) {
     assert.ok(
       TOOL_NAMES.includes(name),

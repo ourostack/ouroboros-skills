@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: MCP entrypoint is dependency-light before bootstrap
+ok 1 - MCP entrypoint is dependency-light before bootstrap
+  ---
+  duration_ms: 117.5915
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+ok 2 - MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+  ---
+  duration_ms: 887.754208
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint serves desk_status from the source mirror without session-start indexing
+not ok 3 - MCP entrypoint serves desk_status from the source mirror without session-start indexing
+  ---
+  duration_ms: 608.499667
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:624:1'
+  failureType: 'testCodeFailure'
+  error: 'list-tools response must expose desk_status from the restored runtime server'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:640:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+ok 4 - MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+  ---
+  duration_ms: 114.970125
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1823.199042
