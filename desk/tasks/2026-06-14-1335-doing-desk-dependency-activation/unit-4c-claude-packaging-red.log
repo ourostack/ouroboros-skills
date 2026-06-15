@@ -57,12 +57,12 @@ not ok 9 - Claude packaging validation rejects missing Work Suite dependency and
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
     + []
     - [
     -   'missing Work Suite dependency in Claude plugin metadata'
     - ]
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -88,12 +88,12 @@ not ok 10 - Claude packaging validation rejects missing worker exposure and unsu
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
     + []
     - [
     -   'Claude plugin metadata must expose ./agents/worker.md'
     - ]
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
