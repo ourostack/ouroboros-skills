@@ -1028,11 +1028,27 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     [],
   )
 
+  const activeSeparateHostManuallyProvidesClosure = clone(currentOuroborosStdioPackagingInput())
+  activeSeparateHostManuallyProvidesClosure.genericStdioReadmeSection +=
+    "\nGeneric stdio requires a separate host to manually provide Work Suite dependency closure.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(activeSeparateHostManuallyProvidesClosure),
+    [],
+  )
+
   const activeExternalOverlayStartsWorker = clone(currentOuroborosStdioPackagingInput())
   activeExternalOverlayStartsWorker.genericStdioActivationSection +=
     "\nGeneric stdio depends on an external overlay to start worker activation.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(activeExternalOverlayStartsWorker),
+    [],
+  )
+
+  const activeExternalOverlayExplicitlyStartsWorker = clone(currentOuroborosStdioPackagingInput())
+  activeExternalOverlayExplicitlyStartsWorker.genericStdioActivationSection +=
+    "\nGeneric stdio depends on an external overlay to explicitly start worker activation.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(activeExternalOverlayExplicitlyStartsWorker),
     [],
   )
 })
