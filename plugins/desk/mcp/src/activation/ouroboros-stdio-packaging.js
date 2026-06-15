@@ -225,6 +225,7 @@ function isSupportTargetNegated({ clause, actionIndex, targetIndex }) {
   const beforeTarget = clause.slice(0, targetIndex)
   const betweenActionAndTarget = clause.slice(actionIndex, targetIndex)
   return /\b(?:not|no|without)\s*$/u.test(beforeTarget)
+    || /\b(?:neither|no)\b/u.test(beforeTarget)
     || /\b(?:neither|nor|not|no|without)\b/u.test(betweenActionAndTarget)
 }
 
