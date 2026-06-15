@@ -17,7 +17,11 @@ import {
   ACTIVE_EMBEDDING_SPEC,
   chunkIdentity,
 } from "../../src/indexer/spec.js"
-import { ensureIndex, resolveEnsureIndexOptions } from "../../src/server-helpers.js"
+import {
+  configureRuntimeArtifacts,
+  ensureIndex,
+  resolveEnsureIndexOptions,
+} from "../../src/server-helpers.js"
 import { desk_reindex } from "../../src/tools/reindex.js"
 
 const require = createRequire(import.meta.url)
@@ -294,6 +298,28 @@ test("resolveEnsureIndexOptions preserves explicit artifact opt-outs", () => {
 
     assert.equal(resolved.snapshots, undefined)
     assert.equal(resolved.vectorPacks, undefined)
+  }
+})
+
+test("resolveEnsureIndexOptions uses the configured runtime artifact root", async () => {
+  const pluginRoot = await tmpRoot("desk-configured-plugin-root-")
+  const original = process.env.DESK_PLUGIN_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    assert.deepEqual(
+      configureRuntimeArtifacts({ pluginRoot }),
+      { pluginRoot: path.resolve(pluginRoot) },
+    )
+    const resolved = resolveEnsureIndexOptions({ vectorPacks: {} })
+    assert.equal(resolved.vectorPacks.pluginRoot, path.resolve(pluginRoot))
+    assert.deepEqual(configureRuntimeArtifacts(), { pluginRoot: null })
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
   }
 })
 

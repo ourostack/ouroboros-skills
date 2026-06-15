@@ -89,7 +89,15 @@ function makeMcpFixture({ serverMarker = "initial", includePackageLock = true } 
 function writeServer(fixtureMcpRoot, marker) {
   writeText(
     path.join(fixtureMcpRoot, "src", "server.js"),
-    `export const marker = ${JSON.stringify(marker)}\nexport async function startServer() {}\n`,
+    [
+      `export const marker = ${JSON.stringify(marker)}`,
+      "export let configuredArtifactPluginRoot = null",
+      "export function configureRuntimeArtifacts(input) {",
+      "  configuredArtifactPluginRoot = input?.pluginRoot ?? null",
+      "}",
+      "export async function startServer() {}",
+      "",
+    ].join("\n"),
   )
 }
 
@@ -447,6 +455,10 @@ test("prepareRuntime restores dependencies, reuses current cache, and imports up
       nodeAbi: fixtureNodeAbi,
     })
     assert.equal(firstImport.marker, "initial")
+    assert.equal(
+      firstImport.configuredArtifactPluginRoot,
+      path.resolve(fixture.mcpRoot, ".."),
+    )
 
     writeServer(fixture.mcpRoot, "updated")
     const secondImport = await importRuntimeServer({
@@ -457,6 +469,10 @@ test("prepareRuntime restores dependencies, reuses current cache, and imports up
       nodeAbi: fixtureNodeAbi,
     })
     assert.equal(secondImport.marker, "updated")
+    assert.equal(
+      secondImport.configuredArtifactPluginRoot,
+      path.resolve(fixture.mcpRoot, ".."),
+    )
     assert.equal(listSourceMirrors(runtimeCacheDir).length, 2)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })

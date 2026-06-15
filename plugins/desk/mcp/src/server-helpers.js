@@ -22,6 +22,7 @@ const DEFAULT_MCP_ROOT = path.resolve(MODULE_DIR, "..")
 const DEFAULT_PLUGIN_ROOT = path.resolve(DEFAULT_MCP_ROOT, "..")
 const SNAPSHOT_DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
 const SNAPSHOT_SQLITE_VEC_TABLE = "vec0"
+let configuredArtifactPluginRoot = null
 
 /**
  * Bring the on-disk index up to date for `deskRoot`. Idempotent: when the
@@ -115,6 +116,13 @@ export function resolveEnsureIndexOptions(opts = {}) {
   return effective
 }
 
+export function configureRuntimeArtifacts({ pluginRoot } = {}) {
+  configuredArtifactPluginRoot = textOrNull(pluginRoot)
+    ? path.resolve(pluginRoot)
+    : null
+  return { pluginRoot: configuredArtifactPluginRoot }
+}
+
 function resolveSnapshotOptions({ opts, pluginRoot }) {
   if (opts.snapshots === false || opts.snapshots === null) return undefined
   if (opts.snapshots !== undefined) {
@@ -148,6 +156,7 @@ function resolveArtifactPluginRoot(opts) {
     textOrNull(opts.snapshots?.pluginRoot) ??
       textOrNull(opts.vectorPacks?.pluginRoot) ??
       textOrNull(process.env.DESK_PLUGIN_ROOT) ??
+      configuredArtifactPluginRoot ??
       DEFAULT_PLUGIN_ROOT,
   )
 }
