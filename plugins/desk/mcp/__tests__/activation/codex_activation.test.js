@@ -238,6 +238,16 @@ enabled = true
     })),
     /malformed owned desk activation block/i,
   )
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: `${existingConfig}
+# END desk activation
+# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+`,
+    })),
+    /malformed owned desk activation block/i,
+  )
 })
 
 test("Codex activation rejects duplicate owned activation blocks", async () => {
@@ -260,6 +270,20 @@ enabled = true
     })),
     /multiple owned desk activation blocks/i,
   )
+})
+
+test("Codex activation replaces an owned block at EOF without adding extra spacing", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const eofConfig = `${existingConfig}
+# BEGIN desk activation: desk@1.7.2 mode=manual-only owner=desk-activation
+[plugins."desk@ourostack"]
+enabled = false
+# END desk activation`
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: eofConfig,
+  }))
+
+  assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
 })
 
 test("Codex activation does not silently override user-authored disabled Desk config", async () => {
