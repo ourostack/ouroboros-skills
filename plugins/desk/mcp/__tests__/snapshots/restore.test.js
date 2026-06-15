@@ -140,6 +140,7 @@ async function fingerprint(paths) {
     entries.push({
       path: targetPath,
       mode: stat.mode & 0o777,
+      mtime: stat.mtime.toISOString(),
       size: stat.size,
       sha256: sha256(bytes),
     })
@@ -147,40 +148,77 @@ async function fingerprint(paths) {
   return entries
 }
 
+async function setSnapshotMtime(snapshot, timestamp) {
+  await Promise.all([
+    fs.utimes(snapshot.snapshotPath, timestamp, timestamp),
+    fs.utimes(snapshot.manifestPath, timestamp, timestamp),
+    fs.utimes(snapshot.checksumPath, timestamp, timestamp),
+  ])
+}
+
+function artifactPaths(...snapshots) {
+  return snapshots.flatMap((snapshot) => [
+    snapshot.snapshotPath,
+    snapshot.manifestPath,
+    snapshot.checksumPath,
+  ])
+}
+
 test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs", async () => {
   const { discoverSnapshotArtifacts, selectNewestCompatibleSnapshot } = await loadRestoreModule()
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
-  await writeSnapshot({
-    pluginRoot,
-    snapshotId: "active-older",
-    createdAt: "2026-06-15T00:00:00.000Z",
-  })
-  await writeSnapshot({
+  const activeNewer = await writeSnapshot({
     pluginRoot,
     snapshotId: "active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
   })
+  const invalidRuntime = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-invalid-runtime",
+    createdAt: "2026-06-15T03:00:00.000Z",
+    manifest: { runtime: { ...RUNTIME, arch: "x64" } },
+  })
+  const invalidChecksum = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-invalid-checksum",
+    createdAt: "2026-06-15T02:30:00.000Z",
+  })
+  await fs.writeFile(
+    invalidChecksum.checksumPath,
+    `${"0".repeat(64)}  active-invalid-checksum.sqlite.zst\n`,
+    "utf8",
+  )
   await writeSnapshot({
     pluginRoot,
     snapshotId: "inactive-newest",
     createdAt: "2026-06-15T02:00:00.000Z",
     embeddingSpecId: "inactive-spec-v1",
   })
+  const activeOlder = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-older",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  await setSnapshotMtime(activeNewer, new Date("2026-06-15T00:00:00.000Z"))
+  await setSnapshotMtime(invalidRuntime, new Date("2026-06-15T03:00:00.000Z"))
+  await setSnapshotMtime(activeOlder, new Date("2026-06-15T04:00:00.000Z"))
 
   const discovered = await discoverSnapshotArtifacts({
     pluginRoot,
     ...expectedContext(),
   })
   const selected = selectNewestCompatibleSnapshot(discovered)
+  const ignoredById = new Map(
+    discovered.ignored.map((candidate) => [candidate.snapshot_id, candidate.reason]),
+  )
 
   assert.deepEqual(
-    discovered.compatible.map((candidate) => candidate.snapshot_id),
-    ["active-older", "active-newer"],
+    new Set(discovered.compatible.map((candidate) => candidate.snapshot_id)),
+    new Set(["active-older", "active-newer"]),
   )
-  assert.deepEqual(
-    discovered.ignored.map((candidate) => candidate.reason),
-    ["inactive_embedding_spec"],
-  )
+  assert.equal(ignoredById.get("inactive-newest"), "inactive_embedding_spec")
+  assert.equal(ignoredById.get("active-invalid-runtime"), "incompatible_manifest")
+  assert.equal(ignoredById.get("active-invalid-checksum"), "incompatible_manifest")
   assert.equal(selected.snapshot_id, "active-newer")
   assert.equal(selected.manifest.created_at, "2026-06-15T01:00:00.000Z")
 })
@@ -189,26 +227,29 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   const { restoreSnapshotToState } = await loadRestoreModule()
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
   const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
-  const older = await writeSnapshot({
-    pluginRoot,
-    snapshotId: "active-older",
-    createdAt: "2026-06-15T00:00:00.000Z",
-    sqliteBytes: Buffer.from("older sqlite bytes", "utf8"),
-  })
   const newer = await writeSnapshot({
     pluginRoot,
     snapshotId: "active-newer",
     createdAt: "2026-06-15T01:00:00.000Z",
     sqliteBytes: Buffer.from("newer sqlite bytes", "utf8"),
   })
-  const repoArtifactPaths = [
-    older.snapshotPath,
-    older.manifestPath,
-    older.checksumPath,
-    newer.snapshotPath,
-    newer.manifestPath,
-    newer.checksumPath,
-  ]
+  const invalidNewest = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-invalid-newest",
+    createdAt: "2026-06-15T02:00:00.000Z",
+    sqliteBytes: Buffer.from("invalid newest sqlite bytes", "utf8"),
+    manifest: { sqlite_vec: { ...SQLITE_VEC, version: "9.9.9" } },
+  })
+  const older = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-older",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("older sqlite bytes", "utf8"),
+  })
+  await setSnapshotMtime(newer, new Date("2026-06-15T00:00:00.000Z"))
+  await setSnapshotMtime(invalidNewest, new Date("2026-06-15T03:00:00.000Z"))
+  await setSnapshotMtime(older, new Date("2026-06-15T04:00:00.000Z"))
+  const repoArtifactPaths = artifactPaths(older, invalidNewest, newer)
   await Promise.all(repoArtifactPaths.map((targetPath) => fs.chmod(targetPath, 0o444)))
   const before = await fingerprint(repoArtifactPaths)
 
@@ -243,6 +284,8 @@ test("restoreSnapshotToState is idempotent for repeated compatible restores", as
     ...expectedContext(),
   })
   const statePath = indexDbPath(deskRoot)
+  const sentinel = new Date("2001-02-03T04:05:06.000Z")
+  await fs.utimes(statePath, sentinel, sentinel)
   const firstStateStat = await fs.stat(statePath)
   const second = await restoreSnapshotToState({
     pluginRoot,
@@ -255,6 +298,6 @@ test("restoreSnapshotToState is idempotent for repeated compatible restores", as
   assert.equal(second.restored, false)
   assert.equal(second.reason, "snapshot_already_restored")
   assert.equal(second.snapshot_id, "active-only")
-  assert.equal(secondStateStat.mtimeMs, firstStateStat.mtimeMs)
+  assert.equal(secondStateStat.mtime.getTime(), firstStateStat.mtime.getTime())
   assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
 })
