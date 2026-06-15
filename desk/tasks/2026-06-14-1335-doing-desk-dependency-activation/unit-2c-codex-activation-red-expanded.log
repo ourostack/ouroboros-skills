@@ -46,7 +46,7 @@ not ok 7 - Codex activation replaces existing owned blocks and stays idempotent
     Expected values to be strictly equal:
     + actual - expected
     ... Skipped lines
-    
+
       '# user-authored Codex config\n' +
         'model = "gpt-5.4"\n' +
         'approval_policy = "on-request"\n' +
@@ -67,55 +67,55 @@ not ok 7 - Codex activation replaces existing owned blocks and stays idempotent
     +   'enabled = true\n' +
     +   'default_tools_approval_mode = "prompt"\n' +
         '# END desk activation\n'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: |-
     # user-authored Codex config
     model = "gpt-5.4"
     approval_policy = "on-request"
-    
+
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
   actual: |-
     # user-authored Codex config
     model = "gpt-5.4"
     approval_policy = "on-request"
-    
+
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
   operator: 'strictEqual'
   stack: |-
     TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:189:10)
@@ -131,7 +131,7 @@ not ok 8 - Codex activation upgrades older owned blocks without duplicating acti
   failureType: 'testCodeFailure'
   error: |-
     The input was expected to not match the regular expression /desk@1\.6\.0/. Input:
-    
+
     '# user-authored Codex config\n' +
       'model = "gpt-5.4"\n' +
       'approval_policy = "on-request"\n' +
@@ -152,7 +152,7 @@ not ok 8 - Codex activation upgrades older owned blocks without duplicating acti
       'enabled = true\n' +
       'default_tools_approval_mode = "prompt"\n' +
       '# END desk activation\n'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -160,24 +160,24 @@ not ok 8 - Codex activation upgrades older owned blocks without duplicating acti
     # user-authored Codex config
     model = "gpt-5.4"
     approval_policy = "on-request"
-    
+
     # BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation
     [plugins."desk@ourostack"]
     enabled = false
     # END desk activation
-    
+
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
   operator: 'doesNotMatch'
   stack: |-
     TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:213:10)
@@ -228,7 +228,7 @@ not ok 11 - Codex activation replaces an owned block at EOF without adding extra
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
       '# user-authored Codex config\n' +
         'model = "gpt-5.4"\n' +
         'approval_policy = "on-request"\n' +
@@ -242,31 +242,31 @@ not ok 11 - Codex activation replaces an owned block at EOF without adding extra
         'enabled = true\n' +
         '\n' +
         '[plugins."desk@ourostack"]\n' +
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: |-
     # user-authored Codex config
     model = "gpt-5.4"
     approval_policy = "on-request"
-    
+
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
   actual: |-
     # user-authored Codex config
     model = "gpt-5.4"
     approval_policy = "on-request"
-    
+
     # BEGIN desk activation: desk@1.7.2 mode=manual-only owner=desk-activation
     [plugins."desk@ourostack"]
     enabled = false
@@ -274,15 +274,15 @@ not ok 11 - Codex activation replaces an owned block at EOF without adding extra
     # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
     [plugins."work-suite@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack"]
     enabled = true
-    
+
     [plugins."desk@ourostack".mcp_servers.desk]
     enabled = true
     default_tools_approval_mode = "prompt"
     # END desk activation
-    
+
   operator: 'strictEqual'
   stack: |-
     TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:286:10)

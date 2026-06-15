@@ -301,26 +301,94 @@ enabled = false
 
 test("Codex activation does not silently override user-authored disabled Desk config", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
-  const userDisabledDesk = `${existingConfig}
+  const disabledDeskConfigs = [
+    `${existingConfig}
 [plugins."desk@ourostack"]
 enabled = false
-`
-  const userDisabledDeskMcp = `${existingConfig}
+`,
+    `${existingConfig}
 [plugins."desk@ourostack".mcp_servers.desk]
 enabled = false
+`,
+    `${existingConfig}
+plugins."desk@ourostack".enabled = false
+`,
+    `${existingConfig}
+plugins."desk\\u0040ourostack".enabled = false
+`,
+    `${existingConfig}
+plugins."desk\\U00000040ourostack".enabled = false
+`,
+    `${existingConfig}
+plugins.'desk@ourostack'.enabled = false
+`,
+    `${existingConfig}
+plugins."desk@ourostack".mcp_servers.desk.enabled = false
+`,
+    `${existingConfig}
+[plugins]
+"desk@ourostack" = { enabled = false }
+`,
+    `${existingConfig}
+[plugins]
+"desk@ourostack" = { mcp_servers = { desk = { enabled = false } } }
+`,
+    `${existingConfig}
+plugins."desk@ourostack" = { enabled = false }
+`,
+    `${existingConfig}
+plugins."desk@ourostack".mcp_servers.desk = { enabled = false }
+`,
+    `${existingConfig}
+plugins."desk@ourostack".mcp_servers = { desk = { enabled = false } }
+`,
+    `${existingConfig}
+plugins."desk@ourostack" = { mcp_servers.foo.enabled = true, mcp_servers.desk.enabled = false }
+`,
+    `${existingConfig}
+[plugins."desk@ourostack".mcp_servers]
+desk = { enabled = false }
+`,
+    `${existingConfig}
+[plugins."desk@ourostack"]
+mcp_servers = { desk = { enabled = false } }
+`,
+    `${existingConfig}
+[[plugins."desk@ourostack".mcp_servers.desk]]
+enabled = false
+`,
+  ]
+
+  for (const disabledConfig of disabledDeskConfigs) {
+    assert.throws(
+      () => materializeCodexActivation(activationInput("global-personal", {
+        existingConfig: disabledConfig,
+      })),
+      /user-authored.*disabled.*desk/i,
+    )
+  }
+})
+
+test("Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const safeConfig = `${existingConfig}
+note = "escaped \\" # is still inside the string" # real comment
+plugins."work-suite@ourostack".enabled = false
+plugins."desk@ourostack".enabled = true
+plugins."desk@ourostack" = {}
+plugins."desk@ourostack".mcp_servers = { desk = { enabled = true } }
+plugins."desk@ourostack".mcp_servers = { desk = { enabled = "false" } }
+plugins."desk@ourostack" = { mcp_servers = { other = { enabled = false } } }
+plugins."desk@ourostack" = { ignored }
+plugins."desk@ourostack" = { bad@key = false }
+not_a_toml_assignment
+plugins."desk@ourostack".bad@key = false
 `
 
-  assert.throws(
+  assert.doesNotThrow(
     () => materializeCodexActivation(activationInput("global-personal", {
-      existingConfig: userDisabledDesk,
+      existingConfig: safeConfig,
     })),
-    /user-authored.*disabled.*desk/i,
-  )
-  assert.throws(
-    () => materializeCodexActivation(activationInput("global-personal", {
-      existingConfig: userDisabledDeskMcp,
-    })),
-    /user-authored.*disabled.*desk/i,
   )
 })
 

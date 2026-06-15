@@ -1,8 +1,8 @@
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
 const OWNED_BLOCK_END_PATTERN = /^# END desk activation\r?$/gm
-const DESK_PLUGIN_SECTION = "[plugins.\"desk@ourostack\"]"
-const DESK_PLUGIN_MCP_SECTION = "[plugins.\"desk@ourostack\".mcp_servers.desk]"
+const DESK_PLUGIN_PATH = ["plugins", "desk@ourostack"]
+const DESK_PLUGIN_MCP_PATH = ["plugins", "desk@ourostack", "mcp_servers", "desk"]
 
 const MODE_CONFIG = {
   "global-personal": {
@@ -101,13 +101,262 @@ function mergeOwnedActivationBlock(existingContent, ownedBlock) {
   return `${userContent}\n\n${ownedBlock}`
 }
 
-function sectionHasDisabledEnabled(content, sectionName) {
-  let inSection = false
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key)
+}
+
+function stripTomlComment(line) {
+  let quote = null
+  let escaped = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if (quote) {
+      if (quote === "\"" && escaped) {
+        escaped = false
+      } else if (quote === "\"" && char === "\\") {
+        escaped = true
+      } else if (char === quote) {
+        quote = null
+      }
+    } else if (char === "\"" || char === "'") {
+      quote = char
+    } else if (char === "#") {
+      return line.slice(0, index)
+    }
+  }
+
+  return line
+}
+
+function splitTomlTopLevel(input, separator) {
+  const parts = []
+  let quote = null
+  let escaped = false
+  let depth = 0
+  let start = 0
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index]
+    if (quote) {
+      if (quote === "\"" && escaped) {
+        escaped = false
+      } else if (quote === "\"" && char === "\\") {
+        escaped = true
+      } else if (char === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char
+    } else if (char === "{" || char === "[") {
+      depth += 1
+    } else if (char === "}" || char === "]") {
+      depth -= 1
+    } else if (char === separator && depth === 0) {
+      parts.push(input.slice(start, index))
+      start = index + 1
+    }
+  }
+
+  parts.push(input.slice(start))
+  return parts
+}
+
+function findTomlTopLevelEquals(input) {
+  let quote = null
+  let escaped = false
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index]
+    if (quote) {
+      if (quote === "\"" && escaped) {
+        escaped = false
+      } else if (quote === "\"" && char === "\\") {
+        escaped = true
+      } else if (char === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char
+    } else if (char === "=") {
+      return index
+    }
+  }
+
+  return -1
+}
+
+function parseTomlBasicString(value) {
+  return value.slice(1, -1)
+    .replace(/\\U([0-9A-Fa-f]{8})/gu, (_, codePoint) => (
+      String.fromCodePoint(Number.parseInt(codePoint, 16))
+    ))
+    .replace(/\\u([0-9A-Fa-f]{4})/gu, (_, codePoint) => (
+      String.fromCodePoint(Number.parseInt(codePoint, 16))
+    ))
+    .replace(/\\(["\\])/gu, "$1")
+}
+
+function parseTomlKeySegment(segment) {
+  const trimmed = segment.trim()
+  if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+    return parseTomlBasicString(trimmed)
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1)
+  }
+  if (/^[A-Za-z0-9_-]+$/u.test(trimmed)) {
+    return trimmed
+  }
+  return null
+}
+
+function parseTomlDottedKey(key) {
+  const segments = splitTomlTopLevel(key, ".")
+  const parsedSegments = []
+
+  for (const segment of segments) {
+    const parsedSegment = parseTomlKeySegment(segment)
+    if (parsedSegment === null) {
+      return null
+    }
+    parsedSegments.push(parsedSegment)
+  }
+
+  return parsedSegments
+}
+
+function setObjectPath(object, path, value) {
+  let current = object
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const segment = path[index]
+    if (!hasOwn(current, segment) || typeof current[segment] !== "object" || current[segment] === null) {
+      current[segment] = Object.create(null)
+    }
+    current = current[segment]
+  }
+  current[path[path.length - 1]] = value
+}
+
+function parseTomlValue(value) {
+  const trimmed = value.trim()
+  if (trimmed === "false") {
+    return false
+  }
+  if (trimmed === "true") {
+    return true
+  }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return parseTomlInlineTable(trimmed)
+  }
+  return undefined
+}
+
+function parseTomlInlineTable(value) {
+  const body = value.trim().slice(1, -1).trim()
+  const object = Object.create(null)
+  if (!body) {
+    return object
+  }
+
+  for (const part of splitTomlTopLevel(body, ",")) {
+    const assignment = part.trim()
+    const equalsIndex = findTomlTopLevelEquals(assignment)
+    if (equalsIndex === -1) {
+      continue
+    }
+    const keyPath = parseTomlDottedKey(assignment.slice(0, equalsIndex))
+    if (!keyPath) {
+      continue
+    }
+    const parsedValue = parseTomlValue(assignment.slice(equalsIndex + 1))
+    if (parsedValue !== undefined) {
+      setObjectPath(object, keyPath, parsedValue)
+    }
+  }
+
+  return object
+}
+
+function parseTomlTableHeader(line) {
+  if (line.startsWith("[[") && line.endsWith("]]")) {
+    return parseTomlDottedKey(line.slice(2, -2))
+  }
+  if (line.startsWith("[") && line.endsWith("]")) {
+    return parseTomlDottedKey(line.slice(1, -1))
+  }
+  return null
+}
+
+function pathEquals(left, right) {
+  return left.length === right.length && left.every((segment, index) => segment === right[index])
+}
+
+function getObjectPath(object, path) {
+  let current = object
+  for (const segment of path) {
+    if (!current || typeof current !== "object" || !hasOwn(current, segment)) {
+      return undefined
+    }
+    current = current[segment]
+  }
+  return current
+}
+
+function hasDisabledPluginValue(path, value) {
+  if (pathEquals(path, [...DESK_PLUGIN_PATH, "enabled"])) {
+    return value === false
+  }
+  if (pathEquals(path, [...DESK_PLUGIN_MCP_PATH, "enabled"])) {
+    return value === false
+  }
+  if (pathEquals(path, DESK_PLUGIN_PATH)) {
+    return getObjectPath(value, ["enabled"]) === false ||
+      getObjectPath(value, ["mcp_servers", "desk", "enabled"]) === false
+  }
+  if (pathEquals(path, [...DESK_PLUGIN_PATH, "mcp_servers"])) {
+    return getObjectPath(value, ["desk", "enabled"]) === false
+  }
+  if (pathEquals(path, DESK_PLUGIN_MCP_PATH)) {
+    return getObjectPath(value, ["enabled"]) === false
+  }
+  return false
+}
+
+function hasUserDisabledDeskConfig(content) {
+  let sectionPath = []
   for (const rawLine of content.split(/\r?\n/u)) {
-    const line = rawLine.trim()
-    if (line.startsWith("[") && line.endsWith("]")) {
-      inSection = line === sectionName
-    } else if (inSection && /^enabled\s*=\s*false\b/u.test(line)) {
+    const line = stripTomlComment(rawLine).trim()
+    if (!line) {
+      continue
+    }
+
+    const tablePath = parseTomlTableHeader(line)
+    if (tablePath) {
+      sectionPath = tablePath
+      continue
+    }
+
+    const equalsIndex = findTomlTopLevelEquals(line)
+    if (equalsIndex === -1) {
+      continue
+    }
+    const keyPath = parseTomlDottedKey(line.slice(0, equalsIndex))
+    if (!keyPath) {
+      continue
+    }
+    const parsedValue = parseTomlValue(line.slice(equalsIndex + 1))
+    if (parsedValue === undefined) {
+      continue
+    }
+
+    if (hasDisabledPluginValue([...sectionPath, ...keyPath], parsedValue)) {
       return true
     }
   }
@@ -115,10 +364,7 @@ function sectionHasDisabledEnabled(content, sectionName) {
 }
 
 function assertNoUserDisabledDeskConfig(config) {
-  if (
-    sectionHasDisabledEnabled(config, DESK_PLUGIN_SECTION) ||
-    sectionHasDisabledEnabled(config, DESK_PLUGIN_MCP_SECTION)
-  ) {
+  if (hasUserDisabledDeskConfig(config)) {
     throw new Error(
       "user-authored disabled Desk config must be removed before automatic Desk activation",
     )
