@@ -32,9 +32,9 @@ not ok 5 - deactivation reports a missing ledger as an idempotent no-op
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /activation ledger missing: \.codex\/desk-activation-ledger\.json/u. Input:
-    
+
     "Error: ENOENT: no such file or directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-BXEdtC/.codex/desk-activation-ledger.json'"
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -68,9 +68,9 @@ not ok 6 - deactivation rejects corrupt ownership ledgers with an actionable dia
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /activation ledger corrupt: \.codex\/desk-activation-ledger\.json/u. Input:
-    
+
     "SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)"
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -106,7 +106,7 @@ not ok 7 - deactivation preserves user-edited generated artifacts and keeps the 
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
       {
     +   removed: [
     -   removed: [],
@@ -127,7 +127,7 @@ not ok 7 - deactivation preserves user-edited generated artifacts and keeps the 
         ],
     +   skipped: []
       }
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -185,9 +185,9 @@ not ok 9 - activation rolls back partial writes when an artifact cannot be writt
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /activation apply failed; rolled back generated artifacts/u. Input:
-    
+
     "Error: EISDIR: illegal operation on a directory, open '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-activation-ownership-U60pY6/AGENTS.md'"
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
