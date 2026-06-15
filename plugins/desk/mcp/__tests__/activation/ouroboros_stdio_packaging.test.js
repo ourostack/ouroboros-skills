@@ -802,6 +802,22 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const hasBuiltInWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  hasBuiltInWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio has built-in Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(hasBuiltInWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const hasBuiltInDeskWorker = clone(currentOuroborosStdioPackagingInput())
+  hasBuiltInDeskWorker.genericStdioReadmeSection +=
+    "\nGeneric stdio has a built-in desk:worker.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(hasBuiltInDeskWorker),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const givesYouDeskWorker = clone(currentOuroborosStdioPackagingInput())
   givesYouDeskWorker.genericStdioReadmeSection +=
     "\nGeneric stdio gives you desk:worker automatically.\n"
@@ -1171,6 +1187,46 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     validateOuroborosStdioPackagingContract(reliesOnExternalOverlayStartsWorker),
     [],
   )
+
+  const requiresSeparateHostPreloadsWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  requiresSeparateHostPreloadsWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio requires a separate host to preload Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(requiresSeparateHostPreloadsWorkSuite),
+    [],
+  )
+
+  const reliesOnExternalOverlayBringsInWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  reliesOnExternalOverlayBringsInWorkSuite.genericStdioActivationSection +=
+    "\nGeneric stdio relies on an external overlay that brings in Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnExternalOverlayBringsInWorkSuite),
+    [],
+  )
+
+  const reliesOnSeparateHostComesWithWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  reliesOnSeparateHostComesWithWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio relies on a separate host that comes with Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnSeparateHostComesWithWorkSuite),
+    [],
+  )
+
+  const reliesOnExternalOverlayGivesDeskWorker = clone(currentOuroborosStdioPackagingInput())
+  reliesOnExternalOverlayGivesDeskWorker.genericStdioActivationSection +=
+    "\nGeneric stdio relies on an external overlay that gives you desk:worker.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnExternalOverlayGivesDeskWorker),
+    [],
+  )
+
+  const reliesOnSeparateHostHasBuiltInWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  reliesOnSeparateHostHasBuiltInWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio relies on a separate host that has built-in Work Suite.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(reliesOnSeparateHostHasBuiltInWorkSuite),
+    [],
+  )
 })
 
 test("generic stdio packaging validation rejects host dependency support claims", () => {
@@ -1223,6 +1279,30 @@ test("generic stdio packaging validation rejects fallback dependency support dri
       "Generic stdio evidence fallback must not claim plugin dependency resolution",
     ],
   )
+
+  const fallbackBuiltInDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    fallbackBuiltInDependencyClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but has built-in Work Suite"
+  findByField(
+    fallbackBuiltInDependencyClaim.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but has built-in Work Suite"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(fallbackBuiltInDependencyClaim),
+    [
+      "Generic stdio fallback must not claim plugin dependency resolution",
+      "Generic stdio evidence fallback must not claim plugin dependency resolution",
+    ],
+  )
 })
 
 test("generic stdio packaging validation rejects fallback worker activation drift", () => {
@@ -1268,6 +1348,30 @@ test("generic stdio packaging validation rejects fallback worker activation drif
 
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(fallbackProgressiveWorkerClaim),
+    [
+      "Generic stdio fallback must not claim worker activation",
+      "Generic stdio evidence fallback must not claim worker activation",
+    ],
+  )
+
+  const fallbackBuiltInWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    fallbackBuiltInWorkerClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but has a built-in desk:worker"
+  findByField(
+    fallbackBuiltInWorkerClaim.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but has a built-in desk:worker"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(fallbackBuiltInWorkerClaim),
     [
       "Generic stdio fallback must not claim worker activation",
       "Generic stdio evidence fallback must not claim worker activation",
