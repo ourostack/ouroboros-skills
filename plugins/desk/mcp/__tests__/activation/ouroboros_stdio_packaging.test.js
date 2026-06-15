@@ -562,6 +562,22 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     ["Generic stdio docs must not claim worker activation"],
   )
 
+  const spawnsWorkerActivation = clone(currentOuroborosStdioPackagingInput())
+  spawnsWorkerActivation.genericStdioReadmeSection +=
+    "\nGeneric stdio spawns the worker automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(spawnsWorkerActivation),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const bundlesWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  bundlesWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio bundles Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(bundlesWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
   const mixedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
   mixedWorkerClaim.genericStdioReadmeSection +=
     "\nGeneric stdio does not activate worker automatically, but generic stdio loads the default agent.\n"
@@ -891,6 +907,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nWorker activation is not provided by generic stdio.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(workerActivationNotProvided),
+    [],
+  )
+
+  const separateHostInstallsDependencies = clone(currentOuroborosStdioPackagingInput())
+  separateHostInstallsDependencies.genericStdioActivationSection +=
+    "\nA separate host must install plugin dependencies manually.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(separateHostInstallsDependencies),
+    [],
+  )
+
+  const separateOverlayProvidesClosure = clone(currentOuroborosStdioPackagingInput())
+  separateOverlayProvidesClosure.genericStdioReadmeSection +=
+    "\nA separate host or overlay must provide Work Suite dependency closure.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(separateOverlayProvidesClosure),
     [],
   )
 })
