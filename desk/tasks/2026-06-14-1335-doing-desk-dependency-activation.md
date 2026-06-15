@@ -469,7 +469,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Vector-pack compaction validation helpers plus updated search/indexer behavior.
 **Acceptance**: Unit 14a tests pass and semantic equivalence checks must pass before any future compaction rewrite can be enabled.
 
-### ⬜ Unit 14c: Vector Compaction And Search Preservation - Coverage & Refactor
+### 🔄 Unit 14c: Vector Compaction And Search Preservation - Coverage & Refactor
 **What**: Add coverage for archived docs, removed docs, duplicate chunk keys, and refs graph recomputation after compaction.
 **Output**: Hardened compaction/preservation implementation.
 **Acceptance**: 100% coverage on new compaction/preservation code and all related tests pass.
@@ -944,3 +944,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 11:32 Unit 14a reviewer fixes: Hegel the 2nd found MAJOR gaps around same-key/same-hash/different-vector duplicate conflicts, active/all/ref mutation preservation, and unique rows contributed by later packs. Added red coverage in `unit-14a-review-fix-red.log` and `unit-14a-review-fix2-red.log` for vector-conflicting source duplicates, extra compacted rows, active/all scope drift, same-length refs graph mutation, and multi-pack unique-row preservation. Hegel converged on the cumulative Unit 14a red contract through `78d3916`.
 - 2026-06-15 11:32 Unit 14b started for compaction validation hooks and explicit search-mode metadata.
 - 2026-06-15 12:32 Unit 14b complete: `3497379` added compaction validation hooks without enabling pack rewriting, plus explicit `search_mode` on `desk_search` and `desk_timeline`; Singer the 2nd found a MAJOR false-green preservation comparison for object search rows, fixed in `1198da3` by stable content canonicalization with a regression that would have passed under the old `[object Object]` coercion. Evidence refreshed in `unit-14b-vector-compaction-green.log`, `unit-14b-search-green.log`, `unit-14b-recall-green.log`, `unit-14b-similar-green.log`, `unit-14b-timeline-green.log`, `unit-14b-test-coverage.log`, `unit-14b-npm-test-green.log`, `unit-14b-runtime-pack-verify-green.log`, `unit-14b-generate-support-matrix-green.log`, `unit-14b-generated-artifacts-green.log`, `unit-14b-validate-skills-green.log`, and `unit-14b-diff-check-green.log`; coverage is 100% line/branch/function for changed production files, full MCP tests pass 448/448, build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script, and Jason the 2nd converged on the fixed Unit 14b state.
+- 2026-06-15 12:36 Unit 14c started for compaction-preservation hardening around archived docs, removed docs, duplicate chunk keys, and refs graph recomputation.
