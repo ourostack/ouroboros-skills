@@ -127,7 +127,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover missing-vector live generation with a mocked embedding endpoint.
 - [ ] Tests cover stale snapshot incremental reconcile.
 - [ ] Tests cover corrupted snapshot fallback.
-- [ ] Tests cover corrupted vector-pack rejection.
+- [x] Tests cover corrupted vector-pack rejection.
 - [ ] Tests cover two machines producing non-conflicting append-only packs.
 - [ ] Tests cover sensitive-path exclusion and no absolute paths in snapshot artifacts.
 - [ ] Tests cover gitignored secret exclusion as product behavior.
@@ -137,12 +137,12 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
 - [x] Tests cover permission/capability boundaries for generated activation artifacts.
-- [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
+- [x] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
 - [x] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -434,7 +434,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` with fixtures under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`.
 **Acceptance**: Tests fail until vector-pack validation/import exists.
 
-### 🔄 Unit 12b: Vector Pack Validation And Import - Implementation
+### ✅ Unit 12b: Vector Pack Validation And Import - Implementation
 **What**: Implement vector-pack parser, checksum verification, row validation, idempotent import, duplicate handling, and multi-pack import from `plugins/desk/artifacts/vector-packs/`.
 **Output**: `plugins/desk/mcp/src/indexer/vector-packs.js`, `plugins/desk/artifacts/vector-packs/README.md`, and fixture data.
 **Acceptance**: Unit 12a tests pass, bad packs fail with non-leaking diagnostics, and repeated imports are idempotent.
@@ -920,3 +920,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 09:44 Unit 12a complete: `df2f053` adds vector-pack red tests in `plugins/desk/mcp/__tests__/indexer/vector_packs.test.js` plus fixture contract docs under `plugins/desk/mcp/__tests__/fixtures/artifacts/vector-packs/`. Targeted red evidence in `unit-12a-vector-packs-red.log` fails because `plugins/desk/mcp/src/indexer/vector-packs.js` does not exist yet; the contract covers canonical spec-scoped pack paths, adjacent manifest/checksum sidecars, row schema validation, wrong spec/dimension/hash rejection, malformed encodings/vectors, non-leaking diagnostics, idempotent import, duplicate chunk-key dedupe, multi-pack append-only import, and local DB text-hash verification. Terminal `All tests pass` is intentionally unchecked until Unit 12b makes the red contract green.
 - 2026-06-15 09:48 Unit 12a reviewer fix: Fermat the 2nd found MAJOR gaps where the red contract did not prove actual vector bytes/chunk-id mapping and did not require checksum-sidecar verification. `074aa6e` adds Float32 buffer assertions for imported vectors by `chunk_id`, plus missing-checksum and checksum-mismatch rejection cases. Refreshed targeted red evidence in `unit-12a-review-fix-red.log` still fails for the intended missing `plugins/desk/mcp/src/indexer/vector-packs.js` module.
 - 2026-06-15 09:48 Unit 12a Round 2 cold reviewer gate converged: Pascal the 2nd verified the vector-byte/chunk-id mapping and checksum-sidecar contract gaps are closed. Unit 12b started for the green parser/import implementation.
+- 2026-06-15 10:03 Unit 12b complete: implemented `plugins/desk/mcp/src/indexer/vector-packs.js` with canonical pack paths, manifest/checksum validation, active-spec row validation, non-leaking errors, idempotent append-only import, missing-local-chunk skips, duplicate handling, local `text_hash` verification, and explicit malformed harness argument errors. Added `plugins/desk/artifacts/vector-packs/README.md` for the committed vector-pack location and expanded the vector-pack tests to cover corrupt sidecars/manifests/rows and imported Float32 bytes by `chunk_id`. Saved green evidence in `unit-12b-vector-packs-green.log`, `unit-12b-npm-test-green.log`, `unit-12b-test-coverage.log`, `unit-12b-runtime-pack-verify-green.log`, `unit-12b-generated-artifacts-green.log`, `unit-12b-validate-skills-green.log`, and `unit-12b-diff-check-green.log`; full MCP tests pass 395/395, coverage is 100% line/branch/function for changed production files, and build remains unavailable because no package build script exists.

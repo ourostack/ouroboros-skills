@@ -102,6 +102,23 @@ async function writePack({ pluginRoot, packId, rows, manifest = {}, checksum }) 
   return { packDir, packPath, manifestPath, checksumPath, manifest: packManifest }
 }
 
+async function rewritePackText(paths, text, manifest = {}) {
+  const packSha = sha256(text)
+  const nextManifest = {
+    ...paths.manifest,
+    row_count: text.split(/\n/u).filter((line) => line.trim() !== "").length,
+    rows_sha256: packSha,
+    ...manifest,
+  }
+  await fs.writeFile(paths.packPath, text, "utf8")
+  await fs.writeFile(paths.manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, "utf8")
+  await fs.writeFile(
+    paths.checksumPath,
+    `${packSha}  ${path.basename(paths.packPath)}\n`,
+    "utf8",
+  )
+}
+
 function insertChunk(db, { docPath, text, chunkIndex = 0 }) {
   const docId = db
     .prepare(
@@ -179,6 +196,14 @@ test("vector pack paths are canonical, plugin-root relative, and spec-scoped", a
     }),
     /invalid pack_id|path traversal/u,
   )
+  assert.throws(
+    () => deriveVectorPackPaths({
+      pluginRoot: deskPluginRoot,
+      embeddingSpecId: "bad/spec",
+      packId: "desk-base",
+    }),
+    /invalid embedding_spec_id|path traversal/u,
+  )
 })
 
 test("valid vector packs require adjacent manifest and checksum sidecars", async () => {
@@ -207,6 +232,11 @@ test("valid vector packs require adjacent manifest and checksum sidecars", async
   assert.equal(result.rows.length, 1)
   assert.equal(result.rows[0].chunk_key, identity.chunk_key)
   assert.equal(result.rows[0].vector.length, ACTIVE_EMBEDDING_SPEC.dimension)
+
+  const defaultSidecars = await validateVectorPackFile({
+    packPath: paths.packPath,
+  })
+  assert.equal(defaultSidecars.pack_id, "valid-pack")
 
   const missingManifest = await writePack({
     pluginRoot,
@@ -255,6 +285,66 @@ test("valid vector packs require adjacent manifest and checksum sidecars", async
     }),
     /checksum.*mismatch|sha256.*mismatch/u,
   )
+
+  const badChecksumFormat = await writePack({
+    pluginRoot,
+    packId: "bad-checksum-format",
+    rows: [rowFor(identity)],
+    checksum: "not-a-sha\n",
+  })
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: badChecksumFormat.packPath,
+      manifestPath: badChecksumFormat.manifestPath,
+      checksumPath: badChecksumFormat.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /checksum.*sha256 digest/u,
+  )
+
+  const badManifestJson = await writePack({
+    pluginRoot,
+    packId: "bad-manifest-json",
+    rows: [rowFor(identity)],
+  })
+  await fs.writeFile(badManifestJson.manifestPath, "{not json", "utf8")
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: badManifestJson.packPath,
+      manifestPath: badManifestJson.manifestPath,
+      checksumPath: badManifestJson.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /manifest.*valid JSON/u,
+  )
+
+  const directoryPack = path.join(root, "directory-pack")
+  await fs.mkdir(directoryPack, { recursive: true })
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: directoryPack,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    (error) => error.code === "EISDIR",
+  )
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+    }),
+    /vector-pack pack path is required/u,
+  )
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: " ",
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+    }),
+    /pack path is required/u,
+  )
 })
 
 test("vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors", async () => {
@@ -287,9 +377,24 @@ test("vector pack validation rejects wrong specs, dimensions, hashes, and malfor
       pattern: /row 1.*encoding/u,
     },
     {
+      name: "bad-chunk-key",
+      row: rowFor(identity, 1, { chunk_key: "not-a-chunk-key" }),
+      pattern: /row 1.*chunk_key/u,
+    },
+    {
       name: "malformed-vector",
       row: rowFor(identity, 1, { vector: "not-an-array" }),
       pattern: /row 1.*vector/u,
+    },
+    {
+      name: "wrong-vector-length",
+      row: rowFor(identity, 1, { vector: vector(1, 3) }),
+      pattern: /row 1.*vector length/u,
+    },
+    {
+      name: "non-finite-vector",
+      row: rowFor(identity, 1, { vector: [Infinity, ...vector(1).slice(1)] }),
+      pattern: /row 1.*finite numbers/u,
     },
   ]
 
@@ -311,6 +416,92 @@ test("vector pack validation rejects wrong specs, dimensions, hashes, and malfor
         assert.doesNotMatch(error.message, /sensitive text/u)
         return true
       },
+    )
+  }
+
+  const malformedJson = await writePack({
+    pluginRoot,
+    packId: "malformed-jsonl",
+    rows: [rowFor(identity)],
+  })
+  await rewritePackText(malformedJson, "{\"chunk_key\":\n")
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: malformedJson.packPath,
+      manifestPath: malformedJson.manifestPath,
+      checksumPath: malformedJson.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /row 1.*malformed JSON/u,
+  )
+})
+
+test("vector pack validation rejects malformed manifests before import", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const identity = chunkIdentity({
+    docPath: "trackA/task-1/task.md",
+    chunk: { text: "manifest validation chunk" },
+  })
+  const manifestCases = [
+    {
+      name: "bad-schema-version",
+      manifest: { schema_version: 2 },
+      pattern: /schema_version must be 1/u,
+    },
+    {
+      name: "bad-pack-id",
+      manifest: { pack_id: "../escape" },
+      pattern: /invalid pack_id/u,
+    },
+    {
+      name: "bad-manifest-spec",
+      manifest: { embedding_spec_id: "inactive-spec" },
+      pattern: /manifest embedding_spec_id/u,
+    },
+    {
+      name: "bad-manifest-dimension",
+      manifest: { dimension: 3 },
+      pattern: /manifest dimension/u,
+    },
+    {
+      name: "bad-manifest-encoding",
+      manifest: { encoding: "base64-float32le" },
+      pattern: /manifest encoding/u,
+    },
+    {
+      name: "bad-row-count",
+      manifest: { row_count: -1 },
+      pattern: /row_count.*non-negative integer/u,
+    },
+    {
+      name: "bad-rows-sha",
+      manifest: { rows_sha256: "0".repeat(64) },
+      pattern: /rows_sha256.*match/u,
+    },
+    {
+      name: "row-count-mismatch",
+      manifest: { row_count: 2 },
+      pattern: /row_count.*match vector pack rows/u,
+    },
+  ]
+
+  for (const entry of manifestCases) {
+    const paths = await writePack({
+      pluginRoot,
+      packId: entry.name,
+      rows: [rowFor(identity)],
+      manifest: entry.manifest,
+    })
+    await assert.rejects(
+      () => validateVectorPackFile({
+        packPath: paths.packPath,
+        manifestPath: paths.manifestPath,
+        checksumPath: paths.checksumPath,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      }),
+      entry.pattern,
     )
   }
 })
@@ -372,7 +563,75 @@ test("vector pack import is idempotent and deduplicates repeated chunk keys acro
       expectedSpec: ACTIVE_EMBEDDING_SPEC,
     })
     assert.equal(secondImport.rows_imported, 0)
+    assert.equal(secondImport.rows_skipped_duplicate, 4)
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 3)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import handles missing pack directories and missing local chunks safely", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const missingDir = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.deepEqual(missingDir, {
+      packs_considered: 0,
+      packs_imported: 0,
+      rows_imported: 0,
+      rows_skipped_duplicate: 0,
+      rows_skipped_missing_chunk: 0,
+    })
+
+    const identity = chunkIdentity({
+      docPath: "trackA/task-missing/task.md",
+      chunk: { text: "chunk absent from local db" },
+    })
+    await writePack({
+      pluginRoot,
+      packId: "missing-local-chunk",
+      rows: [rowFor(identity)],
+    })
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(imported.packs_considered, 1)
+    assert.equal(imported.packs_imported, 1)
+    assert.equal(imported.rows_imported, 0)
+    assert.equal(imported.rows_skipped_missing_chunk, 1)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import surfaces unexpected artifact directory failures", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const specParent = path.join(pluginRoot, "artifacts", "vector-packs")
+  await fs.mkdir(specParent, { recursive: true })
+  await fs.writeFile(path.join(specParent, ACTIVE_EMBEDDING_SPEC.id), "not a directory", "utf8")
+  const db = openDb(deskRoot)
+  try {
+    await assert.rejects(
+      () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      }),
+      (error) => error.code === "ENOTDIR",
+    )
   } finally {
     closeDb(db)
   }
