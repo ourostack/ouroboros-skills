@@ -1020,6 +1020,22 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     [],
   )
 
+  const supportMatrixIncludesUnsupportedClosure = clone(currentOuroborosStdioPackagingInput())
+  supportMatrixIncludesUnsupportedClosure.genericStdioReadmeSection +=
+    "\nThe generic stdio support matrix includes Work Suite dependency closure as unsupported.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(supportMatrixIncludesUnsupportedClosure),
+    [],
+  )
+
+  const evidenceRowIncludesUnsupportedAgentDefaults = clone(currentOuroborosStdioPackagingInput())
+  evidenceRowIncludesUnsupportedAgentDefaults.genericStdioReadmeSection +=
+    "\nThe generic stdio evidence row includes agent-defaults as unsupported.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(evidenceRowIncludesUnsupportedAgentDefaults),
+    [],
+  )
+
   const workerActivationNotProvided = clone(currentOuroborosStdioPackagingInput())
   workerActivationNotProvided.genericStdioReadmeSection +=
     "\nWorker activation is not provided by generic stdio.\n"
