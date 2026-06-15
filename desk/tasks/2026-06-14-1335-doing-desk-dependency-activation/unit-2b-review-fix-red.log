@@ -9,10 +9,10 @@ not ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + undefined
     - './hooks/hooks.json'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: './hooks/hooks.json'
@@ -40,10 +40,10 @@ not ok 3 - global personal activation materializes worker and Desk as the defaul
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + undefined
     - '~/.codex/AGENTS.md'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: '~/.codex/AGENTS.md'
@@ -63,10 +63,10 @@ not ok 4 - project-local opt-out materializes project config without mutating gl
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + undefined
     - 'AGENTS.md'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 'AGENTS.md'
@@ -86,10 +86,10 @@ not ok 5 - manual-only opt-out keeps Desk available without default worker or MC
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + undefined
     - null
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: ~
