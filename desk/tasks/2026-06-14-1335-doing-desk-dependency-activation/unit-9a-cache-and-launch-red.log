@@ -4,34 +4,34 @@ TAP version 13
         # Subtest: desk plugin.json
         ok 1 - desk plugin.json
           ---
-          duration_ms: 0.843875
+          duration_ms: 0.881041
           type: 'test'
           ...
         # Subtest: codex plugin.json
         ok 2 - codex plugin.json
           ---
-          duration_ms: 0.170166
+          duration_ms: 0.212458
           type: 'test'
           ...
         # Subtest: claude plugin.json
         ok 3 - claude plugin.json
           ---
-          duration_ms: 0.196917
+          duration_ms: 0.234209
           type: 'test'
           ...
         1..3
     ok 1 - resolves committed host manifest MCP references relative to the installed plugin root
       ---
-      duration_ms: 1.81325
+      duration_ms: 2.174667
       type: 'test'
       ...
     # Subtest: committed MCP launch configs use cwd-independent installed entrypoint args
         # Subtest: desk .mcp.json
         not ok 1 - desk .mcp.json
           ---
-          duration_ms: 0.997292
+          duration_ms: 1.538375
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15'
           failureType: 'testCodeFailure'
           error: |-
             desk .mcp.json must not use caller-cwd-relative MCP entrypoint args
@@ -44,13 +44,13 @@ TAP version 13
           actual: true
           operator: 'strictEqual'
           stack: |-
-            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:311:10)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:450:9)
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:274:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:413:9)
             Test.runInAsyncScope (node:async_hooks:214:14)
             Test.run (node:internal/test_runner/test:1047:25)
             Test.start (node:internal/test_runner/test:944:17)
             TestContext.test (node:internal/test_runner/test:373:20)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15)
             Test.runInAsyncScope (node:async_hooks:214:14)
             Test.run (node:internal/test_runner/test:1047:25)
             Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -58,9 +58,9 @@ TAP version 13
         # Subtest: desk plugin.json
         not ok 2 - desk plugin.json
           ---
-          duration_ms: 0.263708
+          duration_ms: 0.312125
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15'
           failureType: 'testCodeFailure'
           error: |-
             desk plugin.json must not use caller-cwd-relative MCP entrypoint args
@@ -73,22 +73,22 @@ TAP version 13
           actual: true
           operator: 'strictEqual'
           stack: |-
-            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:311:10)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:450:9)
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:274:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:413:9)
             Test.runInAsyncScope (node:async_hooks:214:14)
             Test.run (node:internal/test_runner/test:1047:25)
             Test.start (node:internal/test_runner/test:944:17)
             TestContext.test (node:internal/test_runner/test:373:20)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15)
             async Test.run (node:internal/test_runner/test:1054:7)
             async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
           ...
         # Subtest: codex plugin.json
         not ok 3 - codex plugin.json
           ---
-          duration_ms: 0.142708
+          duration_ms: 0.148666
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15'
           failureType: 'testCodeFailure'
           error: |-
             codex plugin.json must not use caller-cwd-relative MCP entrypoint args
@@ -101,22 +101,22 @@ TAP version 13
           actual: true
           operator: 'strictEqual'
           stack: |-
-            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:311:10)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:450:9)
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:274:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:413:9)
             Test.runInAsyncScope (node:async_hooks:214:14)
             Test.run (node:internal/test_runner/test:1047:25)
             Test.start (node:internal/test_runner/test:944:17)
             TestContext.test (node:internal/test_runner/test:373:20)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15)
             async Test.run (node:internal/test_runner/test:1054:7)
             async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
           ...
         # Subtest: claude plugin.json
         not ok 4 - claude plugin.json
           ---
-          duration_ms: 0.169125
+          duration_ms: 0.120167
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15'
           failureType: 'testCodeFailure'
           error: |-
             claude plugin.json must not use caller-cwd-relative MCP entrypoint args
@@ -129,28 +129,28 @@ TAP version 13
           actual: true
           operator: 'strictEqual'
           stack: |-
-            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:311:10)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:450:9)
+            assertCwdIndependentLaunchArgs (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:274:10)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:413:9)
             Test.runInAsyncScope (node:async_hooks:214:14)
             Test.run (node:internal/test_runner/test:1047:25)
             Test.start (node:internal/test_runner/test:944:17)
             TestContext.test (node:internal/test_runner/test:373:20)
-            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:449:15)
+            TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:412:15)
             async Test.run (node:internal/test_runner/test:1054:7)
             async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
           ...
         # Subtest: generic stdio fixture
         ok 5 - generic stdio fixture
           ---
-          duration_ms: 0.196833
+          duration_ms: 0.185959
           type: 'test'
           ...
         1..5
     not ok 2 - committed MCP launch configs use cwd-independent installed entrypoint args
       ---
-      duration_ms: 2.236917
+      duration_ms: 2.867667
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:447:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:410:3'
       failureType: 'subtestsFailed'
       error: '4 subtests failed'
       code: 'ERR_TEST_FAILURE'
@@ -158,9 +158,9 @@ TAP version 13
     # Subtest: uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
     not ok 3 - uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
       ---
-      duration_ms: 486.172625
+      duration_ms: 864.407875
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:455:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:418:3'
       failureType: 'testCodeFailure'
       error: |-
         activation config runtimeCacheDir should receive runtime dependencies
@@ -173,7 +173,7 @@ TAP version 13
       actual: false
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:482:12)
+        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:445:12)
         async Test.run (node:internal/test_runner/test:1054:7)
         async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
       ...
@@ -181,9 +181,9 @@ TAP version 13
         # Subtest: desk .mcp.json
         not ok 1 - desk .mcp.json
           ---
-          duration_ms: 56.730083
+          duration_ms: 61.517875
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:494:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:459:17'
           failureType: 'testCodeFailure'
           error: |-
             MCP process exited before response 1 (code=1, signal=null). stderr:
@@ -191,7 +191,7 @@ TAP version 13
               throw err;
               ^
 
-            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-CKSYAm/caller-cwd/mcp/index.js'
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-4YoIOf/caller-cwd/mcp/index.js'
                 at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
                 at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
                 at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
@@ -216,7 +216,7 @@ TAP version 13
             wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
             Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
             node:internal/main/run_main_module:36:49 {
-            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:341:14)
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:304:14)
             Object.onceWrapper (node:events:634:26)
             ChildProcess.emit (node:events:519:28)
             ChildProcess._handle.onexit (node:internal/child_process:293:12)
@@ -224,9 +224,9 @@ TAP version 13
         # Subtest: desk plugin.json
         not ok 2 - desk plugin.json
           ---
-          duration_ms: 56.223167
+          duration_ms: 55.732125
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:494:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:459:17'
           failureType: 'testCodeFailure'
           error: |-
             MCP process exited before response 1 (code=1, signal=null). stderr:
@@ -234,7 +234,7 @@ TAP version 13
               throw err;
               ^
 
-            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-yFvvTI/caller-cwd/mcp/index.js'
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-lwwUH7/caller-cwd/mcp/index.js'
                 at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
                 at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
                 at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
@@ -259,7 +259,7 @@ TAP version 13
             wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
             Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
             node:internal/main/run_main_module:36:49 {
-            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:341:14)
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:304:14)
             Object.onceWrapper (node:events:634:26)
             ChildProcess.emit (node:events:519:28)
             ChildProcess._handle.onexit (node:internal/child_process:293:12)
@@ -267,9 +267,9 @@ TAP version 13
         # Subtest: codex plugin.json
         not ok 3 - codex plugin.json
           ---
-          duration_ms: 55.941292
+          duration_ms: 54.711667
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:494:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:459:17'
           failureType: 'testCodeFailure'
           error: |-
             MCP process exited before response 1 (code=1, signal=null). stderr:
@@ -277,7 +277,7 @@ TAP version 13
               throw err;
               ^
 
-            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-7dbk3t/caller-cwd/mcp/index.js'
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-R5pYuK/caller-cwd/mcp/index.js'
                 at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
                 at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
                 at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
@@ -302,7 +302,7 @@ TAP version 13
             wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
             Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
             node:internal/main/run_main_module:36:49 {
-            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:341:14)
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:304:14)
             Object.onceWrapper (node:events:634:26)
             ChildProcess.emit (node:events:519:28)
             ChildProcess._handle.onexit (node:internal/child_process:293:12)
@@ -310,9 +310,9 @@ TAP version 13
         # Subtest: claude plugin.json
         not ok 4 - claude plugin.json
           ---
-          duration_ms: 57.671541
+          duration_ms: 55.912542
           type: 'test'
-          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:494:15'
+          location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:459:17'
           failureType: 'testCodeFailure'
           error: |-
             MCP process exited before response 1 (code=1, signal=null). stderr:
@@ -320,7 +320,7 @@ TAP version 13
               throw err;
               ^
 
-            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-TDK8n9/caller-cwd/mcp/index.js'
+            Error: Cannot find module '/private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-host-launch-WvJCFk/caller-cwd/mcp/index.js'
                 at Module._resolveFilename (node:internal/modules/cjs/loader:1383:15)
                 at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
                 at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
@@ -345,7 +345,7 @@ TAP version 13
             wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
             Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
             node:internal/main/run_main_module:36:49 {
-            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:341:14)
+            ChildProcess.onExit (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:304:14)
             Object.onceWrapper (node:events:634:26)
             ChildProcess.emit (node:events:519:28)
             ChildProcess._handle.onexit (node:internal/child_process:293:12)
@@ -353,15 +353,15 @@ TAP version 13
         # Subtest: generic stdio fixture
         ok 5 - generic stdio fixture
           ---
-          duration_ms: 467.4295
+          duration_ms: 461.605292
           type: 'test'
           ...
         1..5
     not ok 4 - launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
       ---
-      duration_ms: 804.330375
+      duration_ms: 1031.715875
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:488:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:451:3'
       failureType: 'subtestsFailed'
       error: '4 subtests failed'
       code: 'ERR_TEST_FAILURE'
@@ -369,9 +369,9 @@ TAP version 13
     # Subtest: repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
     not ok 5 - repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
       ---
-      duration_ms: 307.328458
+      duration_ms: 645.427959
       type: 'test'
-      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:523:3'
+      location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:491:3'
       failureType: 'testCodeFailure'
       error: |-
         runtime cache marker should be repaired from the committed pack
@@ -386,7 +386,7 @@ TAP version 13
       actual: '0.0.0-incompatible'
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:545:12)
+        TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:512:12)
         Test.runInAsyncScope (node:async_hooks:214:14)
         Test.run (node:internal/test_runner/test:1047:25)
         Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
@@ -397,9 +397,9 @@ TAP version 13
     1..5
 not ok 1 - runtime cache and host launch contract
   ---
-  duration_ms: 1602.535458
+  duration_ms: 2547.251208
   type: 'suite'
-  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:436:1'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/cache_and_launch.test.js:399:1'
   failureType: 'subtestsFailed'
   error: '4 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -412,4 +412,4 @@ not ok 1 - runtime cache and host launch contract
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1704.144583
+# duration_ms 2632.81275
