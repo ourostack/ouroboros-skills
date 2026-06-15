@@ -133,16 +133,16 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover gitignored secret exclusion as product behavior.
 - [ ] Tests cover repeated startup idempotence.
 - [ ] Tests cover deactivation/uninstall artifact ownership.
-- [ ] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
+- [x] Tests cover global personal default, project-local opt-out, and manual-only Codex activation policy.
 - [ ] Tests cover generated artifact upgrade/merge behavior preserving user-authored config.
 - [ ] Tests cover snapshot/vector-pack performance budgets for startup and rebuild paths.
-- [ ] Tests cover permission/capability boundaries for generated activation artifacts.
+- [x] Tests cover permission/capability boundaries for generated activation artifacts.
 - [ ] Tests cover diagnostic and validation errors avoiding sensitive text leakage.
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -219,7 +219,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Clean contract implementation and docs.  
 **Acceptance**: 100% coverage on new activation-contract code, all activation-contract tests pass, and no warnings.
 
-### ⬜ Unit 2a: Codex Global Activation - Tests
+### ✅ Unit 2a: Codex Global Activation - Tests
 **What**: Write failing tests for Codex global personal worker+Desk default activation, project-local opt-out, manual-only opt-out, safe merge/preservation of user-authored config, no uncontrolled `AGENTS.md` append/copy, no manual `codex mcp add`, and permission/capability boundaries.  
 **Output**: `plugins/desk/mcp/__tests__/activation/codex_activation.test.js`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml`, `plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml`, and `plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml`.  
 **Acceptance**: Tests fail because Codex activation materialization does not yet exist or still relies on manual setup assumptions.
@@ -753,3 +753,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 17:14 Unit 1b cold reviewer gate converged after Round 3; Helmholtz verified prior semver, duplicate dependency, type/enum, malformed shape, inherits, and host-support diagnostic findings are closed, with 13/13 activation tests, direct shape probe, 209/209 MCP package tests, and clean diff check
 - 2026-06-14 17:19 Unit 1c complete: polished activation helper defensiveness, added helper edge-case coverage, expanded `plugins/desk/activation/README.md` into a manifest field reference, committed as `ec24455`, saved `unit-1c-activation-contract-green.log`, `unit-1c-test-coverage-green.log`, `unit-1c-npm-test-green.log`, and `unit-1c-validate-skills-green.log`, and verified `npm --prefix plugins/desk/mcp run test:coverage`, `npm --prefix plugins/desk/mcp test`, `node scripts/validate-skills.cjs`, and `git diff --check`
 - 2026-06-14 17:19 Unit 1c cold reviewer gate converged; Anscombe verified activation-focused tests, coverage, skill validation, diff cleanliness, evidence, and doing-doc claims, with only the pre-existing expected Ollama-down semantic diagnostic in the broader suite
+- 2026-06-14 17:25 Unit 2a complete: added Codex activation red tests and fixtures in `0821435`; targeted red run saved to `unit-2a-codex-activation-red.log` and fails because Codex activation metadata/materialization is missing and `plugins/desk/agents/worker.toml` still documents manual copy registration; terminal `All tests pass` criterion intentionally unchecked until Unit 2b makes the new tests green
