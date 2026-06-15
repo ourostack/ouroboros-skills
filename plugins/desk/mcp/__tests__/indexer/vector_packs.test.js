@@ -704,6 +704,159 @@ test("vector pack import accepts empty active packs as no-op artifacts", async (
   }
 })
 
+test("vector pack validation streams final rows without a trailing newline", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const identity = chunkIdentity({
+    docPath: "trackA/task-1/task.md",
+    chunk: { text: "final row without newline" },
+  })
+  const paths = await writePack({
+    pluginRoot,
+    packId: "no-trailing-newline",
+    rows: [rowFor(identity, 7)],
+  })
+  await rewritePackText(paths, JSON.stringify(rowFor(identity, 7)))
+
+  const validated = await validateVectorPackFile({
+    packPath: paths.packPath,
+    manifestPath: paths.manifestPath,
+    checksumPath: paths.checksumPath,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+  })
+  assert.equal(validated.rows.length, 1)
+  assert.equal(validated.rows[0].row_number, 1)
+})
+
+test("vector pack validation flushes incomplete UTF-8 at EOF through row parsing", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const paths = await writePack({
+    pluginRoot,
+    packId: "incomplete-utf8",
+    rows: [],
+  })
+  const packBytes = Buffer.from([0xe2])
+  const packSha = sha256(packBytes)
+  await fs.writeFile(paths.packPath, packBytes)
+  await fs.writeFile(paths.checksumPath, `${packSha}  incomplete-utf8.jsonl\n`, "utf8")
+  await fs.writeFile(paths.manifestPath, `${JSON.stringify({
+    ...paths.manifest,
+    row_count: 1,
+    rows_sha256: packSha,
+  }, null, 2)}\n`, "utf8")
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /incomplete-utf8\.jsonl row 1: malformed JSON/u,
+  )
+})
+
+test("vector pack validation yields while streaming many blank lines", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const paths = await writePack({
+    pluginRoot,
+    packId: "many-blank-lines",
+    rows: [],
+  })
+  await rewritePackText(paths, "\n".repeat(101))
+
+  const validated = await validateVectorPackFile({
+    packPath: paths.packPath,
+    manifestPath: paths.manifestPath,
+    checksumPath: paths.checksumPath,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+  })
+  assert.equal(validated.rows.length, 0)
+})
+
+test("vector pack validation propagates aborts thrown inside the pack stream reader", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const identity = chunkIdentity({
+    docPath: "trackA/task-1/task.md",
+    chunk: { text: "abort during stream reader" },
+  })
+  const paths = await writePack({
+    pluginRoot,
+    packId: "abort-during-stream",
+    rows: [rowFor(identity, 9)],
+  })
+  let reads = 0
+  const signal = {
+    get aborted() {
+      reads += 1
+      return reads >= 8
+    },
+  }
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      signal,
+    }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
+})
+
+test("vector pack validation reports missing pack bytes after sidecars validate", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const paths = await writePack({
+    pluginRoot,
+    packId: "missing-pack-bytes",
+    rows: [],
+  })
+  await fs.rm(paths.packPath)
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /missing-pack-bytes\.jsonl pack missing/u,
+  )
+})
+
+test("vector pack validation surfaces unexpected pack stream failures", async () => {
+  const { validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const paths = await writePack({
+    pluginRoot,
+    packId: "pack-stream-failure",
+    rows: [],
+  })
+  await fs.rm(paths.packPath)
+  await fs.mkdir(paths.packPath)
+
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    (error) => error.code === "EISDIR",
+  )
+})
+
 test("vector pack validation and import reject when startup abort signal is tripped", async () => {
   const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
   const root = await tmpRoot()
@@ -744,6 +897,62 @@ test("vector pack validation and import reject when startup abort signal is trip
       (err) => err.name === "AbortError" && err.message === "operation aborted",
     )
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import lets startup abort timers fire before whole-pack validation", async (t) => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const paths = await writePack({
+      pluginRoot,
+      packId: "timer-abort-pack",
+      rows: [],
+    })
+    await rewritePackText(paths, "\n".repeat(101))
+    const originalReadFile = fs.readFile.bind(fs)
+    const packBytes = await originalReadFile(paths.packPath)
+    packBytes.toString = function toStringWithStartupBlocking(...args) {
+      const end = Date.now() + 150
+      while (Date.now() < end) {
+        // Simulate the old whole-file string conversion monopolizing startup.
+      }
+      return Buffer.prototype.toString.apply(this, args)
+    }
+    t.mock.method(fs, "readFile", async (filePath, ...args) => {
+      if (String(filePath) === paths.packPath) return packBytes
+      return originalReadFile(filePath, ...args)
+    })
+
+    const controller = new AbortController()
+    let reads = 0
+    const signal = {
+      get aborted() {
+        reads += 1
+        if (reads === 2) {
+          setTimeout(() => controller.abort(), 0)
+        }
+        return controller.signal.aborted
+      },
+    }
+
+    const startedAt = Date.now()
+    await assert.rejects(
+      () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+        signal,
+      }),
+      (err) => err.name === "AbortError" && err.message === "operation aborted",
+    )
+    const elapsedMs = Date.now() - startedAt
+    assert.ok(elapsedMs < 100, `abort timer was blocked for ${elapsedMs}ms`)
   } finally {
     closeDb(db)
   }

@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto"
+import { createReadStream } from "node:fs"
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
+import { StringDecoder } from "node:string_decoder"
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
 const VECTOR_ENCODING = "float32-json"
@@ -53,17 +55,20 @@ export async function validateVectorPackFile({
   }
   const resolvedManifestPath = manifestPath ?? sidecarPath(packPath, ".manifest.json")
   const resolvedChecksumPath = checksumPath ?? sidecarPath(packPath, ".sha256")
-  const packBytes = await readRequiredFile(packPath, `${label} pack`, signal)
-  const packText = packBytes.toString("utf8")
-  const packSha = sha256(packBytes)
   const manifest = await readRequiredJson(resolvedManifestPath, `${label} manifest`, signal)
+  validateManifestShape({ manifest, expectedSpec, label })
   const checksum = await readRequiredChecksum(resolvedChecksumPath, `${label} checksum`, signal)
+  const { packSha, rows } = await readPackRowsAndSha({
+    packPath,
+    expectedSpec,
+    label,
+    signal,
+  })
 
   if (checksum !== packSha) {
     throw new Error(`${label}: checksum mismatch for vector pack`)
   }
-  validateManifest({ manifest, expectedSpec, packSha, label })
-  const rows = await parseRows({ packText, expectedSpec, label, signal })
+  validateManifestHash({ manifest, packSha, label })
   if (manifest.row_count !== rows.length) {
     throw new Error(`${label}: manifest row_count must match vector pack rows`)
   }
@@ -185,7 +190,7 @@ export async function importVectorPacks({
   return summary
 }
 
-function validateManifest({ manifest, expectedSpec, packSha, label }) {
+function validateManifestShape({ manifest, expectedSpec, label }) {
   if (manifest.schema_version !== 1) {
     throw new Error(`${label}: manifest schema_version must be 1`)
   }
@@ -202,33 +207,83 @@ function validateManifest({ manifest, expectedSpec, packSha, label }) {
   if (!Number.isInteger(manifest.row_count) || manifest.row_count < 0) {
     throw new Error(`${label}: manifest row_count must be a non-negative integer`)
   }
+}
+
+function validateManifestHash({ manifest, packSha, label }) {
   if (manifest.rows_sha256 !== packSha) {
     throw new Error(`${label}: manifest rows_sha256 must match vector pack`)
   }
 }
 
-async function parseRows({ packText, expectedSpec, label, signal }) {
+async function readPackRowsAndSha({ packPath, expectedSpec, label, signal }) {
   throwIfAborted(signal)
+  const hash = createHash("sha256")
+  const decoder = new StringDecoder("utf8")
   const rows = []
-  const lines = packText.split(/\n/u)
-  for (let index = 0; index < lines.length; index += 1) {
-    if (index % ROW_ABORT_CHECK_INTERVAL === 0) {
+  let lineNumber = 0
+  let buffered = ""
+
+  try {
+    for await (const chunk of createReadStream(packPath)) {
+      throwIfAborted(signal)
+      hash.update(chunk)
+      buffered += decoder.write(chunk)
+      let start = 0
+      let newlineIndex = buffered.indexOf("\n", start)
+      while (newlineIndex !== -1) {
+        lineNumber += 1
+        parseRowLine({
+          line: buffered.slice(start, newlineIndex),
+          rowNumber: lineNumber,
+          expectedSpec,
+          label,
+          rows,
+        })
+        if (lineNumber % ROW_ABORT_CHECK_INTERVAL === 0) {
+          await yieldToAbortSignal(signal)
+        }
+        start = newlineIndex + 1
+        newlineIndex = buffered.indexOf("\n", start)
+      }
+      buffered = buffered.slice(start)
       await yieldToAbortSignal(signal)
     }
-    const line = lines[index]
-    if (line.trim() === "") continue
-    const rowNumber = index + 1
-    let row
-    try {
-      row = JSON.parse(line)
-    } catch {
-      throw new Error(`${label} row ${rowNumber}: malformed JSON`)
+    const rest = decoder.end()
+    if (rest) buffered += rest
+    if (buffered.length > 0) {
+      lineNumber += 1
+      parseRowLine({
+        line: buffered,
+        rowNumber: lineNumber,
+        expectedSpec,
+        label,
+        rows,
+      })
     }
-    validateRow({ row, rowNumber, expectedSpec, label })
-    rows.push({ ...row, row_number: rowNumber })
+  } catch (error) {
+    if (error.name === "AbortError") throw error
+    if (error.code === "ENOENT") {
+      throw new Error(`${label} pack missing`)
+    }
+    throw error
   }
   throwIfAborted(signal)
-  return rows
+  return {
+    packSha: hash.digest("hex"),
+    rows,
+  }
+}
+
+function parseRowLine({ line, rowNumber, expectedSpec, label, rows }) {
+  if (line.trim() === "") return
+  let row
+  try {
+    row = JSON.parse(line)
+  } catch {
+    throw new Error(`${label} row ${rowNumber}: malformed JSON`)
+  }
+  validateRow({ row, rowNumber, expectedSpec, label })
+  rows.push({ ...row, row_number: rowNumber })
 }
 
 function validateRow({ row, rowNumber, expectedSpec, label }) {
@@ -300,13 +355,9 @@ function sidecarPath(packPath, suffix) {
   return packPath.replace(/\.jsonl$/u, suffix)
 }
 
-function sha256(value) {
-  return createHash("sha256").update(value).digest("hex")
-}
-
 async function yieldToAbortSignal(signal) {
   throwIfAborted(signal)
-  await new Promise((resolve) => setImmediate(resolve))
+  await new Promise((resolve) => setTimeout(resolve, 0))
   throwIfAborted(signal)
 }
 
