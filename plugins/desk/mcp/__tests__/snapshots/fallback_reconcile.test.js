@@ -340,13 +340,71 @@ test("ensureIndex treats incompatible snapshots as cache misses before vector-pa
   }
 })
 
+test("ensureIndex reports corrupt snapshots without a fallback when vector packs are absent", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-no-fallback-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-no-fallback-plugin-")
+  const docPath = "trackA/task-1/task.md"
+  await writeFile(
+    deskRoot,
+    docPath,
+    "---\nstatus: processing\n---\nlexical only after corrupt snapshot",
+  )
+  await writeCorruptSnapshot({ pluginRoot, snapshotId: "corrupt-no-fallback" })
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: snapshotContext(pluginRoot),
+    skipEmbed: true,
+  })
+
+  assert.ok(ensured.snapshot, "ensureIndex should report snapshot failure state")
+  assert.equal(ensured.snapshot.restored, false)
+  assert.equal(ensured.snapshot.reason, "snapshot_corrupt")
+  assert.equal(ensured.fallback, undefined)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex returns snapshot_restored when a restored snapshot is already fresh", async () => {
+  const deskRoot = await tmpRoot("desk-snapshot-fresh-desk-")
+  const pluginRoot = await tmpRoot("desk-snapshot-fresh-plugin-")
+  const snapshotSourceRoot = await tmpRoot("desk-snapshot-fresh-source-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nfresh restored snapshot body"
+  await writeFile(snapshotSourceRoot, docPath, body)
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "fresh-compatible",
+    sourceDeskRoot: snapshotSourceRoot,
+    rebuildOpts: {
+      embed: {
+        fetch: async () => ({
+          ok: true,
+          json: async () => ({ embedding: vector(11) }),
+        }),
+      },
+    },
+  })
+  await writeFile(deskRoot, docPath, body)
+  const old = new Date("2020-01-01T00:00:00.000Z")
+  await fs.utimes(path.join(deskRoot, docPath), old, old)
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: snapshotContext(pluginRoot),
+    skipEmbed: true,
+  })
+
+  assert.equal(ensured.built, false)
+  assert.equal(ensured.reason, "snapshot_restored")
+  assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+})
+
 test("ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text", async () => {
   const deskRoot = await tmpRoot("desk-snapshot-reconcile-desk-")
   const pluginRoot = await tmpRoot("desk-snapshot-reconcile-plugin-")
   const snapshotSourceRoot = await tmpRoot("desk-snapshot-reconcile-source-")
   const taskPath = "trackA/task-1/task.md"
   const planningPath = "trackA/task-1/planning.md"
-  const sentinelPath = "trackA/task-1/context.md"
+  const sentinelPath = "trackA/task-1/feedback.md"
   const staleTask = "---\nstatus: processing\n---\nstale snapshot task body"
   const stalePlanning = "---\n---\nstale planning body"
   const unchangedSentinel = "---\n---\nunchanged sentinel vector body"
@@ -416,7 +474,7 @@ test("ensureIndex restores stale compatible snapshots then reconciles docs, refs
       )
       .all()
       .map((row) => row.ref_kind)
-    assert.deepEqual(refs, ["planning_of"])
+    assert.deepEqual(refs, ["feedback_of", "planning_of"])
   } finally {
     closeDb(db)
   }

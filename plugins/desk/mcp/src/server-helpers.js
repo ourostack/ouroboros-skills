@@ -9,6 +9,7 @@ import { closeDb, indexDbPath, openDb } from "./db/init.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./indexer/spec.js"
+import { restoreSnapshotToState } from "./snapshots/restore.js"
 
 const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
   reason: "embedding_generation_failed",
@@ -35,7 +36,15 @@ const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
  */
 export async function ensureIndex(deskRoot, opts = {}) {
   const dbPath = indexDbPath(deskRoot)
-  const dbExisted = existsSync(dbPath)
+  let snapshot = null
+  let dbExisted = existsSync(dbPath)
+  if (!dbExisted && opts.snapshots?.pluginRoot) {
+    snapshot = await restoreSnapshotToState({
+      deskRoot,
+      ...opts.snapshots,
+    })
+    dbExisted = existsSync(dbPath)
+  }
   const db = openDb(deskRoot)
   try {
     const semanticBefore = getSemanticCoverage(db)
@@ -43,14 +52,23 @@ export async function ensureIndex(deskRoot, opts = {}) {
     if (dbExisted) {
       const fresh = await isIndexFresh(deskRoot, db)
       if (fresh) {
+        if (snapshot) {
+          return withSnapshot(
+            { built: false, reason: "snapshot_restored", semantic: semanticBefore },
+            snapshot,
+          )
+        }
         const repair = await maybeRepairMissingEmbeddings(
           deskRoot,
           db,
           opts,
           semanticBefore,
         )
-        if (repair) return repair
-        return { built: false, reason: "fresh", semantic: semanticBefore }
+        if (repair) return withSnapshot(repair, snapshot)
+        return withSnapshot(
+          { built: false, reason: "fresh", semantic: semanticBefore },
+          snapshot,
+        )
       }
       repairMissing = await shouldRepairMissingEmbeddings(opts, semanticBefore)
     }
@@ -61,12 +79,21 @@ export async function ensureIndex(deskRoot, opts = {}) {
     })
     const semanticAfter = getSemanticCoverage(db)
     assignEmbeddingAvailability(semanticAfter, semanticBefore, summary)
-    return {
+    const result = {
       built: true,
-      reason: dbExisted ? "stale" : "missing",
+      reason: snapshot?.restored ? "stale_snapshot_reconciled" : dbExisted ? "stale" : "missing",
       summary,
       semantic: semanticAfter,
     }
+    if (snapshot?.restored) {
+      result.snapshot = {
+        ...snapshot,
+        reconciled: true,
+      }
+    } else {
+      return withSnapshot(result, snapshot, fallbackFor(opts, snapshot))
+    }
+    return result
   } finally {
     closeDb(db)
   }
@@ -143,4 +170,20 @@ function assignEmbeddingAvailability(target, source, summary) {
     }
   }
   return target
+}
+
+function withSnapshot(result, snapshot, fallback = null) {
+  if (snapshot) {
+    result.snapshot = snapshot
+  }
+  if (fallback) {
+    result.fallback = fallback
+  }
+  return result
+}
+
+function fallbackFor(opts, snapshot) {
+  if (!snapshot) return null
+  if (opts.vectorPacks?.pluginRoot) return "vector_packs"
+  return null
 }

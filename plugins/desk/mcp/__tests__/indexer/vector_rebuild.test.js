@@ -256,6 +256,90 @@ test("ensureIndex repairs a fresh lexical-only DB from vector packs without prob
   }
 })
 
+test("ensureIndex leaves a fresh semantic DB untouched without probing embeddings", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nfresh semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, {
+    embed: {
+      fetch: async () => ({
+        ok: true,
+        json: async () => ({ embedding: vector(43) }),
+      }),
+    },
+  })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("fresh semantic index should not probe embeddings")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    embed: { fetch: failIfCalled },
+  })
+
+  assert.equal(calls, 0)
+  assert.equal(ensured.built, false)
+  assert.equal(ensured.reason, "fresh")
+  assert.equal(ensured.semantic.missing_vectors, 0)
+})
+
+test("ensureIndex honors skipEmbed when a fresh DB is missing vectors", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nfresh lexical skip body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  let calls = 0
+  const failIfCalled = async () => {
+    calls += 1
+    throw new Error("skipEmbed should not probe embeddings")
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    skipEmbed: true,
+    embed: { fetch: failIfCalled },
+  })
+
+  assert.equal(calls, 0)
+  assert.equal(ensured.built, false)
+  assert.equal(ensured.reason, "fresh")
+  assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex probes with default embed options when none are provided", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ndefault probe semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls += 1
+    return {
+      ok: true,
+      json: async () => ({ embedding: vector(47) }),
+    }
+  }
+  try {
+    const ensured = await ensureIndex(deskRoot)
+
+    assert.equal(calls, 2)
+    assert.equal(ensured.built, true)
+    assert.equal(ensured.reason, "semantic_missing")
+    assert.equal(ensured.semantic.missing_vectors, 0)
+    assert.equal(ensured.semantic.embedding_available, true)
+    assert.equal(ensured.semantic.embedding_diagnostic.reason, "ok")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test("ensureIndex calls embeddings only after vector-pack import leaves missing chunks", async () => {
   const deskRoot = await tmpRoot()
   const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
@@ -338,6 +422,38 @@ test("ensureIndex reports failure diagnostics when probe succeeds but rebuild em
     "embedding_generation_failed",
   )
   assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex preserves successful probe diagnostics after live embedding repair", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nlive repair preserves diagnostic body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  let calls = 0
+  const okFetch = async () => {
+    calls += 1
+    return {
+      ok: true,
+      json: async () => ({ embedding: vector(41) }),
+    }
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: okFetch,
+    },
+  })
+
+  assert.equal(calls, 2)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.summary.semantic_warnings, 0)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+  assert.equal(ensured.semantic.embedding_available, true)
+  assert.equal(ensured.semantic.embedding_diagnostic.reason, "ok")
 })
 
 test("ensureIndex preserves failed probe diagnostics when stale content is skipped", async () => {
