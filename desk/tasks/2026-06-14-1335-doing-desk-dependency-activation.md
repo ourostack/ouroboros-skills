@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -354,7 +354,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened dependency-light bootstrap implementation.
 **Acceptance**: 100% coverage on new bootstrap code and all dependency-light entrypoint tests pass.
 
-### 🔄 Unit 8a: Activation Config And Root Resolution - Tests
+### ✅ Unit 8a: Activation Config And Root Resolution - Tests
 **What**: Write failing tests for activation-config loading, root binding precedence, malformed config diagnostics, root source reporting, and shared use of the existing root resolver.
 **Output**: `plugins/desk/mcp/__tests__/runtime/activation_config.test.js`.
 **Acceptance**: Tests fail until explicit `--root` or host/session root overrides activation default config, activation default config precedes `$DESK` and home fallbacks, and `plugins/desk/mcp/index.js`, server startup, and activation config use the same resolver in `plugins/desk/mcp/src/util/paths.js`.
@@ -865,3 +865,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 05:06 Unit 7c reviewer fix: Hilbert the 2nd found a MAJOR gap where bootstrap parsed the embedded `runtime-deps.manifest.json` but still trusted the sidecar; `c51363f` adds a red embedded-manifest drift probe, updates bootstrap fixtures to embed the release-pack marker form, compares the embedded manifest against the sidecar with `archive.sha256` normalized to `<archive-sha256-recorded-in-sidecar>`, and saves review-fix red/green logs; focused bootstrap tests pass 7/7, dependency-light entrypoint tests pass 3/3, full MCP tests pass 307/307 after one transient unrelated Claude JSON read race, coverage remains 100% line/branch/function, generated-artifact and runtime-pack verifiers pass, validate-skills passes, and build remains explicitly unavailable because no package build script exists
 - 2026-06-15 05:07 Unit 7c Round 2 cold reviewer gate converged: Hilbert the 2nd verified the embedded-manifest trust gap is closed, the marker-normalized sidecar comparison is covered by red/green tests, coverage/full-suite/runtime-pack/generated-artifact/validate-skills evidence is green, and no new BLOCKER or MAJOR was introduced
 - 2026-06-15 05:07 Unit 8a started: writing activation-config and root-resolution red tests for explicit host/session root precedence, activation default config, `$DESK` and home fallback ordering, malformed config diagnostics, root-source reporting, and shared resolver use through `plugins/desk/mcp/src/util/paths.js`
+- 2026-06-15 05:12 Unit 8a complete: `08ede2e` adds activation-config/root-resolution red tests and evidence in `unit-8a-activation-config-red.log`; targeted run fails because `parseArgs` ignores `--activation-config`, `loadActivationConfig`, `resolveDeskRootWithSource`, and `resolveStartupDeskRoot` do not exist yet, and legacy `resolveDeskRoot` does not share an injectable env/home resolver; terminal `All tests pass` criterion intentionally unchecked until Unit 8b makes the new tests green
