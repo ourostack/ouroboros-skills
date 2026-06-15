@@ -62,20 +62,20 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Host-specific MCP launch smoke tests cover Claude, Codex, Copilot/root plugin packaging, and generic stdio launch.
 - [ ] Desk MCP offline startup behavior is tested for snapshot restore, vector-pack import, and lexical fallback.
 - [x] Desk MCP resolves the desk root deterministically from explicit host/session root, activation default config, environment, and safe defaults.
-- [ ] Desk MCP health/status reports the resolved root.
-- [ ] Desk MCP health/status reports plugin/runtime version.
-- [ ] Desk MCP health/status reports DB schema ID/version.
-- [ ] Desk MCP health/status reports active embedding spec.
-- [ ] Desk MCP health/status reports snapshot restore state.
-- [ ] Desk MCP health/status reports vector-pack import state.
-- [ ] Desk MCP health/status reports document-vector coverage.
-- [ ] Desk MCP health/status reports query embedding availability separately from document-vector availability.
-- [ ] Desk MCP health/status reports lexical index availability.
-- [ ] A registered `desk_status` MCP tool exposes the health/status schema.
-- [ ] Session-start context can surface concise health/status without running expensive repair work.
-- [ ] Missing local `.state/desk-index.sqlite` is treated as a normal first-run state.
+- [x] Desk MCP health/status reports the resolved root.
+- [x] Desk MCP health/status reports plugin/runtime version.
+- [x] Desk MCP health/status reports DB schema ID/version.
+- [x] Desk MCP health/status reports active embedding spec.
+- [x] Desk MCP health/status reports snapshot restore state.
+- [x] Desk MCP health/status reports vector-pack import state.
+- [x] Desk MCP health/status reports document-vector coverage.
+- [x] Desk MCP health/status reports query embedding availability separately from document-vector availability.
+- [x] Desk MCP health/status reports lexical index availability.
+- [x] A registered `desk_status` MCP tool exposes the health/status schema.
+- [x] Session-start context can surface concise health/status without running expensive repair work.
+- [x] Missing local `.state/desk-index.sqlite` is treated as a normal first-run state.
 - [ ] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
-- [ ] Long-running repairs are deferred, explicitly surfaced, or explicitly invoked rather than silently blocking session start.
+- [x] Long-running repairs are deferred, explicitly surfaced, or explicitly invoked rather than silently blocking session start.
 - [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
 - [ ] Compatible snapshots are copied into `.state/` before mutation.
 - [ ] Snapshot artifacts live at `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` with adjacent manifest and checksum files.
@@ -389,7 +389,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/tools/status.test.js`.
 **Acceptance**: Tests fail until `desk_status` is registered in `plugins/desk/mcp/src/tool-names.js`, wired into current plugin source, starts through the Unit 7 runtime-cache source mirror path, and returns early health fields without expensive repair work.
 
-### 🔄 Unit 10b: Early `desk_status` Skeleton - Implementation
+### ✅ Unit 10b: Early `desk_status` Skeleton - Implementation
 **What**: Implement `desk_status` with early health fields only: root, root source, runtime version, DB existence/schema when available, lexical index availability when cheap, and placeholders marked `not_available_until_artifact_modules` for snapshot/vector-pack/spec fields.
 **Output**: `plugins/desk/mcp/src/tools/status.js`, updated `tool-names.js`, updated `server.js`, and helper code.
 **Acceptance**: Unit 10a tests pass and `desk_status` does not run snapshot restore, vector-pack import, or embedding probes.
@@ -894,3 +894,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 07:28 Unit 10a complete: `024cb43` adds the red `desk_status` contract in `plugins/desk/mcp/__tests__/tools/status.test.js`, updates scaffold expectations to 14 tools, and adds an entrypoint smoke proving `desk_status` must be served from the Unit 7 runtime-cache source mirror without session-start indexing. Saved red evidence in `unit-10a-status-red.log`, `unit-10a-scaffold-red.log`, `unit-10a-dependency-light-entrypoint-red.log`, and `unit-10a-npm-test-red.log`; focused tests fail because `desk_status` is not registered or dispatchable yet, and the full MCP suite fails 5 tests for the same intentional red contract.
 - 2026-06-15 07:32 Unit 10a cold reviewer gate converged: Godel the 2nd found no issues and verified the red tests cover registration, dispatch, root/runtime/local DB fields, first-run missing `.state`, query embedding/document-vector separation, deferred snapshot/vector states, runtime-cache source-mirror startup, no session-start indexing, and no network/install side effects.
 - 2026-06-15 07:32 Unit 10b started: implementing the minimal non-mutating `desk_status` tool, server registration, startup context plumbing, and session-start behavior that accepts status calls before expensive indexing/repair work.
+- 2026-06-15 07:45 Unit 10b complete: `aeef001` registers `desk_status`, adds the early non-mutating status tool, threads resolved-root and runtime-cache/source-mirror context from the entrypoint, removes unconditional startup indexing so status is available before repair work, and returns root, plugin/runtime, DB schema, active embedding spec, lexical availability, document-vector coverage, query-embedding `not_checked`, snapshot `not_checked`, and vector-pack `not_checked` fields. The reviewed Unit 10a red contract standardized the early placeholder value as `not_checked`; artifact-module-specific status remains for later snapshot/vector-pack units. Saved green evidence in `unit-10b-status-green.log`, `unit-10b-server-dispatch-green.log`, `unit-10b-scaffold-green.log`, `unit-10b-dependency-light-entrypoint-green.log`, `unit-10b-npm-test-green.log`, `unit-10b-test-coverage.log`, `unit-10b-runtime-pack-verify-green.log`, `unit-10b-generated-artifacts-green.log`, `unit-10b-validate-skills-green.log`, and `unit-10b-diff-check-green.log`; full MCP tests pass 355/355, coverage is 100% line/branch/function, and build remains unavailable because no package build script exists.
