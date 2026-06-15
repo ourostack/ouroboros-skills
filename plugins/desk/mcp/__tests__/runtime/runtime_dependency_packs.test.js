@@ -254,7 +254,8 @@ function workflowPathFilters(workflow, eventName) {
   const eventStart = lines.findIndex((line) => line === `  ${eventName}:`)
   assert.notEqual(eventStart, -1, `workflow must define ${eventName}`)
   const eventEnd = lines.findIndex((line, index) => (
-    index > eventStart && /^  [a-z_]+:/u.test(line)
+    index > eventStart
+    && (/^[a-z_]+:/u.test(line) || /^  [a-z_]+:/u.test(line))
   ))
   const eventLines = lines.slice(eventStart, eventEnd === -1 ? lines.length : eventEnd)
   const pathsStart = eventLines.findIndex((line) => line === "    paths:")
@@ -286,6 +287,17 @@ function scriptHelp(scriptName) {
   )
   assert.equal(result.status, 0, result.stderr || result.stdout)
   return `${result.stdout}${result.stderr}`
+}
+
+function runNpmScript(scriptName, args = []) {
+  return spawnSync(
+    "npm",
+    ["--prefix", "plugins/desk/mcp", "run", scriptName, "--", ...args],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  )
 }
 
 function assertIncludesAll(actual, expected, label) {
@@ -729,8 +741,13 @@ test("runtime dependency pack verification checks checksums and unsupported plat
   }
 })
 
-test("package declares CI/release scripts for runtime dependency packs", () => {
+test("package declares CI/release scripts for runtime dependency packs", async () => {
+  const {
+    collectProductionDependencyClosure,
+    productionDependencyLockHash,
+  } = await loadRuntimeDeps()
   const packageJson = loadJson(packageJsonPath)
+  const packageLock = loadJson(packageLockPath)
 
   assert.equal(
     packageJson.scripts["runtime:deps-pack:build"],
@@ -761,6 +778,67 @@ test("package declares CI/release scripts for runtime dependency packs", () => {
   assert.match(verifyHelp, /runtime dependency pack/i)
   assert.match(verifyHelp, /--pack-dir/u)
   assert.match(verifyHelp, /--platform/u)
+
+  const productionDependencies = collectProductionDependencyClosure({
+    packageJson,
+    packageLock,
+    platform: target.platform,
+    arch: target.arch,
+  })
+  const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
+  const validManifest = fixtureManifest({
+    archiveSha: sha256(createTarGz(validEntries)),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const validPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    manifest: validManifest,
+  })
+  const invalidEntries = validEntries
+    .filter((entry) => entry !== "node_modules/sqlite-vec/index.cjs")
+  const invalidManifest = fixtureManifest({
+    archiveSha: sha256(createTarGz(invalidEntries)),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const invalidPackDir = writePackFixture({
+    archiveEntries: invalidEntries,
+    manifest: invalidManifest,
+  })
+  try {
+    const validRun = runNpmScript("runtime:deps-pack:verify", [
+      "--pack-dir",
+      validPackDir,
+      "--platform",
+      target.platform,
+      "--arch",
+      target.arch,
+      "--node-abi",
+      targetNodeAbi,
+    ])
+    assert.equal(validRun.status, 0, validRun.stderr || validRun.stdout)
+    assert.match(`${validRun.stdout}${validRun.stderr}`, /runtime dependency pack verified/i)
+
+    const invalidRun = runNpmScript("runtime:deps-pack:verify", [
+      "--pack-dir",
+      invalidPackDir,
+      "--platform",
+      target.platform,
+      "--arch",
+      target.arch,
+      "--node-abi",
+      targetNodeAbi,
+    ])
+    assert.notEqual(invalidRun.status, 0)
+    assert.match(
+      `${invalidRun.stdout}${invalidRun.stderr}`,
+      /runtime dependency archive must include runtime file node_modules\/sqlite-vec\/index\.cjs/u,
+    )
+  } finally {
+    rmSync(validPackDir, { recursive: true, force: true })
+    rmSync(invalidPackDir, { recursive: true, force: true })
+  }
 })
 
 test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
@@ -769,6 +847,22 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
   const pushPathFilters = workflowPathFilters(workflow, "push")
   const runCommands = workflowRunCommands(workflow)
 
+  assert.throws(
+    () => workflowPathFilters([
+      "name: fake",
+      "on:",
+      "  push:",
+      "    branches:",
+      "      - main",
+      "jobs:",
+      "  desk-mcp-tests:",
+      "    paths:",
+      "      - \"plugins/desk/mcp/artifacts/runtime-deps/**\"",
+      "      - \"plugins/desk/mcp/scripts/build-runtime-deps-pack.js\"",
+      "      - \"plugins/desk/mcp/scripts/verify-runtime-deps-pack.js\"",
+    ].join("\n"), "push"),
+    /push must define paths/u,
+  )
   assert.ok(runCommands.includes("npm run runtime:deps-pack:verify"))
   for (const pathFilters of [pullRequestPathFilters, pushPathFilters]) {
     assert.ok(pathFilters.includes("plugins/desk/mcp/artifacts/runtime-deps/**"))
