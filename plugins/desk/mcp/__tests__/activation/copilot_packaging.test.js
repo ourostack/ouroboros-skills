@@ -318,12 +318,33 @@ test("Copilot packaging validation rejects missing root surfaces and stale versi
 })
 
 test("Copilot packaging validation rejects incomplete flattened dependency closure", () => {
+  const missingActivationDependencies = clone(currentCopilotPackagingInput())
+  delete missingActivationDependencies.activation.dependencies
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingActivationDependencies),
+    ["Copilot activation must lock Work Suite dependency"],
+  )
+
   const missingActivationLock = clone(currentCopilotPackagingInput())
   missingActivationLock.activation.dependencies =
     missingActivationLock.activation.dependencies.filter((entry) => entry.id !== "work-suite")
   assert.deepEqual(
     validateCopilotPackagingContract(missingActivationLock),
     ["Copilot activation must lock Work Suite dependency"],
+  )
+
+  const missingWorkSuitePlugin = clone(currentCopilotPackagingInput())
+  delete missingWorkSuitePlugin.workSuitePlugin
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingWorkSuitePlugin),
+    ["Copilot root Work Suite version must match activation lock 1.4.9"],
+  )
+
+  const missingBundle = clone(currentCopilotPackagingInput())
+  delete missingBundle.bundle
+  assert.deepEqual(
+    validateCopilotPackagingContract(missingBundle),
+    ["Copilot flattened bundle must include work-suite dependency closure"],
   )
 
   const missingBundleDependency = clone(currentCopilotPackagingInput())
@@ -338,6 +359,13 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   delete missingBundleClosure.bundle.dependency_closure
   assert.deepEqual(
     validateCopilotPackagingContract(missingBundleClosure),
+    ["Copilot flattened bundle must include work-suite dependency closure"],
+  )
+
+  const malformedBundleClosure = clone(currentCopilotPackagingInput())
+  malformedBundleClosure.bundle.dependency_closure = [null]
+  assert.deepEqual(
+    validateCopilotPackagingContract(malformedBundleClosure),
     ["Copilot flattened bundle must include work-suite dependency closure"],
   )
 
