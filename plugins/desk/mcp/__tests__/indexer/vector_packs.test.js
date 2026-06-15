@@ -46,6 +46,28 @@ function rowFor(identity, seed = 1, overrides = {}) {
   }
 }
 
+function storedVector(db, chunkId) {
+  const row = db.prepare("SELECT embedding FROM chunk_vecs WHERE chunk_id = ?").get(chunkId)
+  assert.ok(row, `missing vector row for chunk_id ${chunkId}`)
+  const buffer = Buffer.from(row.embedding)
+  const values = []
+  for (let offset = 0; offset < buffer.length; offset += 4) {
+    values.push(buffer.readFloatLE(offset))
+  }
+  return values
+}
+
+function assertStoredVector(db, chunkId, expected) {
+  const actual = storedVector(db, chunkId)
+  assert.equal(actual.length, expected.length)
+  for (let index = 0; index < expected.length; index += 1) {
+    assert.ok(
+      Math.abs(actual[index] - expected[index]) < 0.000001,
+      `chunk_id ${chunkId} vector[${index}] expected ${expected[index]}, got ${actual[index]}`,
+    )
+  }
+}
+
 async function writePack({ pluginRoot, packId, rows, manifest = {}, checksum }) {
   const packDir = path.join(
     pluginRoot,
@@ -186,15 +208,52 @@ test("valid vector packs require adjacent manifest and checksum sidecars", async
   assert.equal(result.rows[0].chunk_key, identity.chunk_key)
   assert.equal(result.rows[0].vector.length, ACTIVE_EMBEDDING_SPEC.dimension)
 
-  await fs.rm(paths.manifestPath)
+  const missingManifest = await writePack({
+    pluginRoot,
+    packId: "missing-manifest",
+    rows: [rowFor(identity)],
+  })
+  await fs.rm(missingManifest.manifestPath)
   await assert.rejects(
     () => validateVectorPackFile({
-      packPath: paths.packPath,
-      manifestPath: paths.manifestPath,
-      checksumPath: paths.checksumPath,
+      packPath: missingManifest.packPath,
+      manifestPath: missingManifest.manifestPath,
+      checksumPath: missingManifest.checksumPath,
       expectedSpec: ACTIVE_EMBEDDING_SPEC,
     }),
     /manifest.*missing/u,
+  )
+
+  const missingChecksum = await writePack({
+    pluginRoot,
+    packId: "missing-checksum",
+    rows: [rowFor(identity)],
+  })
+  await fs.rm(missingChecksum.checksumPath)
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: missingChecksum.packPath,
+      manifestPath: missingChecksum.manifestPath,
+      checksumPath: missingChecksum.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /checksum.*missing|sha256.*missing/u,
+  )
+
+  const badChecksum = await writePack({
+    pluginRoot,
+    packId: "bad-checksum",
+    rows: [rowFor(identity)],
+    checksum: `${"0".repeat(64)}  bad-checksum.jsonl\n`,
+  })
+  await assert.rejects(
+    () => validateVectorPackFile({
+      packPath: badChecksum.packPath,
+      manifestPath: badChecksum.manifestPath,
+      checksumPath: badChecksum.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    }),
+    /checksum.*mismatch|sha256.*mismatch/u,
   )
 })
 
@@ -303,6 +362,9 @@ test("vector pack import is idempotent and deduplicates repeated chunk keys acro
     assert.equal(imported.rows_imported, 3)
     assert.equal(imported.rows_skipped_duplicate, 1)
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 3)
+    assertStoredVector(db, first.chunkId, vector(1))
+    assertStoredVector(db, second.chunkId, vector(2))
+    assertStoredVector(db, third.chunkId, vector(3))
 
     const secondImport = await importVectorPacks({
       db,
