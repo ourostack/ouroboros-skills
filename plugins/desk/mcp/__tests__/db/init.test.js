@@ -6,6 +6,7 @@ import { strict as assert } from "node:assert"
 import * as path from "node:path"
 import * as os from "node:os"
 import { promises as fs } from "node:fs"
+import Database from "better-sqlite3"
 
 import {
   openDb,
@@ -44,6 +45,63 @@ test("openDb installs all required tables (docs, chunks, refs_graph, meta)", asy
       .map((r) => r.name)
     for (const t of ["docs", "chunks", "refs_graph", "meta"]) {
       assert.ok(rows.includes(t), `missing table ${t}; got: ${rows.join(", ")}`)
+    }
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("schema exposes chunk key and embedding spec metadata surfaces", async () => {
+  const root = await tmpRoot()
+  const db = openDb(root)
+  try {
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type IN ('table','virtual') ORDER BY name")
+      .all()
+      .map((r) => r.name)
+    assert.ok(tables.includes("embedding_specs"), `missing embedding_specs; got: ${tables.join(", ")}`)
+
+    const chunkCols = db.prepare("PRAGMA table_info(chunks)").all().map((c) => c.name)
+    for (const column of ["chunk_key", "text_hash", "embedding_spec_id", "chunker_id", "normalization_id"]) {
+      assert.ok(chunkCols.includes(column), `missing chunks.${column}; got: ${chunkCols.join(", ")}`)
+    }
+
+    const specCols = db.prepare("PRAGMA table_info(embedding_specs)").all().map((c) => c.name)
+    for (const column of ["id", "model", "model_revision", "dimension", "chunker_id", "normalization_id", "is_active"]) {
+      assert.ok(specCols.includes(column), `missing embedding_specs.${column}; got: ${specCols.join(", ")}`)
+    }
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("migrations upgrade older chunk tables with key and spec metadata columns", async () => {
+  const root = await tmpRoot()
+  const stateDir = path.join(root, ".state")
+  await fs.mkdir(stateDir, { recursive: true })
+  const dbPath = path.join(stateDir, "desk-index.sqlite")
+  const legacy = new Database(dbPath)
+  try {
+    legacy.exec(`
+      CREATE TABLE chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doc_id INTEGER NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        heading TEXT,
+        start_offset INTEGER,
+        end_offset INTEGER
+      );
+    `)
+  } finally {
+    legacy.close()
+  }
+
+  const db = openDb(root)
+  try {
+    const chunkCols = db.prepare("PRAGMA table_info(chunks)").all().map((c) => c.name)
+    for (const column of ["chunk_key", "text_hash", "embedding_spec_id", "chunker_id", "normalization_id"]) {
+      assert.ok(chunkCols.includes(column), `migration missing chunks.${column}; got: ${chunkCols.join(", ")}`)
     }
   } finally {
     closeDb(db)

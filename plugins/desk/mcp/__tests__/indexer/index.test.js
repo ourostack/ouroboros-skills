@@ -7,7 +7,7 @@ import * as os from "node:os"
 import { promises as fs } from "node:fs"
 
 import { rebuildIndex } from "../../src/indexer/index.js"
-import { openDb, closeDb } from "../../src/db/init.js"
+import { openDb, closeDb, getMeta, setMeta } from "../../src/db/init.js"
 
 async function mkRoot() {
   return fs.mkdtemp(path.join(os.tmpdir(), "desk-idx-"))
@@ -72,6 +72,90 @@ test("re-running on an unchanged desk is a no-op (hash unchanged)", async () => 
   const second = await rebuildIndex(root, indexOpts)
   assert.equal(second.docs_indexed, 0, "no docs should reindex on no-op run")
   assert.equal(second.docs_skipped, 2)
+})
+
+test("indexer records active embedding spec metadata and stable chunk keys", async () => {
+  const root = await mkRoot()
+  await w(root, "trackA/task-1/doing.md", "## Stable\n\nsame body\n")
+
+  const first = await rebuildIndex(root, indexOpts)
+  assert.equal(first.docs_indexed, 1)
+
+  const db = openDb(root)
+  let firstKeys
+  try {
+    const activeSpecId = getMeta(db, "active_embedding_spec_id")
+    assert.ok(activeSpecId, "missing active_embedding_spec_id meta")
+    assert.match(activeSpecId, /nomic-embed-text-v1_5/u)
+    assert.equal(getMeta(db, "active_chunker_id"), "desk-md-h2-paragraph-v1")
+    assert.equal(getMeta(db, "active_normalization_id"), "unicode-whitespace-v1")
+
+    const rows = db
+      .prepare(
+        `SELECT chunk_key, text_hash, embedding_spec_id, chunker_id, normalization_id
+         FROM chunks
+         ORDER BY chunk_index`,
+      )
+      .all()
+    assert.ok(rows.length >= 1)
+    for (const row of rows) {
+      assert.match(row.chunk_key, /^ck_/u)
+      assert.match(row.text_hash, /^sha256:/u)
+      assert.equal(row.embedding_spec_id, activeSpecId)
+      assert.equal(row.chunker_id, "desk-md-h2-paragraph-v1")
+      assert.equal(row.normalization_id, "unicode-whitespace-v1")
+    }
+    firstKeys = rows.map((row) => row.chunk_key)
+  } finally {
+    closeDb(db)
+  }
+
+  const second = await rebuildIndex(root, indexOpts)
+  assert.equal(second.docs_indexed, 0)
+  assert.equal(second.docs_skipped, 1)
+
+  const dbAfter = openDb(root)
+  try {
+    const secondKeys = dbAfter
+      .prepare("SELECT chunk_key FROM chunks ORDER BY chunk_index")
+      .all()
+      .map((row) => row.chunk_key)
+    assert.deepEqual(secondKeys, firstKeys)
+  } finally {
+    closeDb(dbAfter)
+  }
+})
+
+test("reembedMissing treats vectors from inactive embedding specs as missing", async () => {
+  const root = await mkRoot()
+  await w(root, "trackA/task-1/task.md", "---\nstatus: processing\n---\nsemantic body")
+
+  const dim = 768
+  const vec = Array.from({ length: dim }, (_, i) => (i % 5) / dim)
+  const firstFetch = async () => ({ ok: true, json: async () => ({ embedding: vec }) })
+  await rebuildIndex(root, { embed: { fetch: firstFetch } })
+
+  const db = openDb(root)
+  try {
+    const vecCount = db.prepare("SELECT count(*) AS c FROM chunk_vecs").get().c
+    assert.ok(vecCount > 0, "expected initial vector rows")
+    setMeta(db, "active_embedding_spec_id", "inactive-spec-for-red-test")
+  } finally {
+    closeDb(db)
+  }
+
+  let calls = 0
+  const secondFetch = async () => {
+    calls += 1
+    return { ok: true, json: async () => ({ embedding: vec }) }
+  }
+  const second = await rebuildIndex(root, {
+    reembedMissing: true,
+    embed: { fetch: secondFetch },
+  })
+
+  assert.equal(second.docs_indexed, 1)
+  assert.ok(calls > 0, "inactive spec vectors must not satisfy active-spec embedding coverage")
 })
 
 test("modifying one doc → that doc reindexed, others skipped", async () => {
