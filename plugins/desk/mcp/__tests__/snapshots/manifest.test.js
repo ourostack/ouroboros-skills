@@ -234,7 +234,9 @@ test("snapshot manifest rejects compatibility and provenance drift", async () =>
   assert.throws(() => validate({ ...base, sqlite_vec: { ...SQLITE_VEC, version: "9.9.9" } }), /sqlite-vec/u)
   assert.throws(() => validate({ ...base, runtime: { ...RUNTIME, arch: "x64" } }), /runtime/u)
   assert.throws(() => validate({ ...base, included_pack_ids: ["../pack"] }), /included_pack_ids/u)
+  assert.throws(() => validate({ ...base, created_at: 123 }), /created_at/u)
   assert.throws(() => validate({ ...base, created_at: "not-a-date" }), /created_at/u)
+  assert.throws(() => validate({ ...base, created_at: "June 15, 2026" }), /created_at/u)
   assert.throws(() => validate({ ...base, provenance: {} }), /provenance/u)
   assert.throws(
     () => validate({ ...base, artifact_source_scope_hash: undefined }),
@@ -284,7 +286,22 @@ test("snapshot manifests reject absolute, traversal, and unexpected source paths
 
   assert.throws(() => validate(["/Users/ari/secret.md"]), /absolute source path/u)
   assert.throws(() => validate(["plugins/desk/../secret.md"]), /source path traversal/u)
-  assert.throws(() => validate(["private/customer-secrets.md"]), /unexpected source path/u)
+  assert.throws(
+    () => validate(["plugins/desk/mcp/src/indexer/C:\\Users\\ari\\secret.md"]),
+    /normalized repo path/u,
+  )
+  assert.throws(
+    () => validate(["plugins/desk/mcp/src/indexer/C:/Users/ari/secret.md"]),
+    /normalized repo path/u,
+  )
+  assert.throws(
+    () => validate(["private/customer-secrets.md"]),
+    (error) => {
+      assert.match(error.message, /unexpected source path/u)
+      assert.doesNotMatch(error.message, /private|customer-secrets/u)
+      return true
+    },
+  )
 })
 
 test("snapshot artifact validation rejects checksum mismatch", async () => {

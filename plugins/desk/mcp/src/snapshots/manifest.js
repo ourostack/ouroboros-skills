@@ -194,11 +194,18 @@ function assertSourcePaths(sourcePaths) {
     if (typeof sourcePath !== "string" || sourcePath.trim() === "") {
       throw new Error("snapshot manifest source_paths must be strings")
     }
+    const segments = sourcePath.split(/[\\/]+/u)
     if (path.isAbsolute(sourcePath)) {
       throw new Error("snapshot manifest must not include absolute source path")
     }
     if (
-      sourcePath.split(/[\\/]+/u).some((segment) => segment === "..")
+      sourcePath.includes("\\") ||
+      segments.some((segment) => /^[a-z]:$/iu.test(segment))
+    ) {
+      throw new Error("snapshot manifest source path must be a normalized repo path")
+    }
+    if (
+      segments.some((segment) => segment === "..")
     ) {
       throw new Error("snapshot manifest source path traversal is not allowed")
     }
@@ -207,7 +214,7 @@ function assertSourcePaths(sourcePaths) {
       ALLOWED_SOURCE_FILES.includes(normalized) ||
       ALLOWED_SOURCE_PREFIXES.some((prefix) => normalized.startsWith(prefix))
     if (!allowed) {
-      throw new Error(`snapshot manifest unexpected source path ${sourcePath}`)
+      throw new Error("snapshot manifest unexpected source path")
     }
   }
 }
@@ -228,7 +235,8 @@ function assertSha(value, label) {
 }
 
 function assertIsoTimestamp(value, label) {
-  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+  const parsed = typeof value === "string" ? new Date(value) : null
+  if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString() !== value) {
     throw new Error(`snapshot manifest ${label} must be an ISO timestamp`)
   }
 }
