@@ -546,6 +546,22 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const setsUpWorkSuite = clone(currentOuroborosStdioPackagingInput())
+  setsUpWorkSuite.genericStdioReadmeSection +=
+    "\nGeneric stdio sets up Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(setsUpWorkSuite),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const shipsWorkerActivation = clone(currentOuroborosStdioPackagingInput())
+  shipsWorkerActivation.genericStdioReadmeSection +=
+    "\nGeneric stdio ships worker activation automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(shipsWorkerActivation),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
   const mixedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
   mixedWorkerClaim.genericStdioReadmeSection +=
     "\nGeneric stdio does not activate worker automatically, but generic stdio loads the default agent.\n"
@@ -927,6 +943,32 @@ test("generic stdio packaging validation rejects fallback dependency support dri
     [
       "Generic stdio fallback must not claim plugin dependency resolution",
       "Generic stdio evidence fallback must not claim plugin dependency resolution",
+    ],
+  )
+})
+
+test("generic stdio packaging validation rejects fallback worker activation drift", () => {
+  const fallbackWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  findByField(
+    fallbackWorkerClaim.activationManifest.host_support,
+    "host",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but starts worker activation automatically"
+  findByField(
+    fallbackWorkerClaim.evidenceRows,
+    "host_id",
+    "generic-stdio",
+    "test input",
+  ).fallback_behavior =
+    "explicit --root or DESK, no worker activation, but starts worker activation automatically"
+
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(fallbackWorkerClaim),
+    [
+      "Generic stdio fallback must not claim worker activation",
+      "Generic stdio evidence fallback must not claim worker activation",
     ],
   )
 })
