@@ -2,38 +2,38 @@ TAP version 13
 # Subtest: desk_similar — happy path returns docs near the seed centroid
 ok 1 - desk_similar — happy path returns docs near the seed centroid
   ---
-  duration_ms: 155.206958
+  duration_ms: 87.434166
   type: 'test'
   ...
 # Subtest: desk_similar — nonexistent path → not_found error
 ok 2 - desk_similar — nonexistent path → not_found error
   ---
-  duration_ms: 84.752792
+  duration_ms: 52.26525
   type: 'test'
   ...
 # Subtest: desk_similar — missing path arg → invalid_input error
 ok 3 - desk_similar — missing path arg → invalid_input error
   ---
-  duration_ms: 8.808625
+  duration_ms: 5.679833
   type: 'test'
   ...
 # [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
 # Subtest: desk_similar — seed without embeddings returns semantic_unavailable
 ok 4 - desk_similar — seed without embeddings returns semantic_unavailable
   ---
-  duration_ms: 16.715542
+  duration_ms: 14.7405
   type: 'test'
   ...
 # Subtest: desk_similar — dedupes by doc_id (one entry per similar doc)
 ok 5 - desk_similar — dedupes by doc_id (one entry per similar doc)
   ---
-  duration_ms: 56.809667
+  duration_ms: 47.574667
   type: 'test'
   ...
 # Subtest: desk_similar — scope can restrict archived neighbours
 ok 6 - desk_similar — scope can restrict archived neighbours
   ---
-  duration_ms: 49.403666
+  duration_ms: 71.222166
   type: 'test'
   ...
 1..6
@@ -44,4 +44,4 @@ ok 6 - desk_similar — scope can restrict archived neighbours
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 522.279958
+# duration_ms 423.02625

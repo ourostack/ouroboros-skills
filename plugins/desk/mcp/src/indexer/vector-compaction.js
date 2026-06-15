@@ -63,7 +63,7 @@ export function validateCompactionPreservation({ before, after } = {}) {
   }
 
   for (const scope of SEARCH_SCOPES) {
-    assertStringListEqual(
+    assertSearchRowsEqual(
       before.search?.[scope],
       after.search?.[scope],
       `${scope} search scope changed`,
@@ -107,9 +107,9 @@ function vectorsEqual(left, right) {
   return true
 }
 
-function assertStringListEqual(left, right, message) {
-  const leftList = normalizeStringList(left)
-  const rightList = normalizeStringList(right)
+function assertSearchRowsEqual(left, right, message) {
+  const leftList = normalizeSearchRows(left)
+  const rightList = normalizeSearchRows(right)
   if (leftList.length !== rightList.length) {
     throw new Error(message)
   }
@@ -120,8 +120,30 @@ function assertStringListEqual(left, right, message) {
   }
 }
 
-function normalizeStringList(value) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : []
+function normalizeSearchRows(value) {
+  return Array.isArray(value) ? value.map(canonicalSearchRow) : []
+}
+
+function canonicalSearchRow(value) {
+  if (typeof value === "string") {
+    return `string:${JSON.stringify(value)}`
+  }
+  return `json:${stableStringify(value)}`
+}
+
+function stableStringify(value) {
+  return JSON.stringify(stableValue(value))
+}
+
+function stableValue(value) {
+  if (!value || typeof value !== "object") return value
+  if (Array.isArray(value)) return value.map(stableValue)
+
+  const sorted = {}
+  for (const key of Object.keys(value).sort()) {
+    sorted[key] = stableValue(value[key])
+  }
+  return sorted
 }
 
 function assertRefRowsEqual(left, right) {

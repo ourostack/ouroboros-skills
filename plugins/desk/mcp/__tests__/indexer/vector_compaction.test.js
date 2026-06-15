@@ -313,6 +313,83 @@ test("validateCompactionPreservation compares search scopes and refs graph snaps
   )
 })
 
+test("validateCompactionPreservation compares object search result rows by content", async () => {
+  const { validateCompactionPreservation } = await loadCompactionModule()
+  const before = {
+    search: {
+      active: [
+        {
+          path: "trackA/task-active/task.md",
+          kind: "task",
+          track: "trackA",
+          task_slug: "task-active",
+          status: "processing",
+          updated_at: "2026-05-01",
+          snippet: "alpha active content",
+          score: 0.91,
+          score_breakdown: {
+            bm25: 0.8,
+            pin: false,
+            recency: 0.4,
+            semantic: 0.9,
+            state: 0.5,
+          },
+          matched_terms: ["alpha", "active"],
+        },
+      ],
+      archived: [],
+      all: [],
+    },
+    refs_graph: [],
+  }
+
+  const reorderedEquivalent = {
+    search: {
+      active: [
+        {
+          score_breakdown: {
+            state: 0.5,
+            semantic: 0.9,
+            recency: 0.4,
+            pin: false,
+            bm25: 0.8,
+          },
+          matched_terms: ["alpha", "active"],
+          score: 0.91,
+          snippet: "alpha active content",
+          updated_at: "2026-05-01",
+          status: "processing",
+          task_slug: "task-active",
+          track: "trackA",
+          kind: "task",
+          path: "trackA/task-active/task.md",
+        },
+      ],
+      archived: [],
+      all: [],
+    },
+    refs_graph: [],
+  }
+  assert.deepEqual(
+    validateCompactionPreservation({ before, after: reorderedEquivalent }),
+    { search_preserved: true, refs_preserved: true },
+  )
+
+  const mutatedObjectRow = clone(before)
+  mutatedObjectRow.search.active = [
+    {
+      ...mutatedObjectRow.search.active[0],
+      path: "trackA/task-other/task.md",
+      status: "done",
+      snippet: "changed active content",
+    },
+  ]
+  assert.throws(
+    () => validateCompactionPreservation({ before, after: mutatedObjectRow }),
+    /active search scope changed/u,
+  )
+})
+
 test("validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays", async () => {
   const { validateCompactionPreservation } = await loadCompactionModule()
   assert.throws(

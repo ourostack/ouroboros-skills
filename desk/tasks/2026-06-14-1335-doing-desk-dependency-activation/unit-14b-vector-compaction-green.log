@@ -2,57 +2,63 @@ TAP version 13
 # Subtest: validateVectorPackCompaction accepts semantically equivalent duplicate merge
 ok 1 - validateVectorPackCompaction accepts semantically equivalent duplicate merge
   ---
-  duration_ms: 3.181166
+  duration_ms: 2.574792
   type: 'test'
   ...
 # Subtest: validateVectorPackCompaction rejects missing rows and mutated vectors
 ok 2 - validateVectorPackCompaction rejects missing rows and mutated vectors
   ---
-  duration_ms: 1.068333
+  duration_ms: 0.752792
   type: 'test'
   ...
 # Subtest: validateVectorPackCompaction rejects invalid inputs and row metadata drift
 ok 3 - validateVectorPackCompaction rejects invalid inputs and row metadata drift
   ---
-  duration_ms: 0.718917
+  duration_ms: 0.63575
   type: 'test'
   ...
 # Subtest: validateVectorPackCompaction rejects conflicting source duplicates
 ok 4 - validateVectorPackCompaction rejects conflicting source duplicates
   ---
-  duration_ms: 0.243583
+  duration_ms: 0.221
   type: 'test'
   ...
 # Subtest: validateCompactionPreservation compares search scopes and refs graph snapshots
 ok 5 - validateCompactionPreservation compares search scopes and refs graph snapshots
   ---
-  duration_ms: 0.978333
+  duration_ms: 1.037333
+  type: 'test'
+  ...
+# Subtest: validateCompactionPreservation compares object search result rows by content
+ok 6 - validateCompactionPreservation compares object search result rows by content
+  ---
+  duration_ms: 0.204167
   type: 'test'
   ...
 # Subtest: validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
-ok 6 - validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
+ok 7 - validateCompactionPreservation rejects missing snapshots and tolerates absent optional arrays
   ---
-  duration_ms: 0.238542
+  duration_ms: 0.175709
   type: 'test'
   ...
 # Subtest: desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
-ok 7 - desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+ok 8 - desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
   ---
-  duration_ms: 151.005333
+  duration_ms: 61.08175
   type: 'test'
   ...
 # Subtest: desk_timeline exposes temporal, hybrid, and lexical search_mode variants
-ok 8 - desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+ok 9 - desk_timeline exposes temporal, hybrid, and lexical search_mode variants
   ---
-  duration_ms: 103.55125
+  duration_ms: 40.754
   type: 'test'
   ...
-1..8
-# tests 8
+1..9
+# tests 9
 # suites 0
-# pass 8
+# pass 9
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 412.375666
+# duration_ms 225.192625

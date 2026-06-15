@@ -2,73 +2,73 @@ TAP version 13
 # Subtest: desk_timeline — without query: chronological listing within window
 ok 1 - desk_timeline — without query: chronological listing within window
   ---
-  duration_ms: 147.87975
+  duration_ms: 75.708083
   type: 'test'
   ...
 # Subtest: desk_timeline — with query: hybrid ranking inside the window
 ok 2 - desk_timeline — with query: hybrid ranking inside the window
   ---
-  duration_ms: 88.874667
+  duration_ms: 55.925666
   type: 'test'
   ...
 # Subtest: desk_timeline — default embed options use global fetch
 ok 3 - desk_timeline — default embed options use global fetch
   ---
-  duration_ms: 71.121209
+  duration_ms: 53.683125
   type: 'test'
   ...
 # Subtest: desk_timeline — single-character query uses semantic candidates without FTS
 ok 4 - desk_timeline — single-character query uses semantic candidates without FTS
   ---
-  duration_ms: 53.729958
+  duration_ms: 81.712917
   type: 'test'
   ...
 # Subtest: desk_timeline — query window skips semantic candidates outside bounds
 ok 5 - desk_timeline — query window skips semantic candidates outside bounds
   ---
-  duration_ms: 51.860083
+  duration_ms: 45.045333
   type: 'test'
   ...
 # Subtest: desk_timeline — scope can restrict archived entries
 ok 6 - desk_timeline — scope can restrict archived entries
   ---
-  duration_ms: 64.254709
+  duration_ms: 44.384042
   type: 'test'
   ...
 # Subtest: desk_timeline — `from` alone is honoured
 ok 7 - desk_timeline — `from` alone is honoured
   ---
-  duration_ms: 34.291208
+  duration_ms: 77.108917
   type: 'test'
   ...
 # Subtest: desk_timeline — `to` alone is honoured
 ok 8 - desk_timeline — `to` alone is honoured
   ---
-  duration_ms: 31.84975
+  duration_ms: 34.493834
   type: 'test'
   ...
 # Subtest: desk_timeline — no window args lists everything (recency-ordered)
 ok 9 - desk_timeline — no window args lists everything (recency-ordered)
   ---
-  duration_ms: 34.107667
+  duration_ms: 32.379875
   type: 'test'
   ...
 # Subtest: desk_timeline — no-query snippets trim long first chunks
 ok 10 - desk_timeline — no-query snippets trim long first chunks
   ---
-  duration_ms: 31.130291
+  duration_ms: 30.842542
   type: 'test'
   ...
 # Subtest: desk_timeline — no-query path tolerates empty docs and missing timestamps
 ok 11 - desk_timeline — no-query path tolerates empty docs and missing timestamps
   ---
-  duration_ms: 30.396083
+  duration_ms: 38.388625
   type: 'test'
   ...
 # Subtest: desk_timeline — limit clamped to [1, 50]
 ok 12 - desk_timeline — limit clamped to [1, 50]
   ---
-  duration_ms: 24.970542
+  duration_ms: 32.958292
   type: 'test'
   ...
 1..12
@@ -79,4 +79,4 @@ ok 12 - desk_timeline — limit clamped to [1, 50]
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 807.460292
+# duration_ms 736.355667
