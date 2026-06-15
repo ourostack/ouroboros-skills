@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "default_publication": "deny",
+  "repo_visibility": "public",
+  "sensitive_repo": true,
+  "approved_artifact_types": [],
+  "approval_required": true,
+  "approvals": [],
+  "updated_at": "2026-06-15T00:00:00.000Z"
+}

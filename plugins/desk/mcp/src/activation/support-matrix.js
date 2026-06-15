@@ -1,4 +1,5 @@
 import {
+  renameSync,
   readFileSync,
   writeFileSync,
 } from "node:fs"
@@ -141,7 +142,7 @@ export function generateSupportMatrixArtifact() {
       hostCapabilityEvidence: defaultEvidencePath,
     },
   })
-  writeFileSync(repoPath(defaultOutputPath), `${JSON.stringify(matrix, null, 2)}\n`, "utf8")
+  writeJsonArtifactAtomic(defaultOutputPath, matrix)
   return {
     outputPath: defaultOutputPath,
     matrix,
@@ -174,6 +175,13 @@ function readJson(relativePath) {
 
 function readText(relativePath) {
   return readFileSync(repoPath(relativePath), "utf8")
+}
+
+function writeJsonArtifactAtomic(relativePath, value) {
+  const outputPath = repoPath(relativePath)
+  const tempPath = `${outputPath}.${process.pid}.tmp`
+  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8")
+  renameSync(tempPath, outputPath)
 }
 
 function repoPath(relativePath) {

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ourostack.local/schemas/desk/publication-policy.schema.json",
+  "title": "Desk Artifact Publication Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "default_publication",
+    "repo_visibility",
+    "sensitive_repo",
+    "approved_artifact_types",
+    "approval_required",
+    "approvals",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "default_publication": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny"
+      ]
+    },
+    "repo_visibility": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "private",
+        "public",
+        "unknown"
+      ]
+    },
+    "sensitive_repo": {
+      "type": "boolean"
+    },
+    "approved_artifact_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "snapshot",
+          "vector-pack"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "approval_required": {
+      "type": "boolean"
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "artifact_type",
+          "approved_by",
+          "approved_at",
+          "reason"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "org",
+              "repo"
+            ]
+          },
+          "artifact_type": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "vector-pack"
+            ]
+          },
+          "approved_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

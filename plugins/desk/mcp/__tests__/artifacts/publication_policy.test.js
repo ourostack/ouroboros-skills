@@ -246,7 +246,10 @@ test("publication policy denies public and sensitive repo artifact publication w
 })
 
 test("publication policy accepts explicit repo and organization approvals for allowed artifact types", async () => {
-  const { evaluateArtifactPublication } = await loadPolicyModule()
+  const {
+    assertArtifactPublicationAllowed,
+    evaluateArtifactPublication,
+  } = await loadPolicyModule()
   const policy = validPolicy({
     repo_visibility: "public",
     sensitive_repo: true,
@@ -282,6 +285,20 @@ test("publication policy accepts explicit repo and organization approvals for al
   assert.equal(
     evaluateArtifactPublication({ policy, artifact_type: "runtime-deps", operation: "write" }).reason,
     "artifact_type_not_approved",
+  )
+  assert.deepEqual(
+    await assertArtifactPublicationAllowed({
+      policy,
+      artifact_type: "vector-pack",
+      operation: "write",
+      relative_path: "plugins/desk/artifacts/vector-packs/spec/desk-base.jsonl",
+    }),
+    {
+      allowed: true,
+      reason: "approved",
+      approval_scope: "repo",
+      approval_actor: "unit-test-reviewer",
+    },
   )
 })
 

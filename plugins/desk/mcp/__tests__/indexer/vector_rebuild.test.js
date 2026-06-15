@@ -252,6 +252,25 @@ test("rebuildIndex reports validated vector packs when no rows match local chunk
   }
 })
 
+test("rebuildIndex reports absent vector packs when configured packs are missing", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  await writeFile(
+    deskRoot,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\n---\nmissing pack body",
+  )
+
+  const summary = await rebuildIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    skipEmbed: true,
+  })
+
+  assert.equal(summary.vector_packs.import_state, "absent")
+  assert.equal(summary.vector_packs.packs_imported, 0)
+  assert.equal(summary.vector_packs.rows_imported, 0)
+})
+
 test("rebuildIndex rejects immediately when startup abort signal is already tripped", async () => {
   const deskRoot = await tmpRoot()
   const controller = new AbortController()
