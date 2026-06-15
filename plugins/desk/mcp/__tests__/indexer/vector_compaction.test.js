@@ -89,6 +89,7 @@ test("validateVectorPackCompaction rejects missing rows and mutated vectors", as
   const { validateVectorPackCompaction } = await loadCompactionModule()
   const rowA = row({ key: "a", hash: "1", seed: 1 })
   const rowB = row({ key: "b", hash: "2", seed: 2 })
+  const rowC = row({ key: "c", hash: "3", seed: 3 })
   const mutatedVector = { ...rowB, vector: vector(99) }
   const mutatedHash = { ...rowB, text_hash: `sha256:${"3".repeat(64)}` }
 
@@ -113,21 +114,42 @@ test("validateVectorPackCompaction rejects missing rows and mutated vectors", as
     }),
     /text_hash mismatch.*ck_b/u,
   )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source", [rowA, rowB])],
+      compactedPack: pack("extra-row", [rowA, rowB, rowC]),
+    }),
+    /unexpected compacted row.*ck_c/u,
+  )
 })
 
 test("validateVectorPackCompaction rejects conflicting source duplicates", async () => {
   const { validateVectorPackCompaction } = await loadCompactionModule()
   const rowA = row({ key: "a", hash: "1", seed: 1 })
-  const conflictingA = {
+  const conflictingHashA = {
     ...rowA,
     text_hash: `sha256:${"9".repeat(64)}`,
+  }
+  const conflictingVectorA = {
+    ...rowA,
+    vector: vector(99),
   }
 
   assert.throws(
     () => validateVectorPackCompaction({
       sourcePacks: [
         pack("pack-a", [rowA]),
-        pack("pack-b", [conflictingA]),
+        pack("pack-b", [conflictingHashA]),
+      ],
+      compactedPack: pack("compacted", [rowA]),
+    }),
+    /conflicting duplicate chunk_key.*ck_a/u,
+  )
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [
+        pack("pack-a", [rowA]),
+        pack("pack-b", [conflictingVectorA]),
       ],
       compactedPack: pack("compacted", [rowA]),
     }),
@@ -164,10 +186,37 @@ test("validateCompactionPreservation compares search scopes and refs graph snaps
     /archived search scope changed/u,
   )
 
+  const changedActive = clone(before)
+  changedActive.search.active = ["trackA/task-other/task.md"]
+  assert.throws(
+    () => validateCompactionPreservation({ before, after: changedActive }),
+    /active search scope changed/u,
+  )
+
+  const extraAll = clone(before)
+  extraAll.search.all.push("trackZ/injected/task.md")
+  assert.throws(
+    () => validateCompactionPreservation({ before, after: extraAll }),
+    /all search scope changed/u,
+  )
+
   const missingRef = clone(before)
   missingRef.refs_graph = []
   assert.throws(
     () => validateCompactionPreservation({ before, after: missingRef }),
+    /refs_graph changed/u,
+  )
+
+  const mutatedRef = clone(before)
+  mutatedRef.refs_graph = [
+    {
+      from: "trackA/task-active/task.md",
+      to: "trackA/task-active/doing.md",
+      ref_kind: "doing_of",
+    },
+  ]
+  assert.throws(
+    () => validateCompactionPreservation({ before, after: mutatedRef }),
     /refs_graph changed/u,
   )
 })
