@@ -315,6 +315,50 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
     validateOuroborosStdioPackagingContract(missingBundleSource),
     ["Ouroboros evidence must reference bundle metadata sources"],
   )
+
+  const malformedBundleWithProse = clone(currentOuroborosStdioPackagingInput())
+  malformedBundleWithProse.ouroborosReadmeSection =
+    malformedBundleWithProse.ouroborosReadmeSection.replace(
+      /```json[\s\S]*?```/u,
+      [
+        "```json",
+        "{",
+        "  \"plugins\": [",
+        "    \"notes\",",
+        "    \"work-suite\"",
+        "  ]",
+        "}",
+        "```",
+        "",
+        "The word \"desk\" appears in prose but not in bundle metadata.",
+      ].join("\n"),
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(malformedBundleWithProse),
+    ["Ouroboros bundle metadata must include desk plugin"],
+  )
+
+  const malformedWorkSuiteBundleWithProse = clone(currentOuroborosStdioPackagingInput())
+  malformedWorkSuiteBundleWithProse.ouroborosReadmeSection =
+    malformedWorkSuiteBundleWithProse.ouroborosReadmeSection.replace(
+      /```json[\s\S]*?```/u,
+      [
+        "```json",
+        "{",
+        "  \"plugins\": [",
+        "    \"desk\",",
+        "    \"workflow\"",
+        "  ]",
+        "}",
+        "```",
+        "",
+        "The word \"work-suite\" appears in prose but not in bundle metadata.",
+      ].join("\n"),
+    )
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(malformedWorkSuiteBundleWithProse),
+    ["Ouroboros bundle metadata must include work-suite plugin"],
+  )
 })
 
 test("Ouroboros packaging validation rejects host-support drift and manual installs", () => {
@@ -372,6 +416,22 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(workerClaim),
     ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const equivalentWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  equivalentWorkerClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio starts desk:worker automatically and loads the agent defaults.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(equivalentWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const equivalentDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  equivalentDependencyClaim.genericStdioReadmeSection +=
+    "\nGeneric stdio resolves plugin dependencies and loads Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(equivalentDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 })
 
@@ -489,6 +549,7 @@ test("Ouroboros/generic stdio packaging validation reports missing rows without 
       "Generic stdio launch docs must pass an explicit --root",
       "Generic stdio launch docs must bind $DESK before invoking node",
       "Generic stdio docs must state MCP-only behavior",
+      "Generic stdio docs must state no worker activation",
     ],
   )
 
@@ -511,6 +572,7 @@ test("Ouroboros/generic stdio packaging validation reports missing rows without 
       "Generic stdio launch docs must pass an explicit --root",
       "Generic stdio launch docs must bind $DESK before invoking node",
       "Generic stdio docs must state MCP-only behavior",
+      "Generic stdio docs must state no worker activation",
     ],
   )
 
