@@ -55,7 +55,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
       reembedMissing: repairMissing,
     })
     const semanticAfter = getSemanticCoverage(db)
-    if (repairMissing) semanticAfter.embedding_available = true
+    assignEmbeddingAvailability(semanticAfter, semanticBefore, summary)
     return {
       built: true,
       reason: dbExisted ? "stale" : "missing",
@@ -110,6 +110,22 @@ async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
     built: true,
     reason: "semantic_missing",
     summary,
-    semantic: { ...getSemanticCoverage(db), embedding_available: true },
+    semantic: assignEmbeddingAvailability(
+      getSemanticCoverage(db),
+      semantic,
+      summary,
+    ),
   }
+}
+
+function assignEmbeddingAvailability(target, source, summary) {
+  if (summary.semantic_warnings > 0) {
+    target.embedding_available = false
+  } else if (source.embedding_available === true) {
+    target.embedding_available = true
+  }
+  if (source.embedding_diagnostic) {
+    target.embedding_diagnostic = source.embedding_diagnostic
+  }
+  return target
 }
