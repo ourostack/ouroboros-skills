@@ -139,7 +139,28 @@ test("reembedMissing treats vectors from inactive embedding specs as missing", a
   try {
     const vecCount = db.prepare("SELECT count(*) AS c FROM chunk_vecs").get().c
     assert.ok(vecCount > 0, "expected initial vector rows")
-    setMeta(db, "active_embedding_spec_id", "inactive-spec-for-red-test")
+    const activeSpecId = getMeta(db, "active_embedding_spec_id")
+    assert.ok(activeSpecId, "missing active_embedding_spec_id meta")
+    const inactiveSpecId = "inactive-spec-for-red-test"
+    assert.notEqual(activeSpecId, inactiveSpecId)
+    db.prepare(
+      `INSERT INTO embedding_specs
+        (id, model, model_revision, dimension, chunker_id, normalization_id, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    ).run(
+      inactiveSpecId,
+      "nomic-embed-text",
+      "nomic-embed-text-v1.4",
+      768,
+      "desk-md-h2-paragraph-v0",
+      "unicode-whitespace-v0",
+    )
+    db.prepare(
+      `UPDATE chunks
+       SET embedding_spec_id = ?,
+           chunker_id = 'desk-md-h2-paragraph-v0',
+           normalization_id = 'unicode-whitespace-v0'`,
+    ).run(inactiveSpecId)
   } finally {
     closeDb(db)
   }
