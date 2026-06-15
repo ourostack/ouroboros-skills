@@ -1,0 +1,260 @@
+// Unit 16a: red contract for selecting and restoring committed snapshots.
+
+import { test } from "node:test"
+import { strict as assert } from "node:assert"
+import { createHash } from "node:crypto"
+import { promises as fs } from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
+import { zstdCompressSync } from "node:zlib"
+
+import { indexDbPath } from "../../src/db/init.js"
+import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
+
+const mcpRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
+const SOURCE_SCOPE_HASH = `sha256:${"a".repeat(64)}`
+const DOCUMENT_TREE_HASH = `sha256:${"b".repeat(64)}`
+const DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
+const SQLITE_VEC = { package: "sqlite-vec", version: "0.1.6", table: "vec0" }
+const RUNTIME = { platform: "darwin", arch: "arm64", node_abi: "node-127" }
+
+async function loadRestoreModule() {
+  return import(pathToFileURL(path.join(mcpRoot, "src", "snapshots", "restore.js")))
+}
+
+async function tmpRoot(prefix) {
+  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex")
+}
+
+function expectedContext(overrides = {}) {
+  return {
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    expectedDbSchema: DB_SCHEMA,
+    expectedSqliteVec: SQLITE_VEC,
+    expectedRuntime: RUNTIME,
+    expectedArtifactSourceScopeHash: SOURCE_SCOPE_HASH,
+    expectedDocumentTreeHash: DOCUMENT_TREE_HASH,
+    ...overrides,
+  }
+}
+
+function validManifest({
+  artifactSha,
+  snapshotId,
+  createdAt,
+  embeddingSpecId = ACTIVE_EMBEDDING_SPEC.id,
+  dimension = ACTIVE_EMBEDDING_SPEC.dimension,
+} = {}) {
+  return {
+    schema_version: 1,
+    snapshot_id: snapshotId,
+    embedding_spec_id: embeddingSpecId,
+    dimension,
+    chunker_id: ACTIVE_EMBEDDING_SPEC.chunker_id,
+    normalization_id: ACTIVE_EMBEDDING_SPEC.normalization_id,
+    db_schema: DB_SCHEMA,
+    sqlite_vec: SQLITE_VEC,
+    runtime: RUNTIME,
+    artifact_source_scope_hash: SOURCE_SCOPE_HASH,
+    document_tree_hash: DOCUMENT_TREE_HASH,
+    included_pack_ids: ["desk-base-pack"],
+    created_at: createdAt,
+    artifact: {
+      file: `${snapshotId}.sqlite.zst`,
+      format: "sqlite-zstd",
+      sha256: artifactSha,
+      compressed: true,
+    },
+    provenance: {
+      builder: "plugins/desk/mcp/scripts/build-snapshot.js",
+      source: "unit-test",
+      commit: "0123456789abcdef0123456789abcdef01234567",
+    },
+    source_paths: [
+      "plugins/desk/mcp/src/snapshots/restore.js",
+      "plugins/desk/mcp/src/db/schema.sql",
+      "plugins/desk/mcp/package-lock.json",
+    ],
+  }
+}
+
+async function writeSnapshot({
+  pluginRoot,
+  snapshotId,
+  createdAt,
+  sqliteBytes = Buffer.from(`sqlite:${snapshotId}`, "utf8"),
+  embeddingSpecId = ACTIVE_EMBEDDING_SPEC.id,
+  manifest = {},
+} = {}) {
+  const snapshotDir = path.join(
+    pluginRoot,
+    "artifacts",
+    "snapshots",
+    embeddingSpecId,
+  )
+  await fs.mkdir(snapshotDir, { recursive: true })
+  const snapshotPath = path.join(snapshotDir, `${snapshotId}.sqlite.zst`)
+  const manifestPath = path.join(snapshotDir, `${snapshotId}.manifest.json`)
+  const checksumPath = path.join(snapshotDir, `${snapshotId}.sha256`)
+  const artifactBytes = zstdCompressSync(sqliteBytes)
+  const artifactSha = `sha256:${sha256(artifactBytes)}`
+  const snapshotManifest = {
+    ...validManifest({
+      artifactSha,
+      snapshotId,
+      createdAt,
+      embeddingSpecId,
+      dimension:
+        embeddingSpecId === ACTIVE_EMBEDDING_SPEC.id
+          ? ACTIVE_EMBEDDING_SPEC.dimension
+          : 384,
+    }),
+    ...manifest,
+  }
+
+  await fs.writeFile(snapshotPath, artifactBytes)
+  await fs.writeFile(manifestPath, `${JSON.stringify(snapshotManifest, null, 2)}\n`, "utf8")
+  await fs.writeFile(checksumPath, `${artifactSha}  ${snapshotId}.sqlite.zst\n`, "utf8")
+
+  return {
+    snapshotDir,
+    snapshotPath,
+    manifestPath,
+    checksumPath,
+    sqliteBytes,
+    artifactBytes,
+    manifest: snapshotManifest,
+  }
+}
+
+async function fingerprint(paths) {
+  const entries = []
+  for (const targetPath of paths) {
+    const stat = await fs.stat(targetPath)
+    const bytes = await fs.readFile(targetPath)
+    entries.push({
+      path: targetPath,
+      mode: stat.mode & 0o777,
+      size: stat.size,
+      sha256: sha256(bytes),
+    })
+  }
+  return entries
+}
+
+test("selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs", async () => {
+  const { discoverSnapshotArtifacts, selectNewestCompatibleSnapshot } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-older",
+    createdAt: "2026-06-15T00:00:00.000Z",
+  })
+  await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-newer",
+    createdAt: "2026-06-15T01:00:00.000Z",
+  })
+  await writeSnapshot({
+    pluginRoot,
+    snapshotId: "inactive-newest",
+    createdAt: "2026-06-15T02:00:00.000Z",
+    embeddingSpecId: "inactive-spec-v1",
+  })
+
+  const discovered = await discoverSnapshotArtifacts({
+    pluginRoot,
+    ...expectedContext(),
+  })
+  const selected = selectNewestCompatibleSnapshot(discovered)
+
+  assert.deepEqual(
+    discovered.compatible.map((candidate) => candidate.snapshot_id),
+    ["active-older", "active-newer"],
+  )
+  assert.deepEqual(
+    discovered.ignored.map((candidate) => candidate.reason),
+    ["inactive_embedding_spec"],
+  )
+  assert.equal(selected.snapshot_id, "active-newer")
+  assert.equal(selected.manifest.created_at, "2026-06-15T01:00:00.000Z")
+})
+
+test("restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+  const older = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-older",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("older sqlite bytes", "utf8"),
+  })
+  const newer = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-newer",
+    createdAt: "2026-06-15T01:00:00.000Z",
+    sqliteBytes: Buffer.from("newer sqlite bytes", "utf8"),
+  })
+  const repoArtifactPaths = [
+    older.snapshotPath,
+    older.manifestPath,
+    older.checksumPath,
+    newer.snapshotPath,
+    newer.manifestPath,
+    newer.checksumPath,
+  ]
+  await Promise.all(repoArtifactPaths.map((targetPath) => fs.chmod(targetPath, 0o444)))
+  const before = await fingerprint(repoArtifactPaths)
+
+  const result = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })
+
+  assert.equal(result.restored, true)
+  assert.equal(result.reason, "snapshot_restored")
+  assert.equal(result.snapshot_id, "active-newer")
+  assert.equal(result.state_db_path, indexDbPath(deskRoot))
+  assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), newer.sqliteBytes)
+  assert.deepEqual(await fingerprint(repoArtifactPaths), before)
+})
+
+test("restoreSnapshotToState is idempotent for repeated compatible restores", async () => {
+  const { restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-restore-desk-")
+  const snapshot = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "active-only",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("idempotent sqlite bytes", "utf8"),
+  })
+
+  const first = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })
+  const statePath = indexDbPath(deskRoot)
+  const firstStateStat = await fs.stat(statePath)
+  const second = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })
+  const secondStateStat = await fs.stat(statePath)
+
+  assert.equal(first.restored, true)
+  assert.equal(second.restored, false)
+  assert.equal(second.reason, "snapshot_already_restored")
+  assert.equal(second.snapshot_id, "active-only")
+  assert.equal(secondStateStat.mtimeMs, firstStateStat.mtimeMs)
+  assert.deepEqual(await fs.readFile(statePath), snapshot.sqliteBytes)
+})
