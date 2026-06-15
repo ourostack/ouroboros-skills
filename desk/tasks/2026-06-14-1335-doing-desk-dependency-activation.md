@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [x] All tests pass
+- [ ] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -294,7 +294,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Hardened Copilot/root packaging validation.  
 **Acceptance**: 100% coverage on new Copilot packaging validation code and all Copilot packaging tests pass.
 
-### ⬜ Unit 6a: Ouroboros And Generic Stdio Packaging - Tests
+### ✅ Unit 6a: Ouroboros And Generic Stdio Packaging - Tests
 **What**: Write failing tests for the Ouroboros/autonomous-agent bundle disposition and generic stdio MCP launch disposition. Cover `bundle.json` expectation docs, `$DESK` preamble binding, and flattened or unsupported status.  
 **Output**: `plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js`.  
 **Acceptance**: Tests fail until evidence rows, generated support-matrix output, and docs give explicit dispositions for Ouroboros/autonomous-agent and generic stdio paths.
@@ -794,3 +794,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 20:45 Unit 5c complete: hardened Copilot/root packaging validation in `8f64303` after red checkpoints `83578a7` and `unit-5c-defensive-validator-red.log`; `validateCopilotPackagingContract` now reports missing root surfaces, stale Desk/Work Suite versions, missing Work Suite activation locks, missing/incomplete flattened dependency closure, stale bundle metadata, and missing/wrong `desk:worker` source without crashing; saved `unit-5c-copilot-packaging-green.log`, `unit-5c-test-coverage-green.log`, `unit-5c-npm-test-green.log`, `unit-5c-validate-skills-green.log`, `unit-5c-build-unavailable.log`, and `unit-5c-diff-check-green.log`; verified focused Copilot packaging tests, full Desk MCP tests, 100% coverage for `copilot-bundle.js`, skill validation, expected missing build script disposition, and `git diff --check`
 - 2026-06-14 20:52 Unit 5c reviewer fix: Descartes found a MAJOR fail-closed gap where malformed Copilot packaging inputs could still throw; `ea4711b` added regression coverage for missing `activation.dependencies`, missing `bundle`, missing `workSuitePlugin`, and malformed closure entries, normalized nested validator inputs, and saved `unit-5c-review-fix-red.log`, `unit-5c-review-fix-green.log`, `unit-5c-review-fix-coverage-green.log`, `unit-5c-review-fix-npm-test-green.log`, `unit-5c-review-fix-validate-skills-green.log`, `unit-5c-review-fix-build-unavailable.log`, and `unit-5c-review-fix-diff-check-green.log`
 - 2026-06-14 20:52 Unit 5c Round 2 cold reviewer gate converged; Bohr verified the malformed-input fail-closed finding is closed, original Unit 5c acceptance still holds, coverage/full-suite evidence remains credible, and the expected missing build-script disposition is documented
+- 2026-06-14 20:59 Unit 6a complete: added Ouroboros/autonomous-agent and generic stdio packaging red tests in `38dac70`; targeted red run saved to `unit-6a-ouroboros-stdio-packaging-red.log` and fails because the activation manifest lacks an `ouroboros-autonomous-agent` host-support row, Ouroboros docs do not show a concrete `bundle.json` plugin closure with `$DESK` preamble binding, generic stdio evidence still uses `degraded-manual-host` instead of an MCP-only disposition, and the MCP README lacks a generic stdio launch section; terminal `All tests pass` criterion intentionally unchecked until Unit 6b makes the new tests green
