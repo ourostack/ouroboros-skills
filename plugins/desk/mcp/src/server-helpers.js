@@ -21,6 +21,7 @@ import { ACTIVE_EMBEDDING_SPEC } from "./indexer/spec.js"
  * @param {object} [opts]
  * @param {object} [opts.embed] — forwarded to rebuildIndex (test injection).
  * @param {boolean} [opts.skipEmbed] — skip embedding when (re)building.
+ * @param {object} [opts.vectorPacks] — forwarded to rebuildIndex.
  * @returns {Promise<{ built: boolean, reason: string,
  *                     summary?: import("./indexer/index.js").RebuildSummary,
  *                     semantic?: object }>}
@@ -88,8 +89,9 @@ export function getSemanticCoverage(db) {
 }
 
 async function shouldRepairMissingEmbeddings(opts, semantic) {
-  if (opts.skipEmbed) return false
   if (!semantic || semantic.missing_vectors <= 0) return false
+  if (opts.vectorPacks?.pluginRoot) return true
+  if (opts.skipEmbed) return false
   const probe = await probeEmbeddingService(opts.embed ?? {})
   semantic.embedding_available = probe.available
   semantic.embedding_diagnostic = probe.diagnostic
