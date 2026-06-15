@@ -530,6 +530,22 @@ test("generic stdio packaging validation rejects unsafe or under-specified launc
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
 
+  const handlesDependencyResolution = clone(currentOuroborosStdioPackagingInput())
+  handlesDependencyResolution.genericStdioReadmeSection +=
+    "\nGeneric stdio handles dependency resolution automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(handlesDependencyResolution),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const managesPluginDependencies = clone(currentOuroborosStdioPackagingInput())
+  managesPluginDependencies.genericStdioReadmeSection +=
+    "\nGeneric stdio manages plugin dependencies automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(managesPluginDependencies),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
   const mixedWorkerClaim = clone(currentOuroborosStdioPackagingInput())
   mixedWorkerClaim.genericStdioReadmeSection +=
     "\nGeneric stdio does not activate worker automatically, but generic stdio loads the default agent.\n"
