@@ -52,9 +52,15 @@ export async function validateSnapshotArtifact({
   expectedArtifactSourceScopeHash,
   expectedDocumentTreeHash,
 } = {}) {
-  const label = path.basename(snapshotPath ?? "snapshot")
+  const label =
+    typeof snapshotPath === "string" && snapshotPath.trim() !== ""
+      ? path.basename(snapshotPath)
+      : "snapshot"
   if (typeof snapshotPath !== "string" || snapshotPath.trim() === "") {
     throw new Error(`${label} snapshot path is required`)
+  }
+  if (!snapshotPath.endsWith(".sqlite.zst")) {
+    throw new Error(`${label} snapshot path must end with .sqlite.zst`)
   }
   const resolvedManifestPath = manifestPath ?? sidecarPath(snapshotPath, ".manifest.json")
   const resolvedChecksumPath = checksumPath ?? sidecarPath(snapshotPath, ".sha256")

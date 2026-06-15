@@ -187,6 +187,31 @@ test("valid snapshot artifacts infer sidecars and compare nested manifest metada
   assert.equal(result.compatible, true)
 })
 
+test("valid snapshot artifacts accept raw checksum sidecars", async () => {
+  const { validateSnapshotArtifact } = await loadManifestModule()
+  const pluginRoot = await tmpPluginRoot()
+  const artifactBytes = Buffer.from("raw checksum snapshot", "utf8")
+  const written = await writeSnapshotArtifact({
+    pluginRoot,
+    artifactBytes,
+    checksum: `${sha256(artifactBytes)}  ${SNAPSHOT_ID}.sqlite.zst\n`,
+  })
+
+  const result = await validateSnapshotArtifact({
+    snapshotPath: written.snapshotPath,
+    manifestPath: written.manifestPath,
+    checksumPath: written.checksumPath,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    expectedDbSchema: DB_SCHEMA,
+    expectedSqliteVec: SQLITE_VEC,
+    expectedRuntime: RUNTIME,
+    expectedArtifactSourceScopeHash: SOURCE_SCOPE_HASH,
+    expectedDocumentTreeHash: DOCUMENT_TREE_HASH,
+  })
+
+  assert.equal(result.compatible, true)
+})
+
 test("manifest source/document hash mismatch is freshness, not compatibility failure", async () => {
   const { validateSnapshotManifest } = await loadManifestModule()
   const artifactSha = `sha256:${"d".repeat(64)}`
@@ -225,9 +250,13 @@ test("snapshot manifest rejects compatibility and provenance drift", async () =>
   })
 
   assert.throws(() => validate({ ...base, schema_version: 999 }), /schema_version/u)
+  assert.throws(() => validate({ ...base, schema_version: undefined }), /schema_version/u)
   assert.throws(() => validate({ ...base, snapshot_id: "../escape" }), /snapshot_id/u)
+  assert.throws(() => validate({ ...base, snapshot_id: "" }), /snapshot_id/u)
   assert.throws(() => validate({ ...base, embedding_spec_id: "other-spec" }), /embedding_spec_id/u)
+  assert.throws(() => validate({ ...base, embedding_spec_id: undefined }), /embedding_spec_id/u)
   assert.throws(() => validate({ ...base, dimension: 42 }), /dimension/u)
+  assert.throws(() => validate({ ...base, dimension: String(ACTIVE_EMBEDDING_SPEC.dimension) }), /dimension/u)
   assert.throws(() => validate({ ...base, chunker_id: "other-chunker" }), /chunker_id/u)
   assert.throws(() => validate({ ...base, normalization_id: "other-normalizer" }), /normalization_id/u)
   assert.throws(() => validate({ ...base, db_schema: { ...DB_SCHEMA, version: 999 } }), /DB schema/u)
@@ -264,7 +293,21 @@ test("snapshot manifest rejects compatibility and provenance drift", async () =>
   assert.throws(
     () => validate({
       ...base,
+      artifact: { ...base.artifact, compressed: "true" },
+    }),
+    /artifact format/u,
+  )
+  assert.throws(
+    () => validate({
+      ...base,
       artifact: { ...base.artifact, sha256: `sha256:${"0".repeat(64)}` },
+    }),
+    /artifact sha256/u,
+  )
+  assert.throws(
+    () => validate({
+      ...base,
+      artifact: { ...base.artifact, sha256: 123 },
     }),
     /artifact sha256/u,
   )
@@ -355,10 +398,12 @@ test("snapshot artifact validation preserves non-missing filesystem errors", asy
   const { validateSnapshotArtifact } = await loadManifestModule()
   const pluginRoot = await tmpPluginRoot()
   const written = await writeSnapshotArtifact({ pluginRoot })
+  await fs.rm(written.snapshotPath)
+  await fs.mkdir(written.snapshotPath)
 
   await assert.rejects(
     () => validateSnapshotArtifact({
-      snapshotPath: written.snapshotDir,
+      snapshotPath: written.snapshotPath,
       manifestPath: written.manifestPath,
       checksumPath: written.checksumPath,
       expectedSpec: ACTIVE_EMBEDDING_SPEC,
@@ -398,6 +443,46 @@ test("snapshot artifact validation rejects missing and malformed sidecars", asyn
   await writeSnapshotArtifact({ pluginRoot })
   await fs.writeFile(written.checksumPath, "not-a-checksum\n", "utf8")
   await assert.rejects(validate, /checksum must start with a sha256 digest/u)
+})
+
+test("snapshot artifact validation rejects invalid paths and missing sidecars", async () => {
+  const { validateSnapshotArtifact } = await loadManifestModule()
+  const pluginRoot = await tmpPluginRoot()
+  const written = await writeSnapshotArtifact({ pluginRoot })
+  const validate = (overrides = {}) => validateSnapshotArtifact({
+    snapshotPath: written.snapshotPath,
+    manifestPath: written.manifestPath,
+    checksumPath: written.checksumPath,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    expectedDbSchema: DB_SCHEMA,
+    expectedSqliteVec: SQLITE_VEC,
+    expectedRuntime: RUNTIME,
+    expectedArtifactSourceScopeHash: SOURCE_SCOPE_HASH,
+    expectedDocumentTreeHash: DOCUMENT_TREE_HASH,
+    ...overrides,
+  })
+  const invalidSnapshotPath = path.join(written.snapshotDir, `${SNAPSHOT_ID}.sqlite`)
+
+  await fs.writeFile(invalidSnapshotPath, "not a zstd sqlite artifact", "utf8")
+  await assert.rejects(() => validate({ snapshotPath: 123 }), /snapshot path is required/u)
+  await assert.rejects(
+    () => validate({ snapshotPath: invalidSnapshotPath }),
+    /snapshot path must end with \.sqlite\.zst/u,
+  )
+
+  await fs.rm(written.manifestPath)
+  await assert.rejects(validate, /manifest missing/u)
+
+  const rewritten = await writeSnapshotArtifact({ pluginRoot })
+  await fs.rm(rewritten.checksumPath)
+  await assert.rejects(
+    () => validate({
+      snapshotPath: rewritten.snapshotPath,
+      manifestPath: rewritten.manifestPath,
+      checksumPath: rewritten.checksumPath,
+    }),
+    /checksum missing/u,
+  )
 })
 
 test("snapshot manifest rejects missing expected compatibility context and defensive shapes", async () => {
