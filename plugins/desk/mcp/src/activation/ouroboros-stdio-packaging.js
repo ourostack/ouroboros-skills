@@ -199,7 +199,7 @@ function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
     action: /\b(?:resolves?|resolved|loads?|loaded|includes?|included|installs?|installed|activates?|activated|supports?|supported|provides?|provided|exposes?|exposed|enables?|enabled)\b/u,
-    target: /\b(?:plugin dependencies|plugin dependency resolution|dependency closure|transitive dependencies|work suite)\b/u,
+    target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
   })
 }
 
