@@ -10,7 +10,8 @@
   "main": "./index.js",
   "scripts": {
     "test": "node --test \"__tests__/**/*.test.js\"",
-    "test:coverage": "node scripts/run-coverage.js"
+    "test:coverage": "node scripts/run-coverage.js",
+    "activation:support-matrix:generate": "node scripts/generate-support-matrix.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

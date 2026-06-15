@@ -138,6 +138,99 @@ test("support matrix builder validates manifest host support against evidence", 
   }
 })
 
+test("support matrix validation reports evidence and freshness mismatches", async () => {
+  const {
+    buildSupportMatrix,
+    parseHostCapabilityEvidence,
+    validateSupportMatrix,
+  } = await loadSupportMatrix()
+  const manifest = loadJson(manifestPath)
+  const evidence = parseHostCapabilityEvidence({
+    content: loadText(evidencePath),
+    sourcePath: evidencePath,
+  })
+  const matrix = buildSupportMatrix({
+    manifest,
+    evidence,
+    sources: {
+      activationManifest: manifestPath,
+      hostCapabilityEvidence: evidencePath,
+    },
+  })
+
+  assert.throws(
+    () => parseHostCapabilityEvidence({
+      content: "| wrong |\n| --- |\n| value |\n",
+      sourcePath: "bad-evidence.md",
+    }),
+    /invalid columns: bad-evidence\.md/u,
+  )
+  assert.throws(
+    () => parseHostCapabilityEvidence({
+      content: `| wrong | ${requiredColumns.slice(1).join(" | ")} |\n| ${requiredColumns.map(() => "---").join(" | ")} |\n`,
+      sourcePath: "wrong-header.md",
+    }),
+    /invalid columns: wrong-header\.md/u,
+  )
+
+  const sparseEvidence = parseHostCapabilityEvidence({
+    content: `| ${requiredColumns.join(" | ")} |\n| ${requiredColumns.map(() => "---").join(" | ")} |\n| sparse-host |\n`,
+    sourcePath: "sparse-evidence.md",
+  })
+  assert.equal(sparseEvidence.hosts[0].fallback_behavior, "")
+
+  const missingCodexEvidence = {
+    ...evidence,
+    hosts: evidence.hosts.filter((row) => row.host_id !== "codex"),
+  }
+  assert.deepEqual(
+    validateSupportMatrix({ matrix, manifest, evidence: missingCodexEvidence }),
+    [
+      "missing evidence row for host codex",
+      "support matrix host rows must match evidence rows",
+    ],
+  )
+
+  const fallbackMismatchEvidence = {
+    ...evidence,
+    hosts: evidence.hosts.map((row) => row.host_id === "codex"
+      ? { ...row, fallback_behavior: "wrong fallback" }
+      : row),
+  }
+  assert.deepEqual(
+    validateSupportMatrix({ matrix, manifest, evidence: fallbackMismatchEvidence }),
+    ["fallback_behavior mismatch for host codex"],
+  )
+
+  assert.deepEqual(
+    validateSupportMatrix({
+      matrix: {
+        ...matrix,
+        schema_version: 999,
+        hosts: matrix.hosts.slice(1),
+      },
+      manifest,
+      evidence,
+    }),
+    [
+      "support matrix schema_version is unsupported",
+      "support matrix host rows must match evidence rows",
+    ],
+  )
+
+  assert.throws(
+    () => buildSupportMatrix({
+      manifest,
+      evidence: fallbackMismatchEvidence,
+      sources: {
+        activationManifest: manifestPath,
+        hostCapabilityEvidence: evidencePath,
+      },
+    }),
+    /support matrix validation failed:\nfallback_behavior mismatch for host codex/u,
+  )
+})
+
 test("generated support matrix artifact is fresh", async () => {
   const {
     buildSupportMatrix,
@@ -158,4 +251,18 @@ test("generated support matrix artifact is fresh", async () => {
       hostCapabilityEvidence: evidencePath,
     },
   }))
+})
+
+test("support matrix package script is wired to regenerate the artifact", async () => {
+  const packageJson = loadJson("plugins/desk/mcp/package.json")
+
+  assert.equal(
+    packageJson.scripts["activation:support-matrix:generate"],
+    "node scripts/generate-support-matrix.js",
+  )
+
+  await import(`${pathToFileURL(path.join(mcpRoot, "scripts", "generate-support-matrix.js")).href}?test=unit3b`)
+
+  assert.equal(process.exitCode, 0)
+  assert.deepEqual(loadJson(generatedMatrixPath), expectedSupportMatrix())
 })

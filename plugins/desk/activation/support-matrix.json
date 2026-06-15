@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "generated_from": {
+    "activation_manifest": "plugins/desk/activation/desk.activation.json",
+    "host_capability_evidence": "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+  },
+  "hosts": [
+    {
+      "host_id": "claude",
+      "surface": "Claude plugin package",
+      "disposition": "supported-native-or-flattened",
+      "source_paths": [
+        "plugins/desk/.claude-plugin/plugin.json",
+        "plugins/desk/.mcp.json",
+        "plugins/desk/agents/worker.agent.md",
+        "plugins/work-suite/.claude-plugin/plugin.json"
+      ],
+      "evidence_command_or_doc": "plugins/desk/activation/desk.activation.json host_support row for claude",
+      "unsupported_primitives": [],
+      "fallback_behavior": "ship flattened bundle when transitive dependencies are unavailable"
+    },
+    {
+      "host_id": "codex",
+      "surface": "Codex plugin package plus activation adapter",
+      "disposition": "supported-flattened",
+      "source_paths": [
+        "plugins/desk/.codex-plugin/plugin.json",
+        "plugins/desk/mcp/src/activation/adapters/codex.js",
+        "plugins/desk/agents/worker.toml",
+        "plugins/work-suite/.codex-plugin/plugin.json"
+      ],
+      "evidence_command_or_doc": "node --test plugins/desk/mcp/__tests__/activation/codex_activation.test.js",
+      "unsupported_primitives": [],
+      "fallback_behavior": "materialize owned global/project activation artifacts"
+    },
+    {
+      "host_id": "copilot-root",
+      "surface": "Root plugin package for Copilot-compatible hosts",
+      "disposition": "planned-flattened",
+      "source_paths": [
+        "plugins/desk/plugin.json",
+        "plugins/desk/agents/worker.md",
+        "plugins/desk/README.md"
+      ],
+      "evidence_command_or_doc": "Unit 5 packaging tests will validate root/Copilot metadata and flattened dependency closure",
+      "unsupported_primitives": [
+        "transitive-dependency-resolution"
+      ],
+      "fallback_behavior": "ship flattened Desk plus Work Suite bundle metadata"
+    },
+    {
+      "host_id": "ouroboros-autonomous-agent",
+      "surface": "Ouroboros/autonomous-agent bundle wiring",
+      "disposition": "planned-bundle",
+      "source_paths": [
+        "plugins/desk/README.md",
+        "plugins/desk/mcp/README.md",
+        "plugins/desk/docs/dependency-activation-stories-and-criteria.md"
+      ],
+      "evidence_command_or_doc": "Unit 6 packaging tests will validate bundle disposition and DESK binding docs",
+      "unsupported_primitives": [
+        "host-native-plugin-install"
+      ],
+      "fallback_behavior": "provide explicit bundle wiring docs and stdio MCP root binding"
+    },
+    {
+      "host_id": "generic-stdio",
+      "surface": "Generic stdio MCP launch",
+      "disposition": "degraded-manual-host",
+      "source_paths": [
+        "plugins/desk/.mcp.json",
+        "plugins/desk/mcp/README.md",
+        "plugins/desk/activation/desk.activation.json"
+      ],
+      "evidence_command_or_doc": "plugins/desk/activation/desk.activation.json host_support row for generic-stdio",
+      "unsupported_primitives": [
+        "agent-defaults"
+      ],
+      "fallback_behavior": "start MCP with explicit root and no worker activation"
+    }
+  ]
+}
