@@ -68,12 +68,19 @@ function assertStoredVector(db, chunkId, expected) {
   }
 }
 
-async function writePack({ pluginRoot, packId, rows, manifest = {}, checksum }) {
+async function writePack({
+  pluginRoot,
+  packId,
+  rows,
+  manifest = {},
+  checksum,
+  embeddingSpecId = ACTIVE_EMBEDDING_SPEC.id,
+}) {
   const packDir = path.join(
     pluginRoot,
     "artifacts",
     "vector-packs",
-    ACTIVE_EMBEDDING_SPEC.id,
+    embeddingSpecId,
   )
   await fs.mkdir(packDir, { recursive: true })
   const packPath = path.join(packDir, `${packId}.jsonl`)
@@ -661,6 +668,81 @@ test("vector pack import is idempotent and deduplicates repeated chunk keys acro
   }
 })
 
+test("vector pack import accepts empty active packs as no-op artifacts", async () => {
+  const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const paths = await writePack({
+      pluginRoot,
+      packId: "empty-pack",
+      rows: [],
+    })
+    const validated = await validateVectorPackFile({
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(validated.rows.length, 0)
+
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(imported.packs_considered, 1)
+    assert.equal(imported.packs_imported, 1)
+    assert.equal(imported.rows_imported, 0)
+    assert.equal(imported.rows_skipped_duplicate, 0)
+    assert.equal(imported.rows_skipped_missing_chunk, 0)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import deduplicates repeated chunk keys across packs after hash verification", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const chunk = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "cross-pack duplicate chunk",
+      chunkIndex: 0,
+    })
+    await writePack({
+      pluginRoot,
+      packId: "cross-pack-a",
+      rows: [rowFor(chunk.identity, 5)],
+    })
+    await writePack({
+      pluginRoot,
+      packId: "cross-pack-b",
+      rows: [rowFor(chunk.identity, 6)],
+    })
+
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(imported.packs_considered, 2)
+    assert.equal(imported.packs_imported, 2)
+    assert.equal(imported.rows_imported, 1)
+    assert.equal(imported.rows_skipped_duplicate, 1)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+    assertStoredVector(db, chunk.chunkId, vector(5))
+  } finally {
+    closeDb(db)
+  }
+})
+
 test("vector pack import handles missing pack directories and missing local chunks safely", async () => {
   const { importVectorPacks } = await loadVectorPackModule()
   const root = await tmpRoot()
@@ -699,6 +781,68 @@ test("vector pack import handles missing pack directories and missing local chun
     assert.equal(imported.packs_imported, 1)
     assert.equal(imported.rows_imported, 0)
     assert.equal(imported.rows_skipped_missing_chunk, 1)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir", async () => {
+  const { importVectorPacks } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const inactiveSpecId = "inactive-spec"
+  const db = openDb(deskRoot)
+  try {
+    const chunk = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "active local chunk",
+      chunkIndex: 0,
+    })
+    await writePack({
+      pluginRoot,
+      embeddingSpecId: inactiveSpecId,
+      packId: "inactive-dir-pack",
+      rows: [
+        rowFor(chunk.identity, 1, {
+          embedding_spec_id: inactiveSpecId,
+        }),
+      ],
+      manifest: {
+        embedding_spec_id: inactiveSpecId,
+      },
+    })
+
+    const ignored = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    })
+    assert.equal(ignored.packs_considered, 0)
+    assert.equal(ignored.packs_imported, 0)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+
+    await writePack({
+      pluginRoot,
+      packId: "inactive-active-dir-pack",
+      rows: [
+        rowFor(chunk.identity, 1, {
+          embedding_spec_id: inactiveSpecId,
+        }),
+      ],
+      manifest: {
+        embedding_spec_id: inactiveSpecId,
+      },
+    })
+    await assert.rejects(
+      () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      }),
+      /manifest embedding_spec_id/u,
+    )
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
   } finally {
     closeDb(db)
