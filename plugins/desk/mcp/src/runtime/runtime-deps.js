@@ -530,7 +530,7 @@ function validateManifestDependencies({ dependencies, expectedDependencies }) {
     nonProduction.push(dependency.name)
   }
   for (const expected of expectedDependencies) {
-    const manifestHasUniqueSameName = (expectedByName.get(expected.name)?.length ?? 0) === 1
+    const manifestHasUniqueSameName = expectedByName.get(expected.name).length === 1
       && dependencies.some((dependency) => dependency.name === expected.name)
     if (!seenLockPaths.has(expected.lock_path) && !manifestHasUniqueSameName) {
       errors.push(`runtime dependency pack manifest must include production dependency ${expected.name}`)
@@ -827,7 +827,7 @@ function extractTarGzContents(archivePath) {
     } else if (type === "x") {
       pendingPaxPath = paxPath(body)
     } else {
-      if (type === "0" || type === "\0" || type === "") {
+      if (type === "0" || type === "\0") {
         entries.set(name, Buffer.from(body))
       }
       pendingLongName = undefined
@@ -889,7 +889,7 @@ function packageRootFromArchiveEntry(entry) {
       rootEnd = nameIndex + 1
     }
   }
-  return rootEnd > 0 ? parts.slice(0, rootEnd).join("/") : undefined
+  return parts.slice(0, rootEnd).join("/")
 }
 
 function isMutableMcpSourceEntry(entry) {
@@ -906,7 +906,7 @@ function isSha256(value) {
 
 function readChecksum(file) {
   const text = readFileText(file).trim()
-  return text.split(/\s+/u)[0] ?? ""
+  return text.split(/\s+/u)[0]
 }
 
 function readJson(file) {

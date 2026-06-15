@@ -4,11 +4,13 @@ import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
@@ -85,6 +87,11 @@ function makeTempDir() {
   return mkdtempSync(path.join(tmpdir(), "desk-runtime-deps-"))
 }
 
+function writeTextFile(file, text) {
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, text, "utf8")
+}
+
 function writePackFixture({
   archiveEntryBytes,
   archiveEntries,
@@ -103,15 +110,67 @@ function createTarGz(entries, entryBytes = {}) {
   const blocks = []
   for (const entry of entries) {
     const body = entryBytes[entry] ?? Buffer.from(`fixture for ${entry}\n`, "utf8")
-    blocks.push(tarHeader({ name: entry, size: body.length }))
-    blocks.push(body)
-    const padding = (512 - (body.length % 512)) % 512
-    if (padding > 0) {
-      blocks.push(Buffer.alloc(padding))
+    appendTarEntry(blocks, { name: entry, body })
+  }
+  blocks.push(Buffer.alloc(1024))
+  return gzipSync(Buffer.concat(blocks))
+}
+
+function createTarGzWithHeaderModes(entries, entryBytes = {}, headerModes = {}) {
+  const blocks = []
+  for (const entry of entries) {
+    const body = entryBytes[entry] ?? Buffer.from(`fixture for ${entry}\n`, "utf8")
+    if (headerModes[entry] === "gnu-long-name") {
+      appendTarEntry(blocks, {
+        name: "././@LongLink",
+        body: Buffer.from(`${entry}\0`, "utf8"),
+        type: "L",
+      })
+      appendTarEntry(blocks, { name: path.basename(entry), body })
+    } else if (headerModes[entry] === "pax-path") {
+      appendTarEntry(blocks, {
+        name: "PaxHeader",
+        body: Buffer.from(paxPathRecord(entry), "utf8"),
+        type: "x",
+      })
+      appendTarEntry(blocks, { name: path.basename(entry), body })
+    } else if (headerModes[entry] === "pax-without-path") {
+      appendTarEntry(blocks, {
+        name: "PaxHeader",
+        body: Buffer.from("comment=no-path\n", "utf8"),
+        type: "x",
+      })
+      appendTarEntry(blocks, { name: entry, body })
+    } else if (headerModes[entry] === "nul-type") {
+      appendTarEntry(blocks, { name: entry, body, type: "\0" })
+    } else if (headerModes[entry] === "blank-size") {
+      appendTarEntry(blocks, { name: entry, body: Buffer.alloc(0), blankSize: true })
+    } else {
+      appendTarEntry(blocks, { name: entry, body })
     }
   }
   blocks.push(Buffer.alloc(1024))
   return gzipSync(Buffer.concat(blocks))
+}
+
+function appendTarEntry(blocks, { name, body, blankSize = false, type = "0" }) {
+  blocks.push(tarHeader({ blankSize, name, size: body.length, type }))
+  blocks.push(body)
+  const padding = (512 - (body.length % 512)) % 512
+  if (padding > 0) {
+    blocks.push(Buffer.alloc(padding))
+  }
+}
+
+function paxPathRecord(filePath) {
+  let record = `0 path=${filePath}\n`
+  while (true) {
+    const next = `${Buffer.byteLength(record)} path=${filePath}\n`
+    if (next === record) {
+      return record
+    }
+    record = next
+  }
 }
 
 function archiveEntryBytesForManifest(manifest, overrides = {}) {
@@ -132,17 +191,19 @@ function embeddedManifestForArchive(manifest) {
   return embeddedManifest
 }
 
-function tarHeader({ name, size }) {
+function tarHeader({ blankSize = false, name, size, type = "0" }) {
   assert.ok(Buffer.byteLength(name) <= 100, `tar fixture path too long for ustar header: ${name}`)
   const header = Buffer.alloc(512, 0)
   header.write(name, 0, 100, "utf8")
   header.write("0000644\0", 100, 8, "ascii")
   header.write("0000000\0", 108, 8, "ascii")
   header.write("0000000\0", 116, 8, "ascii")
-  header.write(size.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii")
+  if (!blankSize) {
+    header.write(size.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii")
+  }
   header.write("00000000000\0", 136, 12, "ascii")
   header.fill(0x20, 148, 156)
-  header.write("0", 156, 1, "ascii")
+  header.write(type, 156, 1, "ascii")
   header.write("ustar\0", 257, 6, "ascii")
   header.write("00", 263, 2, "ascii")
   const checksum = [...header].reduce((sum, byte) => sum + byte, 0)
@@ -312,6 +373,99 @@ function fixtureManifestForArchiveEntries({
     productionDependencies,
     pluginVersion,
   })
+}
+
+function fixtureManifestForSpecialArchiveEntries({
+  archiveEntries,
+  headerModes,
+  packageLockSha,
+  prodDependencyLockHash,
+  productionDependencies,
+  pluginVersion,
+} = {}) {
+  const provisionalManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    packageLockSha,
+    prodDependencyLockHash,
+    productionDependencies,
+    pluginVersion,
+  })
+  const archiveSha = sha256(createTarGzWithHeaderModes(
+    archiveEntries,
+    archiveEntryBytesForManifest(provisionalManifest),
+    headerModes,
+  ))
+  return fixtureManifest({
+    archiveSha,
+    packageLockSha,
+    prodDependencyLockHash,
+    productionDependencies,
+    pluginVersion,
+  })
+}
+
+function writeSpecialPackFixture({
+  archiveEntries,
+  headerModes,
+  manifest,
+}) {
+  const packDir = makeTempDir()
+  const archiveBytes = createTarGzWithHeaderModes(
+    archiveEntries,
+    archiveEntryBytesForManifest(manifest),
+    headerModes,
+  )
+  writeFileSync(path.join(packDir, "runtime-deps.tgz"), archiveBytes)
+  writeFileSync(path.join(packDir, "runtime-deps.sha256"), `${sha256(archiveBytes)}  runtime-deps.tgz\n`, "utf8")
+  writeFileSync(path.join(packDir, "runtime-deps.manifest.json"), JSON.stringify(manifest, null, 2), "utf8")
+  return packDir
+}
+
+function writeSyntheticMcpRoot({
+  dependencyFiles = ["index.js"],
+  dependencyName = "unit-runtime",
+  dependencyPackage = {},
+} = {}) {
+  const root = makeTempDir()
+  const packageJson = {
+    name: "@ourostack/desk-mcp",
+    version: "9.9.9",
+    dependencies: {
+      [dependencyName]: "1.0.0",
+    },
+  }
+  const lockPath = `node_modules/${dependencyName}`
+  const packageLock = {
+    name: packageJson.name,
+    version: packageJson.version,
+    lockfileVersion: 3,
+    packages: {
+      "": {
+        name: packageJson.name,
+        version: packageJson.version,
+        dependencies: packageJson.dependencies,
+      },
+      [lockPath]: {
+        version: "1.0.0",
+        ...dependencyPackage,
+      },
+    },
+  }
+  writeTextFile(path.join(root, "package.json"), JSON.stringify(packageJson, null, 2))
+  writeTextFile(path.join(root, "package-lock.json"), JSON.stringify(packageLock, null, 2))
+  writeTextFile(path.join(root, lockPath, "package.json"), JSON.stringify({
+    name: dependencyName,
+    version: "1.0.0",
+  }, null, 2))
+  for (const file of dependencyFiles) {
+    writeTextFile(path.join(root, lockPath, file), `export default ${JSON.stringify(file)}\n`)
+  }
+  return {
+    root,
+    packageJson,
+    packageLock,
+    lockPath,
+  }
 }
 
 function dependencyNames(dependencies) {
@@ -787,6 +941,80 @@ test("production dependency closure includes native packages and non-native tran
   )
 })
 
+test("production dependency closure fails closed for malformed lock inputs", async () => {
+  const { collectProductionDependencyClosure } = await loadRuntimeDeps()
+  const packageJson = loadJson(packageJsonPath)
+  const packageLock = loadJson(packageLockPath)
+
+  const missingLockEntry = structuredClone(packageLock)
+  delete missingLockEntry.packages["node_modules/gray-matter"]
+  assert.throws(
+    () => collectProductionDependencyClosure({
+      packageJson,
+      packageLock: missingLockEntry,
+      platform: target.platform,
+      arch: target.arch,
+    }),
+    /lock entry must exist for node_modules\/gray-matter/u,
+  )
+
+  assert.throws(
+    () => collectProductionDependencyClosure({
+      packageJson: {
+        dependencies: {
+          "../bad": "1.0.0",
+        },
+      },
+      packageLock: {
+        packages: {
+          "node_modules/../bad": {
+            version: "1.0.0",
+          },
+        },
+      },
+      platform: target.platform,
+      arch: target.arch,
+    }),
+    /lock path must end in a package node_modules segment/u,
+  )
+
+  assert.deepEqual(
+    collectProductionDependencyClosure({
+      packageJson: {
+        dependencies: {
+          parent: "1.0.0",
+        },
+      },
+      packageLock: {
+        packages: {
+          "node_modules/parent": {
+            version: "1.0.0",
+            dependencies: {
+              child: "1.0.0",
+            },
+          },
+          "node_modules/parent/node_modules/child": {
+            version: "1.0.0",
+            dependencies: {
+              grandchild: "1.0.0",
+            },
+          },
+          "node_modules/parent/node_modules/grandchild": {
+            version: "1.0.0",
+          },
+        },
+      },
+      platform: target.platform,
+      arch: target.arch,
+    }).map((dependency) => dependency.lock_path),
+    [
+      "node_modules/parent",
+      "node_modules/parent/node_modules/child",
+      "node_modules/parent/node_modules/grandchild",
+    ],
+  )
+})
+
 test("runtime dependency pack manifest validates lock provenance and dependency-only shape", async () => {
   const {
     collectProductionDependencyClosure,
@@ -906,6 +1134,27 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
       "runtime dependency pack manifest must include production dependency js-yaml",
       "runtime dependency pack manifest must not include duplicate production dependency zod",
       "runtime dependency pack manifest must not include non-production dependency left-pad",
+    ],
+  )
+
+  const staleDependencyMetadata = structuredClone(manifest)
+  staleDependencyMetadata.production_dependencies = staleDependencyMetadata.production_dependencies.map((dependency) => (
+    dependency.name === "zod"
+      ? { ...dependency, version: "0.0.0", native: true }
+      : dependency
+  ))
+  assert.deepEqual(
+    validateRuntimeDependencyPackManifest({
+      manifest: staleDependencyMetadata,
+      packageJson,
+      packageLock,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+    }),
+    [
+      "runtime dependency pack manifest dependency zod version must match package-lock.json",
+      "runtime dependency pack manifest dependency zod native flag must match production closure",
     ],
   )
 })
@@ -1044,6 +1293,77 @@ test("runtime dependency archive shape rejects server source and missing depende
   )
 })
 
+test("runtime dependency archive shape scans package runtime files defensively", async () => {
+  const {
+    collectProductionDependencyClosure,
+    validateRuntimeDependencyArchiveShape,
+  } = await loadRuntimeDeps()
+  const synthetic = writeSyntheticMcpRoot({
+    dependencyFiles: [
+      "index.js",
+      "dist/runtime.json",
+      "native.node",
+      "README.md",
+    ],
+  })
+  const emptyRuntime = writeSyntheticMcpRoot({
+    dependencyFiles: [],
+    dependencyName: "empty-runtime",
+  })
+
+  try {
+    mkdirSync(path.join(synthetic.root, synthetic.lockPath, "linked-dir"), { recursive: true })
+    symlinkSync("linked-dir", path.join(synthetic.root, synthetic.lockPath, "linked-dir-symlink.js"))
+    symlinkSync("missing-target.js", path.join(synthetic.root, synthetic.lockPath, "broken-runtime.js"))
+
+    const dependencies = collectProductionDependencyClosure({
+      packageJson: synthetic.packageJson,
+      packageLock: synthetic.packageLock,
+      platform: target.platform,
+      arch: target.arch,
+    })
+    assert.deepEqual(
+      validateRuntimeDependencyArchiveShape({
+        entries: [
+          "package.json",
+          "package-lock.json",
+          "runtime-deps.manifest.json",
+          `${synthetic.lockPath}/package.json`,
+          `${synthetic.lockPath}/index.js`,
+          `${synthetic.lockPath}/dist/runtime.json`,
+          `${synthetic.lockPath}/native.node`,
+        ],
+        productionDependencies: dependencies,
+        mcpRoot: synthetic.root,
+      }),
+      [],
+    )
+
+    const emptyRuntimeDependencies = collectProductionDependencyClosure({
+      packageJson: emptyRuntime.packageJson,
+      packageLock: emptyRuntime.packageLock,
+      platform: target.platform,
+      arch: target.arch,
+    })
+    assert.throws(
+      () => validateRuntimeDependencyArchiveShape({
+        entries: [
+          "package.json",
+          "package-lock.json",
+          "runtime-deps.manifest.json",
+          `${emptyRuntime.lockPath}/package.json`,
+        ],
+        productionDependencies: emptyRuntimeDependencies,
+        mcpRoot: emptyRuntime.root,
+      }),
+      /runtime dependency archive must require a non-marker runtime file for empty-runtime/u,
+    )
+  } finally {
+    rmSync(synthetic.root, { recursive: true, force: true })
+    rmSync(emptyRuntime.root, { recursive: true, force: true })
+  }
+})
+
 test("runtime dependency pack verification checks checksums and unsupported platforms", async () => {
   const {
     collectProductionDependencyClosure,
@@ -1141,6 +1461,134 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     archiveEntries: validEntries,
     archiveEntryBytes: tamperedPackageLockBytes,
     manifest: tamperedPackageLockManifest,
+  })
+  const mismatchedPackageJsonProvisionalManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const mismatchedPackageJsonBytes = archiveEntryBytesForManifest(mismatchedPackageJsonProvisionalManifest, {
+    "package.json": Buffer.from(JSON.stringify({ ...packageJson, version: "0.0.0" }, null, 2), "utf8"),
+  })
+  const mismatchedPackageJsonManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    archiveEntryBytes: mismatchedPackageJsonBytes,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const mismatchedPackageJsonPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    archiveEntryBytes: mismatchedPackageJsonBytes,
+    manifest: mismatchedPackageJsonManifest,
+  })
+  const invalidPackageJsonBytes = archiveEntryBytesForManifest(mismatchedPackageJsonProvisionalManifest, {
+    "package.json": Buffer.from("{not json\n", "utf8"),
+  })
+  const invalidPackageJsonManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    archiveEntryBytes: invalidPackageJsonBytes,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const invalidPackageJsonPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    archiveEntryBytes: invalidPackageJsonBytes,
+    manifest: invalidPackageJsonManifest,
+  })
+  const malformedPackageLockBytes = Buffer.from(JSON.stringify({
+    lockfileVersion: 3,
+    packages: {},
+  }, null, 2), "utf8")
+  const malformedPackageLockProvisionalManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    packageLockSha: sha256(malformedPackageLockBytes),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const malformedPackageLockArchiveBytes = archiveEntryBytesForManifest(malformedPackageLockProvisionalManifest, {
+    "package-lock.json": malformedPackageLockBytes,
+  })
+  const malformedPackageLockManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    archiveEntryBytes: malformedPackageLockArchiveBytes,
+    packageLockSha: sha256(malformedPackageLockBytes),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const malformedPackageLockPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    archiveEntryBytes: malformedPackageLockArchiveBytes,
+    manifest: malformedPackageLockManifest,
+  })
+  const missingEmbeddedManifestEntries = validEntries
+    .filter((entry) => entry !== "runtime-deps.manifest.json")
+  const missingEmbeddedManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: missingEmbeddedManifestEntries,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingEmbeddedManifestPackDir = writePackFixture({
+    archiveEntries: missingEmbeddedManifestEntries,
+    manifest: missingEmbeddedManifest,
+  })
+  const specialHeaderModes = {
+    "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js": "pax-path",
+    "node_modules/express/lib/express.js": "gnu-long-name",
+  }
+  const specialHeaderManifest = fixtureManifestForSpecialArchiveEntries({
+    archiveEntries: validEntries,
+    headerModes: specialHeaderModes,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const specialHeaderPackDir = writeSpecialPackFixture({
+    archiveEntries: validEntries,
+    headerModes: specialHeaderModes,
+    manifest: specialHeaderManifest,
+  })
+  const paxWithoutPathEntries = [
+    ...validEntries,
+    "EMPTY",
+    "NULLTYPE.md",
+    "README.md",
+  ]
+  const paxWithoutPathManifest = fixtureManifestForSpecialArchiveEntries({
+    archiveEntries: paxWithoutPathEntries,
+    headerModes: {
+      EMPTY: "blank-size",
+      "NULLTYPE.md": "nul-type",
+      "README.md": "pax-without-path",
+    },
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const paxWithoutPathPackDir = writeSpecialPackFixture({
+    archiveEntries: paxWithoutPathEntries,
+    headerModes: {
+      EMPTY: "blank-size",
+      "NULLTYPE.md": "nul-type",
+      "README.md": "pax-without-path",
+    },
+    manifest: paxWithoutPathManifest,
+  })
+  const noProductionDependenciesEntries = [
+    "package.json",
+    "package-lock.json",
+    "runtime-deps.manifest.json",
+  ]
+  const noProductionDependenciesManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies: [],
+  })
+  delete noProductionDependenciesManifest.production_dependencies
+  noProductionDependenciesManifest.archive.sha256 = sha256(createTarGz(
+    noProductionDependenciesEntries,
+    archiveEntryBytesForManifest(noProductionDependenciesManifest),
+  ))
+  const noProductionDependenciesPackDir = writePackFixture({
+    archiveEntries: noProductionDependenciesEntries,
+    manifest: noProductionDependenciesManifest,
   })
   const missingRuntimeFileEntries = validEntries
     .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js")
@@ -1271,6 +1719,127 @@ test("runtime dependency pack verification checks checksums and unsupported plat
 
     assert.deepEqual(
       verifyRuntimeDependencyPack({
+        packDir: mismatchedPackageJsonPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive package.json must match sidecar manifest plugin metadata"],
+        manifest: mismatchedPackageJsonManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: invalidPackageJsonPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive package.json must be valid JSON"],
+        manifest: invalidPackageJsonManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: malformedPackageLockPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency pack manifest package_lock.sha256 must match plugins/desk/mcp/package-lock.json",
+          "runtime dependency archive production dependency lock hash must be computable from embedded package metadata",
+        ],
+        manifest: malformedPackageLockManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingEmbeddedManifestPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency archive embedded manifest must match sidecar manifest metadata",
+          "runtime dependency archive must include root runtime-deps.manifest.json",
+        ],
+        manifest: missingEmbeddedManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: specialHeaderPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      { ok: true, errors: [], manifest: specialHeaderManifest },
+    )
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: specialHeaderPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      { ok: true, errors: [], manifest: specialHeaderManifest },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: paxWithoutPathPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency archive must not include unexpected root file EMPTY",
+          "runtime dependency archive must not include unexpected root file NULLTYPE.md",
+          "runtime dependency archive must not include unexpected root file README.md",
+        ],
+        manifest: paxWithoutPathManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: noProductionDependenciesPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency pack manifest production_dependencies must not be empty"],
+        manifest: noProductionDependenciesManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
         packDir,
         mcpRoot,
         platform: "freebsd",
@@ -1325,6 +1894,13 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     rmSync(missingArchivePackageJsonPackDir, { recursive: true, force: true })
     rmSync(missingArchivePackageLockPackDir, { recursive: true, force: true })
     rmSync(tamperedPackageLockPackDir, { recursive: true, force: true })
+    rmSync(mismatchedPackageJsonPackDir, { recursive: true, force: true })
+    rmSync(invalidPackageJsonPackDir, { recursive: true, force: true })
+    rmSync(malformedPackageLockPackDir, { recursive: true, force: true })
+    rmSync(missingEmbeddedManifestPackDir, { recursive: true, force: true })
+    rmSync(specialHeaderPackDir, { recursive: true, force: true })
+    rmSync(paxWithoutPathPackDir, { recursive: true, force: true })
+    rmSync(noProductionDependenciesPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
     rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
   }
@@ -1482,6 +2058,204 @@ test("package declares CI/release scripts for runtime dependency packs", async (
   } finally {
     rmSync(validPackDir, { recursive: true, force: true })
     rmSync(invalidPackDir, { recursive: true, force: true })
+  }
+})
+
+test("runtime dependency pack builder handles long paths and CLI argument edge cases", async () => {
+  const {
+    buildRuntimeDependencyPack,
+    collectProductionDependencyClosure,
+    productionDependencyLockHash,
+    runRuntimeDependencyPackBuildCli,
+    runRuntimeDependencyPackVerifyCli,
+    verifyRuntimeDependencyPack,
+  } = await loadRuntimeDeps()
+  assert.match(
+    productionDependencyLockHash({
+      packageJson: {},
+      packageLock: { packages: {} },
+    }),
+    /^[a-f0-9]{64}$/u,
+  )
+  assert.deepEqual(
+    collectProductionDependencyClosure({
+      packageJson: {},
+      packageLock: { packages: {} },
+    }),
+    [],
+  )
+
+  const packageJson = loadJson(packageJsonPath)
+  const packageLock = loadJson(packageLockPath)
+  const productionDependencies = collectProductionDependencyClosure({
+    packageJson,
+    packageLock,
+    platform: target.platform,
+    arch: target.arch,
+  })
+  const prodDependencyLockHash = productionDependencyLockHash({ packageJson, packageLock })
+  const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
+  const longPackageName = `unit-${"a".repeat(70)}`
+  const longRuntimeFile = `dist/${"b".repeat(60)}.js`
+  const splittableLongPathRoot = writeSyntheticMcpRoot({
+    dependencyFiles: [longRuntimeFile],
+    dependencyName: longPackageName,
+  })
+  const splittableOutputRoot = makeTempDir()
+  const tooLongPackageName = `unit-${"c".repeat(160)}`
+  const tooLongRuntimeFile = `${"d".repeat(101)}.js`
+  const unsplittableLongPathRoot = writeSyntheticMcpRoot({
+    dependencyFiles: [tooLongRuntimeFile],
+    dependencyName: tooLongPackageName,
+  })
+  const unsplittableOutputRoot = makeTempDir()
+  const defaultOutputRoot = writeSyntheticMcpRoot({
+    dependencyFiles: ["index.js"],
+    dependencyName: "default-output-runtime",
+  })
+  const cliOutputRoot = makeTempDir()
+  const cliInvalidManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    prodDependencyLockHash,
+    productionDependencies,
+  })
+  const cliInvalidPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    checksum: "0".repeat(64),
+    manifest: cliInvalidManifest,
+  })
+  const stdout = []
+  const stderr = []
+  const io = {
+    stdout: { write: (text) => stdout.push(text) },
+    stderr: { write: (text) => stderr.push(text) },
+  }
+  const resetIo = () => {
+    stdout.length = 0
+    stderr.length = 0
+  }
+  let defaultRuntimePack
+
+  try {
+    defaultRuntimePack = buildRuntimeDependencyPack({
+      createdAt: "2026-06-15T00:00:00.000Z",
+      provenanceSource: "unit 6f default path fixture",
+    })
+
+    const built = buildRuntimeDependencyPack({
+      mcpRoot: splittableLongPathRoot.root,
+      outputRoot: splittableOutputRoot,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      createdAt: "2026-06-15T00:00:00.000Z",
+      provenanceSource: "unit 6f long path fixture",
+    })
+    assert.ok(
+      listTarGzEntries(built.archivePath).includes(`node_modules/${longPackageName}/${longRuntimeFile}`),
+      "builder must write splittable long tar paths",
+    )
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: built.packDir,
+        mcpRoot: splittableLongPathRoot.root,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      { ok: true, errors: [], manifest: built.manifest },
+    )
+
+    const defaultOutputPack = buildRuntimeDependencyPack({
+      mcpRoot: defaultOutputRoot.root,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      createdAt: "2026-06-15T00:00:00.000Z",
+      provenanceSource: "unit 6f default output root fixture",
+    })
+    assert.equal(
+      defaultOutputPack.packDir.startsWith(path.join(defaultOutputRoot.root, "artifacts", "runtime-deps")),
+      true,
+    )
+
+    assert.throws(
+      () => buildRuntimeDependencyPack({
+        mcpRoot: unsplittableLongPathRoot.root,
+        outputRoot: unsplittableOutputRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+        createdAt: "2026-06-15T00:00:00.000Z",
+        provenanceSource: "unit 6f too-long path fixture",
+      }),
+      /runtime dependency archive path is too long for tar header/u,
+    )
+
+    assert.equal(runRuntimeDependencyPackBuildCli({ argv: ["-h"], io }), 0)
+    assert.match(stdout.join(""), /Build a runtime dependency pack/u)
+    assert.equal(stderr.join(""), "")
+    resetIo()
+
+    assert.equal(
+      runRuntimeDependencyPackBuildCli({
+        argv: [
+          "ignored-positional",
+          "--output-root",
+          cliOutputRoot,
+          "--platform",
+          process.platform,
+          "--arch",
+          process.arch,
+          "--node-abi",
+        ],
+        io,
+      }),
+      0,
+    )
+    assert.match(stdout.join(""), /runtime dependency pack built/u)
+    assert.equal(stderr.join(""), "")
+    resetIo()
+
+    assert.equal(runRuntimeDependencyPackVerifyCli({ argv: ["--help"], io }), 0)
+    assert.match(stdout.join(""), /Verify a runtime dependency pack/u)
+    assert.equal(stderr.join(""), "")
+    resetIo()
+
+    assert.equal(runRuntimeDependencyPackVerifyCli({ argv: [], io }), 0)
+    assert.match(stdout.join(""), /runtime dependency pack verified/u)
+    assert.equal(stderr.join(""), "")
+    resetIo()
+
+    assert.equal(
+      runRuntimeDependencyPackVerifyCli({
+        argv: [
+          "ignored-positional",
+          "--pack-dir",
+          cliInvalidPackDir,
+          "--platform",
+          target.platform,
+          "--arch",
+          target.arch,
+          "--node-abi",
+          targetNodeAbi,
+        ],
+        io,
+      }),
+      1,
+    )
+    assert.match(stderr.join(""), /runtime dependency pack checksum mismatch/u)
+  } finally {
+    rmSync(splittableLongPathRoot.root, { recursive: true, force: true })
+    rmSync(splittableOutputRoot, { recursive: true, force: true })
+    rmSync(unsplittableLongPathRoot.root, { recursive: true, force: true })
+    rmSync(unsplittableOutputRoot, { recursive: true, force: true })
+    rmSync(defaultOutputRoot.root, { recursive: true, force: true })
+    rmSync(cliOutputRoot, { recursive: true, force: true })
+    if (defaultRuntimePack !== undefined) {
+      rmSync(defaultRuntimePack.packDir, { recursive: true, force: true })
+    }
+    rmSync(cliInvalidPackDir, { recursive: true, force: true })
   }
 })
 
