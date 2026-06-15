@@ -675,6 +675,46 @@ test("generic stdio packaging validation rejects identifier and support-verb cla
     validateOuroborosStdioPackagingContract(secondSentenceClaim),
     ["Generic stdio docs must not claim plugin dependency resolution"],
   )
+
+  const noManualSetupDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  noManualSetupDependencyClaim.genericStdioReadmeSection +=
+    "\nNo manual setup is needed because generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noManualSetupDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const noManualInstallWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  noManualInstallWorkerClaim.genericStdioReadmeSection +=
+    "\nNo manual install is needed because this path starts worker activation automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noManualInstallWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const noHostSetupDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  noHostSetupDependencyClaim.genericStdioReadmeSection +=
+    "\nNo host-specific setup is required because Work Suite is supported by this path.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noHostSetupDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
+
+  const noExtraCommandWorkerClaim = clone(currentOuroborosStdioPackagingInput())
+  noExtraCommandWorkerClaim.genericStdioReadmeSection +=
+    "\nNo extra command is needed because desk:worker is activated by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noExtraCommandWorkerClaim),
+    ["Generic stdio docs must not claim worker activation"],
+  )
+
+  const neitherSetupDependencyClaim = clone(currentOuroborosStdioPackagingInput())
+  neitherSetupDependencyClaim.genericStdioReadmeSection +=
+    "\nNeither extra setup nor special config is needed because generic stdio supports Work Suite automatically.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(neitherSetupDependencyClaim),
+    ["Generic stdio docs must not claim plugin dependency resolution"],
+  )
 })
 
 test("generic stdio packaging validation permits neither/nor negative support wording", () => {
@@ -739,6 +779,30 @@ test("generic stdio packaging validation permits neither/nor negative support wo
     "\nNo Work Suite dependency closure is enabled here.\n"
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(noDependencyClosure),
+    [],
+  )
+
+  const noWorkerActivationProvided = clone(currentOuroborosStdioPackagingInput())
+  noWorkerActivationProvided.genericStdioReadmeSection +=
+    "\nNo worker activation is provided by this path.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noWorkerActivationProvided),
+    [],
+  )
+
+  const noPluginDependenciesResolved = clone(currentOuroborosStdioPackagingInput())
+  noPluginDependenciesResolved.genericStdioReadmeSection +=
+    "\nNo plugin dependencies are resolved by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(noPluginDependenciesResolved),
+    [],
+  )
+
+  const workerActivationNotProvided = clone(currentOuroborosStdioPackagingInput())
+  workerActivationNotProvided.genericStdioReadmeSection +=
+    "\nWorker activation is not provided by generic stdio.\n"
+  assert.deepEqual(
+    validateOuroborosStdioPackagingContract(workerActivationNotProvided),
     [],
   )
 })
