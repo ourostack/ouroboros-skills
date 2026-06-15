@@ -34,9 +34,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Plugin dependency order and activation order are deterministic.
 - [x] Generated activation artifacts are owned/tracked so they can be updated or removed safely.
 - [x] Activation declares host permissions/capabilities and cannot silently elevate beyond the host plugin model.
-- [ ] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
-- [ ] Claude packaging declares Work Suite as a dependency when the support matrix marks dependency metadata native for the host format.
-- [ ] Claude Agent View/background-session inheritance is validated or explicitly documented as unsupported for the current host version.
+- [x] Claude packaging exposes Desk skills, MCP, hooks, and `desk:worker` through native plugin surfaces.
+- [x] Claude packaging declares Work Suite as a dependency when the support matrix marks dependency metadata native for the host format.
+- [x] Claude Agent View/background-session inheritance is validated or explicitly documented as unsupported for the current host version.
 - [ ] Copilot packaging exposes the expected worker agent through native agent/plugin metadata.
 - [ ] Copilot packaging has a flattened dependency strategy for hosts without transitive dependency resolution.
 - [x] Codex packaging exposes Desk skills through Codex plugin metadata.
@@ -141,9 +141,9 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Tests cover support-matrix disposition for the Ouroboros/autonomous-agent path.
 - [ ] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
-- [ ] 100% test coverage on all new code
-- [ ] All tests pass
-- [ ] No warnings
+- [x] 100% test coverage on all new code
+- [x] All tests pass
+- [x] No warnings
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**
@@ -269,7 +269,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/activation/claude_packaging.test.js`.  
 **Acceptance**: Tests fail on missing or stale Claude/Work Suite dependency and support metadata.
 
-### ⬜ Unit 4b: Claude And Work Suite Packaging - Implementation
+### ✅ Unit 4b: Claude And Work Suite Packaging - Implementation
 **What**: Update Claude-facing Desk and Work Suite metadata plus `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md` rows to match the Claude disposition. Do not edit the generated support matrix directly.  
 **Output**: Updated `plugins/desk/.claude-plugin/plugin.json`, `plugins/work-suite/.claude-plugin/plugin.json`, Claude evidence rows, and regenerated `plugins/desk/activation/support-matrix.json`.  
 **Acceptance**: Unit 4a tests pass, unsupported Claude primitives are documented instead of claimed, and `plugins/desk/activation/support-matrix.json` is regenerated through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, not hand-edited.
@@ -780,3 +780,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-14 19:21 Unit 4a complete: added Claude/Work Suite packaging red tests in `47aa564`; targeted red run saved to `unit-4a-claude-packaging-red.log` and fails on missing explicit Claude component metadata, native Work Suite dependency/provider metadata, worker Agent View/background-session disposition, and Claude permission-boundary metadata; terminal green criteria intentionally unchecked until Unit 4b makes the new tests pass
 - 2026-06-14 19:31 Unit 4a reviewer fix: James found a BLOCKER that the Agent View/background assertions forced a supported disposition despite the planning contract allowing explicit unsupported/degraded documentation, plus a MAJOR gap tying Claude metadata to evidence/support-matrix freshness; Dewey fixed the red tests in `527a417` to accept documented supported or unsupported dispositions and to assert the Claude-native `agents/worker.md` source across activation manifest, evidence row, and generated support matrix; refreshed `unit-4a-claude-packaging-red.log`
 - 2026-06-14 19:35 Unit 4a Round 2 cold reviewer gate converged; Lovelace verified the prior overclaiming and support-matrix/evidence freshness gaps are closed, the red log remains intentional, and the broad green criteria stay unchecked during the red-test state
+- 2026-06-14 19:39 Unit 4b complete: added Claude-native Desk plugin metadata, native Work Suite dependency/provider metadata, Claude worker frontmatter, Agent View/background-session support disposition, and permission-boundary documentation in `82066cb`; corrected the activation manifest and evidence row to use `agents/worker.md` for Claude, regenerated `plugins/desk/activation/support-matrix.json` through `npm --prefix plugins/desk/mcp run activation:support-matrix:generate`, and saved `unit-4b-generate-support-matrix-green.log`, `unit-4b-claude-packaging-green.log`, `unit-4b-activation-tests-green.log`, `unit-4b-test-coverage-green.log`, `unit-4b-npm-test-green.log`, `unit-4b-validate-skills-green.log`, `unit-4b-claude-help-evidence.log`, and `unit-4b-build-unavailable.log`; verified targeted Claude packaging tests, activation/support-matrix freshness tests, 100% coverage, full MCP tests, skill validation, Claude CLI support evidence, no build script available, and `git diff --check`
