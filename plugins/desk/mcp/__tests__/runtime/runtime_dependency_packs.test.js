@@ -3,10 +3,12 @@ import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import {
-  mkdirSync,
+  existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
@@ -242,11 +244,136 @@ function archiveEntriesForProductionDependencies(dependencies) {
   ]
   for (const dependency of dependencies) {
     entries.push(`${dependency.lock_path}/package.json`)
-    for (const runtimeFile of requiredRuntimeFilesByPackage.get(dependency.name) ?? []) {
+    for (const runtimeFile of runtimeFilesForDependency(dependency)) {
       entries.push(`${dependency.lock_path}/${runtimeFile}`)
     }
   }
   return entries.sort()
+}
+
+function runtimeFilesForDependency(dependency) {
+  const explicitFiles = requiredRuntimeFilesByPackage.get(dependency.name) ?? []
+  const inferredFiles = inferRuntimeFilesForDependency(dependency)
+  const runtimeFiles = unique([...explicitFiles, ...inferredFiles])
+  assert.ok(
+    runtimeFiles.length > 0,
+    `runtime dependency archive fixture must require a non-marker runtime file for ${dependency.name}`,
+  )
+  return runtimeFiles
+}
+
+function inferRuntimeFilesForDependency(dependency) {
+  const packageDir = path.join(mcpRoot, dependency.lock_path)
+  const packageJson = loadJson(path.join(packageDir, "package.json"))
+  const candidatePaths = [
+    ...packageEntrypointCandidates(packageJson),
+    "index.js",
+    "index.cjs",
+    "index.mjs",
+    "dist/index.js",
+    "dist/index.mjs",
+    "lib/index.js",
+  ]
+  const runtimeFiles = []
+  for (const candidatePath of unique(candidatePaths)) {
+    const normalizedPath = normalizePackageRuntimePath(candidatePath)
+    if (normalizedPath === undefined) {
+      continue
+    }
+    const resolvedPath = path.join(packageDir, normalizedPath)
+    if (isRuntimeFilePath(resolvedPath)) {
+      runtimeFiles.push(normalizedPath)
+      continue
+    }
+    if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
+      runtimeFiles.push(...runtimeFilesUnderPackageDir(packageDir, resolvedPath).slice(0, 1))
+    }
+  }
+  if (runtimeFiles.length === 0) {
+    runtimeFiles.push(...runtimeFilesUnderPackageDir(packageDir, packageDir).slice(0, 1))
+  }
+  return unique(runtimeFiles)
+}
+
+function packageEntrypointCandidates(packageJson) {
+  const candidates = []
+  for (const field of ["main", "module"]) {
+    if (typeof packageJson[field] === "string") {
+      candidates.push(packageJson[field])
+    }
+  }
+  if (typeof packageJson.bin === "string") {
+    candidates.push(packageJson.bin)
+  } else if (typeof packageJson.bin === "object" && packageJson.bin !== null) {
+    candidates.push(...Object.values(packageJson.bin).filter((value) => typeof value === "string"))
+  }
+  candidates.push(...exportEntrypointCandidates(packageJson.exports))
+  return candidates
+}
+
+function exportEntrypointCandidates(value) {
+  if (typeof value === "string") {
+    return [value]
+  }
+  if (typeof value !== "object" || value === null) {
+    return []
+  }
+  return Object.values(value).flatMap(exportEntrypointCandidates)
+}
+
+function normalizePackageRuntimePath(packagePath) {
+  const normalizedPath = packagePath.replace(/^\.\//u, "")
+  if (
+    normalizedPath === "package.json"
+    || normalizedPath.includes("*")
+    || normalizedPath.startsWith("../")
+  ) {
+    return undefined
+  }
+  return normalizedPath
+}
+
+function runtimeFilesUnderPackageDir(packageDir, startDir) {
+  const runtimeFiles = []
+  for (const entry of readdirSync(startDir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".") || ["test", "tests", "docs", "examples", "benchmark"].includes(entry.name)) {
+      continue
+    }
+    const entryPath = path.join(startDir, entry.name)
+    if (entry.isDirectory()) {
+      runtimeFiles.push(...runtimeFilesUnderPackageDir(packageDir, entryPath))
+    } else if (isRuntimeFilePath(entryPath)) {
+      runtimeFiles.push(path.relative(packageDir, entryPath).replaceAll(path.sep, "/"))
+    }
+  }
+  return runtimeFiles.sort((left, right) => runtimeFileRank(left) - runtimeFileRank(right) || left.localeCompare(right))
+}
+
+function runtimeFileRank(filePath) {
+  if (/^(?:index|dist\/index|lib\/index)\.(?:js|cjs|mjs)$/u.test(filePath)) {
+    return 0
+  }
+  if (/\.(?:js|cjs|mjs)$/u.test(filePath)) {
+    return 1
+  }
+  if (/\.(?:node|dylib|so|dll)$/u.test(filePath)) {
+    return 2
+  }
+  return 3
+}
+
+function isRuntimeFilePath(filePath) {
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    return false
+  }
+  if (/\/package\.json$/u.test(filePath)) {
+    return false
+  }
+  return /\.(?:js|cjs|mjs|json|node|dylib|so|dll)$/u.test(filePath)
+}
+
+function unique(values) {
+  return [...new Set(values)]
 }
 
 function workflowPathFilters(workflow, eventName) {
@@ -785,10 +912,11 @@ test("package declares CI/release scripts for runtime dependency packs", async (
     platform: target.platform,
     arch: target.arch,
   })
+  const prodDependencyLockHash = productionDependencyLockHash({ packageJson, packageLock })
   const validEntries = archiveEntriesForProductionDependencies(productionDependencies)
   const validManifest = fixtureManifest({
     archiveSha: sha256(createTarGz(validEntries)),
-    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    prodDependencyLockHash,
     productionDependencies,
   })
   const validPackDir = writePackFixture({
@@ -799,7 +927,7 @@ test("package declares CI/release scripts for runtime dependency packs", async (
     .filter((entry) => entry !== "node_modules/sqlite-vec/index.cjs")
   const invalidManifest = fixtureManifest({
     archiveSha: sha256(createTarGz(invalidEntries)),
-    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    prodDependencyLockHash,
     productionDependencies,
   })
   const invalidPackDir = writePackFixture({
@@ -835,6 +963,46 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       `${invalidRun.stdout}${invalidRun.stderr}`,
       /runtime dependency archive must include runtime file node_modules\/sqlite-vec\/index\.cjs/u,
     )
+
+    const buildOutputRoot = makeTempDir()
+    try {
+      const buildRun = runNpmScript("runtime:deps-pack:build", [
+        "--output-root",
+        buildOutputRoot,
+        "--platform",
+        target.platform,
+        "--arch",
+        target.arch,
+        "--node-abi",
+        targetNodeAbi,
+      ])
+      assert.equal(buildRun.status, 0, buildRun.stderr || buildRun.stdout)
+      assert.match(`${buildRun.stdout}${buildRun.stderr}`, /runtime dependency pack built/i)
+
+      const builtPackDir = path.join(
+        buildOutputRoot,
+        packageJson.version,
+        `${target.platform}-${target.arch}-node-${targetNodeAbi}`,
+        prodDependencyLockHash,
+      )
+      assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.tgz")), true)
+      assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.manifest.json")), true)
+      assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.sha256")), true)
+
+      const builtVerifyRun = runNpmScript("runtime:deps-pack:verify", [
+        "--pack-dir",
+        builtPackDir,
+        "--platform",
+        target.platform,
+        "--arch",
+        target.arch,
+        "--node-abi",
+        targetNodeAbi,
+      ])
+      assert.equal(builtVerifyRun.status, 0, builtVerifyRun.stderr || builtVerifyRun.stdout)
+    } finally {
+      rmSync(buildOutputRoot, { recursive: true, force: true })
+    }
   } finally {
     rmSync(validPackDir, { recursive: true, force: true })
     rmSync(invalidPackDir, { recursive: true, force: true })
