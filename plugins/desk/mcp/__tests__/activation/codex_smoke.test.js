@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
@@ -35,6 +36,29 @@ function loadJson(filePath) {
 
 function makeTempHost() {
   return mkdtempSync(path.join(tmpdir(), "desk-codex-smoke-"))
+}
+
+function writeHostFile(root, relativePath, content) {
+  const filePath = path.join(root, relativePath)
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, content, "utf8")
+}
+
+function smokeStdout({
+  instructionSources = ["CODEX_HOME/AGENTS.md"],
+  instructions = "You are the desk worker by default.\nRun the `desk:session-start` skill before other work.",
+  tools = ["desk_status"],
+  deskStatus,
+}) {
+  return `${JSON.stringify({
+    type: "final_message",
+    message: JSON.stringify({
+      instruction_sources: instructionSources,
+      combined_instructions: instructions,
+      tools,
+      desk_status: deskStatus,
+    }),
+  })}\n`
 }
 
 function assertUnderRoot(root, actualPath, label) {
@@ -196,6 +220,311 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
     assertNoHealthyPathManualSetup(JSON.stringify(result))
   } finally {
     rmSync(hostRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex smoke replaces stale temp activation blocks while preserving temp user config", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const hostRoot = makeTempHost()
+  try {
+    const workspaceRoot = path.join(hostRoot, "workspace")
+    const staleConfig = [
+      'model = "gpt-5.4"',
+      "",
+      "# BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation",
+      '[plugins."desk@ourostack"]',
+      "enabled = false",
+      "# END desk activation",
+      "",
+    ].join("\n")
+    const staleInstructions = [
+      "# user guidance",
+      "",
+      "# BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation",
+      "You are not the desk worker by default.",
+      "# END desk activation",
+      "",
+    ].join("\n")
+    writeHostFile(hostRoot, ".codex/config.toml", staleConfig)
+    writeHostFile(hostRoot, ".codex/AGENTS.md", staleInstructions)
+
+    const result = await runCodexCliActivationSmoke({
+      repoRoot,
+      hostRoot,
+      workspaceRoot,
+      codexRunner: async (request) => {
+        const generatedConfig = readFileSync(path.join(request.env.CODEX_HOME, "config.toml"), "utf8")
+        const generatedInstructions = readFileSync(path.join(request.env.CODEX_HOME, "AGENTS.md"), "utf8")
+        assert.match(generatedConfig, /model = "gpt-5\.4"/u)
+        assert.doesNotMatch(generatedConfig, /desk@1\.6\.0/u)
+        assert.doesNotMatch(generatedConfig, /enabled = false/u)
+        assert.match(generatedInstructions, /# user guidance/u)
+        assert.doesNotMatch(generatedInstructions, /not the desk worker/u)
+        return {
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(hostRoot, "desk"), source: "activation-config" },
+              runtime: { loaded_from_source_mirror: true },
+            },
+          }),
+          stderr: "",
+        }
+      },
+    })
+
+    assert.equal(result.status, "pass")
+    assert.equal(result.activation.mode, "global-personal")
+  } finally {
+    rmSync(hostRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex smoke supports project-local activation without mutating global defaults", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const hostRoot = makeTempHost()
+  try {
+    const workspaceRoot = path.join(hostRoot, "project")
+    const result = await runCodexCliActivationSmoke({
+      repoRoot,
+      hostRoot,
+      workspaceRoot,
+      mode: "project-local",
+      codexRunner: async (request) => {
+        const projectConfigPath = path.join(workspaceRoot, ".codex", "config.toml")
+        const projectInstructionsPath = path.join(workspaceRoot, "AGENTS.md")
+        assert.equal(existsSync(path.join(request.env.CODEX_HOME, "config.toml")), false)
+        assert.equal(existsSync(projectConfigPath), true)
+        assert.equal(existsSync(projectInstructionsPath), true)
+        assert.match(readFileSync(projectConfigPath, "utf8"), /\[mcp_servers\.desk\]/u)
+        assert.match(readFileSync(projectInstructionsPath, "utf8"), /desk worker by default in this project/u)
+        assert.equal(request.env.DESK, path.join(workspaceRoot, ".desk"))
+        return {
+          exitCode: 0,
+          stdout: smokeStdout({
+            instructionSources: ["AGENTS.md"],
+            instructions: "You are the desk worker by default in this project.\nRun the `desk:session-start` skill.",
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(workspaceRoot, ".desk"), source: "activation-config" },
+              runtime: { loaded_from_source_mirror: true },
+            },
+          }),
+          stderr: "",
+        }
+      },
+    })
+
+    assert.equal(result.status, "pass")
+    assert.deepEqual(result.activation, {
+      config_path: path.join(workspaceRoot, ".codex", "config.toml"),
+      instructions_path: path.join(workspaceRoot, "AGENTS.md"),
+      mode: "project-local",
+    })
+    assert.equal(result.desk_status.root.path, path.join(workspaceRoot, ".desk"))
+  } finally {
+    rmSync(hostRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex smoke treats manual-only as an opt-out and can clean temp profile files", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const hostRoot = makeTempHost()
+  try {
+    const workspaceRoot = path.join(hostRoot, "workspace")
+    let runnerCalled = false
+    const result = await runCodexCliActivationSmoke({
+      repoRoot,
+      hostRoot,
+      workspaceRoot,
+      mode: "manual-only",
+      cleanupProfile: true,
+      codexRunner: async () => {
+        runnerCalled = true
+        return { exitCode: 0, stdout: "", stderr: "" }
+      },
+    })
+
+    assert.equal(runnerCalled, false)
+    assert.equal(result.status, "skipped")
+    assert.equal(result.reason, "manual-only opt-out")
+    assert.equal(result.activation.config_path, path.join(hostRoot, ".codex", "config.toml"))
+    assert.equal(result.activation.instructions_path, null)
+    assert.equal(existsSync(path.join(hostRoot, ".codex")), false)
+    assert.equal(existsSync(workspaceRoot), true)
+  } finally {
+    rmSync(hostRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex smoke reports missing Codex binary and failed MCP launch without stack traces", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const missingBinaryRoot = makeTempHost()
+  const failedMcpRoot = makeTempHost()
+  const launchErrorRoot = makeTempHost()
+  const launchStringRoot = makeTempHost()
+  const missingStderrRoot = makeTempHost()
+  try {
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: missingBinaryRoot,
+        workspaceRoot: path.join(missingBinaryRoot, "workspace"),
+        cleanupProfile: true,
+        codexRunner: async () => {
+          const error = new Error("spawn codex ENOENT")
+          error.code = "ENOENT"
+          throw error
+        },
+      }),
+      (error) => {
+        assert.match(error.message, /Codex CLI unavailable: codex binary not found/u)
+        assert.doesNotMatch(error.message, /at .*codex-smoke/u)
+        return true
+      },
+    )
+    assert.equal(existsSync(path.join(missingBinaryRoot, ".codex")), false)
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: launchStringRoot,
+        workspaceRoot: path.join(launchStringRoot, "workspace"),
+        codexRunner: async () => {
+          throw "string launch failure"
+        },
+      }),
+      /Codex CLI smoke failed to launch: string launch failure/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: launchErrorRoot,
+        workspaceRoot: path.join(launchErrorRoot, "workspace"),
+        codexRunner: async () => {
+          throw new Error("permission denied while launching codex")
+        },
+      }),
+      (error) => {
+        assert.match(error.message, /Codex CLI smoke failed to launch/u)
+        assert.match(error.message, /permission denied while launching codex/u)
+        assert.doesNotMatch(error.message, /at .*codex-smoke/u)
+        return true
+      },
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: failedMcpRoot,
+        workspaceRoot: path.join(failedMcpRoot, "workspace"),
+        codexRunner: async () => ({
+          exitCode: 1,
+          stdout: "",
+          stderr: "MCP server desk failed to initialize",
+        }),
+      }),
+      (error) => {
+        assert.match(error.message, /Codex CLI smoke failed with exit code 1/u)
+        assert.match(error.message, /MCP server desk failed to initialize/u)
+        assert.doesNotMatch(error.message, /at .*codex-smoke/u)
+        return true
+      },
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: missingStderrRoot,
+        workspaceRoot: path.join(missingStderrRoot, "workspace"),
+        codexRunner: async () => ({ exitCode: 2, stdout: "" }),
+      }),
+      /Codex CLI smoke failed with exit code 2/u,
+    )
+  } finally {
+    rmSync(missingBinaryRoot, { recursive: true, force: true })
+    rmSync(failedMcpRoot, { recursive: true, force: true })
+    rmSync(launchErrorRoot, { recursive: true, force: true })
+    rmSync(launchStringRoot, { recursive: true, force: true })
+    rmSync(missingStderrRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex smoke rejects malformed output and desk_status proof failures", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const malformedRoot = makeTempHost()
+  const failedStatusRoot = makeTempHost()
+  const wrongRoot = makeTempHost()
+  const missingStatusRoot = makeTempHost()
+  try {
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: malformedRoot,
+        workspaceRoot: path.join(malformedRoot, "workspace"),
+        codexRunner: async () => ({ exitCode: 0, stdout: "not-json\n", stderr: "" }),
+      }),
+      /Codex CLI smoke output did not contain a parseable final JSON message/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: failedStatusRoot,
+        workspaceRoot: path.join(failedStatusRoot, "workspace"),
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "error",
+              root: { path: path.join(failedStatusRoot, "desk"), source: "activation-config" },
+            },
+          }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove desk_status availability/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: wrongRoot,
+        workspaceRoot: path.join(wrongRoot, "workspace"),
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(wrongRoot, "other-desk"), source: "activation-config" },
+            },
+          }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove desk_status availability/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: missingStatusRoot,
+        workspaceRoot: path.join(missingStatusRoot, "workspace"),
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({ deskStatus: undefined }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove desk_status availability/u,
+    )
+  } finally {
+    rmSync(malformedRoot, { recursive: true, force: true })
+    rmSync(failedStatusRoot, { recursive: true, force: true })
+    rmSync(wrongRoot, { recursive: true, force: true })
+    rmSync(missingStatusRoot, { recursive: true, force: true })
   }
 })
 
