@@ -248,3 +248,70 @@ test("startup classifies every bounded fallback mode", async () => {
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test("startup stops waiting and aborts when bounded ensureIndex exceeds budget", async () => {
+  const root = makeRoot("desk-startup-budget-timeout-")
+  let signalSeen = false
+  let abortSeen = false
+  const runtimeServer = runtimeServerWithEnsureIndex({
+    ensureIndex: async (_deskRoot, opts = {}) => {
+      signalSeen = opts.signal instanceof AbortSignal
+      if (opts.signal) {
+        opts.signal.addEventListener("abort", () => {
+          abortSeen = true
+        }, { once: true })
+      }
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      throw new Error("late rebuild rejection")
+    },
+  })
+  try {
+    const startedAt = Date.now()
+    await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => runtimeServer,
+    })
+    const elapsedMs = Date.now() - startedAt
+
+    assert.equal(signalSeen, true)
+    assert.equal(abortSeen, true)
+    assert.ok(elapsedMs < 500, `startup took ${elapsedMs}ms despite 250ms budget`)
+    const startup = runtimeServer.startCalls[0].statusContext.startup
+    assert.equal(startup.ensure_index.reason, "startup_budget_exceeded")
+    assert.equal(startup.fallback_mode, "startup_deferred")
+    assert.equal(startup.degraded, true)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("startup skips bounded ensureIndex when the runtime server has no ensureIndex hook", async () => {
+  const root = makeRoot("desk-startup-budget-no-hook-")
+  const startCalls = []
+  try {
+    await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => ({
+        async startServer(args) {
+          startCalls.push(args)
+        },
+      }),
+    })
+
+    assert.equal(startCalls.length, 1)
+    assert.deepEqual(startCalls[0].statusContext.startup, {
+      fallback_mode: "not_checked",
+      degraded: false,
+      duration_ms: 0,
+      budget_ms: 250,
+    })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

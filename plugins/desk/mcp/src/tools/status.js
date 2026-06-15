@@ -165,7 +165,12 @@ function vectorPackStatus(startup) {
   const base = { module_state: "available" }
   if (!ensure) return { ...base, import_state: "not_checked" }
   if (ensure.fallback === "vector_packs") {
-    return { ...base, import_state: "used_as_fallback", fallback_used: true }
+    return {
+      ...base,
+      ...ensure.vector_packs,
+      import_state: "used_as_fallback",
+      fallback_used: true,
+    }
   }
   if (ensure.vector_packs?.import_state) {
     return { ...base, ...ensure.vector_packs }
@@ -258,11 +263,13 @@ function inferStartupFallbackMode({ ensure, lexicalIndex }) {
     return "lexical_only"
   }
   if (ensure.snapshot?.restored) return "snapshot"
+  if (ensure.reason === "startup_budget_exceeded") return "startup_deferred"
   return ensure.built ? "rebuild" : "fresh"
 }
 
 function fallbackIsDegraded({ documentVectors, mode, queryEmbedding }) {
   return mode === "lexical_only" ||
+    mode === "startup_deferred" ||
     documentVectors.state === "missing" ||
     documentVectors.state === "partial" ||
     queryEmbedding.available === false

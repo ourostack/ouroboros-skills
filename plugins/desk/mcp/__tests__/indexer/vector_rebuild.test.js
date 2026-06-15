@@ -219,6 +219,50 @@ test("rebuildIndex with disabled embeddings still succeeds when vector packs cov
   }
 })
 
+test("rebuildIndex reports validated vector packs when no rows match local chunks", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nvalidated no-match semantic body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot,
+    packId: "validated-no-match",
+    rows: [rowForDoc({
+      docPath: "other/task.md",
+      body: "---\nstatus: processing\n---\nother semantic body",
+      seed: 5,
+    })],
+  })
+
+  const summary = await rebuildIndex(deskRoot, {
+    vectorPacks: { pluginRoot },
+    skipEmbed: true,
+  })
+
+  assert.equal(summary.vector_packs.import_state, "validated")
+  assert.equal(summary.vector_packs.packs_imported, 1)
+  assert.equal(summary.vector_packs.rows_imported, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("rebuildIndex rejects immediately when startup abort signal is already tripped", async () => {
+  const deskRoot = await tmpRoot()
+  const controller = new AbortController()
+  controller.abort()
+
+  await assert.rejects(
+    rebuildIndex(deskRoot, { signal: controller.signal }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
+})
+
 test("ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings", async () => {
   const deskRoot = await tmpRoot()
   const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
@@ -308,6 +352,17 @@ test("ensureIndex honors skipEmbed when a fresh DB is missing vectors", async ()
   assert.equal(ensured.built, false)
   assert.equal(ensured.reason, "fresh")
   assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex rejects immediately when startup abort signal is already tripped", async () => {
+  const deskRoot = await tmpRoot()
+  const controller = new AbortController()
+  controller.abort()
+
+  await assert.rejects(
+    ensureIndex(deskRoot, { signal: controller.signal }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
 })
 
 test("ensureIndex probes with default embed options when none are provided", async () => {
@@ -563,6 +618,40 @@ test("ensureIndex refreshes a stale lexical-only DB from vector packs without em
   const db = openDb(deskRoot)
   try {
     assertVectorApprox(storedVector(db, docPath, 0), vector(23))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex reports vector-pack fallback for cold covered rebuilds without snapshots", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncold covered startup body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot,
+    packId: "cold-covered-startup",
+    rows: [rowForDoc({ docPath, body, seed: 29 })],
+  })
+
+  const ensured = await ensureIndex(deskRoot, {
+    skipEmbed: true,
+    startup: true,
+    vectorPacks: { pluginRoot },
+  })
+
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "missing")
+  assert.equal(ensured.fallback, "vector_packs")
+  assert.equal(ensured.vector_packs.import_state, "used_as_fallback")
+  assert.equal(ensured.vector_packs.packs_imported, 1)
+  assert.equal(ensured.vector_packs.rows_imported, 1)
+  assert.equal(ensured.semantic.missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, docPath, 0), vector(29))
   } finally {
     closeDb(db)
   }

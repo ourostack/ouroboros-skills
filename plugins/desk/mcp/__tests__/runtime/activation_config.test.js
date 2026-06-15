@@ -91,6 +91,13 @@ test("parseArgs captures activation config path without losing root or person", 
       root: "/tmp/desk",
     },
   )
+  assert.deepEqual(
+    entrypoint.parseArgs(["--root", "/tmp/desk", "--activation-config"]),
+    {
+      person: null,
+      root: "/tmp/desk",
+    },
+  )
 })
 
 test("resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence", () => {

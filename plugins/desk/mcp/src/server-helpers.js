@@ -47,6 +47,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
   const dbPath = indexDbPath(deskRoot)
   let snapshot = null
   let dbExisted = existsSync(dbPath)
+  throwIfAborted(effectiveOpts.signal)
   if (!dbExisted && effectiveOpts.snapshots?.pluginRoot) {
     snapshot = await restoreSnapshotToState({
       deskRoot,
@@ -54,6 +55,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
     })
     dbExisted = existsSync(dbPath)
   }
+  throwIfAborted(effectiveOpts.signal)
   const db = openDb(deskRoot)
   try {
     const semanticBefore = getSemanticCoverage(db)
@@ -95,14 +97,20 @@ export async function ensureIndex(deskRoot, opts = {}) {
       reason: snapshot?.restored ? "stale_snapshot_reconciled" : dbExisted ? "stale" : "missing",
       summary,
       semantic: semanticAfter,
+      vector_packs: summary.vector_packs,
+    }
+    const fallback = fallbackFor(effectiveOpts, snapshot, summary.vector_packs)
+    if (fallback === "vector_packs") {
+      result.vector_packs = fallbackVectorPackStatus(summary.vector_packs)
     }
     if (snapshot?.restored) {
       result.snapshot = {
         ...snapshot,
         reconciled: true,
       }
+      if (fallback) result.fallback = fallback
     } else {
-      return withSnapshot(result, snapshot, fallbackFor(effectiveOpts, snapshot))
+      return withSnapshot(result, snapshot, fallback)
     }
     return result
   } finally {
@@ -264,6 +272,10 @@ async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
     built: true,
     reason: "semantic_missing",
     summary,
+    fallback: fallbackFor(opts, null, summary.vector_packs),
+    vector_packs: fallbackFor(opts, null, summary.vector_packs) === "vector_packs"
+      ? fallbackVectorPackStatus(summary.vector_packs)
+      : summary.vector_packs,
     semantic: assignEmbeddingAvailability(
       getSemanticCoverage(db),
       semantic,
@@ -304,8 +316,22 @@ function withSnapshot(result, snapshot, fallback = null) {
   return result
 }
 
-function fallbackFor(opts, snapshot) {
-  if (!snapshot) return null
-  if (opts.vectorPacks?.pluginRoot) return "vector_packs"
+function fallbackFor(opts, _snapshot, vectorPacks) {
+  if (opts.vectorPacks?.pluginRoot && vectorPacks?.rows_imported > 0) return "vector_packs"
   return null
+}
+
+function fallbackVectorPackStatus(vectorPacks) {
+  return {
+    ...vectorPacks,
+    import_state: "used_as_fallback",
+    fallback_used: true,
+  }
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  const err = new Error("operation aborted")
+  err.name = "AbortError"
+  throw err
 }

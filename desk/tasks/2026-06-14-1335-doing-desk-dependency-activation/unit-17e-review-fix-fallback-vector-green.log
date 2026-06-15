@@ -1,0 +1,199 @@
+TAP version 13
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 1 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 98.792833
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 2 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 95.395041
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 3 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 60.675834
+  type: 'test'
+  ...
+# Subtest: rebuildIndex reports validated vector packs when no rows match local chunks
+ok 4 - rebuildIndex reports validated vector packs when no rows match local chunks
+  ---
+  duration_ms: 24.752541
+  type: 'test'
+  ...
+# Subtest: rebuildIndex rejects immediately when startup abort signal is already tripped
+ok 5 - rebuildIndex rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 10.164125
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+ok 6 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 69.431875
+  type: 'test'
+  ...
+# Subtest: ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+ok 7 - ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+  ---
+  duration_ms: 48.150209
+  type: 'test'
+  ...
+# Subtest: ensureIndex honors skipEmbed when a fresh DB is missing vectors
+ok 8 - ensureIndex honors skipEmbed when a fresh DB is missing vectors
+  ---
+  duration_ms: 14.010666
+  type: 'test'
+  ...
+# Subtest: ensureIndex rejects immediately when startup abort signal is already tripped
+ok 9 - ensureIndex rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 0.85575
+  type: 'test'
+  ...
+# Subtest: ensureIndex probes with default embed options when none are provided
+ok 10 - ensureIndex probes with default embed options when none are provided
+  ---
+  duration_ms: 52.433125
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+ok 11 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 72.042333
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+ok 12 - ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+  ---
+  duration_ms: 14.424041
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves successful probe diagnostics after live embedding repair
+ok 13 - ensureIndex preserves successful probe diagnostics after live embedding repair
+  ---
+  duration_ms: 38.836291
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves failed probe diagnostics when stale content is skipped
+ok 14 - ensureIndex preserves failed probe diagnostics when stale content is skipped
+  ---
+  duration_ms: 13.408084
+  type: 'test'
+  ...
+# Subtest: ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+ok 15 - ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+  ---
+  duration_ms: 38.224833
+  type: 'test'
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+ok 16 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 39.401
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports vector-pack fallback for cold covered rebuilds without snapshots
+ok 17 - ensureIndex reports vector-pack fallback for cold covered rebuilds without snapshots
+  ---
+  duration_ms: 28.327667
+  type: 'test'
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 18 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 38.125375
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions preserves explicit artifact opt-outs
+ok 19 - resolveEnsureIndexOptions preserves explicit artifact opt-outs
+  ---
+  duration_ms: 0.904083
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions uses the configured runtime artifact root
+ok 20 - resolveEnsureIndexOptions uses the configured runtime artifact root
+  ---
+  duration_ms: 4.192959
+  type: 'test'
+  ...
+# Subtest: ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+ok 21 - ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+  ---
+  duration_ms: 90.633542
+  type: 'test'
+  ...
+# Subtest: ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+ok 22 - ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+  ---
+  duration_ms: 128.562125
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+ok 23 - ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+  ---
+  duration_ms: 24.468833
+  type: 'test'
+  ...
+# Subtest: ensureIndex auto-discovers snapshots from the runtime plugin root
+ok 24 - ensureIndex auto-discovers snapshots from the runtime plugin root
+  ---
+  duration_ms: 103.884958
+  type: 'test'
+  ...
+# Subtest: desk_reindex uses runtime artifacts without artifact opts
+ok 25 - desk_reindex uses runtime artifacts without artifact opts
+  ---
+  duration_ms: 53.216792
+  type: 'test'
+  ...
+# Subtest: ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+ok 26 - ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+  ---
+  duration_ms: 67.799916
+  type: 'test'
+  ...
+# Subtest: ensureIndex reconciles stale snapshot manifests even when mtimes look fresh
+ok 27 - ensureIndex reconciles stale snapshot manifests even when mtimes look fresh
+  ---
+  duration_ms: 53.922083
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs vectors before returning a fresh restored snapshot
+ok 28 - ensureIndex repairs vectors before returning a fresh restored snapshot
+  ---
+  duration_ms: 48.392625
+  type: 'test'
+  ...
+# Subtest: ensureIndex reconcile removes deleted snapshot docs and refreshes archived docs
+ok 29 - ensureIndex reconcile removes deleted snapshot docs and refreshes archived docs
+  ---
+  duration_ms: 35.8185
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex treats missing vector packs and disabled embeddings as lexical fallback
+ok 30 - ensureIndex treats missing vector packs and disabled embeddings as lexical fallback
+  ---
+  duration_ms: 14.284584
+  type: 'test'
+  ...
+# Subtest: ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+ok 31 - ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+  ---
+  duration_ms: 63.386
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 960.165833

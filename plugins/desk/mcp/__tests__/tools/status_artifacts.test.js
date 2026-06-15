@@ -326,6 +326,10 @@ test("desk_status classifies additional artifact startup modes", async () => {
     })
     assert.equal(body.startup_fallback.mode, "rebuild")
 
+    body = await statusFor({ built: false, reason: "startup_budget_exceeded" })
+    assert.equal(body.startup_fallback.mode, "startup_deferred")
+    assert.equal(body.startup_fallback.degraded, true)
+
     body = await statusFor({ built: false, reason: "fresh" })
     assert.equal(body.startup_fallback.mode, "fresh")
   } finally {

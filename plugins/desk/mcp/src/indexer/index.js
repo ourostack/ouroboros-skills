@@ -55,8 +55,10 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   try {
+    throwIfAborted(opts.signal)
     writeActiveEmbeddingSpec(db, setMeta)
-    const discovered = await discover(deskRoot)
+    const discovered = await discover(deskRoot, { signal: opts.signal })
+    throwIfAborted(opts.signal)
     const discoveredByPath = new Map(discovered.map((d) => [d.path, d]))
 
     // Compare against existing docs table. Anything no longer on disk gets
@@ -68,6 +70,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
 
     const deletedPaths = []
     for (const row of existing) {
+      throwIfAborted(opts.signal)
       if (!discoveredByPath.has(row.path)) {
         deletedPaths.push(row.path)
       }
@@ -84,6 +87,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     // Decide which docs need reindexing.
     const toReindex = []
     for (const doc of discovered) {
+      throwIfAborted(opts.signal)
       const existingRow = existingByPath.get(doc.path)
       if (existingRow && existingRow.hash === doc.hash) {
         if (docNeedsActiveChunkMetadata(db, existingRow.id, doc)) {
@@ -108,18 +112,20 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     // committed packs first, then live-generated only for remaining gaps.
     const reindexedDocIds = []
     for (const doc of toReindex) {
+      throwIfAborted(opts.signal)
       reindexedDocIds.push(indexOneDoc(db, doc, summary))
       summary.docs_indexed += 1
     }
 
     if (opts.vectorPacks?.pluginRoot) {
-      await importVectorPacks({
+      summary.vector_packs = vectorPackImportStatus(await importVectorPacks({
         db,
         pluginRoot: opts.vectorPacks.pluginRoot,
-      })
+      }))
     }
 
     if (!opts.skipEmbed) {
+      throwIfAborted(opts.signal)
       await embedMissingVectors(db, opts, summary, reindexedDocIds)
     }
 
@@ -135,6 +141,24 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   return summary
+}
+
+function vectorPackImportStatus(summary) {
+  return {
+    import_state: summary.rows_imported > 0
+      ? "imported"
+      : summary.packs_imported > 0
+        ? "validated"
+        : "absent",
+    ...summary,
+  }
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  const err = new Error("operation aborted")
+  err.name = "AbortError"
+  throw err
 }
 
 function docNeedsActiveChunkMetadata(db, docId, doc) {

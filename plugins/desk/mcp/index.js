@@ -104,7 +104,7 @@ export async function main({
 }
 
 async function runStartupEnsureIndex({ budgetMs, deskRoot, runtimeServer }) {
-  if (!hasText(deskRoot) || typeof runtimeServer.ensureIndex !== "function") {
+  if (typeof runtimeServer.ensureIndex !== "function") {
     return {
       fallback_mode: "not_checked",
       degraded: false,
@@ -113,29 +113,59 @@ async function runStartupEnsureIndex({ budgetMs, deskRoot, runtimeServer }) {
     }
   }
   const startedAt = Date.now()
-  let ensureIndexResult
+  const controller = new AbortController()
+  let timeout
+  let timedOut = false
+  const ensureIndexPromise = Promise.resolve().then(() => runtimeServer.ensureIndex(deskRoot, {
+    startup: true,
+    budgetMs,
+    signal: controller.signal,
+    skipEmbed: true,
+  }))
   try {
-    ensureIndexResult = await runtimeServer.ensureIndex(deskRoot, {
-      startup: true,
-      budgetMs,
-      skipEmbed: true,
-    })
+    const ensureIndexResult = await Promise.race([
+      ensureIndexPromise,
+      new Promise((resolve) => {
+        timeout = setTimeout(() => {
+          timedOut = true
+          controller.abort()
+          resolve({
+            built: false,
+            reason: "startup_budget_exceeded",
+            deferred: true,
+          })
+        }, budgetMs)
+      }),
+    ])
+    if (timedOut) {
+      ensureIndexPromise.catch(() => {})
+    }
+    clearTimeout(timeout)
+    const fallbackMode = inferStartupFallbackMode(ensureIndexResult)
+    return {
+      ensure_index: ensureIndexResult,
+      duration_ms: Date.now() - startedAt,
+      budget_ms: budgetMs,
+      fallback_mode: fallbackMode,
+      degraded: startupIsDegraded(ensureIndexResult, fallbackMode),
+    }
   } catch (err) {
-    ensureIndexResult = {
+    const ensureIndexResult = {
       built: false,
       reason: "startup_error",
       error: {
         message: err?.message ?? String(err),
       },
     }
-  }
-  const fallbackMode = inferStartupFallbackMode(ensureIndexResult)
-  return {
-    ensure_index: ensureIndexResult,
-    duration_ms: Date.now() - startedAt,
-    budget_ms: budgetMs,
-    fallback_mode: fallbackMode,
-    degraded: startupIsDegraded(ensureIndexResult, fallbackMode),
+    clearTimeout(timeout)
+    const fallbackMode = inferStartupFallbackMode(ensureIndexResult)
+    return {
+      ensure_index: ensureIndexResult,
+      duration_ms: Date.now() - startedAt,
+      budget_ms: budgetMs,
+      fallback_mode: fallbackMode,
+      degraded: startupIsDegraded(ensureIndexResult, fallbackMode),
+    }
   }
 }
 
@@ -151,12 +181,14 @@ function inferStartupFallbackMode(ensureIndexResult) {
   }
   if (ensureIndexResult?.snapshot?.restored) return "snapshot"
   if (ensureIndexResult?.reason === "startup_error") return "startup_error"
+  if (ensureIndexResult?.reason === "startup_budget_exceeded") return "startup_deferred"
   return ensureIndexResult?.built ? "rebuild" : "fresh"
 }
 
 function startupIsDegraded(ensureIndexResult, fallbackMode) {
   return fallbackMode === "lexical_only" ||
     fallbackMode === "startup_error" ||
+    fallbackMode === "startup_deferred" ||
     ensureIndexResult?.semantic?.embedding_available === false ||
     ensureIndexResult?.semantic?.missing_vectors > 0
 }

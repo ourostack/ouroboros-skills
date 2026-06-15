@@ -7,7 +7,10 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
-import { parseArgs } from "../../index.js"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import * as path from "node:path"
+import { parseArgs, resolveStartupRuntimeCacheDir } from "../../index.js"
 import { callTool, TOOL_IMPLS } from "../../src/server.js"
 import { mkTempDeskRoot } from "./_helpers.js"
 
@@ -33,6 +36,47 @@ test("parseArgs accepts --person before --root (order-independent)", () => {
   const args = parseArgs(["--person", "bob", "--root", "/tmp/desk"])
   assert.equal(args.person, "bob")
   assert.equal(args.root, "/tmp/desk")
+})
+
+test("parseArgs and runtime cache resolution handle activation-config edge cases", () => {
+  assert.deepEqual(
+    parseArgs(["--root", "/tmp/desk", "--host-session-root"]),
+    {
+      person: null,
+      root: "/tmp/desk",
+    },
+  )
+  assert.deepEqual(
+    parseArgs(["--root", "/tmp/desk", "--activation-config"]),
+    {
+      person: null,
+      root: "/tmp/desk",
+    },
+  )
+
+  const root = mkdtempSync(path.join(tmpdir(), "desk-person-activation-config-"))
+  const configPath = path.join(root, "desk.activation-config.json")
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      schema_version: 1,
+      desk: { root },
+      runtimeCacheDir: "runtime-cache",
+    }),
+    "utf8",
+  )
+  try {
+    assert.equal(
+      resolveStartupRuntimeCacheDir({
+        args: parseArgs(["--activation-config", configPath]),
+        cwd: root,
+        homeDir: root,
+      }),
+      path.join(root, "runtime-cache"),
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 // ── dispatch threading ────────────────────────────────────────────────────────
