@@ -66,21 +66,22 @@ test("validateVectorPackCompaction accepts semantically equivalent duplicate mer
   const { validateVectorPackCompaction } = await loadCompactionModule()
   const rowA = row({ key: "a", hash: "1", seed: 1 })
   const rowB = row({ key: "b", hash: "2", seed: 2 })
+  const rowC = row({ key: "c", hash: "3", seed: 3 })
 
   const summary = validateVectorPackCompaction({
     sourcePacks: [
       pack("pack-a", [rowA, rowB]),
-      pack("pack-b", [clone(rowA)]),
+      pack("pack-b", [clone(rowA), rowC]),
     ],
-    compactedPack: pack("compacted", [clone(rowA), clone(rowB)]),
+    compactedPack: pack("compacted", [clone(rowA), clone(rowB), clone(rowC)]),
   })
 
   assert.deepEqual(summary, {
     equivalent: true,
     source_pack_count: 2,
-    source_rows: 3,
-    compacted_rows: 2,
-    unique_chunk_keys: 2,
+    source_rows: 4,
+    compacted_rows: 3,
+    unique_chunk_keys: 3,
     duplicate_rows_removed: 1,
   })
 })
