@@ -77,16 +77,16 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Healthy startup has a bounded fast path and avoids network calls when snapshot/vector-pack artifacts are sufficient.
 - [x] Long-running repairs are deferred, explicitly surfaced, or explicitly invoked rather than silently blocking session start.
 - [ ] Startup and rebuild performance budget values are declared in test configuration or release policy, and CI fails when those budgets are exceeded.
-- [ ] Compatible snapshots are copied into `.state/` before mutation.
+- [x] Compatible snapshots are copied into `.state/` before mutation.
 - [ ] Snapshot artifacts live at `plugins/desk/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst` with adjacent manifest and checksum files.
 - [x] Snapshot manifest includes artifact source-scope hash, document tree hash, included pack IDs, sqlite-vec/runtime compatibility, creation timestamp, artifact checksum, and provenance.
 - [x] Snapshot restore validates checksum, DB schema, embedding spec, chunker ID, sqlite-vec/runtime compatibility, manifest creation timestamp, provenance, artifact source-scope/document hashes, included pack IDs, and artifact format.
 - [x] Snapshot restore treats artifact source-scope or document tree mismatch as freshness information, not compatibility failure.
 - [x] Snapshot restore rejects or skips artifacts with absolute host paths or incompatible manifests.
 - [x] Snapshot restore rejects or skips artifacts with unexpected source paths.
-- [ ] Snapshot artifacts are compressed or otherwise size-managed.
-- [ ] Runtime chooses the newest compatible snapshot for the active embedding spec and ignores inactive-spec snapshots.
-- [ ] Snapshot restore corruption is treated as a cache miss.
+- [x] Snapshot artifacts are compressed or otherwise size-managed.
+- [x] Runtime chooses the newest compatible snapshot for the active embedding spec and ignores inactive-spec snapshots.
+- [x] Snapshot restore corruption is treated as a cache miss.
 - [ ] Snapshot restore falls back to vector packs automatically.
 - [ ] Stale but compatible snapshots are reconciled incrementally instead of fully discarded.
 - [ ] Vector packs live outside `.state/` at `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl` with adjacent manifest and checksum files.
@@ -494,7 +494,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/snapshots/restore.test.js`.
 **Acceptance**: Tests fail until snapshot selection and restore-copy behavior exists.
 
-### 🔄 Unit 16b: Snapshot Restore Select And Copy - Implementation
+### ✅ Unit 16b: Snapshot Restore Select And Copy - Implementation
 **What**: Implement snapshot discovery, newest-compatible selection, decompression/copy into local `.state/`, and restore idempotence.
 **Output**: `plugins/desk/mcp/src/snapshots/restore.js` and fixtures.
 **Acceptance**: Unit 16a tests pass and repo snapshot artifacts are never opened for mutation.
@@ -955,3 +955,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 13:25 Unit 16a started for snapshot restore selection/copy red tests covering newest-compatible discovery, inactive-spec ignore, compressed artifact handling, `.state` copy, repo artifact immutability, and idempotent repeated restore.
 - 2026-06-15 13:38 Unit 16a complete: `eee0b3c` added red restore tests for snapshot discovery, newest-compatible selection, zstd decompression into `.state/desk-index.sqlite`, repo artifact immutability, and idempotence. Meitner the 2nd found MAJOR false-green risks around write-order/mtime selection and missing invalid active-spec snapshots plus a MINOR idempotence mtime gap; `d4f5f2d` added invalid active runtime/checksum fixtures, repo artifact mtime fingerprinting, and sentinel state mtime assertions. Nash the 2nd and Bacon the 2nd then found ascending/descending filename-order false-greens; `532874c` and `c225d27` forced manifest-`created_at` selection with `a-active-older`, `m-active-newer`, and `z-active-name-only` compatible fixtures whose names, write order, and mtimes disagree. Final red evidence in `unit-16a-round3-fix-snapshot-restore-red.log` fails only because `plugins/desk/mcp/src/snapshots/restore.js` is missing, and Heisenberg the 2nd converged on the Unit 16a red contract.
 - 2026-06-15 13:41 Unit 16b started for snapshot discovery, newest-compatible selection, decompression/copy into local `.state`, and restore idempotence implementation.
+- 2026-06-15 13:51 Unit 16b complete: `5e4752d` added `plugins/desk/mcp/src/snapshots/restore.js` with snapshot discovery, manifest-validated compatibility filtering, inactive-spec ignores, manifest-`created_at` newest selection, zstd decompression into `.state/desk-index.sqlite`, atomic state writes, repo-artifact read-only behavior, and restore idempotence metadata. Euler the 2nd found a MAJOR stale-marker risk where tampered state DB bytes could be trusted; `ae475f8` added `state_db_sha256` marker validation and tampered-state repair coverage. Lovelace the 2nd converged on Round 2. Final evidence: `unit-16b-review-fix-snapshot-restore-green.log` passes 7/7, `unit-16b-review-fix-test-coverage.log` reports 100% line/branch/function coverage including `snapshots/restore.js`, `unit-16b-review-fix-npm-test-green.log` passes 471/471, runtime-pack/generated-artifact/support-matrix/skill/diff checks pass, and build remains explicitly unavailable because `plugins/desk/mcp/package.json` has no `build` script.
