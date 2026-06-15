@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -419,7 +419,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js` and migration assertions in existing DB/indexer tests.
 **Acceptance**: Tests fail until chunks and index metadata can record stable keys and active specs.
 
-### 🔄 Unit 11b: Chunk Keys And Embedding Spec Schema - Implementation
+### ✅ Unit 11b: Chunk Keys And Embedding Spec Schema - Implementation
 **What**: Implement embedding spec loading, chunk-key computation, schema migrations, and active-spec metadata.
 **Output**: Updated `plugins/desk/mcp/src/indexer/chunk.js`, new spec module, updated `schema.sql`/migrations, and indexer writes.
 **Acceptance**: Unit 11a tests pass and unchanged chunks get stable keys across runs.
@@ -911,3 +911,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 08:51 Unit 11a complete: `4780464` adds chunk-key and embedding-spec red tests in `plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js`, DB schema/migration assertions in `plugins/desk/mcp/__tests__/db/init.test.js`, and indexer persistence/inactive-spec red tests in `plugins/desk/mcp/__tests__/indexer/index.test.js`. Targeted red evidence in `unit-11a-chunk-keys-red.log` fails because `plugins/desk/mcp/src/indexer/spec.js`, `embedding_specs`, chunk metadata columns, active-spec meta writes, and inactive-spec re-embed behavior do not exist yet; terminal `All tests pass` is intentionally unchecked until Unit 11b makes the red contract green.
 - 2026-06-15 08:55 Unit 11a reviewer fix: Cicero the 2nd found a MAJOR gap where inactive-spec coverage only changed global active-spec metadata. `3c3d499` tightens the red contract to insert an inactive `embedding_specs` row and mark existing chunk rows with inactive `embedding_spec_id`/chunker/normalization metadata while vector rows remain present, proving Unit 11b must ignore row-level inactive-spec vectors.
 - 2026-06-15 08:58 Unit 11a Round 2 cold reviewer gate converged; Cicero the 2nd verified the row-level inactive-spec red contract is now meaningful. Unit 11b started for the green implementation.
+- 2026-06-15 09:08 Unit 11b complete: `bbd61aa` adds active embedding spec metadata, stable chunk/text hashes, DB schema and migration support for chunk identity columns plus `embedding_specs`, active-spec meta writes, and active-spec-aware `reembedMissing` behavior. Focused Unit 11b tests pass 25/25 in `unit-11b-chunk-keys-green.log`; full Desk MCP tests pass 381/381 in `unit-11b-npm-test-green.log`; coverage is 100% line/branch/function for all changed production files in `unit-11b-test-coverage.log`; runtime dependency pack verification, support-matrix generation, generated-artifact freshness, skill validation, and diff check all pass. Build remains unavailable because the MCP package has no `build` script, captured in `unit-11b-build-unavailable.log`.
