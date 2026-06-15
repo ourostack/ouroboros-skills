@@ -31,7 +31,9 @@ const supportedTargets = [
   { platform: "linux", arch: "x64", sqliteVecPackage: "sqlite-vec-linux-x64" },
   { platform: "win32", arch: "x64", sqliteVecPackage: "sqlite-vec-windows-x64" },
 ]
-const target = supportedTargets[0]
+const target = supportedTargets.find((supportedTarget) => (
+  supportedTarget.platform === process.platform && supportedTarget.arch === process.arch
+)) ?? supportedTargets[0]
 const requiredRuntimeFilesByPackage = new Map([
   ["@modelcontextprotocol/sdk", [
     "dist/esm/server/index.js",
@@ -112,12 +114,15 @@ function createTarGz(entries, entryBytes = {}) {
   return gzipSync(Buffer.concat(blocks))
 }
 
-function archiveEntryBytesForManifest(manifest) {
+function archiveEntryBytesForManifest(manifest, overrides = {}) {
   return {
+    "package.json": readFileSync(packageJsonPath),
+    "package-lock.json": readFileSync(packageLockPath),
     "runtime-deps.manifest.json": Buffer.from(
       JSON.stringify(embeddedManifestForArchive(manifest), null, 2),
       "utf8",
     ),
+    ...overrides,
   }
 }
 
@@ -953,6 +958,9 @@ test("runtime dependency archive shape rejects server source and missing depende
       ...validEntries,
       "README.md",
       "release-notes.txt",
+      "scripts/evil.js",
+      "lib/evil.js",
+      "plugins/desk/mcp/src/server.js",
     ],
     productionDependencies,
   })
@@ -961,6 +969,9 @@ test("runtime dependency archive shape rejects server source and missing depende
     [
       "runtime dependency archive must not include unexpected root file README.md",
       "runtime dependency archive must not include unexpected root file release-notes.txt",
+      "runtime dependency archive must not include unexpected root path lib/evil.js",
+      "runtime dependency archive must not include unexpected root path plugins/desk/mcp/src/server.js",
+      "runtime dependency archive must not include unexpected root path scripts/evil.js",
     ].sort(),
   )
 
@@ -1070,9 +1081,13 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     checksum: archiveSha,
     manifest: staleManifestArchiveShaManifest,
   })
-  const embeddedManifestMismatchBytes = {
+  const embeddedManifestMismatchBytes = archiveEntryBytesForManifest(fixtureManifest({
+    archiveSha: "0".repeat(64),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  }), {
     "runtime-deps.manifest.json": Buffer.from("placeholder embedded manifest\n", "utf8"),
-  }
+  })
   const embeddedManifestMismatchManifest = fixtureManifestForArchiveEntries({
     archiveEntries: validEntries,
     archiveEntryBytes: embeddedManifestMismatchBytes,
@@ -1083,6 +1098,49 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     archiveEntries: validEntries,
     archiveEntryBytes: embeddedManifestMismatchBytes,
     manifest: embeddedManifestMismatchManifest,
+  })
+  const missingArchivePackageJsonEntries = validEntries
+    .filter((entry) => entry !== "package.json")
+  const missingArchivePackageJsonManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: missingArchivePackageJsonEntries,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingArchivePackageJsonPackDir = writePackFixture({
+    archiveEntries: missingArchivePackageJsonEntries,
+    manifest: missingArchivePackageJsonManifest,
+  })
+  const missingArchivePackageLockEntries = validEntries
+    .filter((entry) => entry !== "package-lock.json")
+  const missingArchivePackageLockManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: missingArchivePackageLockEntries,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const missingArchivePackageLockPackDir = writePackFixture({
+    archiveEntries: missingArchivePackageLockEntries,
+    manifest: missingArchivePackageLockManifest,
+  })
+  const tamperedPackageLock = structuredClone(packageLock)
+  tamperedPackageLock.packages["node_modules/zod"].version = "3.25.77"
+  const tamperedPackageLockProvisionalManifest = fixtureManifest({
+    archiveSha: "0".repeat(64),
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const tamperedPackageLockBytes = archiveEntryBytesForManifest(tamperedPackageLockProvisionalManifest, {
+    "package-lock.json": Buffer.from(JSON.stringify(tamperedPackageLock, null, 2), "utf8"),
+  })
+  const tamperedPackageLockManifest = fixtureManifestForArchiveEntries({
+    archiveEntries: validEntries,
+    archiveEntryBytes: tamperedPackageLockBytes,
+    prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
+    productionDependencies,
+  })
+  const tamperedPackageLockPackDir = writePackFixture({
+    archiveEntries: validEntries,
+    archiveEntryBytes: tamperedPackageLockBytes,
+    manifest: tamperedPackageLockManifest,
   })
   const missingRuntimeFileEntries = validEntries
     .filter((entry) => entry !== "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js")
@@ -1165,6 +1223,54 @@ test("runtime dependency pack verification checks checksums and unsupported plat
 
     assert.deepEqual(
       verifyRuntimeDependencyPack({
+        packDir: missingArchivePackageJsonPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive must include root package.json"],
+        manifest: missingArchivePackageJsonManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: missingArchivePackageLockPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: ["runtime dependency archive must include root package-lock.json"],
+        manifest: missingArchivePackageLockManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
+        packDir: tamperedPackageLockPackDir,
+        mcpRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+      }),
+      {
+        ok: false,
+        errors: [
+          "runtime dependency archive package-lock.json sha256 must match sidecar manifest",
+          "runtime dependency archive production dependency lock hash must match embedded package metadata",
+        ],
+        manifest: tamperedPackageLockManifest,
+      },
+    )
+
+    assert.deepEqual(
+      verifyRuntimeDependencyPack({
         packDir,
         mcpRoot,
         platform: "freebsd",
@@ -1216,6 +1322,9 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     rmSync(corruptPackDir, { recursive: true, force: true })
     rmSync(staleManifestArchiveShaPackDir, { recursive: true, force: true })
     rmSync(embeddedManifestMismatchPackDir, { recursive: true, force: true })
+    rmSync(missingArchivePackageJsonPackDir, { recursive: true, force: true })
+    rmSync(missingArchivePackageLockPackDir, { recursive: true, force: true })
+    rmSync(tamperedPackageLockPackDir, { recursive: true, force: true })
     rmSync(missingRuntimeFilePackDir, { recursive: true, force: true })
     rmSync(missingInferredRuntimeFilePackDir, { recursive: true, force: true })
   }

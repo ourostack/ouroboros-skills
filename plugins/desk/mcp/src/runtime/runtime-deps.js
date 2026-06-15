@@ -235,6 +235,11 @@ export function validateRuntimeDependencyArchiveShape({
   const entrySet = new Set(entries)
   const expectedEntries = archiveEntriesForProductionDependencies(productionDependencies, { mcpRoot })
   const expectedSet = new Set(expectedEntries)
+  for (const rootEntry of ["package.json", "package-lock.json", "runtime-deps.manifest.json"]) {
+    if (!entrySet.has(rootEntry)) {
+      errors.push(`runtime dependency archive must include root ${rootEntry}`)
+    }
+  }
   for (const dependency of productionDependencies) {
     if (!entrySet.has(`${dependency.lock_path}/package.json`)) {
       errors.push(`runtime dependency archive must include non-native dependency ${dependency.name}`)
@@ -265,7 +270,9 @@ export function validateRuntimeDependencyArchiveShape({
     }
     if (!entry.includes("/")) {
       errors.push(`runtime dependency archive must not include unexpected root file ${entry}`)
+      continue
     }
+    errors.push(`runtime dependency archive must not include unexpected root path ${entry}`)
   }
   for (const name of unexpectedDependencyNames) {
     errors.push(`runtime dependency archive must not include non-production dependency ${name}`)
@@ -315,6 +322,28 @@ export function verifyRuntimeDependencyPack({
   }
 
   const archiveContents = extractTarGzContents(archivePath)
+  const archivePackageJson = parseArchiveJson(archiveContents.get("package.json"), "package.json", errors)
+  const archivePackageLock = parseArchiveJson(archiveContents.get("package-lock.json"), "package-lock.json", errors)
+  const archivePackageLockBytes = archiveContents.get("package-lock.json")
+  if (archivePackageLockBytes !== undefined && sha256(archivePackageLockBytes) !== manifest?.package_lock?.sha256) {
+    errors.push("runtime dependency archive package-lock.json sha256 must match sidecar manifest")
+  }
+  if (archivePackageJson !== undefined && archivePackageLock !== undefined) {
+    if (archivePackageJson.name !== manifest?.plugin?.name || archivePackageJson.version !== manifest?.plugin?.version) {
+      errors.push("runtime dependency archive package.json must match sidecar manifest plugin metadata")
+    }
+    try {
+      const embeddedProdDependencyLockHash = productionDependencyLockHash({
+        packageJson: archivePackageJson,
+        packageLock: archivePackageLock,
+      })
+      if (embeddedProdDependencyLockHash !== manifest?.package_lock?.prod_dependency_lock_hash) {
+        errors.push("runtime dependency archive production dependency lock hash must match embedded package metadata")
+      }
+    } catch {
+      errors.push("runtime dependency archive production dependency lock hash must be computable from embedded package metadata")
+    }
+  }
   const embeddedManifest = parseEmbeddedManifest(archiveContents.get("runtime-deps.manifest.json"))
   if (!deepEqual(embeddedManifest, embeddedManifestForArchive(manifest))) {
     errors.push("runtime dependency archive embedded manifest must match sidecar manifest metadata")
@@ -830,6 +859,18 @@ function parseEmbeddedManifest(bytes) {
   try {
     return JSON.parse(bytes.toString("utf8"))
   } catch {
+    return undefined
+  }
+}
+
+function parseArchiveJson(bytes, entry, errors) {
+  if (bytes === undefined) {
+    return undefined
+  }
+  try {
+    return JSON.parse(bytes.toString("utf8"))
+  } catch {
+    errors.push(`runtime dependency archive ${entry} must be valid JSON`)
     return undefined
   }
 }
