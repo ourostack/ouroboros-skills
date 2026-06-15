@@ -494,7 +494,10 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
 
     writeFileSync(
       path.join(fixture.mcpRoot, "src", "tool-names.js"),
-      `${beforeSource}\n// unit 7a source hash change\n`,
+      beforeSource.replace(
+        "Hybrid lexical+semantic search across desk.",
+        "Unit 7a source mirror sentinel.",
+      ),
       "utf8",
     )
     const second = await runMcpListToolsSession(fixture)
@@ -504,9 +507,15 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
     assert.equal(secondMirrors.length, 2, "source hash changes must create a new source mirror")
     assert.ok(
       secondMirrors.some((mirror) => (
-        readFileSync(path.join(mirror, "src", "tool-names.js"), "utf8").includes("unit 7a source hash change")
+        readFileSync(path.join(mirror, "src", "tool-names.js"), "utf8").includes("Unit 7a source mirror sentinel.")
       )),
       "new source mirror must contain updated plugin source",
+    )
+    assert.ok(
+      second.tools.result.tools.some((tool) => (
+        tool.name === "desk_search" && tool.description.includes("Unit 7a source mirror sentinel.")
+      )),
+      "list-tools response must be served from the updated source mirror",
     )
     assert.equal(existsSync(path.join(fixture.mcpRoot, "node_modules")), false)
   } finally {
@@ -520,8 +529,20 @@ test("MCP entrypoint reports missing or ABI-mismatched runtime packs without npm
     const artifactsRoot = path.join(fixture.mcpRoot, "artifacts", "runtime-deps", packageJson.version)
     const actualTargetDir = path.join(artifactsRoot, hostTarget)
     const wrongTargetDir = path.join(artifactsRoot, `${process.platform}-${process.arch}-node-0`)
+    let seedTargetDir
     if (existsSync(actualTargetDir)) {
-      renameSync(actualTargetDir, wrongTargetDir)
+      seedTargetDir = path.join(artifactsRoot, `${hostTarget}.saved-for-test`)
+      renameSync(actualTargetDir, seedTargetDir)
+    } else {
+      seedTargetDir = readdirSync(artifactsRoot)
+        .map((name) => path.join(artifactsRoot, name))
+        .find((candidate) => statSync(candidate).isDirectory())
+    }
+    assert.ok(seedTargetDir, "runtime fixture must contain at least one committed target to synthesize ABI mismatch")
+    rmSync(wrongTargetDir, { recursive: true, force: true })
+    cpSync(seedTargetDir, wrongTargetDir, { recursive: true })
+    if (path.basename(seedTargetDir).endsWith(".saved-for-test")) {
+      rmSync(seedTargetDir, { recursive: true, force: true })
     }
 
     const result = await runEntrypointExpectingFailure(fixture)
