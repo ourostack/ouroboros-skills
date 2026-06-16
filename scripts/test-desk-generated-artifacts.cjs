@@ -631,15 +631,16 @@ function verifyProductionHashes({ expectation, errors, existsSync }) {
 }
 
 function hashFieldFromNotes({ notes, field, errors }) {
-  const matches = [...notes.matchAll(new RegExp(
-    `^\\s*(?:[-*]\\s*)?${escapeRegExp(field)}\\s*:\\s*(sha256:[a-f0-9]{64})\\s*$`,
+  const lineMatches = [...notes.matchAll(new RegExp(
+    `^\\s*(?:[-*]\\s*)?${escapeRegExp(field)}\\s*:\\s*([^\\r\\n]*)$`,
     "gimu",
   ))];
-  if (matches.length > 1) {
+  if (lineMatches.length > 1) {
     errors.push(`production-artifacts.md must record exactly one ${field}`);
     return undefined;
   }
-  return matches[0]?.[1]?.toLowerCase();
+  const value = lineMatches[0]?.[1]?.trim().toLowerCase();
+  return /^sha256:[a-f0-9]{64}$/u.test(value) ? value : undefined;
 }
 
 function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorPackFiles, snapshotFiles }) {

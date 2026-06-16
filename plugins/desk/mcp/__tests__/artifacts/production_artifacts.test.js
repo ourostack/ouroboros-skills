@@ -383,3 +383,43 @@ test("production notes must use canonical current freshness hash fields", async 
     rmSync(tempDir, { recursive: true, force: true })
   }
 })
+
+test("production notes reject duplicate canonical current hash placeholders", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-duplicate-hashes-"))
+  try {
+    const currentDocs = [{ path: "track/current/task.md", hash: sha256("new") }]
+    const sourceHash = artifactSourceScopeHash()
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => ({
+          vector_packs: { count: 0, artifacts: [] },
+          snapshots: { count: 0, artifacts: [] },
+        }),
+      },
+    })
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeFileSync(expectation.notesPath, [
+      readFileSync(expectation.notesPath, "utf8"),
+      "- current_artifact_source_scope_hash: pending Unit 22e",
+      "- current_document_tree_hash: pending Unit 22e",
+      "",
+    ].join("\n"))
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_artifact_source_scope_hash/u)
+    assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_document_tree_hash/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
