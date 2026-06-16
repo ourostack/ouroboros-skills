@@ -42,10 +42,10 @@ Acceptance:
 
 ## Unit 1 — Green: Activation Graph and Selection
 
-- [ ] Implement activation graph helpers that resolve activation chains across base targets and overlays.
-- [ ] Validate overlay entrypoints and instruction contributions.
-- [ ] Validate unknown inheritance, cycles, duplicate ids, and unknown dependencies.
-- [ ] Make activation ordering dependency-first and activation-chain aware.
+- [x] Implement activation graph helpers that resolve activation chains across base targets and overlays.
+- [x] Validate overlay entrypoints and instruction contributions.
+- [x] Validate unknown inheritance, cycles, duplicate ids, and unknown dependencies.
+- [x] Make activation ordering dependency-first and activation-chain aware.
 
 Output:
 - Passing activation contract tests.
@@ -111,3 +111,4 @@ Acceptance:
 
 - 2026-06-16 14:58 Created doing doc for first-class zero-setup Desk overlays.
 - 2026-06-16 14:59 Unit 0 complete: red activation tests captured in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-0-red.log`.
+- 2026-06-16 15:02 Unit 1 complete: activation graph validation and ordering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-1-activation-contract-green.log`.

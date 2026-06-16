@@ -78,9 +78,41 @@ export function orderActivationDependencies(manifest) {
     .sort((left, right) => dependencyRank(left) - dependencyRank(right) || left.id.localeCompare(right.id))
   const activationTargets = [...arrayOrEmpty(manifest?.provides?.activation_targets)]
     .sort((left, right) => left.id.localeCompare(right.id))
-  const overlayAgents = [...arrayOrEmpty(manifest?.provides?.overlay_agents)]
-    .sort((left, right) => left.id.localeCompare(right.id))
+  const overlayAgents = orderOverlayNodes(manifest).map((node) => node.value)
   return [...dependencies, ...activationTargets, ...overlayAgents]
+}
+
+export function resolveActivationChain(manifest, targetId = "desk:worker") {
+  const graph = collectActivationGraph(manifest)
+  const selected = graph.nodes.get(targetId)
+  if (!selected) {
+    throw new Error(`unknown activation target: ${targetId}`)
+  }
+
+  const chain = []
+  const emitted = new Set()
+  const visiting = []
+
+  function visit(node) {
+    if (emitted.has(node.id)) return
+    if (visiting.includes(node.id)) {
+      throw new Error(`overlay inheritance cycle: ${[...visiting, node.id].join(" -> ")}`)
+    }
+    visiting.push(node.id)
+    for (const inheritedId of node.inherits) {
+      const inherited = graph.nodes.get(inheritedId)
+      if (!inherited) {
+        throw new Error(`${node.id} inherits unknown target ${inheritedId}`)
+      }
+      visit(inherited)
+    }
+    visiting.pop()
+    emitted.add(node.id)
+    chain.push(node.value)
+  }
+
+  visit(selected)
+  return chain
 }
 
 export function diagnoseHostSupport(manifest, { host }) {
@@ -287,6 +319,7 @@ function validateProvides(provides, dependencyIds, errors) {
   const targetIds = new Set()
   const allActivationIds = new Set()
   let deskWorker = null
+  let defaultCount = 0
 
   for (const [index, target] of targets.entries()) {
     const path = `provides.activation_targets[${index}]`
@@ -296,6 +329,12 @@ function validateProvides(provides, dependencyIds, errors) {
     validateEnum(target.kind, `${path}.kind`, ACTIVATION_TARGET_KINDS, "invalid_activation_target_kind", "activation target kind is not supported", errors)
     if (target.default != null && typeof target.default !== "boolean") {
       errors.push(diagnostic(`${path}.default`, "invalid_activation_default", "activation target default must be a boolean"))
+    }
+    if (target.default === true) {
+      defaultCount += 1
+      if (target.id !== "desk:worker") {
+        errors.push(diagnostic(`${path}.default`, "ambiguous_activation_default", "only desk:worker may be the substrate default; overlays are selected by activation context"))
+      }
     }
     validateEntrypoints(target.entrypoints, `${path}.entrypoints`, errors)
     if (allActivationIds.has(target.id)) {
@@ -315,11 +354,20 @@ function validateProvides(provides, dependencyIds, errors) {
 
   for (const [index, overlay] of overlays.entries()) {
     const path = `provides.overlay_agents[${index}]`
-    validateRequiredObject(overlay, path, ["id", "kind", "depends_on", "launch_as", "inherits"], errors)
+    validateRequiredObject(overlay, path, ["id", "kind", "depends_on", "launch_as", "inherits", "entrypoints", "instructions"], errors)
     if (!isObject(overlay)) continue
     validateId(overlay.id, `${path}.id`, "invalid_overlay_agent_id", "overlay agent id must be a stable lowercase id", errors)
     validateEnum(overlay.kind, `${path}.kind`, OVERLAY_AGENT_KINDS, "invalid_overlay_agent_kind", "overlay agent kind is not supported", errors)
     validateText(overlay.launch_as, `${path}.launch_as`, "invalid_overlay_launch_as", "overlay launch_as must be text", errors)
+    if (overlay.default != null && typeof overlay.default !== "boolean") {
+      errors.push(diagnostic(`${path}.default`, "invalid_activation_default", "overlay default must be a boolean"))
+    }
+    if (overlay.default === true) {
+      defaultCount += 1
+      errors.push(diagnostic(`${path}.default`, "ambiguous_activation_default", "overlays must be selected by activation context instead of declaring a manifest default"))
+    }
+    validateEntrypoints(overlay.entrypoints, `${path}.entrypoints`, errors)
+    validateOverlayInstructions(overlay.instructions, `${path}.instructions`, errors)
     if (!Array.isArray(overlay.inherits)) {
       errors.push(diagnostic(`${path}.inherits`, "invalid_overlay_inherits", "overlay inherits must be an array"))
     } else {
@@ -330,14 +378,22 @@ function validateProvides(provides, dependencyIds, errors) {
     }
     allActivationIds.add(overlay.id)
     validateDependsOn(`${overlay.id}.depends_on`, overlay.depends_on, dependencyIds, errors)
-    if (Array.isArray(overlay.inherits)) {
-      for (const inherited of overlay.inherits) {
-        if (typeof inherited === "string" && !targetIds.has(inherited)) {
-          errors.push(diagnostic(`${overlay.id}.inherits`, "unknown_activation_inherit", `${overlay.id} inherits unknown target ${inherited}`))
-        }
+  }
+
+  if (defaultCount > 1) {
+    errors.push(diagnostic("provides", "ambiguous_activation_default", "activation manifests must have exactly one substrate default; overlays are selected by activation context"))
+  }
+
+  for (const overlay of overlays) {
+    if (!isObject(overlay) || !Array.isArray(overlay.inherits)) continue
+    for (const inherited of overlay.inherits) {
+      if (typeof inherited === "string" && !allActivationIds.has(inherited)) {
+        errors.push(diagnostic(`${overlay.id}.inherits`, "unknown_activation_inherit", `${overlay.id} inherits unknown target ${inherited}`))
       }
     }
   }
+
+  validateActivationCycles({ targets, overlays }, errors)
 }
 
 function validateDependsOn(path, dependsOn, dependencyIds, errors) {
@@ -367,6 +423,103 @@ function validateEntrypoints(entrypoints, path, errors) {
       errors.push(diagnostic(path, "invalid_activation_entrypoint", "activation entrypoints must map supported hosts to text paths"))
       return
     }
+  }
+}
+
+function validateOverlayInstructions(instructions, path, errors) {
+  validateRequiredObject(instructions, path, ["identity", "addendum"], errors)
+  if (!isObject(instructions)) return
+  validateText(instructions.identity, `${path}.identity`, "invalid_overlay_instruction", "overlay instruction identity must be text", errors)
+  validateText(instructions.addendum, `${path}.addendum`, "invalid_overlay_instruction", "overlay instruction addendum must be text", errors)
+}
+
+function collectActivationGraph(manifest) {
+  const nodes = new Map()
+  for (const target of arrayOrEmpty(manifest?.provides?.activation_targets)) {
+    if (isObject(target) && isValidId(target.id)) {
+      nodes.set(target.id, {
+        id: target.id,
+        kind: "activation-target",
+        inherits: [],
+        value: target,
+      })
+    }
+  }
+  for (const overlay of arrayOrEmpty(manifest?.provides?.overlay_agents)) {
+    if (isObject(overlay) && isValidId(overlay.id)) {
+      nodes.set(overlay.id, {
+        id: overlay.id,
+        kind: "overlay-agent",
+        inherits: arrayOrEmpty(overlay.inherits).filter((id) => typeof id === "string"),
+        value: overlay,
+      })
+    }
+  }
+  return { nodes }
+}
+
+function orderOverlayNodes(manifest) {
+  const graph = collectActivationGraph(manifest)
+  const ordered = []
+  const emitted = new Set()
+  const visiting = []
+
+  function visit(node) {
+    if (emitted.has(node.id)) return
+    if (visiting.includes(node.id)) return
+    visiting.push(node.id)
+    for (const inheritedId of node.inherits) {
+      const inherited = graph.nodes.get(inheritedId)
+      if (inherited?.kind === "overlay-agent") visit(inherited)
+    }
+    visiting.pop()
+    if (node.kind === "overlay-agent") {
+      emitted.add(node.id)
+      ordered.push(node)
+    }
+  }
+
+  for (const node of [...graph.nodes.values()]
+    .filter((candidate) => candidate.kind === "overlay-agent")
+    .sort((left, right) => left.id.localeCompare(right.id))) {
+    visit(node)
+  }
+  return ordered
+}
+
+function validateActivationCycles({ targets, overlays }, errors) {
+  const graph = collectActivationGraph({
+    provides: {
+      activation_targets: targets,
+      overlay_agents: overlays,
+    },
+  })
+  const visited = new Set()
+  const visiting = []
+
+  function visit(node) {
+    if (visited.has(node.id)) return
+    const cycleIndex = visiting.indexOf(node.id)
+    if (cycleIndex !== -1) {
+      const cycle = [...visiting.slice(cycleIndex), node.id]
+      errors.push(diagnostic(
+        `${node.id}.inherits`,
+        "activation_inheritance_cycle",
+        `overlay inheritance cycle: ${cycle.join(" -> ")}`,
+      ))
+      return
+    }
+    visiting.push(node.id)
+    for (const inheritedId of node.inherits) {
+      const inherited = graph.nodes.get(inheritedId)
+      if (inherited) visit(inherited)
+    }
+    visiting.pop()
+    visited.add(node.id)
+  }
+
+  for (const node of graph.nodes.values()) {
+    visit(node)
   }
 }
 
