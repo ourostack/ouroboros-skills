@@ -20,6 +20,8 @@ const defaultProductionNotesPath = path.join(
   "2026-06-14-1335-doing-desk-dependency-activation",
   "production-artifacts.md",
 );
+const productionCurrentSourceHashField = "current_artifact_source_scope_hash";
+const productionCurrentDocumentHashField = "current_document_tree_hash";
 const productionArtifactTypes = Object.freeze(["vector-pack", "snapshot"]);
 const snapshotSourceScopePaths = Object.freeze([
   "plugins/desk/mcp/src/indexer/index.js",
@@ -526,8 +528,8 @@ function verifyProductionNotes({ expectation, errors, existsSync, spawn }) {
     "artifact:vector-pack:build",
     "artifact:snapshot:build",
     "artifact:validate",
-    "artifact_source_scope_hash",
-    "document_tree_hash",
+    productionCurrentSourceHashField,
+    productionCurrentDocumentHashField,
     "publication-policy",
     "approval",
     "tombstone",
@@ -605,24 +607,39 @@ function verifyProductionHashes({ expectation, errors, existsSync }) {
   };
   if (!existsSync(expectation.notesPath)) return out;
   const notes = fs.readFileSync(expectation.notesPath, "utf8");
-  const notedSourceHash = hashFieldFromNotes(notes, "artifact_source_scope_hash");
-  const notedDocumentTreeHash = hashFieldFromNotes(notes, "document_tree_hash");
+  const notedSourceHash = hashFieldFromNotes({
+    notes,
+    field: productionCurrentSourceHashField,
+    errors,
+  });
+  const notedDocumentTreeHash = hashFieldFromNotes({
+    notes,
+    field: productionCurrentDocumentHashField,
+    errors,
+  });
   if (!notedSourceHash) {
-    errors.push("production-artifacts.md must record artifact_source_scope_hash as sha256:<hex>");
+    errors.push(`production-artifacts.md must record ${productionCurrentSourceHashField} as sha256:<hex>`);
   } else if (notedSourceHash !== expectedArtifactSourceScopeHash) {
-    errors.push("production-artifacts.md artifact_source_scope_hash must match current source scope");
+    errors.push(`production-artifacts.md ${productionCurrentSourceHashField} must match current source scope`);
   }
   if (!notedDocumentTreeHash) {
-    errors.push("production-artifacts.md must record document_tree_hash as sha256:<hex>");
+    errors.push(`production-artifacts.md must record ${productionCurrentDocumentHashField} as sha256:<hex>`);
   } else {
     out.documentTreeHash = notedDocumentTreeHash;
   }
   return out;
 }
 
-function hashFieldFromNotes(notes, field) {
-  const match = notes.match(new RegExp(`${escapeRegExp(field)}\\s*:?\\s*(sha256:[a-f0-9]{64})`, "iu"));
-  return match?.[1]?.toLowerCase();
+function hashFieldFromNotes({ notes, field, errors }) {
+  const matches = [...notes.matchAll(new RegExp(
+    `^\\s*(?:[-*]\\s*)?${escapeRegExp(field)}\\s*:\\s*(sha256:[a-f0-9]{64})\\s*$`,
+    "gimu",
+  ))];
+  if (matches.length > 1) {
+    errors.push(`production-artifacts.md must record exactly one ${field}`);
+    return undefined;
+  }
+  return matches[0]?.[1]?.toLowerCase();
 }
 
 function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorPackFiles, snapshotFiles }) {
@@ -776,6 +793,7 @@ module.exports = {
   defaultPublishedRuntimePackTargets,
   defaultProductionNotesPath,
   defaultRepoRoot,
+  artifactSourceScopeHash,
   documentTreeHash,
   extractTarGzContents,
   gitTracksFile,

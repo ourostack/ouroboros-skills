@@ -51,6 +51,10 @@ function docTree(docs) {
   return generatedArtifacts.documentTreeHash(docs)
 }
 
+function artifactSourceScopeHash() {
+  return generatedArtifacts.artifactSourceScopeHash(mcpRoot)
+}
+
 function validApproval(artifactType) {
   return {
     scope: "repo",
@@ -94,8 +98,28 @@ function writeProductionNotes(filePath, { artifactSourceScopeHash, documentTreeH
     "- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <desk-root> --pack-id <pack-id> --from-local-db`",
     "- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <desk-root> --snapshot-id <snapshot-id> --included-pack-id <pack-id> --from-local-db`",
     "- `npm --prefix plugins/desk/mcp run artifact:validate -- --desk-root <desk-root>`",
-    `- artifact_source_scope_hash: ${artifactSourceScopeHash}`,
-    `- document_tree_hash: ${documentTreeHash}`,
+    `- current_artifact_source_scope_hash: ${artifactSourceScopeHash}`,
+    `- current_document_tree_hash: ${documentTreeHash}`,
+    "- publication-policy approval recorded",
+    "- tombstone and exclusion checks ran",
+    "",
+  ].join("\n"))
+}
+
+function writeAmbiguousProductionNotes(filePath, { sourceHash, staleDocumentTreeHash }) {
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, [
+    "# Production Shared Artifacts",
+    "",
+    "Verification:",
+    "- `node scripts/test-desk-generated-artifacts.cjs`",
+    "- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <desk-root> --pack-id <pack-id> --from-local-db`",
+    "- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <desk-root> --snapshot-id <snapshot-id> --included-pack-id <pack-id> --from-local-db`",
+    "- `npm --prefix plugins/desk/mcp run artifact:validate -- --desk-root <desk-root>`",
+    `- vector pack artifact_source_scope_hash: ${sourceHash}`,
+    `- vector pack document_tree_hash: ${staleDocumentTreeHash}`,
+    `- snapshot artifact_source_scope_hash: ${sourceHash}`,
+    `- snapshot document_tree_hash: ${staleDocumentTreeHash}`,
     "- publication-policy approval recorded",
     "- tombstone and exclusion checks ran",
     "",
@@ -149,8 +173,8 @@ test("production artifact verification notes declare commands, hashes, policy, a
     "artifact:vector-pack:build",
     "artifact:snapshot:build",
     "artifact:validate",
-    "artifact_source_scope_hash",
-    "document_tree_hash",
+    "current_artifact_source_scope_hash",
+    "current_document_tree_hash",
     "publication-policy",
     "approval",
     "tombstone",
@@ -295,6 +319,66 @@ test("production document freshness compares manifests to the published current 
     assert.equal(result.ok, false)
     assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl document_tree_hash must match production-artifacts\.md/u)
     assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst document_tree_hash must match production-artifacts\.md/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production notes must use canonical current freshness hash fields", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-current-hashes-"))
+  try {
+    const staleDocs = [{ path: "track/stale/task.md", hash: sha256("old") }]
+    const sourceHash = artifactSourceScopeHash()
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => ({
+          vector_packs: { count: 1, artifacts: [{ pack_id: "unit-pack", rows: 1 }] },
+          snapshots: {
+            count: 1,
+            artifacts: [{
+              snapshot_id: "unit-snapshot",
+              freshness: {
+                artifact_source_scope: "fresh",
+                document_tree: "fresh",
+              },
+            }],
+          },
+        }),
+      },
+    })
+    writeAmbiguousProductionNotes(expectation.notesPath, {
+      sourceHash,
+      staleDocumentTreeHash: docTree(staleDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(staleDocs),
+      represented_documents: staleDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production-artifacts\.md must record current_artifact_source_scope_hash as sha256:<hex>/u)
+    assert.match(result.errors.join("\n"), /production-artifacts\.md must record current_document_tree_hash as sha256:<hex>/u)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }
