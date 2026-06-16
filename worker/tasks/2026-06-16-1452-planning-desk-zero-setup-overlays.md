@@ -98,3 +98,4 @@ This task continues the merged dependency-activation work from PR #113 by modeli
 - 2026-06-16 14:52 Created planning doc for zero-setup Desk overlay activation.
 - 2026-06-16 14:56 Ran tinfoil pass and identified activation graph plus selected-target rendering as the narrow implementation path.
 - 2026-06-16 14:58 Addressed Round 1 reviewer findings by adding selected-overlay `desk_status` evidence and effective-default semantics.
+- 2026-06-16 15:00 Planning approved after Round 2 reviewer convergence.
