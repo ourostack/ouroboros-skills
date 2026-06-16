@@ -5,6 +5,7 @@ import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { createRequire } from "node:module"
 import {
+  appendFile,
   copyFile,
   mkdir,
   mkdtemp,
@@ -17,6 +18,7 @@ import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
+import { EMBEDDING_DIM } from "../../src/indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { ensureIndex } from "../../src/server-helpers.js"
 
@@ -215,6 +217,85 @@ test("cold rebuild imports committed production vector packs without embeddings"
       )
       assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n, 2)
       assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n, 2)
+    } finally {
+      closeDb(db)
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("cold rebuild live-generates only production vectors missing from committed packs", async () => {
+  const tempRoot = await tmpRoot("desk-dependency-flow-missing-vector-")
+  try {
+    const deskRoot = path.join(tempRoot, "desk")
+    await copyProductionDeskDoc(deskRoot)
+    const missingChunk = [
+      "## Unit 24a3 Missing Vector",
+      "",
+      "This integration paragraph is intentionally absent from the committed production vector pack so live embedding generation must cover exactly this new chunk.",
+    ].join("\n")
+    await appendFile(path.join(deskRoot, productionDocPath), `\n\n${missingChunk}\n`)
+
+    const embeddingRequests = []
+    const result = await ensureIndex(deskRoot, {
+      startup: true,
+      snapshots: false,
+      embed: {
+        endpoint: "http://127.0.0.1:9/api/embeddings",
+        model: "unit-24a3-production-missing-vector",
+        fetch: async (url, request) => {
+          embeddingRequests.push({
+            url,
+            body: JSON.parse(request.body),
+          })
+          return {
+            ok: true,
+            json: async () => ({
+              embedding: Array.from({ length: EMBEDDING_DIM }, (_, index) =>
+                index / EMBEDDING_DIM,
+              ),
+            }),
+          }
+        },
+      },
+    })
+
+    assert.equal(result.built, true, JSON.stringify(result, null, 2))
+    assert.equal(result.reason, "missing")
+    assert.equal(result.fallback, "vector_packs")
+    assert.equal(result.vector_packs?.import_state, "used_as_fallback")
+    assert.equal(result.vector_packs?.packs_imported, 1)
+    assert.equal(result.vector_packs?.rows_imported, 2)
+    assert.equal(result.semantic?.chunks_total, 3)
+    assert.equal(result.semantic?.vectors_indexed, 3)
+    assert.equal(result.semantic?.missing_vectors, 0)
+
+    assert.deepEqual(embeddingRequests, [
+      {
+        url: "http://127.0.0.1:9/api/embeddings",
+        body: {
+          model: "unit-24a3-production-missing-vector",
+          prompt: missingChunk,
+        },
+      },
+    ])
+
+    const db = openDb(deskRoot)
+    try {
+      assert.deepEqual(
+        db.prepare("SELECT path FROM docs ORDER BY path").all(),
+        [{ path: productionDocPath }],
+      )
+      assert.deepEqual(
+        db.prepare("SELECT chunk_index, heading FROM chunks ORDER BY chunk_index").all(),
+        [
+          { chunk_index: 0, heading: null },
+          { chunk_index: 1, heading: null },
+          { chunk_index: 2, heading: "Unit 24a3 Missing Vector" },
+        ],
+      )
+      assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n, 3)
     } finally {
       closeDb(db)
     }
