@@ -12,6 +12,7 @@ import {
   readdir,
   readFile,
   rm,
+  writeFile,
 } from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -21,6 +22,8 @@ import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
 import { EMBEDDING_DIM } from "../../src/indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { ensureIndex } from "../../src/server-helpers.js"
+import { desk_search } from "../../src/tools/search.js"
+import { desk_thread } from "../../src/tools/thread.js"
 
 const require = createRequire(import.meta.url)
 const packageLock = require("../../package-lock.json")
@@ -53,6 +56,12 @@ async function copyProductionDeskDoc(deskRoot) {
   const target = path.join(deskRoot, productionDocPath)
   await mkdir(path.dirname(target), { recursive: true })
   await copyFile(path.join(repoRoot, "desk", productionDocPath), target)
+}
+
+async function writeDeskDoc(deskRoot, relativePath, body) {
+  const target = path.join(deskRoot, relativePath)
+  await mkdir(path.dirname(target), { recursive: true })
+  await writeFile(target, body, "utf8")
 }
 
 function sha256(bytes) {
@@ -296,6 +305,156 @@ test("cold rebuild live-generates only production vectors missing from committed
         ],
       )
       assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n, 3)
+    } finally {
+      closeDb(db)
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("cold rebuild preserves active archive scope and refs graph with production vector packs", async () => {
+  const tempRoot = await tmpRoot("desk-dependency-flow-scope-refs-")
+  try {
+    const deskRoot = path.join(tempRoot, "desk")
+    await copyProductionDeskDoc(deskRoot)
+    await writeDeskDoc(
+      deskRoot,
+      "tasks/scope-active/task.md",
+      "---\nstatus: processing\nschema_version: 1\nupdated: 2026-06-16\n---\nunit24scope active visible content\n",
+    )
+    await writeDeskDoc(
+      deskRoot,
+      "tasks/scope-active/planning.md",
+      "---\nschema_version: 1\nupdated: 2026-06-15\n---\nunit24scope active planning content\n",
+    )
+    await writeDeskDoc(
+      deskRoot,
+      "tasks/scope-active/doing.md",
+      "---\nschema_version: 1\nupdated: 2026-06-16\n---\nunit24scope active doing content\n",
+    )
+    await writeDeskDoc(
+      deskRoot,
+      "tasks/_archive/scope-old/task.md",
+      "---\nstatus: done\nschema_version: 1\nupdated: 2026-06-14\n---\nunit24scope archived historical content\n",
+    )
+
+    const embed = {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: async () => ({
+        ok: true,
+        json: async () => ({
+          embedding: Array.from({ length: EMBEDDING_DIM }, (_, index) =>
+            (index % 7) / 7,
+          ),
+        }),
+      }),
+    }
+    const result = await ensureIndex(deskRoot, {
+      startup: true,
+      snapshots: false,
+      embed,
+    })
+
+    assert.equal(result.built, true, JSON.stringify(result, null, 2))
+    assert.equal(result.reason, "missing")
+    assert.equal(result.fallback, "vector_packs")
+    assert.equal(result.vector_packs?.rows_imported, 2)
+    assert.equal(result.semantic?.chunks_total, 6)
+    assert.equal(result.semantic?.vectors_indexed, 6)
+    assert.equal(result.semantic?.missing_vectors, 0)
+
+    const active = await desk_search({
+      deskRoot,
+      input: { query: "unit24scope" },
+      opts: { embed },
+    })
+    assert.equal(active.search_mode, "hybrid")
+    assert.ok(active.results.length >= 1)
+    assert.ok(
+      active.results.every((resultRow) => !resultRow.path.includes("_archive")),
+      JSON.stringify(active.results, null, 2),
+    )
+
+    const all = await desk_search({
+      deskRoot,
+      input: { query: "unit24scope", scope: "all" },
+      opts: { embed },
+    })
+    assert.equal(all.search_mode, "hybrid")
+    assert.ok(
+      all.results.some((resultRow) =>
+        resultRow.path === "tasks/_archive/scope-old/task.md"
+      ),
+      JSON.stringify(all.results, null, 2),
+    )
+
+    const thread = await desk_thread({
+      deskRoot,
+      input: {
+        start_path: "tasks/scope-active/planning.md",
+        direction: "both",
+        depth: 2,
+      },
+    })
+    assert.deepEqual(
+      thread.chain.map((row) => ({
+        path: row.path,
+        ref_kind: row.ref_kind,
+        hop_distance: row.hop_distance,
+      })),
+      [
+        {
+          path: "tasks/scope-active/planning.md",
+          ref_kind: null,
+          hop_distance: 0,
+        },
+        {
+          path: "tasks/scope-active/task.md",
+          ref_kind: "planning_of",
+          hop_distance: 1,
+        },
+        {
+          path: "tasks/scope-active/doing.md",
+          ref_kind: "doing_of",
+          hop_distance: 2,
+        },
+      ],
+    )
+
+    const db = openDb(deskRoot)
+    try {
+      assert.deepEqual(
+        db.prepare("SELECT path, is_archived FROM docs ORDER BY path").all(),
+        [
+          { path: "tasks/_archive/scope-old/task.md", is_archived: 1 },
+          { path: productionDocPath, is_archived: 0 },
+          { path: "tasks/scope-active/doing.md", is_archived: 0 },
+          { path: "tasks/scope-active/planning.md", is_archived: 0 },
+          { path: "tasks/scope-active/task.md", is_archived: 0 },
+        ],
+      )
+      assert.deepEqual(
+        db.prepare(
+          `SELECT src.path AS src, dst.path AS dst, refs.ref_kind
+           FROM refs_graph refs
+           JOIN docs src ON src.id = refs.src_doc_id
+           JOIN docs dst ON dst.id = refs.dst_doc_id
+           ORDER BY src.path, dst.path, refs.ref_kind`,
+        ).all(),
+        [
+          {
+            src: "tasks/scope-active/doing.md",
+            dst: "tasks/scope-active/task.md",
+            ref_kind: "doing_of",
+          },
+          {
+            src: "tasks/scope-active/planning.md",
+            dst: "tasks/scope-active/task.md",
+            ref_kind: "planning_of",
+          },
+        ],
+      )
     } finally {
       closeDb(db)
     }
