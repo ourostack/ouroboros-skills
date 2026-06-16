@@ -46,7 +46,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Codex App support is proven by a real smoke artifact when the app exposes a testable activation surface, or the support matrix records the exact unsupported primitive and fallback behavior.
 - [x] Codex smoke tests prove there is no healthy-path `codex mcp add`, copied agent file, or manual/uncontrolled AGENTS append/copy step.
 - [x] Host adapters preserve and merge user-authored instructions/config safely instead of overwriting them.
-- [ ] Host adapters document and test their permission/capability boundary.
+- [x] Host adapters document and test their permission/capability boundary.
 - [x] Generated activation artifacts respect host permission/capability boundaries.
 - [x] Host adapters never require healthy-path manual MCP registration.
 - [x] Host adapters never require healthy-path manual `npm install` inside plugin directories.
@@ -92,11 +92,11 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Vector packs live outside `.state/` at `plugins/desk/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl` with adjacent manifest and checksum files.
 - [x] Vector-pack rows include chunk key, text verification hash, embedding spec ID, dimension, encoding, and vector data.
 - [x] Vector-pack files include or reference checksums.
-- [ ] Vector-pack import validates every row before inserting.
-- [ ] Vector-pack import refuses wrong spec IDs, wrong dimensions, invalid hashes, and malformed vector encodings.
-- [ ] Vector-pack import is idempotent and deduplicates repeated chunk keys.
-- [ ] Vector-pack import tolerates multiple append-only pack files.
-- [ ] Runtime ignores inactive-spec vector packs.
+- [x] Vector-pack import validates every row before inserting.
+- [x] Vector-pack import refuses wrong spec IDs, wrong dimensions, invalid hashes, and malformed vector encodings.
+- [x] Vector-pack import is idempotent and deduplicates repeated chunk keys.
+- [x] Vector-pack import tolerates multiple append-only pack files.
+- [x] Runtime ignores inactive-spec vector packs.
 - [x] Vector-pack compaction preserves semantic equivalence and is tested before being enabled.
 - [x] A local DB can be rebuilt from docs plus vector packs with the embedding endpoint disabled when all chunks are covered.
 - [x] Live document embedding generation happens only for chunk keys missing from shared packs.
@@ -106,8 +106,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Public or sensitive repo policy can disable embedding/snapshot publication.
 - [x] Artifact publication policy lives at `plugins/desk/artifacts/publication-policy.json` and validates against `plugins/desk/artifacts/publication-policy.schema.json`.
 - [x] Documentation states that embeddings and snapshots are derivative data and may carry privacy risk.
-- [ ] Health output, logs, snapshot errors, and vector-pack validation errors avoid dumping chunk text or sensitive document content.
-- [ ] Vector-pack validation errors report file, row, and chunk key without dumping full text.
+- [x] Health output, logs, snapshot errors, and vector-pack validation errors avoid dumping chunk text or sensitive document content.
+- [x] Vector-pack validation errors report file, row, and chunk key without dumping full text.
 - [x] Gitignored secret files are excluded from indexing and artifact publication by default.
 - [x] Artifact publication requires explicit approval when repository or organization policy requires it.
 - [x] Deleted/redacted documents are invalidated through tombstone metadata at `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`, plus artifact rotation cleanup.
@@ -128,7 +128,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Tests cover stale snapshot incremental reconcile.
 - [x] Tests cover corrupted snapshot fallback.
 - [x] Tests cover corrupted vector-pack rejection.
-- [ ] Tests cover two machines producing non-conflicting append-only packs.
+- [x] Tests cover two machines producing non-conflicting append-only packs.
 - [x] Tests cover sensitive-path exclusion and no absolute paths in snapshot artifacts.
 - [x] Tests cover gitignored secret exclusion as product behavior.
 - [x] Tests cover repeated startup idempotence.
@@ -689,7 +689,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: Updates to startup/status/search modules required by idempotence and degraded semantic cases; if artifact source-scope or indexed document inputs change, regenerated production vector packs, snapshots, manifests, checksums, and `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/production-artifacts.md`.
 **Acceptance**: Paired Unit 24a5 tests pass, Units 24a1-24a4 remain green, the full Desk MCP suite passes, `npm --prefix plugins/desk/mcp run test:coverage` passes, and production vector/snapshot artifacts are current if this unit changes artifact source-scope or indexed document inputs.
 
-### ⬜ Unit 24c: Final Verification And Handoff
+### ✅ Unit 24c: Final Verification And Handoff
 **What**: Run the full Desk MCP test suite, root validation scripts, host/package validation scripts, generated-artifact freshness checks, and new coverage commands. Update planning/doing checklists only for criteria with evidence.
 **Output**: Verification notes in `desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/final-verification.md` and updated task docs.
 **Acceptance**: All tests pass, coverage requirements are met for new code, no warnings remain, branch is clean except intentional task-doc updates, and results are committed and pushed.
@@ -1017,3 +1017,5 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-16 08:05 Units 24a3 and 24b3 complete by prior implementation plus green production integration coverage: Galileo found no legitimate remaining red edge because earlier vector-pack repair work already imports committed vectors before live generation and embeds only remaining gaps. `ee478d4` adds durable production integration coverage proving an appended production-doc chunk is the only outbound embedding request, with asserted URL/body/model/prompt, two committed vector-pack rows imported, three final vectors stored, and `fallback: "vector_packs"`. Evidence saved in `unit-24a3-integration-green.log`, `unit-24b3-npm-test-green.log`, `unit-24b3-test-coverage-green.log`, `unit-24b3-artifact-validate-green.log`, and `unit-24b3-build-unavailable.log`; full MCP tests pass 636/636, coverage remains 100%, artifact validation passes, logs are scrubbed, and build remains unavailable because `plugins/desk/mcp/package.json` has no `build` script.
 - 2026-06-16 08:12 Units 24a4 and 24b4 complete by prior implementation plus green production integration coverage: Turing found no legitimate remaining red edge because existing discovery, search, refs graph, and `desk_thread` behavior already preserved active/archived scope and refs through the vector-pack rebuild path. `96be971` adds durable production integration coverage proving default active search excludes `_archive`, `scope: "all"` includes the archived task, `desk_thread` returns the planning hop 0 -> task hop 1 -> doing hop 2 chain, and direct `refs_graph` rows contain `planning_of` plus `doing_of`. Evidence saved in `unit-24a4-integration-green.log`, `unit-24b4-npm-test-green.log`, `unit-24b4-test-coverage-green.log`, `unit-24b4-artifact-validate-green.log`, and `unit-24b4-build-unavailable.log`; full MCP tests pass 637/637, coverage remains 100%, artifact validation passes, logs are scrubbed, and build remains unavailable because `plugins/desk/mcp/package.json` has no `build` script.
 - 2026-06-16 08:20 Units 24a5 and 24b5 complete by prior implementation plus green production integration coverage: Bernoulli found no legitimate remaining red edge after the stronger empty-artifacts probe. `c1c2632` adds durable production integration coverage proving an embedding outage with no snapshot/vector-pack artifacts builds a lexical-only index, repeated startup returns `fresh` instead of rebuilding, active semantic coverage remains 0/2 document vectors with diagnostics, and `desk_search` still returns the production doc in lexical mode with semantic score 0 and positive BM25. Evidence saved in `unit-24a5-integration-green.log`, `unit-24b5-npm-test-green.log`, `unit-24b5-test-coverage-green.log`, `unit-24b5-artifact-validate-green.log`, and `unit-24b5-build-unavailable.log`; full MCP tests pass 638/638, coverage remains 100%, artifact validation passes, logs are scrubbed, and build remains unavailable because `plugins/desk/mcp/package.json` has no `build` script.
+- 2026-06-16 08:25 Unit 24c complete: final verification evidence saved in `final-verification.md` and `unit-24c-*` logs. The clean sequential final gate passes full Desk MCP tests 638/638, coverage 100%, root validation, host manifest freshness, generated artifact freshness, runtime dependency pack verification, production artifact validation, production snapshot verification, and `git diff --check`; build remains expected-unavailable because `plugins/desk/mcp/package.json` has no `build` script. The initial concurrent full-test/coverage attempt overloaded the large SQLite-limit test, so final evidence was rerun sequentially and passed cleanly.
+- 2026-06-16 08:31 Unit 24c reviewer correction: Archimedes found stale completion-checklist boxes despite green final evidence. Marked only criteria backed by existing evidence for host permission/capability boundaries, vector-pack validation/import behavior, inactive-spec handling, sensitive-text-safe diagnostics, and append-only pack coverage.
