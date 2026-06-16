@@ -28,6 +28,7 @@ const snapshotSourceScopePaths = Object.freeze([
   "plugins/desk/mcp/src/indexer/vector-packs.js",
   "plugins/desk/mcp/src/snapshots/manifest.js",
   "plugins/desk/mcp/src/snapshots/restore.js",
+  "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
   "plugins/desk/mcp/src/artifacts/policy.js",
   "plugins/desk/mcp/scripts/build-vector-pack.js",
   "plugins/desk/mcp/scripts/build-snapshot.js",

@@ -36,6 +36,7 @@ const DEFAULT_SOURCE_PATHS = Object.freeze([
   "plugins/desk/mcp/src/indexer/vector-packs.js",
   "plugins/desk/mcp/src/snapshots/manifest.js",
   "plugins/desk/mcp/src/snapshots/restore.js",
+  "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
   "plugins/desk/mcp/src/artifacts/policy.js",
   "plugins/desk/mcp/scripts/build-vector-pack.js",
   "plugins/desk/mcp/scripts/build-snapshot.js",
@@ -117,6 +118,7 @@ export async function buildVectorPackFromLocalDb({
     const rows = vectorPackRows(db)
     const packBytes = Buffer.from(rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : ""), "utf8")
     const packSha = sha256Hex(packBytes)
+    const context = snapshotCompatibilityContext({ mcpRoot, docs: sourceDocs })
     const manifest = {
       schema_version: 1,
       pack_id: packId,
@@ -125,6 +127,8 @@ export async function buildVectorPackFromLocalDb({
       encoding: VECTOR_ENCODING,
       row_count: rows.length,
       rows_sha256: packSha,
+      artifact_source_scope_hash: context.expectedArtifactSourceScopeHash,
+      document_tree_hash: context.expectedDocumentTreeHash,
       represented_documents: sourceDocs,
       created_at: new Date(now()).toISOString(),
       provenance: {
@@ -132,6 +136,7 @@ export async function buildVectorPackFromLocalDb({
         source: "local-db",
         commit: gitCommit(),
       },
+      source_paths: DEFAULT_SOURCE_PATHS,
     }
     const paths = await writeVectorPackArtifact({
       pluginRoot,
