@@ -162,6 +162,19 @@ test("cold start restores the committed production snapshot without rebuild or e
     } finally {
       closeDb(db)
     }
+
+    const repeated = await ensureIndex(deskRoot, {
+      startup: true,
+      embed: {
+        fetch: async () => {
+          throw new Error("repeated production snapshot startup must not call live embeddings")
+        },
+      },
+    })
+
+    assert.equal(repeated.built, false, JSON.stringify(repeated, null, 2))
+    assert.equal(repeated.reason, "fresh")
+    assert.equal(repeated.fallback, undefined)
   } finally {
     await rm(tempRoot, { recursive: true, force: true })
   }

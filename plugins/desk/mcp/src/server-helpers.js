@@ -8,7 +8,7 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
-import { closeDb, indexDbPath, openDb } from "./db/init.js"
+import { closeDb, indexDbPath, openDb, setMeta } from "./db/init.js"
 import { discover } from "./indexer/discover.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
@@ -86,6 +86,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
           semanticBefore,
         )
         if (repair) return withSnapshot(repair, snapshot)
+        await markRestoredSnapshotFresh(deskRoot, db, effectiveOpts.signal)
         return withSnapshot(
           { built: false, reason: "snapshot_restored", semantic: semanticBefore },
           snapshot,
@@ -234,6 +235,13 @@ function defaultSnapshotCompatibilityContext({ deskRoot, signal } = {}) {
 
 async function currentDocumentTreeHash(deskRoot, signal) {
   return documentTreeHash(await discover(deskRoot, { signal }))
+}
+
+async function markRestoredSnapshotFresh(deskRoot, db, signal) {
+  const docs = await discover(deskRoot, { signal })
+  const newestDocMtime = docs.reduce((max, doc) => Math.max(max, doc.mtime), 0)
+  const indexedAtMs = Math.max(Date.now(), newestDocMtime)
+  setMeta(db, "last_indexed_at", new Date(indexedAtMs).toISOString())
 }
 
 function documentTreeHash(docs) {
