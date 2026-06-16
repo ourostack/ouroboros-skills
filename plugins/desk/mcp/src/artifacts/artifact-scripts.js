@@ -316,7 +316,6 @@ export async function validateArtifacts({
   })
   return {
     ok: true,
-    desk_root: deskRoot,
     vector_packs: vectorPacks,
     snapshots,
     elapsed_ms: elapsedMs,

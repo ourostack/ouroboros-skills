@@ -226,6 +226,12 @@ function scriptOutput(result) {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`
 }
 
+function scriptJsonOutput(result) {
+  const index = result.stdout.indexOf("{")
+  assert.notEqual(index, -1, result.stdout || result.stderr)
+  return JSON.parse(result.stdout.slice(index))
+}
+
 function assertScriptFailedWithCode(result, code) {
   assert.notEqual(result.status, 0, result.stdout || result.stderr)
   assert.match(scriptOutput(result), new RegExp(`\\b${escapeRegExp(code)}\\b`, "u"))
@@ -683,6 +689,24 @@ test("MCP startup reads ensure-index budget from plugin performance config", asy
     rmSync(deskRoot, { recursive: true, force: true })
     rmSync(pluginRoot, { recursive: true, force: true })
   }
+})
+
+test("artifact validation output does not leak resolved local roots", async () => {
+  await withSeededArtifactFixture(async ({ deskRoot, pluginRoot }) => {
+    const result = runNpmScript("artifact:validate", [
+      "--desk-root",
+      deskRoot,
+      "--plugin-root",
+      pluginRoot,
+    ])
+    assertScriptSucceeded(result)
+    const output = scriptJsonOutput(result)
+    const outputText = JSON.stringify(output)
+    assert.doesNotMatch(outputText, new RegExp(escapeRegExp(deskRoot), "u"))
+    assert.doesNotMatch(outputText, new RegExp(escapeRegExp(pluginRoot), "u"))
+    assert.equal(Object.hasOwn(output, "desk_root"), false)
+    assert.equal(Object.hasOwn(output, "plugin_root"), false)
+  })
 })
 
 test("artifact scripts fail when configured rebuild or validation budgets are exceeded", async () => {

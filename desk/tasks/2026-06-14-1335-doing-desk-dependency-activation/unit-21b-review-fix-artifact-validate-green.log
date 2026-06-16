@@ -1,0 +1,16 @@
+
+> @ourostack/desk-mcp@1.3.1 artifact:validate
+> node scripts/validate-artifacts.js --desk-root ../../.. --plugin-root ..
+
+{
+  "ok": true,
+  "vector_packs": {
+    "count": 0,
+    "artifacts": []
+  },
+  "snapshots": {
+    "count": 0,
+    "artifacts": []
+  },
+  "elapsed_ms": 1
+}
