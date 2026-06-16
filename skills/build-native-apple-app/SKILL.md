@@ -14,7 +14,7 @@ When the operator grants autopilot/no-human-gates authority, use sub-agent imple
 ## First Pass
 
 1. Read repo instructions first: `AGENTS.md`, project docs, existing product/design docs, CI workflows, and release docs.
-2. Confirm target platforms and minimum OS versions. If unknown, choose the newest stable/beta target that matches the task and document why.
+2. Confirm target platforms and minimum OS versions from the user, repo docs, product brief, or existing project settings. If unknown, stop for an explicit decision; do not invent deployment targets or choose beta OS minimums.
 3. Inventory local tools:
 
 ```bash

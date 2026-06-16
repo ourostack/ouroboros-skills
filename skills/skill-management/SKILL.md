@@ -76,11 +76,19 @@ Fetch a skill from the repo and install it into the local skills directory.
    ```
    mkdir -p <skills-dir>/<skill-name>/
    ```
-3. Fetch the SKILL.md content:
+3. Install the complete upstream skill directory, not only `SKILL.md`, because modern skills may include `agents/`, `scripts/`, `references/`, or `assets/`:
+   ```bash
+   tmpdir="$(mktemp -d)"
+   git clone --depth 1 --filter=blob:none --sparse https://github.com/ourostack/ouroboros-skills.git "$tmpdir/ouroboros-skills"
+   git -C "$tmpdir/ouroboros-skills" sparse-checkout set "skills/<skill-name>"
+   rsync -a --delete "$tmpdir/ouroboros-skills/skills/<skill-name>/" "<skills-dir>/<skill-name>/"
+   rm -rf "$tmpdir"
+   ```
+   If `git` is unavailable but `gh` is available, download the directory recursively through the GitHub contents API. If neither can fetch a directory, stop and report that the install would be incomplete; do not silently install only `SKILL.md` for a skill that has bundled resources.
+4. To inspect or manually repair the main skill file, fetch the raw `SKILL.md` content:
    ```
    https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md
    ```
-4. Write the content to `<skills-dir>/<skill-name>/SKILL.md`.
 5. Get the latest commit SHA for the skill file:
    ```bash
    # Use the GitHub API to get the latest commit touching this file
@@ -92,6 +100,7 @@ Fetch a skill from the repo and install it into the local skills directory.
 
 After install, confirm:
 - `<skills-dir>/<skill-name>/SKILL.md` exists and is non-empty.
+- Bundled resources listed in the upstream directory, such as `agents/`, `scripts/`, `references/`, or `assets/`, are present locally.
 - `_registry.json` has an entry for the skill.
 
 ### Runtime Refresh After Install Or Update
