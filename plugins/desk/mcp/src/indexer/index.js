@@ -9,6 +9,10 @@
 
 import { promises as fs } from "node:fs"
 import { openDb, closeDb, setMeta } from "../db/init.js"
+import {
+  filterTombstonedDocuments,
+  tombstoneStatusForDocuments,
+} from "../artifacts/tombstones.js"
 import { discover } from "./discover.js"
 import { chunkBody } from "./chunk.js"
 import { embedChunks, EMBEDDING_DIM } from "./embed.js"
@@ -50,6 +54,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     docs_indexed: 0,
     docs_skipped: 0,
     docs_removed: 0,
+    docs_tombstoned: 0,
     chunks_inserted: 0,
     semantic_warnings: 0,
   }
@@ -57,7 +62,13 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   try {
     throwIfAborted(opts.signal)
     writeActiveEmbeddingSpec(db, setMeta)
-    const discovered = await discover(deskRoot, { signal: opts.signal })
+    const discoveredRaw = await discover(deskRoot, { signal: opts.signal })
+    const tombstoneFilter = await filterTombstonedDocuments({
+      pluginRoot: opts.tombstones?.pluginRoot,
+      docs: discoveredRaw,
+    })
+    const discovered = tombstoneFilter.docs
+    summary.docs_tombstoned = tombstoneFilter.tombstoned_count
     throwIfAborted(opts.signal)
     const discoveredByPath = new Map(discovered.map((d) => [d.path, d]))
 
@@ -401,13 +412,18 @@ function refreshRefs(db, docs) {
  * inside rebuildIndex. This is just for the boot-time "do we need to do
  * anything?" decision.
  */
-export async function isIndexFresh(deskRoot, db, { signal } = {}) {
+export async function isIndexFresh(deskRoot, db, { signal, tombstones } = {}) {
   const row = db
     .prepare("SELECT value FROM meta WHERE key = 'last_indexed_at'")
     .get()
   if (!row) return false
   const indexedMs = Date.parse(row.value)
   if (Number.isNaN(indexedMs)) return false
+  const tombstoneStatus = await tombstoneStatusForDocuments({
+    pluginRoot: tombstones?.pluginRoot,
+    docs: db.prepare("SELECT path, hash FROM docs").all(),
+  })
+  if (tombstoneStatus.tombstoned) return false
   // Walk discover() targets and bail on the first newer mtime.
   const docs = await discover(deskRoot, { signal })
   for (const d of docs) {

@@ -123,9 +123,10 @@ export function tombstoneDecisionForDoc({ ledger, doc } = {}) {
   if (!ledger?.valid || !Array.isArray(ledger.rows) || !doc) {
     return { tombstoned: false }
   }
+  const docHash = canonicalDocumentHash(doc.hash)
   let latest = null
   for (const row of ledger.rows) {
-    if (row.document_path === doc.path && row.document_hash === doc.hash) {
+    if (row.document_path === doc.path && row.document_hash === docHash) {
       latest = row
     }
   }
@@ -134,6 +135,33 @@ export function tombstoneDecisionForDoc({ ledger, doc } = {}) {
     tombstoned: true,
     reason: latest.reason,
     artifact_rotation_id: latest.artifact_rotation_id,
+  }
+}
+
+export async function filterTombstonedDocuments({ pluginRoot, docs = [] } = {}) {
+  const ledger = await validTombstoneLedger({ pluginRoot })
+  if (!ledger.present) {
+    return { docs: [...docs], tombstoned_count: 0 }
+  }
+
+  const kept = []
+  let tombstonedCount = 0
+  for (const doc of docs) {
+    const decision = tombstoneDecisionForDoc({ ledger, doc })
+    if (decision.tombstoned) {
+      tombstonedCount += 1
+    } else {
+      kept.push(doc)
+    }
+  }
+  return { docs: kept, tombstoned_count: tombstonedCount }
+}
+
+export async function tombstoneStatusForDocuments({ pluginRoot, docs = [] } = {}) {
+  const filtered = await filterTombstonedDocuments({ pluginRoot, docs })
+  return {
+    tombstoned: filtered.tombstoned_count > 0,
+    tombstoned_count: filtered.tombstoned_count,
   }
 }
 
@@ -234,6 +262,12 @@ export async function cleanupRotatedArtifacts({
   return summary
 }
 
+async function validTombstoneLedger({ pluginRoot }) {
+  const ledger = await loadTombstoneLedger({ pluginRoot })
+  if (ledger.valid) return ledger
+  throw tombstoneLedgerInvalidError({ diagnostics: ledger.diagnostics })
+}
+
 function invalidLedger({ diagnostics, ledgerPath, present }) {
   return {
     valid: false,
@@ -242,6 +276,13 @@ function invalidLedger({ diagnostics, ledgerPath, present }) {
     diagnostics,
     ledger_path: ledgerPath,
   }
+}
+
+function tombstoneLedgerInvalidError({ diagnostics }) {
+  const error = new Error("tombstone ledger is invalid")
+  error.code = "tombstone_ledger_invalid"
+  error.diagnostics = diagnostics
+  return error
 }
 
 function artifactTombstoneLedgerInvalidError({ artifact_type, diagnostics }) {
@@ -335,6 +376,10 @@ function isNormalizedRelativePath(value) {
 
 function isSha256(value) {
   return typeof value === "string" && HASH_RE.test(value)
+}
+
+function canonicalDocumentHash(value) {
+  return String(value).startsWith("sha256:") ? value : `sha256:${value}`
 }
 
 function isDateTime(value) {

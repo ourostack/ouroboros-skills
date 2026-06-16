@@ -2,88 +2,63 @@ TAP version 13
 # Subtest: canonical tombstone ledger and schema exist under plugin artifacts
 ok 1 - canonical tombstone ledger and schema exist under plugin artifacts
   ---
-  duration_ms: 6.384459
+  duration_ms: 5.830792
   type: 'test'
   ...
 # Subtest: tombstone loader validates required row fields and repeated tombstones
 ok 2 - tombstone loader validates required row fields and repeated tombstones
   ---
-  duration_ms: 34.804375
+  duration_ms: 42.018958
   type: 'test'
   ...
 # Subtest: artifact writers reject tombstoned active and archived source docs before writes
 ok 3 - artifact writers reject tombstoned active and archived source docs before writes
   ---
-  duration_ms: 25.869958
+  duration_ms: 26.270792
   type: 'test'
   ...
 # Subtest: artifact validation rejects packs and snapshots that still reference tombstoned docs
 ok 4 - artifact validation rejects packs and snapshots that still reference tombstoned docs
   ---
-  duration_ms: 21.918416
+  duration_ms: 22.119583
   type: 'test'
   ...
 # Subtest: tombstone helpers handle defensive edge cases without leaking document details
 ok 5 - tombstone helpers handle defensive edge cases without leaking document details
   ---
-  duration_ms: 5.719166
+  duration_ms: 5.530125
   type: 'test'
   ...
 # Subtest: tombstones make fresh local indexes stale and prune redacted docs
-not ok 6 - tombstones make fresh local indexes stale and prune redacted docs
+ok 6 - tombstones make fresh local indexes stale and prune redacted docs
   ---
-  duration_ms: 29.992375
+  duration_ms: 30.044791
   type: 'test'
-  location: '<path>
-  failureType: 'testCodeFailure'
-  error: |-
-    Expected values to be strictly equal:
-
-    false !== true
-
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected: true
-  actual: false
-  operator: 'strictEqual'
-  stack: |-
-    TestContext.<anonymous> (file://<path>
-    async Test.run (node:internal/test_runner/test:1054:7)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: local index freshness fails closed for corrupt tombstones and schema drift
-not ok 7 - local index freshness fails closed for corrupt tombstones and schema drift
+ok 7 - local index freshness fails closed for corrupt tombstones and schema drift
   ---
-  duration_ms: 10.77725
+  duration_ms: 17.131584
   type: 'test'
-  location: '<path>
-  failureType: 'testCodeFailure'
-  error: 'Missing expected rejection.'
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  stack: |-
-    async TestContext.<anonymous> (file://<path>
-    async Test.run (node:internal/test_runner/test:1054:7)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: artifact rotation cleanup is gated by compaction validation and snapshot rotation
 ok 8 - artifact rotation cleanup is gated by compaction validation and snapshot rotation
   ---
-  duration_ms: 6.574125
+  duration_ms: 6.423333
   type: 'test'
   ...
 # Subtest: artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
 ok 9 - artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
   ---
-  duration_ms: 6.115125
+  duration_ms: 5.494167
   type: 'test'
   ...
 1..9
 # tests 9
 # suites 0
-# pass 7
-# fail 2
+# pass 9
+# fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 297.573958
+# duration_ms 314.825917

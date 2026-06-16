@@ -61,7 +61,10 @@ export async function ensureIndex(deskRoot, opts = {}) {
     const semanticBefore = getSemanticCoverage(db)
     let repairMissing = false
     if (dbExisted) {
-      const fresh = await isIndexFresh(deskRoot, db, { signal: effectiveOpts.signal })
+      const fresh = await isIndexFresh(deskRoot, db, {
+        signal: effectiveOpts.signal,
+        tombstones: effectiveOpts.tombstones,
+      })
       if (fresh) {
         if (!snapshotNeedsReconcile(snapshot)) {
           const repair = await maybeRepairMissingEmbeddings(
@@ -123,6 +126,10 @@ export function resolveEnsureIndexOptions(opts = {}) {
   const effective = { ...opts }
   effective.snapshots = resolveSnapshotOptions({ opts, pluginRoot })
   effective.vectorPacks = resolveVectorPackOptions({ opts, pluginRoot })
+  effective.tombstones = {
+    pluginRoot,
+    ...(opts.tombstones ?? {}),
+  }
   return effective
 }
 
@@ -171,6 +178,7 @@ function resolveArtifactPluginRoot(opts) {
   return path.resolve(
     textOrNull(opts.snapshots?.pluginRoot) ??
       textOrNull(opts.vectorPacks?.pluginRoot) ??
+      textOrNull(opts.tombstones?.pluginRoot) ??
       textOrNull(process.env.DESK_PLUGIN_ROOT) ??
       configuredArtifactPluginRoot ??
       DEFAULT_PLUGIN_ROOT,
