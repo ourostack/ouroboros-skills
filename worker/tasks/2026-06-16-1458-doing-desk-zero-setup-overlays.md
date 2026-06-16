@@ -24,7 +24,7 @@ direct
 - [x] `project-local` can bind a repo-local Desk root and overlay identity without mutating global instructions.
 - [x] Docs explain Desk substrate, generic base worker, org overlays, and area overlays.
 - [x] Healthy-path docs contain no `codex mcp add`, `npm install`, or copied-agent-file instructions.
-- [ ] Existing Desk activation, artifact, runtime, MCP, and skill validation tests pass.
+- [x] Existing Desk activation, artifact, runtime, MCP, and skill validation tests pass.
 - [x] `node scripts/validate-skills.cjs`, `node scripts/test-desk-host-manifests.cjs`, and `node scripts/test-desk-generated-artifacts.cjs` pass.
 
 # Units
@@ -95,13 +95,13 @@ Acceptance:
 
 ## Unit 5 — Final Gate
 
-- [ ] Run targeted activation/status tests.
-- [ ] Run full Desk MCP tests.
-- [ ] Run Desk MCP coverage.
-- [ ] Run root skill validation.
-- [ ] Run host manifest freshness.
-- [ ] Run generated artifact freshness.
-- [ ] Commit final evidence.
+- [x] Run targeted activation/status tests.
+- [x] Run full Desk MCP tests.
+- [x] Run Desk MCP coverage.
+- [x] Run root skill validation.
+- [x] Run host manifest freshness.
+- [x] Run generated artifact freshness.
+- [x] Commit final evidence.
 
 Output:
 - Final verification logs or summarized evidence.
@@ -117,3 +117,5 @@ Acceptance:
 - 2026-06-16 15:04 Unit 2 complete: Codex selected-overlay rendering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-2-codex-activation-green.log`.
 - 2026-06-16 15:08 Unit 3 complete: selected-overlay `desk_status` and Codex smoke evidence green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-3-status-smoke-green.log`.
 - 2026-06-16 15:20 Unit 4 complete: overlay ladder docs, Codex cache audit coverage, and host/generated freshness evidence captured under `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-4-*.log`.
+- 2026-06-16 15:34 Unit 5 complete: targeted activation/status, full MCP tests, coverage, root validation, host freshness, generated artifact freshness, and cache audit evidence captured under `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-5-*`.
+- 2026-06-16 15:34 Cold reviewer findings addressed: cache audit namespace now derives from `.agents/plugins/marketplace.json`, `.agents` marketplace validation requires local Desk/Work Suite entries, and final coverage is 100% on all changed production files.
