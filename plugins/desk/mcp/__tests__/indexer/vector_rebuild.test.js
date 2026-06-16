@@ -18,6 +18,8 @@ import {
 import { ensureIndex } from "../../src/server-helpers.js"
 import { desk_reindex } from "../../src/tools/reindex.js"
 
+const NO_RELEASE_ARTIFACTS = { snapshots: false, vectorPacks: false }
+
 async function tmpRoot(prefix = "desk-vector-rebuild-") {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix))
 }
@@ -367,6 +369,7 @@ test("ensureIndex leaves a fresh semantic DB untouched without probing embedding
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     embed: { fetch: failIfCalled },
   })
 
@@ -390,6 +393,7 @@ test("ensureIndex honors skipEmbed when a fresh DB is missing vectors", async ()
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     skipEmbed: true,
     embed: { fetch: failIfCalled },
   })
@@ -428,7 +432,7 @@ test("ensureIndex probes with default embed options when none are provided", asy
     }
   }
   try {
-    const ensured = await ensureIndex(deskRoot)
+    const ensured = await ensureIndex(deskRoot, NO_RELEASE_ARTIFACTS)
 
     assert.equal(calls, 2)
     assert.equal(ensured.built, true)
@@ -508,6 +512,7 @@ test("ensureIndex reports failure diagnostics when probe succeeds but rebuild em
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     embed: {
       endpoint: "http://127.0.0.1:9/api/embeddings",
       fetch: flakyFetch,
@@ -542,6 +547,7 @@ test("ensureIndex preserves successful probe diagnostics after live embedding re
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     embed: {
       endpoint: "http://127.0.0.1:9/api/embeddings",
       fetch: okFetch,
@@ -573,6 +579,7 @@ test("ensureIndex preserves failed probe diagnostics when stale content is skipp
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     embed: {
       endpoint: "http://127.0.0.1:9/api/embeddings",
       fetch: failingFetch,
@@ -612,6 +619,7 @@ test("ensureIndex clears failed probe diagnostics when stale rebuild embeds succ
   }
 
   const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
     embed: {
       endpoint: "http://127.0.0.1:9/api/embeddings",
       fetch: transientFetch,

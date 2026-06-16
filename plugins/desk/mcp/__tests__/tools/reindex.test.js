@@ -14,7 +14,8 @@ import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { mkTempDeskRoot } from "./_helpers.js"
 
 // All tests use skipEmbed to keep them hermetic (no Ollama dependency).
-const reindexOpts = { embed: undefined, skipEmbed: true }
+const noReleaseArtifacts = { snapshots: false, vectorPacks: false }
+const reindexOpts = { ...noReleaseArtifacts, embed: undefined, skipEmbed: true }
 
 function okEmbedFetch() {
   const vec = Array.from({ length: 768 }, (_, i) => (i % 11) / 768)
@@ -127,7 +128,7 @@ test("desk_reindex — no-force repairs a fresh lexical-only index when embeddin
   const res = await desk_reindex({
     deskRoot: root,
     input: {},
-    opts: { embed: { fetch: okEmbedFetch() } },
+    opts: { ...noReleaseArtifacts, embed: { fetch: okEmbedFetch() } },
   })
   assert.equal(res.status, "ok")
   assert.equal(res.built, true)
@@ -169,7 +170,7 @@ test("desk_reindex — no-force repairs fresh vectors from an inactive embedding
   const res = await desk_reindex({
     deskRoot: root,
     input: {},
-    opts: { embed: { fetch: okEmbedFetch() } },
+    opts: { ...noReleaseArtifacts, embed: { fetch: okEmbedFetch() } },
   })
   assert.equal(res.status, "ok")
   assert.equal(res.built, true)
@@ -225,7 +226,7 @@ test("desk_reindex — stale lexical-only indexes repair through default embeddi
     const res = await desk_reindex({
       deskRoot: root,
       input: {},
-      opts: {},
+      opts: noReleaseArtifacts,
     })
 
     assert.equal(res.status, "ok")

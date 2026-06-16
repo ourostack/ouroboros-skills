@@ -850,7 +850,10 @@ test("artifact script CLIs cover help, usage errors, repeated args, and targeted
 
   const defaultRootVerify = captureIo()
   assert.equal(await runSnapshotVerifyCli({ argv: [], io: defaultRootVerify.io }), 0)
-  assert.equal(JSON.parse(defaultRootVerify.stdout.join("")).snapshots.count, 0)
+  assert.ok(
+    JSON.parse(defaultRootVerify.stdout.join("")).snapshots.count >= 1,
+    "default plugin root should verify committed release snapshots",
+  )
 
   const invalidManifestPluginRoot = makeTempDir("desk-artifact-scripts-invalid-snapshot-")
   try {

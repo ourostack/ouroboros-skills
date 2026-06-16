@@ -1,0 +1,10 @@
+{
+  "desk_root": "<repo>/desk",
+  "elapsed_ms": 25,
+  "docs_indexed": 0,
+  "docs_skipped": 1,
+  "docs_removed": 0,
+  "docs_tombstoned": 0,
+  "chunks_inserted": 0,
+  "semantic_warnings": 0
+}

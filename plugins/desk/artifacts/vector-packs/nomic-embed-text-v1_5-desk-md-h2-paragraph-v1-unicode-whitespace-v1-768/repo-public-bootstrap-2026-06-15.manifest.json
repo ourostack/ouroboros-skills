@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "pack_id": "repo-public-bootstrap-2026-06-15",
+  "embedding_spec_id": "nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768",
+  "dimension": 768,
+  "encoding": "float32-json",
+  "row_count": 2,
+  "rows_sha256": "974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c",
+  "artifact_source_scope_hash": "sha256:28d7cddfe645dbbb835c18a7fadd756811390607b33636d216bac373d73bc1b5",
+  "document_tree_hash": "sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8",
+  "represented_documents": [
+    {
+      "path": "tasks/dependency-activation/task.md",
+      "hash": "sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59"
+    }
+  ],
+  "created_at": "2026-06-16T06:14:52.393Z",
+  "provenance": {
+    "builder": "plugins/desk/mcp/scripts/build-vector-pack.js",
+    "source": "local-db",
+    "commit": "cbff2b138795bbbffbd18a50ae3be99ad2e7454d"
+  },
+  "source_paths": [
+    "plugins/desk/mcp/src/indexer/index.js",
+    "plugins/desk/mcp/src/indexer/vector-packs.js",
+    "plugins/desk/mcp/src/snapshots/manifest.js",
+    "plugins/desk/mcp/src/snapshots/restore.js",
+    "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+    "plugins/desk/mcp/src/artifacts/policy.js",
+    "plugins/desk/mcp/scripts/build-vector-pack.js",
+    "plugins/desk/mcp/scripts/build-snapshot.js",
+    "plugins/desk/mcp/scripts/verify-snapshot.js",
+    "plugins/desk/mcp/scripts/validate-artifacts.js",
+    "plugins/desk/mcp/src/db/schema.sql",
+    "plugins/desk/mcp/package.json",
+    "plugins/desk/mcp/package-lock.json"
+  ]
+}
