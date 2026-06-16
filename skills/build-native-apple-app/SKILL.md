@@ -57,6 +57,20 @@ Use these boundaries by default:
 
 Do not couple feature logic to simulator-only state, global singletons, or unmockable network calls.
 
+## Xcode Project Generation
+
+When generating or editing an Xcode project, treat the project file as generated infrastructure with its own contract tests. Add or reuse a deterministic generator whenever possible, then verify:
+
+- The root project set is exactly what the repo expects, usually one `*.xcodeproj`.
+- iOS, macOS, and shared source files have the intended target membership.
+- Local Swift package products are attached to each app target and appear in the Frameworks phase.
+- Schemes reference the regenerated target UUIDs and are committed when shared.
+- Info.plist and entitlements declare native entry points such as URL schemes and Associated Domains.
+- Product deployment targets preserve the real product baseline, while bootstrap configurations are clearly named and limited to local/CI capability floors.
+- Generated project files do not contain version-pinned SDK framework paths such as `iPhoneOS18.0.sdk` or `MacOSX15.0.sdk`; prefer SDKROOT/current SDK resolution.
+
+If target membership is managed explicitly rather than by file-system-synchronized groups, add a check that fails when new app Swift files are added without target membership. Rerun the generator after app-surface units so the project and scheme stay internally consistent.
+
 ## Design Translation
 
 Start from the product's existing design language. Translate it into native components instead of skinning web components.
@@ -98,6 +112,17 @@ Do not declare completion from compilation alone. A credible native validation s
 - Branch protection with required checks matching workflow job names.
 
 Paid-program distribution is a separate gate. TestFlight/App Store upload requires Apple Developer Program membership and App Store Connect access; until that exists, validate through local simulator, local macOS app, and any free-account device testing available through Xcode.
+
+## Xcode Health And Blockers
+
+Before treating `xcodebuild` failures as app bugs, classify where they fail:
+
+- If even `xcodebuild -list -project <App>.xcodeproj` fails before project parsing, inspect local Xcode health first.
+- Run bounded probes such as `xcodebuild -version`, `xcodebuild -checkFirstLaunchStatus`, `xcode-select -p`, and a short `xcodebuild -list`.
+- If first-launch work is pending, try the non-privileged repair path only if it is safe and bounded. Privileged repair, Xcode reinstall/update, Apple Developer Program enrollment, and account signing setup are human/capability gates.
+- If Xcode cannot load required plug-ins or private frameworks before project parsing, record a blocker artifact with the exact command, exit code, log path, Xcode version/build, developer directory, attempted repairs, and required human resolution.
+
+Do not mark app-bundle validation complete when `xcodebuild` is blocked locally. Strengthen structural project checks and direct `swiftc -typecheck` probes where useful, but label them as fallback evidence; they do not replace required iOS/macOS app builds, simulator launch, or macOS launch validation.
 
 ## Completion Bar
 
