@@ -2236,6 +2236,7 @@ test("runtime dependency pack builder handles long paths and CLI argument edge c
   const {
     buildRuntimeDependencyPack,
     collectProductionDependencyClosure,
+    deriveRuntimeDependencyPackPaths,
     productionDependencyLockHash,
     runRuntimeDependencyPackBuildCli,
     runRuntimeDependencyPackVerifyCli,
@@ -2387,9 +2388,24 @@ test("runtime dependency pack builder handles long paths and CLI argument edge c
     assert.equal(stderr.join(""), "")
     resetIo()
 
-    assert.equal(runRuntimeDependencyPackVerifyCli({ argv: [], io }), 0)
-    assert.match(stdout.join(""), /runtime dependency pack verified/u)
-    assert.equal(stderr.join(""), "")
+    const defaultPackPaths = deriveRuntimeDependencyPackPaths({
+      mcpRoot,
+      packageJson,
+      packageLock,
+      platform: process.platform,
+      arch: process.arch,
+      nodeAbi: process.versions.modules,
+    })
+    const defaultVerifyStatus = runRuntimeDependencyPackVerifyCli({ argv: [], io })
+    if (existsSync(defaultPackPaths.packDir)) {
+      assert.equal(defaultVerifyStatus, 0)
+      assert.match(stdout.join(""), /runtime dependency pack verified/u)
+      assert.equal(stderr.join(""), "")
+    } else {
+      assert.equal(defaultVerifyStatus, 1)
+      assert.equal(stdout.join(""), "")
+      assert.match(stderr.join(""), /runtime dependency pack manifest runtime-deps\.manifest\.json is missing/u)
+    }
     resetIo()
 
     assert.equal(
