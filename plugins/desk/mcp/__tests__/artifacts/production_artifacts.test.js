@@ -154,6 +154,26 @@ function greenValidation() {
   }
 }
 
+function trackedArtifactSpawn({ blobs = new Map(), dirty = new Set() } = {}) {
+  return (_command, args) => {
+    if (args[0] === "ls-files") {
+      return { status: 0, stdout: "", stderr: "" }
+    }
+    if (args[0] === "show") {
+      const repoPath = String(args[1]).replace(/^:/u, "")
+      const bytes = blobs.get(repoPath)
+      return bytes === undefined
+        ? { status: 1, stdout: Buffer.alloc(0), stderr: "" }
+        : { status: 0, stdout: Buffer.from(bytes), stderr: "" }
+    }
+    if (args[0] === "diff" && args[1] === "--quiet") {
+      const repoPath = args.at(-1)
+      return { status: dirty.has(repoPath) ? 1 : 0, stdout: "", stderr: "" }
+    }
+    return { status: 1, stdout: "", stderr: "" }
+  }
+}
+
 async function tempExpectation({ tempDir, modules } = {}) {
   return generatedArtifacts.productionSharedArtifactExpectation({
     repoRoot,
@@ -549,6 +569,191 @@ test("production artifacts fail when repo-local represented docs changed after p
     assert.equal(result.ok, false)
     assert.match(result.errors.join("\n"), /represented document tasks\/dependency-activation\/task\.md hash must match current repo document/u)
     assert.match(result.errors.join("\n"), new RegExp(`current ${currentDocHash.slice(0, 18)}`, "u"))
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifacts require represented document metadata independent of artifact validation", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-missing-docs-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl represented_documents must be a non-empty array/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst represented_documents must be a non-empty array/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifacts reject traversal syntax in represented document paths", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-doc-traversal-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const representedDocuments = [{
+      path: "x/../tasks/dependency-activation/task.md",
+      hash: sha256("current"),
+    }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: representedDocuments,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /represented document path must be a normalized relative path/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifact checksums are compared against tracked bytes, not dirty working-tree bytes", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-tracked-bytes-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    const trackedPrimaryBytes = "tracked artifact bytes\n"
+    const dirtyPrimaryBytes = "dirty artifact bytes\n"
+    const vectorPrimaryPath = writeFile(
+      expectation.vectorPackDir,
+      "unit-pack.jsonl",
+      dirtyPrimaryBytes,
+    )
+    const vectorChecksumPath = writeFile(
+      expectation.vectorPackDir,
+      "unit-pack.sha256",
+      `${sha256(dirtyPrimaryBytes)}  unit-pack.jsonl\n`,
+    )
+    writeJson(expectation.vectorPackDir, "unit-pack.manifest.json", manifest)
+    const snapshotPrimaryPath = writeFile(
+      expectation.snapshotDir,
+      "unit-snapshot.sqlite.zst",
+      dirtyPrimaryBytes,
+    )
+    const snapshotChecksumPath = writeFile(
+      expectation.snapshotDir,
+      "unit-snapshot.sha256",
+      `${sha256(dirtyPrimaryBytes)}  unit-snapshot.sqlite.zst\n`,
+    )
+    writeJson(expectation.snapshotDir, "unit-snapshot.manifest.json", manifest)
+    const blobs = new Map([
+      [repoPath(vectorPrimaryPath), trackedPrimaryBytes],
+      [repoPath(vectorChecksumPath), `${sha256(trackedPrimaryBytes)}  unit-pack.jsonl\n`],
+      [repoPath(snapshotPrimaryPath), trackedPrimaryBytes],
+      [repoPath(snapshotChecksumPath), `${sha256(trackedPrimaryBytes)}  unit-snapshot.sqlite.zst\n`],
+    ])
+    const dirty = new Set([
+      repoPath(vectorPrimaryPath),
+      repoPath(vectorChecksumPath),
+      repoPath(snapshotPrimaryPath),
+      repoPath(snapshotChecksumPath),
+    ])
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: trackedArtifactSpawn({ blobs, dirty }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl working tree must match tracked artifact bytes/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst working tree must match tracked artifact bytes/u)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }

@@ -605,29 +605,80 @@ function verifyPrimaryArtifactSet({
       primaryPath,
       checksumPath: sidecarPath(primaryPath, primarySuffix, ".sha256"),
       existsSync,
+      repoRoot: expectation.repoRoot,
+      primaryRepoPath: relativeToRepo(expectation.repoRoot, primaryPath),
+      checksumRepoPath: relativeToRepo(
+        expectation.repoRoot,
+        sidecarPath(primaryPath, primarySuffix, ".sha256"),
+      ),
+      spawn,
     });
   }
 }
 
-function verifyProductionArtifactChecksum({ errors, label, primaryPath, checksumPath, existsSync }) {
+function verifyProductionArtifactChecksum({
+  errors,
+  label,
+  primaryPath,
+  checksumPath,
+  existsSync,
+  repoRoot,
+  primaryRepoPath,
+  checksumRepoPath,
+  spawn,
+}) {
   if (!existsSync(primaryPath) || !existsSync(checksumPath)) return;
-  const checksum = readProductionArtifactChecksum(checksumPath, errors, label);
+  if (
+    workingTreeDiffersFromTracked({ repoRoot, repoPath: primaryRepoPath, spawn }) ||
+    workingTreeDiffersFromTracked({ repoRoot, repoPath: checksumRepoPath, spawn })
+  ) {
+    errors.push(`${label} working tree must match tracked artifact bytes`);
+  }
+  const primaryBytes =
+    readTrackedFileBytes({ repoRoot, repoPath: primaryRepoPath, spawn }) ??
+    fs.readFileSync(primaryPath);
+  const checksumBytes =
+    readTrackedFileBytes({ repoRoot, repoPath: checksumRepoPath, spawn }) ??
+    fs.readFileSync(checksumPath);
+  const checksum = readProductionArtifactChecksumBytes(checksumBytes, errors, label);
   if (!checksum) return;
-  const artifactSha = `sha256:${sha256(fs.readFileSync(primaryPath))}`;
+  const artifactSha = `sha256:${sha256(primaryBytes)}`;
   if (checksum !== artifactSha) {
     errors.push(`${label} checksum must match artifact bytes`);
   }
 }
 
-function readProductionArtifactChecksum(checksumPath, errors, label) {
-  const bytes = readFileIfPresent(checksumPath);
-  if (bytes === undefined) return undefined;
+function readProductionArtifactChecksumBytes(bytes, errors, label) {
   const match = bytes.toString("utf8").match(/^\s*(sha256:[a-f0-9]{64}|[a-f0-9]{64})\b/u);
   if (!match) {
     errors.push(`${label} checksum must start with a sha256 digest`);
     return undefined;
   }
   return match[1].startsWith("sha256:") ? match[1] : `sha256:${match[1]}`;
+}
+
+function readTrackedFileBytes({ repoRoot, repoPath, spawn }) {
+  const result = spawn("git", ["show", `:${repoPath}`], {
+    cwd: repoRoot,
+    encoding: "buffer",
+    maxBuffer: 100 * 1024 * 1024,
+  });
+  if ((result.status ?? 1) !== 0) return undefined;
+  if (Buffer.isBuffer(result.stdout)) {
+    return result.stdout.length > 0 ? result.stdout : undefined;
+  }
+  if (typeof result.stdout === "string" && result.stdout.length > 0) {
+    return Buffer.from(result.stdout, "utf8");
+  }
+  return undefined;
+}
+
+function workingTreeDiffersFromTracked({ repoRoot, repoPath, spawn }) {
+  const result = spawn("git", ["diff", "--quiet", "--", repoPath], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  return result.status === 1;
 }
 
 function verifyProductionHashes({ expectation, errors, existsSync }) {
@@ -726,10 +777,16 @@ function verifyFreshnessFields({ errors, label, manifest, expectedHashes }) {
 }
 
 function verifyCurrentRepresentedDocuments({ errors, expectation, label, manifest, expectedHashes }) {
-  if (!Array.isArray(manifest.represented_documents)) return;
+  if (!Array.isArray(manifest.represented_documents) || manifest.represented_documents.length === 0) {
+    errors.push(`${label} represented_documents must be a non-empty array`);
+    return;
+  }
   const currentDocs = [];
   for (const doc of manifest.represented_documents) {
-    if (!doc || typeof doc !== "object" || Array.isArray(doc)) continue;
+    if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
+      errors.push(`${label} represented document must be an object`);
+      continue;
+    }
     const docPath = normalizedRelativeDocPath(doc.path);
     if (!docPath) {
       errors.push(`${label} represented document path must be a normalized relative path`);
@@ -764,7 +821,19 @@ function normalizedRelativeDocPath(value) {
     return undefined;
   }
   const normalized = normalizePath(path.posix.normalize(value));
-  if (normalized === "." || normalized.startsWith("../") || normalized.includes("/../")) {
+  const segments = value.split("/");
+  if (
+    normalized !== value ||
+    normalized === "." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    segments.some((segment) => (
+      segment === "" ||
+      segment === "." ||
+      segment === ".." ||
+      /^[a-z]:$/iu.test(segment)
+    ))
+  ) {
     return undefined;
   }
   return normalized;
