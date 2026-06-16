@@ -110,8 +110,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [ ] Vector-pack validation errors report file, row, and chunk key without dumping full text.
 - [x] Gitignored secret files are excluded from indexing and artifact publication by default.
 - [x] Artifact publication requires explicit approval when repository or organization policy requires it.
-- [ ] Deleted/redacted documents are invalidated through tombstone metadata at `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`, plus artifact rotation cleanup.
-- [ ] CI validates that deleted/redacted docs are no longer represented in active vector packs or snapshots.
+- [x] Deleted/redacted documents are invalidated through tombstone metadata at `plugins/desk/artifacts/tombstones/tombstones.jsonl` validated by `plugins/desk/artifacts/tombstones/tombstone.schema.json`, plus artifact rotation cleanup.
+- [x] CI validates that deleted/redacted docs are no longer represented in active vector packs or snapshots.
 - [ ] Existing active/archived search scope behavior is preserved after snapshot restore and vector import.
 - [ ] Existing refs graph behavior is preserved after snapshot restore and vector import.
 - [x] Search responses distinguish semantic, lexical, and hybrid result modes.
@@ -142,7 +142,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - [x] Release/CI automation can fail when generated artifacts are stale.
 - [ ] Release/CI automation can build and verify runtime dependency packs, vector packs, and snapshots without introducing a user-facing Desk CLI.
 - [x] 100% test coverage on all new code
-- [ ] All tests pass
+- [x] All tests pass
 - [x] No warnings
 
 ## Code Coverage Requirements
@@ -569,7 +569,7 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 **Output**: `plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js`.
 **Acceptance**: Tests fail until tombstone and cleanup behavior exists.
 
-### ⬜ Unit 20b: Tombstones And Redaction Cleanup - Implementation
+### ✅ Unit 20b: Tombstones And Redaction Cleanup - Implementation
 **What**: Implement tombstone metadata, artifact invalidation, and artifact rotation cleanup for vector packs under `plugins/desk/artifacts/vector-packs/` and snapshots under `plugins/desk/artifacts/snapshots/`.
 **Output**: Redaction/tombstone modules, `plugins/desk/artifacts/tombstones/tombstones.jsonl`, `plugins/desk/artifacts/tombstones/tombstone.schema.json`, and artifact rotation cleanup integration.
 **Acceptance**: Unit 20a tests pass and deleted/redacted docs are not represented in active vector packs or snapshots.
@@ -992,3 +992,4 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 - 2026-06-15 18:50 Unit 19c Round 2 reviewer gate converged: Linnaeus the 3rd verified anchored bare patterns now exclude descendants for discovery and artifact source docs, nested gitignore rules remain base-scoped, negations do not override hidden/sensitive exclusions, hidden exclusions do not hide `_meta`, `_shared`, `_friction`, `_archive`, or `desks/<alias>` paths, symlinks are not followed, person/shared discovery stays green, log scrub is clean, and the full MCP suite passes 550/550.
 - 2026-06-15 19:59 Unit 20a complete: added `plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js` red coverage for canonical tombstone schema and ledger validation, loader diagnostics for malformed and schema-invalid rows, repeated tombstone precedence, writer rejection before artifact writes, invalid tombstone ledger fail-closed behavior, safe and mixed represented-doc cases, manifest-driven vector-pack and snapshot validation, missing/malformed `represented_documents`, active plus archived redacted-doc counts, and rotation cleanup that removes obsolete sidecars while preserving active artifact bytes. Evidence saved in `unit-20a-redaction-cleanup-red.log`; it fails 5/5 for the intended missing tombstone schema/ledger/module and unwired writer/validator rejection paths. `unit-20a-diff-check-green.log` records a clean diff/whitespace check for the untracked red test.
 - 2026-06-15 19:59 Unit 20a reviewer gate converged after harsh contract hardening: Boyle, Poincare, Franklin, Godel, Averroes, Locke, Curie, James, Popper, Chandrasekhar, and Ampere found and closed false-green gaps around loader-vs-validator coverage, archived docs, safe/mixed docs, schema constraints, malformed ledger handling, real artifact validation surfaces, before-write spies, manifest-driven represented docs, invalid represented metadata, count-all behavior, and scrubbed evidence. Ampere the 3rd converged with no findings.
+- 2026-06-15 20:15 Unit 20b complete: `ba5a701` adds the committed tombstone schema/ledger, implements `plugins/desk/mcp/src/artifacts/tombstones.js`, wires vector-pack and snapshot writes plus validation to fail closed on tombstoned documents before artifact writes/import/restore, passes plugin roots through vector import and snapshot discovery, and adds cleanup for rotated vector-pack/snapshot artifacts. Evidence saved in `unit-20b-redaction-cleanup-green.log`, `unit-20b-test-coverage.log`, `unit-20b-npm-test-green.log`, `unit-20b-runtime-deps-pack-verify-green.log`, `unit-20b-generate-support-matrix-green.log`, `unit-20b-generated-artifacts-green.log`, `unit-20b-validate-skills-green.log`, `unit-20b-build-unavailable.log`, and `unit-20b-diff-check-green.log`; focused redaction cleanup tests pass 6/6, full MCP tests pass 556/556, coverage is 100% line/branch/function for 36 changed production files, generated-artifact/runtime-pack/support-matrix/skill validation pass, evidence scrub is clean, and build remains unavailable because the MCP package has no `build` script.
