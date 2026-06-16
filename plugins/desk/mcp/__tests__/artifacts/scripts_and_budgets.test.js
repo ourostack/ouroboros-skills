@@ -3,19 +3,36 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { createHash } from "node:crypto"
 import {
   existsSync,
+  mkdirSync,
+  mkdtempSync,
   readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
 } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+
+import { rebuildIndex } from "../../src/indexer/index.js"
+import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const packageJsonPath = path.join(mcpRoot, "package.json")
 const workflowPath = path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml")
 const performanceBudgetsPath = path.join(mcpRoot, "config", "performance-budgets.json")
+const policySchemaPath = path.join(
+  repoRoot,
+  "plugins",
+  "desk",
+  "artifacts",
+  "publication-policy.schema.json",
+)
 const EXPECTED_ARTIFACT_SCRIPTS = Object.freeze({
   "artifact:vector-pack:build": "node scripts/build-vector-pack.js",
   "artifact:snapshot:build": "node scripts/build-snapshot.js",
@@ -27,6 +44,32 @@ const EXPECTED_SCRIPT_FILES = Object.freeze([
   "build-snapshot.js",
   "verify-snapshot.js",
   "validate-artifacts.js",
+])
+const ARTIFACT_SCRIPT_TARGETS = Object.freeze([
+  Object.freeze({
+    artifactType: "vector-pack",
+    scriptName: "artifact:vector-pack:build",
+    idArg: "--pack-id",
+    id: "guarded-pack",
+    primaryRel: path.join(
+      "artifacts",
+      "vector-packs",
+      ACTIVE_EMBEDDING_SPEC.id,
+      "guarded-pack.jsonl",
+    ),
+  }),
+  Object.freeze({
+    artifactType: "snapshot",
+    scriptName: "artifact:snapshot:build",
+    idArg: "--snapshot-id",
+    id: "guarded-snapshot",
+    primaryRel: path.join(
+      "artifacts",
+      "snapshots",
+      ACTIVE_EMBEDDING_SPEC.id,
+      "guarded-snapshot.sqlite.zst",
+    ),
+  }),
 ])
 
 function loadJson(file) {
@@ -52,6 +95,198 @@ function scriptHelp(scriptName) {
   )
   assert.equal(result.status, 0, result.stderr || result.stdout)
   return `${result.stdout}${result.stderr}`
+}
+
+function makeTempDir(prefix = "desk-artifact-scripts-") {
+  return mkdtempSync(path.join(tmpdir(), prefix))
+}
+
+function writeFile(root, rel, body) {
+  const abs = path.join(root, rel)
+  mkdirSync(path.dirname(abs), { recursive: true })
+  writeFileSync(abs, body, "utf8")
+  return abs
+}
+
+function writeJson(root, rel, value) {
+  writeFile(root, rel, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function validPolicy(overrides = {}) {
+  return {
+    schema_version: 1,
+    default_publication: "deny",
+    repo_visibility: "public",
+    sensitive_repo: true,
+    approved_artifact_types: [],
+    approval_required: true,
+    approvals: [],
+    updated_at: "2026-06-15T00:00:00.000Z",
+    ...overrides,
+  }
+}
+
+function repoApproval(artifactType) {
+  return {
+    scope: "repo",
+    artifact_type: artifactType,
+    approved_by: "unit-test-reviewer",
+    approved_at: "2026-06-15T00:00:00.000Z",
+    reason: "explicit artifact-script fixture approval",
+  }
+}
+
+function writePolicyFixture(pluginRoot, policy) {
+  mkdirSync(path.join(pluginRoot, "artifacts"), { recursive: true })
+  writeFileSync(
+    path.join(pluginRoot, "artifacts", "publication-policy.schema.json"),
+    readFileSync(policySchemaPath),
+  )
+  writeJson(pluginRoot, path.join("artifacts", "publication-policy.json"), policy)
+}
+
+function writeApprovedPolicy(pluginRoot) {
+  writePolicyFixture(pluginRoot, validPolicy({
+    approved_artifact_types: ["vector-pack", "snapshot"],
+    approvals: [repoApproval("vector-pack"), repoApproval("snapshot")],
+  }))
+}
+
+function writeDeniedPolicy(pluginRoot) {
+  writePolicyFixture(pluginRoot, validPolicy())
+}
+
+function writeTombstoneLedger(pluginRoot, rows) {
+  mkdirSync(path.join(pluginRoot, "artifacts", "tombstones"), { recursive: true })
+  writeFileSync(
+    path.join(pluginRoot, "artifacts", "tombstones", "tombstones.jsonl"),
+    rows.map((row) => JSON.stringify(row)).join("\n") + "\n",
+    "utf8",
+  )
+}
+
+function sha256(value) {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`
+}
+
+function embedFetch() {
+  return async () => ({
+    ok: true,
+    json: async () => ({
+      embedding: Array.from(
+        { length: ACTIVE_EMBEDDING_SPEC.dimension },
+        (_, index) => index / ACTIVE_EMBEDDING_SPEC.dimension,
+      ),
+    }),
+  })
+}
+
+async function seedIndexedDesk({ deskRoot, docPath = "trackA/task-1/task.md", body }) {
+  const documentBody = body ?? "---\nstatus: processing\n---\nrelease fixture text\n"
+  writeFile(deskRoot, docPath, documentBody)
+  await rebuildIndex(deskRoot, { embed: { fetch: embedFetch() } })
+  return {
+    docPath,
+    body: documentBody,
+    hash: sha256(documentBody),
+  }
+}
+
+function runNpmScript(scriptName, args = []) {
+  return spawnSync(
+    "npm",
+    ["--prefix", "plugins/desk/mcp", "run", scriptName, "--", ...args],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DESK_EMBED_TIMEOUT_MS: "10",
+      },
+    },
+  )
+}
+
+function artifactArgs({ target, deskRoot, pluginRoot, id = target.id, budgetConfig } = {}) {
+  const args = [
+    "--desk-root",
+    deskRoot,
+    "--plugin-root",
+    pluginRoot,
+    target.idArg,
+    id,
+    "--from-local-db",
+  ]
+  if (budgetConfig) args.push("--budget-config", budgetConfig)
+  return args
+}
+
+function scriptOutput(result) {
+  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`
+}
+
+function assertScriptFailedWithCode(result, code) {
+  assert.notEqual(result.status, 0, result.stdout || result.stderr)
+  assert.match(scriptOutput(result), new RegExp(`\\b${escapeRegExp(code)}\\b`, "u"))
+}
+
+function assertScriptSucceeded(result) {
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+}
+
+function assertOutputDoesNotLeak(result, body) {
+  assert.doesNotMatch(scriptOutput(result), new RegExp(escapeRegExp(body), "u"))
+}
+
+function filesUnder(root) {
+  const out = []
+  function walk(current) {
+    if (!existsSync(current)) return
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const abs = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        walk(abs)
+      } else if (entry.isFile()) {
+        out.push(path.relative(root, abs).split(path.sep).join("/"))
+      }
+    }
+  }
+  walk(root)
+  return out.sort()
+}
+
+function assertNoPrimaryArtifact(pluginRoot, target) {
+  assert.equal(existsSync(path.join(pluginRoot, target.primaryRel)), false)
+}
+
+function writeBudgetConfig(file, overrides = {}) {
+  const base = {
+    schema_version: 1,
+    startup: {
+      ensure_index_ms: 250,
+      snapshot_restore_ms: 250,
+      vector_pack_import_ms: 250,
+    },
+    rebuild: {
+      vector_pack_rebuild_ms: 1000,
+      snapshot_build_ms: 1000,
+    },
+    artifacts: {
+      snapshot_verify_ms: 1000,
+      validate_ms: 1000,
+    },
+  }
+  writeFileSync(
+    file,
+    `${JSON.stringify({
+      ...base,
+      ...overrides,
+      startup: { ...base.startup, ...overrides.startup },
+      rebuild: { ...base.rebuild, ...overrides.rebuild },
+      artifacts: { ...base.artifacts, ...overrides.artifacts },
+    }, null, 2)}\n`,
+    "utf8",
+  )
 }
 
 function workflowPathFilters(workflow, eventName) {
@@ -196,38 +431,148 @@ test("package declares artifact maintenance scripts without adding a user Desk C
     const source = scriptSource(scriptName)
     assert.equal(source.startsWith("#!/usr/bin/env node\n"), true)
     assert.match(scriptHelp(scriptName), /artifact|snapshot|vector-pack|maintenance|release/iu)
+    assert.doesNotMatch(source, /new\s+Command|commander|yargs/u)
   }
 })
 
-test("artifact maintenance scripts route publication through guarded canonical artifact paths", () => {
-  const vectorBuild = scriptSource("build-vector-pack.js")
-  const snapshotBuild = scriptSource("build-snapshot.js")
-  const snapshotVerify = scriptSource("verify-snapshot.js")
-  const validateArtifacts = scriptSource("validate-artifacts.js")
+test("artifact build scripts publish allowed artifacts only under canonical dirs", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-allowed-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-allowed-plugin-")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    await seedIndexedDesk({ deskRoot })
 
-  assert.match(vectorBuild, /\bwriteVectorPackArtifact\b/u)
-  assert.match(vectorBuild, /\bderiveVectorPackPaths\b/u)
-  assert.match(vectorBuild, /\bperformance-budgets\.json\b/u)
-  assert.doesNotMatch(vectorBuild, /new\s+Command|commander|yargs/u)
+    const vectorTarget = ARTIFACT_SCRIPT_TARGETS[0]
+    const vectorRun = runNpmScript(
+      vectorTarget.scriptName,
+      artifactArgs({ target: vectorTarget, deskRoot, pluginRoot }),
+    )
+    assertScriptSucceeded(vectorRun)
+    assert.deepEqual(
+      filesUnder(path.join(pluginRoot, "artifacts", "vector-packs", ACTIVE_EMBEDDING_SPEC.id)),
+      [
+        "guarded-pack.jsonl",
+        "guarded-pack.manifest.json",
+        "guarded-pack.sha256",
+      ],
+    )
 
-  assert.match(snapshotBuild, /\bwriteSnapshotArtifact\b/u)
-  assert.match(snapshotBuild, /\bderiveSnapshotPaths\b/u)
-  assert.match(snapshotBuild, /\bperformance-budgets\.json\b/u)
-  assert.doesNotMatch(snapshotBuild, /new\s+Command|commander|yargs/u)
+    const snapshotTarget = ARTIFACT_SCRIPT_TARGETS[1]
+    const snapshotRun = runNpmScript(
+      snapshotTarget.scriptName,
+      [
+        ...artifactArgs({ target: snapshotTarget, deskRoot, pluginRoot }),
+        "--included-pack-id",
+        vectorTarget.id,
+      ],
+    )
+    assertScriptSucceeded(snapshotRun)
+    assert.deepEqual(
+      filesUnder(path.join(pluginRoot, "artifacts", "snapshots", ACTIVE_EMBEDDING_SPEC.id)),
+      [
+        "guarded-snapshot.manifest.json",
+        "guarded-snapshot.sha256",
+        "guarded-snapshot.sqlite.zst",
+      ],
+    )
 
-  assert.match(snapshotVerify, /\bvalidateSnapshotArtifact\b/u)
-  assert.match(snapshotVerify, /\bperformance-budgets\.json\b/u)
-  assert.doesNotMatch(snapshotVerify, /new\s+Command|commander|yargs/u)
+    const artifactFiles = filesUnder(path.join(pluginRoot, "artifacts"))
+    assert.equal(artifactFiles.includes("guarded-pack.jsonl"), false)
+    assert.equal(artifactFiles.includes("guarded-snapshot.sqlite.zst"), false)
+    assert.ok(artifactFiles.every((file) => (
+      file.startsWith("publication-policy.") ||
+      file.startsWith(`vector-packs/${ACTIVE_EMBEDDING_SPEC.id}/`) ||
+      file.startsWith(`snapshots/${ACTIVE_EMBEDDING_SPEC.id}/`)
+    )))
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
 
-  for (const requiredGuard of [
-    "loadPublicationPolicy",
-    "loadExclusionRules",
-    "loadTombstoneLedger",
-    "validateVectorPackFile",
-    "validateSnapshotArtifact",
-    "performance-budgets.json",
-  ]) {
-    assert.match(validateArtifacts, new RegExp(`\\b${escapeRegExp(requiredGuard)}\\b`, "u"))
+test("artifact build scripts reject publication-policy denial before writing bytes", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-denied-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-denied-plugin-")
+  try {
+    writeDeniedPolicy(pluginRoot)
+    const doc = await seedIndexedDesk({ deskRoot })
+
+    for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const result = runNpmScript(
+        target.scriptName,
+        artifactArgs({ target, deskRoot, pluginRoot }),
+      )
+      assertScriptFailedWithCode(result, "artifact_publication_not_approved")
+      assertOutputDoesNotLeak(result, doc.body)
+      assertNoPrimaryArtifact(pluginRoot, target)
+    }
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
+
+test("artifact build scripts reject excluded local DB docs before writing bytes", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-excluded-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-excluded-plugin-")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    const doc = await seedIndexedDesk({
+      deskRoot,
+      docPath: "ignored-track/task-1/task.md",
+      body: "---\nstatus: processing\n---\nexcluded release fixture text\n",
+    })
+    writeFile(deskRoot, ".gitignore", "ignored-track/\n")
+
+    for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const result = runNpmScript(
+        target.scriptName,
+        artifactArgs({ target, deskRoot, pluginRoot }),
+      )
+      assertScriptFailedWithCode(result, "artifact_input_excluded")
+      assertOutputDoesNotLeak(result, doc.body)
+      assertNoPrimaryArtifact(pluginRoot, target)
+    }
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
+
+test("artifact build scripts reject tombstoned local DB docs before writing bytes", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-tombstone-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-tombstone-plugin-")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    const doc = await seedIndexedDesk({
+      deskRoot,
+      body: "---\nstatus: processing\n---\nredacted release fixture text\n",
+    })
+    writeTombstoneLedger(pluginRoot, [
+      {
+        schema_version: 1,
+        document_path: doc.docPath,
+        document_hash: doc.hash,
+        reason: "redacted",
+        redacted_at: "2026-06-15T00:00:00.000Z",
+        effective_from: "2026-06-15T00:00:00.000Z",
+        artifact_rotation_id: "unit-21a-redaction",
+        actor: "unit-test-reviewer",
+      },
+    ])
+
+    for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const result = runNpmScript(
+        target.scriptName,
+        artifactArgs({ target, deskRoot, pluginRoot }),
+      )
+      assertScriptFailedWithCode(result, "artifact_input_redacted")
+      assertOutputDoesNotLeak(result, doc.body)
+      assertNoPrimaryArtifact(pluginRoot, target)
+    }
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
   }
 })
 
@@ -248,6 +593,36 @@ test("performance budget config declares startup, rebuild, and artifact threshol
   assertPositiveIntegerBudget(budgets.rebuild?.snapshot_build_ms, "rebuild.snapshot_build_ms")
   assertPositiveIntegerBudget(budgets.artifacts?.snapshot_verify_ms, "artifacts.snapshot_verify_ms")
   assertPositiveIntegerBudget(budgets.artifacts?.validate_ms, "artifacts.validate_ms")
+})
+
+test("artifact validation script fails when the configured validation budget is exceeded", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-budget-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-budget-plugin-")
+  const budgetConfig = path.join(makeTempDir("desk-artifact-scripts-budget-config-"), "budgets.json")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    await seedIndexedDesk({ deskRoot })
+    writeBudgetConfig(budgetConfig, {
+      artifacts: {
+        snapshot_verify_ms: 1000,
+        validate_ms: 0,
+      },
+    })
+
+    const result = runNpmScript("artifact:validate", [
+      "--desk-root",
+      deskRoot,
+      "--plugin-root",
+      pluginRoot,
+      "--budget-config",
+      budgetConfig,
+    ])
+    assertScriptFailedWithCode(result, "performance_budget_exceeded")
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+    rmSync(path.dirname(budgetConfig), { recursive: true, force: true })
+  }
 })
 
 test("CI invokes artifact validation and watches artifact script inputs", () => {
