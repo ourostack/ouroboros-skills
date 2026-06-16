@@ -9,11 +9,15 @@ import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
+import { closeDb, openDb } from "../../src/db/init.js"
+import { rebuildIndex } from "../../src/indexer/index.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
+import { validateVectorPackCompaction } from "../../src/indexer/vector-compaction.js"
 import {
   validateVectorPackFile,
   writeVectorPackArtifact,
 } from "../../src/indexer/vector-packs.js"
+import { ensureIndex } from "../../src/server-helpers.js"
 import {
   validateSnapshotArtifact,
   writeSnapshotArtifact,
@@ -233,6 +237,42 @@ function tombstoneRow(overrides = {}) {
     artifact_rotation_id: "rotation-2026-06-15",
     actor: "unit-test-reviewer",
     ...overrides,
+  }
+}
+
+function vectorRow({ key, hash, seed }) {
+  return {
+    chunk_key: `ck_${key.repeat(40).slice(0, 40)}`,
+    text_hash: `sha256:${hash.repeat(64).slice(0, 64)}`,
+    embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+    dimension: ACTIVE_EMBEDDING_SPEC.dimension,
+    encoding: "float32-json",
+    vector: Array.from(
+      { length: ACTIVE_EMBEDDING_SPEC.dimension },
+      (_, index) => ((seed + index) % 31) / 31,
+    ),
+  }
+}
+
+function pack(packId, rows) {
+  return {
+    pack_id: packId,
+    embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+    rows,
+  }
+}
+
+function dbCounts(deskRoot) {
+  const db = openDb(deskRoot)
+  try {
+    return {
+      docs: db.prepare("SELECT COUNT(*) AS count FROM docs").get().count,
+      chunks: db.prepare("SELECT COUNT(*) AS count FROM chunks").get().count,
+      vectors: db.prepare("SELECT COUNT(*) AS count FROM chunk_vecs").get().count,
+      refs: db.prepare("SELECT COUNT(*) AS count FROM refs_graph").get().count,
+    }
+  } finally {
+    closeDb(db)
   }
 }
 
@@ -1150,6 +1190,207 @@ test("tombstone helpers handle defensive edge cases without leaking document det
     () => cleanupRotatedArtifacts({ pluginRoot: brokenSidecarRoot }),
     (error) => error.code === "ERR_FS_EISDIR" || error.code === "EISDIR",
   )
+})
+
+test("tombstones make fresh local indexes stale and prune redacted docs", async () => {
+  const deskRoot = await tmpRoot("desk-redaction-local-db-")
+  const pluginRoot = await tmpRoot("desk-redaction-local-plugin-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nlocal redaction body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+  assert.deepEqual(dbCounts(deskRoot), {
+    docs: 1,
+    chunks: 1,
+    vectors: 0,
+    refs: 0,
+  })
+
+  const noLedger = await ensureIndex(deskRoot, {
+    tombstones: { pluginRoot },
+    skipEmbed: true,
+  })
+  assert.equal(noLedger.built, false)
+  assert.equal(noLedger.reason, "fresh")
+
+  await writeTombstoneLedger(pluginRoot, [
+    tombstoneRow({
+      document_path: docPath,
+      document_hash: sha256(body),
+      reason: "redacted",
+      artifact_rotation_id: "rotation-local-db",
+    }),
+  ])
+
+  const ensured = await ensureIndex(deskRoot, {
+    tombstones: { pluginRoot },
+    skipEmbed: true,
+  })
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "stale")
+  assert.equal(ensured.summary.docs_tombstoned, 1)
+  assert.equal(ensured.summary.docs_removed, 1)
+  assert.equal(ensured.summary.docs_indexed, 0)
+  assert.deepEqual(dbCounts(deskRoot), {
+    docs: 0,
+    chunks: 0,
+    vectors: 0,
+    refs: 0,
+  })
+})
+
+test("local index freshness fails closed for corrupt tombstones and schema drift", async () => {
+  const deskRoot = await tmpRoot("desk-redaction-local-invalid-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nlocal invalid tombstone body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  for (const [label, writeLedger] of [
+    ["malformed", (pluginRoot) => writeRawTombstoneLedger(pluginRoot, '{"schema_version":1\n')],
+    ["schema-drift", (pluginRoot) => writeTombstoneLedger(pluginRoot, [
+      tombstoneRow({
+        document_path: docPath,
+        document_hash: sha256(body),
+        schema_version: 2,
+      }),
+    ])],
+  ]) {
+    const pluginRoot = await tmpRoot(`desk-redaction-local-invalid-${label}-`)
+    await writeLedger(pluginRoot)
+    await assert.rejects(
+      () => ensureIndex(deskRoot, {
+        tombstones: { pluginRoot },
+        skipEmbed: true,
+      }),
+      (error) => {
+        assert.equal(error.code, "tombstone_ledger_invalid")
+        assertPublicErrorDoesNotLeak(error)
+        return true
+      },
+    )
+    assert.deepEqual(dbCounts(deskRoot), {
+      docs: 1,
+      chunks: 1,
+      vectors: 0,
+      refs: 0,
+    })
+  }
+})
+
+test("artifact rotation cleanup is gated by compaction validation and snapshot rotation", async () => {
+  const {
+    cleanupRotatedArtifacts,
+  } = await loadTombstonesModule()
+  const pluginRoot = await tmpRoot("desk-redaction-rotation-gates-plugin-")
+  const packDir = path.join(
+    pluginRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  const snapshotDir = path.join(
+    pluginRoot,
+    "artifacts",
+    "snapshots",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(packDir, { recursive: true })
+  await fs.mkdir(snapshotDir, { recursive: true })
+
+  const rowA = vectorRow({ key: "a", hash: "1", seed: 1 })
+  const rowB = vectorRow({ key: "b", hash: "2", seed: 2 })
+  assert.deepEqual(validateVectorPackCompaction({
+    sourcePacks: [
+      pack("source-pack-a", [rowA]),
+      pack("source-pack-b", [rowB]),
+    ],
+    compactedPack: pack("compacted-pack", [rowA, rowB]),
+  }), {
+    equivalent: true,
+    source_pack_count: 2,
+    source_rows: 2,
+    compacted_rows: 2,
+    unique_chunk_keys: 2,
+    duplicate_rows_removed: 0,
+  })
+  assert.throws(
+    () => validateVectorPackCompaction({
+      sourcePacks: [pack("source-pack-a", [rowA])],
+      compactedPack: pack("broken-compacted-pack", []),
+    }),
+    /missing compacted row/u,
+  )
+
+  for (const file of [
+    path.join(packDir, "source-pack-a.jsonl"),
+    path.join(packDir, "source-pack-a.manifest.json"),
+    path.join(packDir, "source-pack-a.sha256"),
+    path.join(packDir, "source-pack-b.jsonl"),
+    path.join(packDir, "source-pack-b.manifest.json"),
+    path.join(packDir, "source-pack-b.sha256"),
+    path.join(packDir, "compacted-pack.jsonl"),
+    path.join(packDir, "compacted-pack.manifest.json"),
+    path.join(packDir, "compacted-pack.sha256"),
+  ]) {
+    await fs.writeFile(file, `artifact bytes for ${path.basename(file)}`, "utf8")
+  }
+
+  const olderSnapshot = await writeSnapshotValidationFixture({
+    pluginRoot,
+    snapshotId: "snapshot-old",
+    represented_documents: [],
+  })
+  const activeSnapshot = await writeSnapshotValidationFixture({
+    pluginRoot,
+    snapshotId: "snapshot-active",
+    represented_documents: [],
+  })
+  await assert.doesNotReject(() => validateSnapshotArtifact({
+    ...olderSnapshot,
+    pluginRoot,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    expectedDbSchema: SNAPSHOT_DB_SCHEMA,
+    expectedSqliteVec: SNAPSHOT_SQLITE_VEC,
+    expectedRuntime: SNAPSHOT_RUNTIME,
+    expectedArtifactSourceScopeHash: SNAPSHOT_SOURCE_SCOPE_HASH,
+    expectedDocumentTreeHash: SNAPSHOT_DOCUMENT_TREE_HASH,
+  }))
+  await assert.doesNotReject(() => validateSnapshotArtifact({
+    ...activeSnapshot,
+    pluginRoot,
+    expectedSpec: ACTIVE_EMBEDDING_SPEC,
+    expectedDbSchema: SNAPSHOT_DB_SCHEMA,
+    expectedSqliteVec: SNAPSHOT_SQLITE_VEC,
+    expectedRuntime: SNAPSHOT_RUNTIME,
+    expectedArtifactSourceScopeHash: SNAPSHOT_SOURCE_SCOPE_HASH,
+    expectedDocumentTreeHash: SNAPSHOT_DOCUMENT_TREE_HASH,
+  }))
+
+  const summary = await cleanupRotatedArtifacts({
+    pluginRoot,
+    embeddingSpecId: ACTIVE_EMBEDDING_SPEC.id,
+    activeVectorPackIds: ["compacted-pack"],
+    activeSnapshotIds: ["snapshot-active"],
+  })
+  assert.deepEqual(summary, {
+    vector_packs_removed: 2,
+    snapshots_removed: 1,
+    sidecars_removed: 6,
+  })
+  await fs.stat(path.join(packDir, "compacted-pack.jsonl"))
+  await fs.stat(path.join(packDir, "compacted-pack.manifest.json"))
+  await fs.stat(path.join(packDir, "compacted-pack.sha256"))
+  await fs.stat(path.join(snapshotDir, "snapshot-active.sqlite.zst"))
+  await fs.stat(path.join(snapshotDir, "snapshot-active.manifest.json"))
+  await fs.stat(path.join(snapshotDir, "snapshot-active.sha256"))
+  for (const removed of [
+    path.join(packDir, "source-pack-a.jsonl"),
+    path.join(packDir, "source-pack-b.jsonl"),
+    path.join(snapshotDir, "snapshot-old.sqlite.zst"),
+  ]) {
+    await assert.rejects(() => fs.stat(removed), /ENOENT/u)
+  }
 })
 
 test("artifact rotation cleanup removes obsolete sidecars and keeps active artifacts", async () => {
