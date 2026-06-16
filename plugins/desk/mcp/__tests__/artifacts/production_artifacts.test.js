@@ -367,6 +367,83 @@ test("production document freshness compares manifests to the published current 
   }
 })
 
+test("production verifier propagates validator freshness for vector packs and snapshots", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-validator-freshness-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => ({
+          vector_packs: {
+            count: 1,
+            artifacts: [{
+              pack_id: "unit-pack",
+              rows: 1,
+              freshness: {
+                artifact_source_scope: "stale",
+                document_tree: "stale",
+              },
+            }],
+          },
+          snapshots: {
+            count: 1,
+            artifacts: [{
+              snapshot_id: "unit-snapshot",
+              freshness: {
+                artifact_source_scope: "stale",
+                document_tree: "stale",
+              },
+            }],
+          },
+        }),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack artifact_source_scope_hash is stale/u)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack document_tree_hash is stale/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot artifact_source_scope_hash is stale/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot document_tree_hash is stale/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
 test("production notes must use canonical current freshness hash fields", async () => {
   const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-current-hashes-"))
   try {

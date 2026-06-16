@@ -334,6 +334,21 @@ test("validateDeskMcpPackageScripts catches missing scripts, command drift, and 
     (root) => validator.validateDeskMcpPackageScripts({ repoRoot: root }),
     /target is missing/u,
   )
+  for (const [scriptName, command] of Object.entries(requiredPackageScripts)) {
+    await assertThrowsWith(
+      (root) => removePath(
+        root,
+        path.join(
+          "plugins",
+          "desk",
+          "mcp",
+          command.replace(/^node\s+scripts\//u, "scripts/"),
+        ),
+      ),
+      (root) => validator.validateDeskMcpPackageScripts({ repoRoot: root }),
+      new RegExp(`${scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} target is missing`, "u"),
+    )
+  }
 })
 
 test("freshness and runtime child checks propagate child process failures", async () => {

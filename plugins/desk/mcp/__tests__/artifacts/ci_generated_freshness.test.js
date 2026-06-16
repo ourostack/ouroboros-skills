@@ -441,6 +441,71 @@ test("root generated-artifact verifier propagates missing production vector and 
   }
 })
 
+test("root generated-artifact verifier rejects present but stale runtime dependency packs", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-runtime-pack-stale-"))
+  try {
+    const tempRepoRoot = path.join(tempRoot, "repo")
+    const tempMcpRoot = path.join(tempRepoRoot, "plugins", "desk", "mcp")
+    writeJson(tempMcpRoot, "package.json", {
+      name: "@ourostack/desk-mcp",
+      version: "1.7.3",
+    })
+    writeJson(tempMcpRoot, "package-lock.json", {
+      lockfileVersion: 3,
+      packages: {},
+    })
+    const packDir = path.join(
+      tempRepoRoot,
+      "plugins",
+      "desk",
+      "artifacts",
+      "runtime-deps",
+      "unit-fixture-node-999",
+    )
+    const fakeRuntimeDeps = {
+      productionDependencyLockHash: () => `sha256:${"1".repeat(64)}`,
+      deriveRuntimeDependencyPackPaths: () => ({
+        packDir,
+        archivePath: path.join(packDir, "runtime-deps.tgz"),
+        manifestPath: path.join(packDir, "runtime-deps.manifest.json"),
+        checksumPath: path.join(packDir, "runtime-deps.sha256"),
+      }),
+      validateRuntimeDependencyPackManifest: () => [
+        "runtime dependency pack manifest package_lock.prod_dependency_lock_hash must match production dependency closure",
+      ],
+    }
+    const expectation = await generatedArtifacts.productionRuntimePackExpectation({
+      repoRoot: tempRepoRoot,
+      mcpRoot: tempMcpRoot,
+      platform: "unit",
+      arch: "fixture",
+      nodeAbi: "999",
+      runtimeDeps: fakeRuntimeDeps,
+    })
+    writeJson(packDir, "runtime-deps.manifest.json", {
+      archive: { sha256: "f".repeat(64) },
+      package_lock: { sha256: "e".repeat(64) },
+      production_dependencies: [],
+    })
+    writeText(packDir, "runtime-deps.tgz", "stale archive bytes")
+    writeText(packDir, "runtime-deps.sha256", `${"0".repeat(64)}  runtime-deps.tgz\n`)
+
+    const result = generatedArtifacts.verifyPublishedRuntimeDependencyPack({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.doesNotMatch(result.errors.join("\n"), /generated artifact missing/u)
+    assert.match(result.errors.join("\n"), /prod_dependency_lock_hash must match production dependency closure/u)
+    assert.match(result.errors.join("\n"), /runtime dependency pack checksum mismatch/u)
+    assert.match(result.errors.join("\n"), /manifest archive\.sha256 must match runtime-deps\.tgz/u)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
 test("root host-manifest verifier exists and validates current host-facing generated files", async () => {
   const hostManifests = loadHostManifestVerifier()
   assert.equal(typeof hostManifests.verifyDeskHostManifests, "function")
@@ -571,6 +636,125 @@ test("root host-manifest verifier catches stale generated host-facing files", as
           stdout: { write: () => {} },
         },
       })
+      assert.equal(result.ok, false, `${staleCase.label} drift must fail verification`)
+      assert.match(result.errors.join("\n"), staleCase.errorPattern)
+    })
+  }
+})
+
+test("root host-manifest verifier catches cross-host plugin version drift", async () => {
+  const hostManifests = loadHostManifestVerifier()
+  const staleVersionCases = [
+    {
+      label: "codex-desk-version",
+      errorPattern: /codex-plugin Desk version drift/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/.codex-plugin/plugin.json", plugin)
+      },
+    },
+    {
+      label: "claude-desk-version",
+      errorPattern: /claude-plugin Desk version drift/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/.claude-plugin/plugin.json", plugin)
+      },
+    },
+    {
+      label: "copilot-desk-version",
+      errorPattern: /Copilot root Desk version must match activation version/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "desk", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/plugin.json", plugin)
+      },
+    },
+    {
+      label: "codex-work-suite-lock",
+      errorPattern: /codex-plugin Work Suite (dependency version|provider lock) drift/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/work-suite/.codex-plugin/plugin.json", plugin)
+      },
+    },
+    {
+      label: "claude-work-suite-lock",
+      errorPattern: /claude-plugin Work Suite provider lock drift/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/work-suite/.claude-plugin/plugin.json", plugin)
+      },
+    },
+    {
+      label: "copilot-work-suite-lock",
+      errorPattern: /Copilot root Work Suite version must match activation lock/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "work-suite", "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/work-suite/plugin.json", plugin)
+      },
+    },
+  ]
+
+  for (const staleCase of staleVersionCases) {
+    await withHostFreshnessFixture(async (caseRoot) => {
+      staleCase.mutate(caseRoot)
+      const result = await hostManifests.verifyDeskHostManifests({
+        repoRoot: caseRoot,
+        mcpRoot,
+        io: {
+          stderr: { write: () => {} },
+          stdout: { write: () => {} },
+        },
+      })
+
+      assert.equal(result.ok, false, `${staleCase.label} drift must fail verification`)
+      assert.match(result.errors.join("\n"), staleCase.errorPattern)
+    })
+  }
+})
+
+test("root host-manifest verifier catches worker body drift across host formats", async () => {
+  const hostManifests = loadHostManifestVerifier()
+  const workerCases = [
+    {
+      label: "claude-worker-body",
+      workerPath: "plugins/desk/agents/worker.md",
+      errorPattern: /worker-sources claude body drift/u,
+    },
+    {
+      label: "codex-worker-body",
+      workerPath: "plugins/desk/agents/worker.toml",
+      errorPattern: /worker-sources codex body drift/u,
+    },
+    {
+      label: "copilot-worker-body",
+      workerPath: "plugins/desk/agents/worker.agent.md",
+      errorPattern: /worker-sources copilot body drift/u,
+    },
+  ]
+
+  for (const staleCase of workerCases) {
+    await withHostFreshnessFixture(async (caseRoot) => {
+      writeText(
+        caseRoot,
+        staleCase.workerPath,
+        loadText(...staleCase.workerPath.split("/")).replaceAll("$DESK", "$STALE_DESK"),
+      )
+      const result = await hostManifests.verifyDeskHostManifests({
+        repoRoot: caseRoot,
+        mcpRoot,
+        io: {
+          stderr: { write: () => {} },
+          stdout: { write: () => {} },
+        },
+      })
+
       assert.equal(result.ok, false, `${staleCase.label} drift must fail verification`)
       assert.match(result.errors.join("\n"), staleCase.errorPattern)
     })

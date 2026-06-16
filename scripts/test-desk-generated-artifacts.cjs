@@ -479,14 +479,18 @@ async function verifyProductionSharedArtifacts({
     vectorPackFiles,
     snapshotFiles,
   });
-  for (const snapshot of validation.snapshots?.artifacts ?? []) {
-    if (snapshot.freshness?.artifact_source_scope !== "fresh") {
-      errors.push(`production snapshot ${snapshot.snapshot_id} artifact_source_scope_hash is stale`);
-    }
-    if (snapshot.freshness?.document_tree !== "fresh") {
-      errors.push(`production snapshot ${snapshot.snapshot_id} document_tree_hash is stale`);
-    }
-  }
+  propagateValidationFreshness({
+    artifacts: validation.vector_packs?.artifacts,
+    errors,
+    idField: "pack_id",
+    label: "production vector pack",
+  });
+  propagateValidationFreshness({
+    artifacts: validation.snapshots?.artifacts,
+    errors,
+    idField: "snapshot_id",
+    label: "production snapshot",
+  });
 
   return {
     ok: errors.length === 0,
@@ -502,6 +506,19 @@ async function verifyProductionSharedArtifacts({
       validation: validation.snapshots,
     },
   };
+}
+
+function propagateValidationFreshness({ artifacts, errors, idField, label }) {
+  for (const artifact of artifacts ?? []) {
+    if (artifact.freshness === undefined) continue;
+    const artifactId = artifact[idField] ?? "<unknown>";
+    if (artifact.freshness.artifact_source_scope !== "fresh") {
+      errors.push(`${label} ${artifactId} artifact_source_scope_hash is stale`);
+    }
+    if (artifact.freshness.document_tree !== "fresh") {
+      errors.push(`${label} ${artifactId} document_tree_hash is stale`);
+    }
+  }
 }
 
 function primaryArtifactFiles({ dir, suffix }) {
