@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "startup": {
+    "ensure_index_ms": 250,
+    "snapshot_restore_ms": 250,
+    "vector_pack_import_ms": 250
+  },
+  "rebuild": {
+    "vector_pack_rebuild_ms": 1000,
+    "snapshot_build_ms": 1000
+  },
+  "artifacts": {
+    "snapshot_verify_ms": 1000,
+    "validate_ms": 1000
+  }
+}

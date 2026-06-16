@@ -13,8 +13,18 @@ on:
     paths:
       - "plugins/desk/mcp/**"
       - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/artifacts/vector-packs/**"
+      - "plugins/desk/artifacts/snapshots/**"
+      - "plugins/desk/artifacts/tombstones/**"
+      - "plugins/desk/artifacts/publication-policy.json"
+      - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/mcp/config/performance-budgets.json"
       - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
       - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/build-vector-pack.js"
+      - "plugins/desk/mcp/scripts/build-snapshot.js"
+      - "plugins/desk/mcp/scripts/verify-snapshot.js"
+      - "plugins/desk/mcp/scripts/validate-artifacts.js"
       - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
   push:
@@ -23,8 +33,18 @@ on:
     paths:
       - "plugins/desk/mcp/**"
       - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/artifacts/vector-packs/**"
+      - "plugins/desk/artifacts/snapshots/**"
+      - "plugins/desk/artifacts/tombstones/**"
+      - "plugins/desk/artifacts/publication-policy.json"
+      - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/mcp/config/performance-budgets.json"
       - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
       - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/build-vector-pack.js"
+      - "plugins/desk/mcp/scripts/build-snapshot.js"
+      - "plugins/desk/mcp/scripts/verify-snapshot.js"
+      - "plugins/desk/mcp/scripts/validate-artifacts.js"
       - "scripts/*.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
 
@@ -66,3 +86,11 @@ jobs:
       - name: Verify runtime dependency pack
         working-directory: plugins/desk/mcp
         run: npm run runtime:deps-pack:verify
+
+      - name: Verify Desk snapshot artifacts
+        working-directory: plugins/desk/mcp
+        run: npm run artifact:snapshot:verify -- --plugin-root ..
+
+      - name: Validate Desk shared artifacts
+        working-directory: plugins/desk/mcp
+        run: npm run artifact:validate -- --desk-root ../../.. --plugin-root ..

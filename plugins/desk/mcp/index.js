@@ -13,10 +13,12 @@
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import * as path from "node:path"
+import {
+  budgetValue,
+  loadPerformanceBudgets,
+} from "./src/artifacts/performance-budgets.js"
 import { importRuntimeServer } from "./src/runtime/bootstrap.js"
 import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
-
-const STARTUP_INDEX_BUDGET_MS = 250
 
 export function parseArgs(argv) {
   const args = { root: null, person: null }
@@ -87,8 +89,9 @@ export async function main({
     target: null,
     loaded_from_source_mirror: false,
   }
+  const performanceBudgets = await loadPerformanceBudgets({ mcpRoot })
   const startupStatus = await runStartupEnsureIndex({
-    budgetMs: STARTUP_INDEX_BUDGET_MS,
+    budgetMs: budgetValue(performanceBudgets, "startup", "ensure_index_ms"),
     deskRoot,
     runtimeServer,
   })

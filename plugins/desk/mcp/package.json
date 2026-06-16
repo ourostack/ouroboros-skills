@@ -14,7 +14,11 @@
     "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
     "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",
     "runtime:deps-pack:build": "node scripts/build-runtime-deps-pack.js",
-    "runtime:deps-pack:verify": "node scripts/verify-runtime-deps-pack.js"
+    "runtime:deps-pack:verify": "node scripts/verify-runtime-deps-pack.js",
+    "artifact:vector-pack:build": "node scripts/build-vector-pack.js",
+    "artifact:snapshot:build": "node scripts/build-snapshot.js",
+    "artifact:snapshot:verify": "node scripts/verify-snapshot.js",
+    "artifact:validate": "node scripts/validate-artifacts.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
