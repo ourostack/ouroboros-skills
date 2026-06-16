@@ -219,6 +219,21 @@ test("loadPublicationPolicy validates policy JSON against the committed schema",
   const { loadPublicationPolicy } = await loadPolicyModule()
   const pluginRoot = await tmpRoot("desk-publication-policy-invalid-")
   const policy = validPolicy({
+    approved_artifact_types: ["vector-pack", "vector-pack", "runtime-deps"],
+    approvals: [
+      { artifact_type: "vector-pack" },
+      {
+        scope: "team",
+        artifact_type: "runtime-deps",
+        approved_by: "",
+        approved_at: "not-a-date",
+        reason: "",
+        extra: true,
+      },
+      null,
+      [],
+    ],
+    extra: true,
     sensitive_repo: "yes",
   })
   delete policy.default_publication
@@ -229,6 +244,32 @@ test("loadPublicationPolicy validates policy JSON against the committed schema",
   assert.equal(loaded.valid, false)
   assert.ok(loaded.diagnostics.includes("publication policy missing default_publication"))
   assert.ok(loaded.diagnostics.includes("publication policy sensitive_repo must be boolean"))
+  assert.ok(loaded.diagnostics.includes("publication policy has unsupported field extra"))
+  assert.ok(loaded.diagnostics.includes("publication policy approved_artifact_types duplicates vector-pack"))
+  assert.ok(loaded.diagnostics.includes("publication policy approved_artifact_types includes unsupported runtime-deps"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[0] missing scope"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[0] missing approved_by"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[0] missing approved_at"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[0] missing reason"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1].scope is unsupported"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1].artifact_type is unsupported"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1].approved_by must be non-empty text"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1].approved_at must be a date-time string"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1].reason must be non-empty text"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[1] has unsupported field extra"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[2] must be an object"))
+  assert.ok(loaded.diagnostics.includes("publication policy approvals[3] must be an object"))
+
+  await writePolicyFixture(pluginRoot, validPolicy({
+    approved_artifact_types: "vector-pack",
+  }))
+  const invalidApprovedTypes = await loadPublicationPolicy({ pluginRoot })
+  assert.equal(invalidApprovedTypes.valid, false)
+  assert.ok(
+    invalidApprovedTypes.diagnostics.includes(
+      "publication policy approved_artifact_types must be an array",
+    ),
+  )
 })
 
 test("publication policy schema requires approval and repository-sensitivity fields", async () => {
@@ -352,6 +393,8 @@ test("artifact write guard blocks vector-pack and snapshot writes without approv
     sensitive_repo: true,
     approved_artifact_types: ["vector-pack", "snapshot"],
   })
+  await writePolicyFixture(pluginRoot, policy)
+  const before = await fileHashes(path.join(pluginRoot, "artifacts"))
 
   for (const [artifactType, relativePath, write] of [
     [
@@ -390,7 +433,7 @@ test("artifact write guard blocks vector-pack and snapshot writes without approv
       },
     )
   }
-  assert.deepEqual(await fileHashes(path.join(pluginRoot, "artifacts")), {})
+  assert.deepEqual(await fileHashes(path.join(pluginRoot, "artifacts")), before)
 })
 
 test("artifact write paths fail closed when the publication policy is invalid", async () => {
@@ -411,6 +454,28 @@ test("artifact write paths fail closed when the publication policy is invalid", 
     (error) => {
       assert.equal(error.code, "artifact_publication_policy_invalid")
       assert.ok(error.diagnostics.includes("publication policy missing approvals"))
+      return true
+    },
+  )
+
+  await assert.rejects(
+    () => writeVectorPackArtifact({
+      pluginRoot,
+      packId: "invalid-supplied-policy-pack",
+      packBytes: "",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:invalid  invalid-supplied-policy-pack.jsonl\n",
+      policy: validPolicy({
+        approved_artifact_types: ["vector-pack"],
+        approvals: [{ artifact_type: "vector-pack" }],
+      }),
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_publication_policy_invalid")
+      assert.ok(error.diagnostics.includes("publication policy approvals[0] missing scope"))
+      assert.ok(error.diagnostics.includes("publication policy approvals[0] missing approved_by"))
+      assert.ok(error.diagnostics.includes("publication policy approvals[0] missing approved_at"))
+      assert.ok(error.diagnostics.includes("publication policy approvals[0] missing reason"))
       return true
     },
   )
