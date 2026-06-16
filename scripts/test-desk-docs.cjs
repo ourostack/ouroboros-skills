@@ -88,6 +88,21 @@ const TOPIC_REQUIREMENTS = Object.freeze([
     ]),
   }),
   Object.freeze({
+    label: "Desk overlay activation ladder",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/docs/agent-files.md",
+      "plugins/desk/activation/README.md",
+    ]),
+    terms: Object.freeze([
+      "desk:worker",
+      "ms-desk",
+      "area overlay",
+      "selected activation",
+      "active-session-visible",
+    ]),
+  }),
+  Object.freeze({
     label: "Vector pack publication",
     docs: Object.freeze([
       "plugins/desk/README.md",

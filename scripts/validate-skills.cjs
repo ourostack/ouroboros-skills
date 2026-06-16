@@ -44,6 +44,14 @@ function stat(filePath, options = {}) {
   return fsImpl.statSync(repoPath(filePath, options));
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function validateManifest(options = {}) {
   const manifest = readJson("manifest.json", options);
   if (!Array.isArray(manifest.skills)) {
@@ -171,6 +179,54 @@ function validatePluginMetadata(options = {}) {
     }
   }
 
+  const codexPluginNames = pluginNames
+    .filter((name) => exists(path.join(pluginsDir, name, ".codex-plugin", "plugin.json"), options));
+  const codexMarketplacePath = path.join(".agents", "plugins", "marketplace.json");
+  if (codexPluginNames.length > 0) {
+    if (!exists(codexMarketplacePath, options)) {
+      throw new Error(`Codex marketplace is missing ${codexMarketplacePath}`);
+    }
+    const codexMarketplace = readJson(codexMarketplacePath, options);
+    if (!hasText(codexMarketplace.name)) {
+      throw new Error("Codex marketplace name is required for plugin cache namespace checks");
+    }
+    if (!Array.isArray(codexMarketplace.plugins)) {
+      throw new Error("Codex marketplace plugins must be an array");
+    }
+
+    const codexEntries = new Map();
+    for (const plugin of codexMarketplace.plugins) {
+      if (!hasText(plugin?.name)) {
+        continue;
+      }
+      if (codexEntries.has(plugin.name)) {
+        throw new Error(`${plugin.name}: duplicate Codex marketplace plugin entry`);
+      }
+      codexEntries.set(plugin.name, plugin);
+    }
+
+    for (const name of codexPluginNames) {
+      const plugin = codexEntries.get(name);
+      if (!plugin) {
+        throw new Error(`${name}: Codex marketplace missing plugin entry`);
+      }
+      if (!isObject(plugin.source) || !hasText(plugin.source.path)) {
+        throw new Error(`${name}: Codex marketplace source.path is required`);
+      }
+      if (plugin.source.source !== "local") {
+        throw new Error(`${name}: Codex marketplace source.source must be local`);
+      }
+      const pluginPath = path.join(plugin.source.path, ".codex-plugin", "plugin.json");
+      if (!exists(pluginPath, options)) {
+        throw new Error(`${name}: Codex marketplace source is missing ${pluginPath}`);
+      }
+      const manifest = readJson(pluginPath, options);
+      if (name !== manifest.name) {
+        throw new Error(`${name}: Codex marketplace name does not match ${pluginPath} name ${manifest.name}`);
+      }
+    }
+  }
+
   console.log("Validated plugin metadata.");
 }
 
@@ -212,6 +268,14 @@ function runDeskFreshnessChecks(options = {}) {
   });
   if ((generatedArtifactResult.status ?? 1) !== 0) {
     throw new Error("desk generated artifact freshness tests failed");
+  }
+
+  const codexCacheAuditResult = spawnSync(process.execPath, ["scripts/test-codex-plugin-cache-audit.cjs"], {
+    cwd: repoRoot,
+    stdio: childStdio,
+  });
+  if ((codexCacheAuditResult.status ?? 1) !== 0) {
+    throw new Error("codex plugin cache audit tests failed");
   }
 }
 

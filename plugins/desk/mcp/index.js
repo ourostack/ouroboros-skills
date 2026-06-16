@@ -66,6 +66,28 @@ export function resolveStartupRuntimeCacheDir({
   return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(cwd, expanded))
 }
 
+export function resolveStartupActivationContext({
+  args,
+  cwd = process.cwd(),
+  homeDir,
+} = {}) {
+  if (!hasText(args?.activationConfig)) {
+    return null
+  }
+  const activationConfig = loadActivationConfig({
+    configPath: args.activationConfig,
+    cwd,
+    homeDir,
+  })
+  if (activationConfig?.activation === null || typeof activationConfig?.activation !== "object") {
+    return null
+  }
+  return {
+    ...activationConfig.activation,
+    source: "activation-config",
+  }
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -78,6 +100,7 @@ export async function main({
   const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
   const { root: deskRoot } = rootResolution
   const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, homeDir })
+  const activationStatus = resolveStartupActivationContext({ args, cwd, homeDir })
   const runtimeServer = await runtimeImporter({
     env,
     mcpRoot,
@@ -100,6 +123,7 @@ export async function main({
     person: args.person,
     statusContext: {
       root: rootResolution,
+      activation: activationStatus,
       runtime: runtimeStatus,
       startup: startupStatus,
     },

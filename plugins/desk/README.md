@@ -10,6 +10,14 @@ the desk is where the agent does its thinking and keeps its things. drawers for 
 
 cross-context portability runs on the `$DESK` placeholder convention: each consumer agent's preamble binds `$DESK` to its own workspace directory, and desk skills reference paths via `$DESK` rather than any specific literal. one substrate, many overlays.
 
+The dependency ladder is explicit:
+
+```text
+desk substrate -> desk:worker -> ms-desk:worker -> area overlay
+```
+
+`desk:worker` is the standalone default supplied by Desk. A consumer overlay such as `ms-desk` declares Desk as a dependency, inherits `desk:worker`, and contributes its own identity/instructions. A narrower area overlay depends on `ms-desk` and inherits `ms-desk:worker`. The selected activation is profile/project state: standalone Desk selects `desk:worker`; a personal global profile can select `ms-desk:worker` or an area overlay without copying Desk setup.
+
 ## Activation
 
 ### Under Copilot CLI
@@ -68,6 +76,14 @@ The default mode is `global-personal`: Desk and Work Suite are enabled together,
 
 Do not run `codex mcp add` or `npm install` inside the Desk plugin for the healthy path. The MCP entrypoint restores verified production runtime dependencies from the committed runtime pack into a writable cache, then launches from a source mirror. See `desk:codex-onboarding` for repair checks when a local development install or stale host config needs inspection.
 
+When debugging Codex setup, keep the evidence states separate:
+
+- `repo-source-current`: repo manifests and `.agents` marketplace source match.
+- `installed-cache-current`: the Codex plugin cache has the same manifests as repo source.
+- `active-session-visible`: the running session has actually reloaded those manifests and exposes the selected activation plus `desk_status`.
+
+`scripts/audit-codex-plugin-cache.cjs` checks the first two states read-only and reports `active-session-visible` as not checked because that requires host/session proof.
+
 For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
 
 ### Artifact privacy
@@ -93,6 +109,8 @@ copilot --agent worker
 See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness agent file reference, and `desk:codex-onboarding` for repair verification when a local Codex host does not reflect the activation metadata.
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
+
+For deeper stacks, depend on the most specific layer you need. A Microsoft-flavored plugin can depend on `desk` and provide `ms-desk:worker`; an area plugin can depend on `ms-desk` and provide its own area overlay. The active chain is visible in generated instructions and in `desk_status` when the host passes activation context.
 
 ## what desk gives an agent
 

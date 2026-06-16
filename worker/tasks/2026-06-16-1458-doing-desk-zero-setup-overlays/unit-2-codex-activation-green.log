@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 2.420334
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.897458
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 10.208917
+  type: 'test'
+  ...
+# Subtest: global personal activation can select a downstream Desk overlay worker
+ok 4 - global personal activation can select a downstream Desk overlay worker
+  ---
+  duration_ms: 1.375458
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 5 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 1.010709
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 6 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.439917
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+ok 7 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 1.231167
+  type: 'test'
+  ...
+# Subtest: Codex activation materializes owned blocks into empty host files
+ok 8 - Codex activation materializes owned blocks into empty host files
+  ---
+  duration_ms: 0.312959
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces existing owned blocks and stays idempotent
+ok 9 - Codex activation replaces existing owned blocks and stays idempotent
+  ---
+  duration_ms: 0.504625
+  type: 'test'
+  ...
+# Subtest: Codex activation upgrades older owned blocks without duplicating activation content
+ok 10 - Codex activation upgrades older owned blocks without duplicating activation content
+  ---
+  duration_ms: 0.577208
+  type: 'test'
+  ...
+# Subtest: Codex activation fails closed for malformed owned activation blocks
+ok 11 - Codex activation fails closed for malformed owned activation blocks
+  ---
+  duration_ms: 0.567959
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects duplicate owned activation blocks
+ok 12 - Codex activation rejects duplicate owned activation blocks
+  ---
+  duration_ms: 0.169083
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces an owned block at EOF without adding extra spacing
+ok 13 - Codex activation replaces an owned block at EOF without adding extra spacing
+  ---
+  duration_ms: 0.193791
+  type: 'test'
+  ...
+# Subtest: Codex activation does not silently override user-authored disabled Desk config
+ok 14 - Codex activation does not silently override user-authored disabled Desk config
+  ---
+  duration_ms: 1.290125
+  type: 'test'
+  ...
+# Subtest: Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+ok 15 - Codex disabled-Desk scanner allows unrelated TOML while scanning defensive shapes
+  ---
+  duration_ms: 0.318125
+  type: 'test'
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 16 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.196584
+  type: 'test'
+  ...
+# Subtest: Codex activation applies generated artifacts through the ownership ledger
+ok 17 - Codex activation applies generated artifacts through the ownership ledger
+  ---
+  duration_ms: 3.613791
+  type: 'test'
+  ...
+# Subtest: Codex global activation applies tilde artifacts under the host root ledger
+ok 18 - Codex global activation applies tilde artifacts under the host root ledger
+  ---
+  duration_ms: 3.813458
+  type: 'test'
+  ...
+# Subtest: Codex activation deactivates generated artifacts through the ownership ledger
+ok 19 - Codex activation deactivates generated artifacts through the ownership ledger
+  ---
+  duration_ms: 2.640417
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 129.2285

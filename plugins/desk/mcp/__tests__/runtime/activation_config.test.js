@@ -414,6 +414,62 @@ test("entrypoint startup runtime cache resolution uses activation config only", 
   }
 })
 
+test("entrypoint startup activation context normalizes activation config metadata", () => {
+  const resolveStartupActivationContext = requireFunction(entrypoint, "resolveStartupActivationContext")
+  const fixture = makeFixture()
+  try {
+    assert.equal(resolveStartupActivationContext({ args: {}, cwd: fixture.root, homeDir: fixture.home }), null)
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      activation: null,
+    })
+    assert.equal(
+      resolveStartupActivationContext({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      null,
+    )
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      activation: "bad",
+    })
+    assert.equal(
+      resolveStartupActivationContext({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      null,
+    )
+
+    writeActivationConfig(fixture.configPath, fixture.activationRoot, {
+      activation: {
+        selected_id: "ms-area:worker",
+        chain: ["desk:worker", "ms-desk:worker", "ms-area:worker"],
+        mode: "global-personal",
+        source: "caller",
+      },
+    })
+    assert.deepEqual(
+      resolveStartupActivationContext({
+        args: entrypoint.parseArgs(["--activation-config", fixture.configPath]),
+        cwd: fixture.root,
+        homeDir: fixture.home,
+      }),
+      {
+        selected_id: "ms-area:worker",
+        chain: ["desk:worker", "ms-desk:worker", "ms-area:worker"],
+        mode: "global-personal",
+        source: "activation-config",
+      },
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test("entrypoint startup root resolution lets host/session root override activation config", () => {
   const resolveStartupDeskRoot = requireFunction(entrypoint, "resolveStartupDeskRoot")
   const fixture = makeFixture()

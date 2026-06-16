@@ -49,6 +49,16 @@ The `worker` agent here is the substrate-default — generic, applicable to any 
 
 The substrate stays generic so it can serve any overlay; overlays carry the parts that depend on whose desk it is.
 
+The first-class dependency ladder is:
+
+```text
+desk substrate -> desk:worker -> ms-desk:worker -> area overlay
+```
+
+`desk:worker` remains the standalone default. A downstream plugin such as `ms-desk` should not copy Desk skills, Desk MCP config, or the worker body; it should declare an overlay agent that inherits `desk:worker`, adds its own identity/instructions, and becomes the selected activation in the user's global or project profile. A narrower area overlay should depend on `ms-desk` and inherit `ms-desk:worker` so the chain stays explicit.
+
+`desk_status` reports the active selected activation and chain when the host passes activation context. For Codex cache/debugging, distinguish `repo-source-current`, `installed-cache-current`, and `active-session-visible`: the first two can be checked by the read-only cache audit, while active session visibility requires a host/session reload proof.
+
 ## `$DESK` binding
 
 The agent body uses a `$DESK` placeholder for the workspace directory. The consumer agent's preamble declares the binding — substitute textually when interpreting skill instructions or running shell commands. Defaults are:

@@ -31,6 +31,7 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
   const snapshots = snapshotStatus(startup)
   const vectorPacks = vectorPackStatus(startup)
   const queryEmbedding = queryEmbeddingStatus(startup)
+  const activation = activationStatus(statusContext.activation)
   const startupFallback = startupFallbackStatus({
     startup,
     documentVectors: localDb.document_vectors,
@@ -47,6 +48,7 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
   return {
     status: root.valid ? "ok" : "error",
     root,
+    activation,
     runtime,
     local_db: localDb.local_db,
     db_schema: localDb.local_db.schema,
@@ -58,7 +60,7 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
     lexical_index: localDb.lexical_index,
     startup_fallback: startupFallback,
     degraded_modes: degradedModes,
-    summary: summaryFor({ root, localDb, snapshots, vectorPacks, startupFallback }),
+    summary: summaryFor({ root, activation, localDb, snapshots, vectorPacks, startupFallback }),
   }
 }
 
@@ -327,6 +329,47 @@ function runtimeStatus(runtime) {
   }
 }
 
+function activationStatus(activation) {
+  if (activation === null || typeof activation !== "object") {
+    return {
+      selected_id: null,
+      chain: [],
+      mode: null,
+      source: "not_provided",
+    }
+  }
+  const chain = normalizeActivationChain(activation.chain)
+  const selectedId = textOrNull(
+    activation.selected_id ??
+    activation.selectedId ??
+    activation.id ??
+    activation.selectedActivationId,
+  )
+  return compactObject({
+    selected_id: selectedId,
+    chain,
+    mode: textOrNull(activation.mode),
+    source: textOrNull(activation.source) ?? "unknown",
+  })
+}
+
+function normalizeActivationChain(chain) {
+  if (!Array.isArray(chain)) return []
+  return chain
+    .map((entry) => {
+      if (typeof entry === "string" && entry.trim().length > 0) return entry
+      if (entry !== null && typeof entry === "object" && typeof entry.id === "string") {
+        return entry.id
+      }
+      return null
+    })
+    .filter(Boolean)
+}
+
+function textOrNull(value) {
+  return typeof value === "string" && value.trim().length > 0 ? value : null
+}
+
 function inspectFreshness(deskRoot, db) {
   if (!tableExists(db, "meta")) {
     return { state: "unknown", reason: "meta_table_missing" }
@@ -438,12 +481,16 @@ function shouldSkipDir(name) {
   return name === ".state" || name === ".git" || name === "node_modules"
 }
 
-function summaryFor({ root, localDb, snapshots, vectorPacks, startupFallback }) {
+function summaryFor({ root, activation, localDb, snapshots, vectorPacks, startupFallback }) {
   const startupSummary = startupFallback.mode === "not_checked"
     ? "Snapshot restore, vector-pack import, and query embedding probes were not run."
     : `Startup fallback mode: ${startupFallback.mode}. Snapshot restore: ${snapshots.restore_state}. Vector pack import: ${vectorPacks.import_state}.`
+  const activationSummary = activation.selected_id
+    ? `Active activation: ${activation.selected_id}.`
+    : null
   return [
     `Desk root ${root.path} resolved from ${root.source}.`,
+    activationSummary,
     root.valid ? null : `Root diagnostic: ${root.diagnostic}.`,
     localDb.local_db.exists
       ? `Local DB is ${localDb.local_db.state}.`

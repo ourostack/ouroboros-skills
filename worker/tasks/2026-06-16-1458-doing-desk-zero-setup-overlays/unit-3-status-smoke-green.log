@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+ok 1 - Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+  ---
+  duration_ms: 18.104959
+  type: 'test'
+  ...
+# Subtest: Codex CLI activation smoke proves selected overlay activation in desk_status
+ok 2 - Codex CLI activation smoke proves selected overlay activation in desk_status
+  ---
+  duration_ms: 2.118458
+  type: 'test'
+  ...
+# Subtest: Codex smoke replaces stale temp activation blocks while preserving temp user config
+ok 3 - Codex smoke replaces stale temp activation blocks while preserving temp user config
+  ---
+  duration_ms: 2.16425
+  type: 'test'
+  ...
+# Subtest: Codex smoke supports project-local activation without mutating global defaults
+ok 4 - Codex smoke supports project-local activation without mutating global defaults
+  ---
+  duration_ms: 2.598291
+  type: 'test'
+  ...
+# Subtest: Codex smoke treats manual-only as an opt-out and can clean temp profile files
+ok 5 - Codex smoke treats manual-only as an opt-out and can clean temp profile files
+  ---
+  duration_ms: 2.013333
+  type: 'test'
+  ...
+# Subtest: Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+ok 6 - Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+  ---
+  duration_ms: 7.350167
+  type: 'test'
+  ...
+# Subtest: Codex smoke rejects malformed output and desk_status proof failures
+ok 7 - Codex smoke rejects malformed output and desk_status proof failures
+  ---
+  duration_ms: 5.420917
+  type: 'test'
+  ...
+# Subtest: Codex smoke evidence records CLI proof and an exact Desktop App fallback
+ok 8 - Codex smoke evidence records CLI proof and an exact Desktop App fallback
+  ---
+  duration_ms: 0.697208
+  type: 'test'
+  ...
+# Subtest: Codex support matrix points at the smoke contract and evidence artifact
+ok 9 - Codex support matrix points at the smoke contract and evidence artifact
+  ---
+  duration_ms: 0.406292
+  type: 'test'
+  ...
+# Subtest: desk_status is registered with a session-start-safe description
+ok 10 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 3.943583
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 11 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 3.408666
+  type: 'test'
+  ...
+# Subtest: desk_status reports active activation target and overlay chain when provided
+ok 12 - desk_status reports active activation target and overlay chain when provided
+  ---
+  duration_ms: 0.509042
+  type: 'test'
+  ...
+# Subtest: desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+ok 13 - desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+  ---
+  duration_ms: 11.999
+  type: 'test'
+  ...
+# Subtest: desk_status reports fresh and unknown freshness states without repair work
+ok 14 - desk_status reports fresh and unknown freshness states without repair work
+  ---
+  duration_ms: 18.803333
+  type: 'test'
+  ...
+# Subtest: desk_status reports no desk root without trying to inspect a local DB
+ok 15 - desk_status reports no desk root without trying to inspect a local DB
+  ---
+  duration_ms: 0.225416
+  type: 'test'
+  ...
+# Subtest: desk_status sanitizes malformed root context and reports nonexistent roots
+ok 16 - desk_status sanitizes malformed root context and reports nonexistent roots
+  ---
+  duration_ms: 0.534625
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 17 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 6.371584
+  type: 'test'
+  ...
+# Subtest: desk_status leaves query embedding unprobed even when the endpoint is unavailable
+ok 18 - desk_status leaves query embedding unprobed even when the endpoint is unavailable
+  ---
+  duration_ms: 1.05525
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 19 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 7.188083
+  type: 'test'
+  ...
+# Subtest: desk_status reports vector coverage against the active embedding spec
+ok 20 - desk_status reports vector coverage against the active embedding spec
+  ---
+  duration_ms: 21.680958
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 21 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 2.366083
+  type: 'test'
+  ...
+# Subtest: desk_status tolerates an existing DB with missing index tables
+ok 22 - desk_status tolerates an existing DB with missing index tables
+  ---
+  duration_ms: 1.896333
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 362.301375
