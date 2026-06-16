@@ -4,6 +4,9 @@ import * as path from "node:path"
 const COVERAGE_SCRIPT = "node scripts/run-coverage.js"
 const REQUIRED_WORKFLOW_PATH_FILTER = "scripts/*.cjs"
 const REQUIRED_WORKFLOW_EVENTS = ["pull_request", "push"]
+const REQUIRED_ROOT_VALIDATION_SCRIPTS = new Set([
+  "scripts/test-desk-docs.cjs",
+])
 const DEFAULT_THRESHOLDS = {
   lines: 100,
   branches: 100,
@@ -197,7 +200,14 @@ function isProductionJs(file) {
 
 function isProductionCjs(file) {
   const normalized = normalizePath(file)
-  return !path.basename(normalized).startsWith("test-")
+  return isRequiredRootValidationScript(normalized) ||
+    !path.basename(normalized).startsWith("test-")
+}
+
+function isRequiredRootValidationScript(normalizedPath) {
+  return [...REQUIRED_ROOT_VALIDATION_SCRIPTS].some((script) =>
+    normalizedPath === script || normalizedPath.endsWith(`/${script}`),
+  )
 }
 
 function isDirectChild(file, dir) {

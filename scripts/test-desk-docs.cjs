@@ -4,7 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const repoRoot = path.resolve(__dirname, "..");
+const defaultRepoRoot = path.resolve(__dirname, "..");
 
 const DOCS = Object.freeze([
   "plugins/desk/README.md",
@@ -40,12 +40,15 @@ const WORKFLOW_REQUIREMENTS = Object.freeze([
   }),
 ]);
 
-function readRepoFile(relativePath) {
+function readRepoFile(relativePath, {
+  repoRoot = defaultRepoRoot,
+} = {}) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-function markdownLines(relativePath) {
-  const lines = readRepoFile(relativePath).split(/\r?\n/u);
+function markdownLines(relativePath, options = {}) {
+  const readFile = options.readFile ?? ((file) => readRepoFile(file, options));
+  const lines = readFile(relativePath).split(/\r?\n/u);
   const records = [];
   const headings = [];
   let inFence = false;
@@ -162,17 +165,24 @@ function validateHealthyPathRecord(errors, record) {
   }
 }
 
-function validateHealthyPathLanguage(errors) {
-  for (const doc of DOCS) {
-    for (const record of markdownLines(doc)) {
+function validateHealthyPathLanguage(errors, {
+  docs = DOCS,
+  readFile,
+  repoRoot = defaultRepoRoot,
+} = {}) {
+  for (const doc of docs) {
+    for (const record of markdownLines(doc, { readFile, repoRoot })) {
       validateHealthyPathRecord(errors, record);
     }
   }
 }
 
-function validatePrivacyNotes(errors) {
-  for (const doc of PRIVACY_REQUIRED_DOCS) {
-    const lower = readRepoFile(doc).toLowerCase();
+function validatePrivacyNotes(errors, {
+  docs = PRIVACY_REQUIRED_DOCS,
+  readFile = (file) => readRepoFile(file),
+} = {}) {
+  for (const doc of docs) {
+    const lower = readFile(doc).toLowerCase();
     const hasPrivacyNote =
       lower.includes("derivative data") &&
       lower.includes("privacy risk") &&
@@ -184,28 +194,36 @@ function validatePrivacyNotes(errors) {
   }
 }
 
-function validateWorkflowWiring(errors) {
-  for (const requirement of WORKFLOW_REQUIREMENTS) {
-    const body = readRepoFile(requirement.path);
+function validateWorkflowWiring(errors, {
+  requirements = WORKFLOW_REQUIREMENTS,
+  readFile = (file) => readRepoFile(file),
+} = {}) {
+  for (const requirement of requirements) {
+    const body = readFile(requirement.path);
     if (!body.includes(requirement.command)) {
       errors.push(`${requirement.path} must run ${requirement.command}`);
     }
     for (const requiredPath of requirement.paths ?? []) {
-      if (!body.includes(`"${requiredPath}"`) && !body.includes(`'${requiredPath}'`) && !body.includes(requiredPath)) {
+      const pathPattern = new RegExp(`^\\s*-\\s+["']?${escapeRegExp(requiredPath)}["']?\\s*$`, "mu");
+      if (!pathPattern.test(body)) {
         errors.push(`${requirement.path} path filters must include ${requiredPath}`);
       }
     }
   }
 }
 
-function fixtureRecord(text, headingPath = []) {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function fixtureRecord(text, headingPath = [], options = {}) {
   return {
-    file: "fixture.md",
-    line: 1,
+    file: options.file ?? "fixture.md",
+    line: options.line ?? 1,
     text,
     lower: text.toLowerCase(),
     headingPath,
-    inFence: false,
+    inFence: options.inFence ?? false,
   };
 }
 
@@ -229,67 +247,121 @@ function assertFixturePasses(errors, text, headingPath = []) {
   }
 }
 
-function validateValidatorFixtures(errors) {
-  assertFixtureFails(
-    errors,
-    "If activation fails, run `codex mcp add desk` from the repo.",
-    "codex mcp add",
-  );
-  assertFixtureFails(
-    errors,
-    "Run `npm install` instead of using the runtime pack.",
-    "npm install",
-  );
-  assertFixtureFails(
-    errors,
-    "Paste the worker default block into your Codex instructions.",
-    "AGENTS/worker copy or append",
-  );
-  assertFixtureFails(
-    errors,
-    "Append the worker-default instruction block to AGENTS.md.",
-    "AGENTS/worker copy or append",
-  );
-  assertFixtureFails(
-    errors,
-    "/plugin install desk@ouroboros-skills",
-    "manual Desk/Work Suite plugin dependency installation",
-  );
-  assertFixtureFails(
-    errors,
-    "Claude Code requires you to install `work-suite` explicitly.",
-    "manual Desk/Work Suite plugin dependency installation",
-  );
+const DEFAULT_FAILING_FIXTURES = Object.freeze([
+  Object.freeze({
+    text: "If activation fails, run `codex mcp add desk` from the repo.",
+    expected: "codex mcp add",
+  }),
+  Object.freeze({
+    text: "Run `npm install` instead of using the runtime pack.",
+    expected: "npm install",
+  }),
+  Object.freeze({
+    text: "Paste the worker default block into your Codex instructions.",
+    expected: "AGENTS/worker copy or append",
+  }),
+  Object.freeze({
+    text: "Append the worker-default instruction block to AGENTS.md.",
+    expected: "AGENTS/worker copy or append",
+  }),
+  Object.freeze({
+    text: "/plugin install desk@ouroboros-skills",
+    expected: "manual Desk/Work Suite plugin dependency installation",
+  }),
+  Object.freeze({
+    text: "Claude Code requires you to install `work-suite` explicitly.",
+    expected: "manual Desk/Work Suite plugin dependency installation",
+  }),
+]);
 
-  assertFixturePasses(errors, "Do not run `codex mcp add` for the healthy path.");
-  assertFixturePasses(
-    errors,
-    "If activation fails, run `codex mcp add desk` from the repo.",
-    ["Troubleshooting"],
-  );
-  assertFixturePasses(
-    errors,
-    "Direct development checkouts can still run `npm install` when intentionally working on the MCP package.",
-    ["Developer notes"],
-  );
-  assertFixturePasses(errors, "/plugin install desk@ouroboros-skills", ["Troubleshooting"]);
-  assertFixturePasses(errors, "Copied agent files are not part of the healthy path.");
+const DEFAULT_PASSING_FIXTURES = Object.freeze([
+  Object.freeze({ text: "Do not run `codex mcp add` for the healthy path." }),
+  Object.freeze({
+    text: "If activation fails, run `codex mcp add desk` from the repo.",
+    headingPath: ["Troubleshooting"],
+  }),
+  Object.freeze({
+    text: "Direct development checkouts can still run `npm install` when intentionally working on the MCP package.",
+    headingPath: ["Developer notes"],
+  }),
+  Object.freeze({
+    text: "/plugin install desk@ouroboros-skills",
+    headingPath: ["Troubleshooting"],
+  }),
+  Object.freeze({ text: "Copied agent files are not part of the healthy path." }),
+]);
+
+function validateValidatorFixtures(errors, {
+  failingFixtures = DEFAULT_FAILING_FIXTURES,
+  passingFixtures = DEFAULT_PASSING_FIXTURES,
+} = {}) {
+  for (const fixture of failingFixtures) {
+    assertFixtureFails(errors, fixture.text, fixture.expected);
+  }
+  for (const fixture of passingFixtures) {
+    assertFixturePasses(errors, fixture.text, fixture.headingPath ?? []);
+  }
 }
 
-function run() {
+function validateAll({
+  docs = DOCS,
+  privacyRequiredDocs = PRIVACY_REQUIRED_DOCS,
+  workflowRequirements = WORKFLOW_REQUIREMENTS,
+  readFile,
+  repoRoot = defaultRepoRoot,
+} = {}) {
   const errors = [];
   validateValidatorFixtures(errors);
-  validateWorkflowWiring(errors);
-  validateHealthyPathLanguage(errors);
-  validatePrivacyNotes(errors);
+  validateWorkflowWiring(errors, { requirements: workflowRequirements, readFile });
+  validateHealthyPathLanguage(errors, { docs, readFile, repoRoot });
+  validatePrivacyNotes(errors, { docs: privacyRequiredDocs, readFile });
+  return errors;
+}
+
+function run({
+  stderr = process.stderr,
+  stdout = process.stdout,
+  ...options
+} = {}) {
+  const errors = validateAll(options);
 
   if (errors.length > 0) {
-    console.error("Desk docs validation failed:");
-    for (const error of errors) console.error(`- ${error}`);
+    stderr.write("Desk docs validation failed:\n");
+    for (const error of errors) stderr.write(`- ${error}\n`);
     return 1;
   }
-  console.log("Desk docs validation passed.");
+  stdout.write("Desk docs validation passed.\n");
   return 0;
 }
 
-process.exitCode = run();
+function startCli({
+  isMain = require.main === module,
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+  runFn = run,
+} = {}) {
+  if (!isMain) return null;
+  const code = runFn();
+  setExitCode(code);
+  return code;
+}
+
+module.exports = {
+  DOCS,
+  PRIVACY_REQUIRED_DOCS,
+  WORKFLOW_REQUIREMENTS,
+  fixtureRecord,
+  fixtureErrors,
+  markdownLines,
+  run,
+  startCli,
+  validateAll,
+  validateHealthyPathLanguage,
+  validateHealthyPathRecord,
+  validatePrivacyNotes,
+  validateValidatorFixtures,
+  validateWorkflowWiring,
+};
+
+startCli();
