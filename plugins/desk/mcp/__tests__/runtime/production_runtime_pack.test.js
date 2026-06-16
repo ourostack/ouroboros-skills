@@ -106,6 +106,25 @@ function writeArchiveWithExtraEntry(expectation, entry, body) {
   writeFileSync(expectation.paths.archivePath, createTarGz(contents))
 }
 
+function writeArchiveContents(expectation, contents) {
+  const manifest = loadJson(expectation.paths.manifestPath)
+  contents.set(
+    "runtime-deps.manifest.json",
+    Buffer.from(JSON.stringify(embeddedManifestForArchive(manifest), null, 2), "utf8"),
+  )
+  let archiveBytes = createTarGz(contents)
+  manifest.archive.sha256 = sha256(archiveBytes)
+  contents.set(
+    "runtime-deps.manifest.json",
+    Buffer.from(JSON.stringify(embeddedManifestForArchive(manifest), null, 2), "utf8"),
+  )
+  archiveBytes = createTarGz(contents)
+  manifest.archive.sha256 = sha256(archiveBytes)
+  writeFileSync(expectation.paths.archivePath, archiveBytes)
+  writeFileSync(expectation.paths.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  writeFileSync(expectation.paths.checksumPath, `${sha256(archiveBytes)}  runtime-deps.tgz\n`, "utf8")
+}
+
 function embeddedManifestForArchive(manifest) {
   const embeddedManifest = structuredClone(manifest)
   embeddedManifest.archive.sha256 = "<archive-sha256-recorded-in-sidecar>"
@@ -392,10 +411,45 @@ test("generated artifact freshness script verifies the production runtime depend
   assert.equal(result.status, 0, `${result.stdout}${result.stderr}`)
 })
 
+test("runtime archive extraction handles tar prefixes, blank sizes, and null file types", () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-pack-tar-"))
+  try {
+    const longEntry = `node_modules/${"a".repeat(90)}/index.js`
+    const prefixedArchive = path.join(tempDir, "prefixed.tgz")
+    writeFileSync(prefixedArchive, createTarGz(new Map([
+      [longEntry, Buffer.from("prefixed file", "utf8")],
+    ])))
+
+    const prefixedEntries = generatedArtifacts.extractTarGzContents(prefixedArchive)
+    assert.equal(prefixedEntries.get(longEntry).toString("utf8"), "prefixed file")
+
+    const nullTypeHeader = Buffer.alloc(512, 0)
+    nullTypeHeader.write("empty-null-type.json", 0, 100, "utf8")
+    const nullTypeArchive = path.join(tempDir, "null-type.tgz")
+    writeFileSync(nullTypeArchive, gzipSync(Buffer.concat([
+      nullTypeHeader,
+      Buffer.alloc(1024),
+    ])))
+
+    const nullTypeEntries = generatedArtifacts.extractTarGzContents(nullTypeArchive)
+    assert.deepEqual([...nullTypeEntries.keys()], ["empty-null-type.json"])
+    assert.equal(nullTypeEntries.get("empty-null-type.json").length, 0)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
 test("generated artifact verification uses explicit published targets instead of the verifier host", async () => {
   const expectations = await generatedArtifacts.productionRuntimePackExpectations({
     repoRoot,
     mcpRoot,
+  })
+  const platformOptionExpectations = await generatedArtifacts.productionRuntimePackExpectations({
+    repoRoot,
+    mcpRoot,
+    platform: "linux",
+    arch: "arm64",
+    nodeAbi: "127",
   })
   const linuxHostExpectation = await generatedArtifacts.productionRuntimePackExpectation({
     repoRoot,
@@ -417,6 +471,7 @@ test("generated artifact verification uses explicit published targets instead of
     [{ platform: "darwin", arch: "arm64", nodeAbi: "127" }],
   )
   assert.equal(expectations[0].target, "darwin-arm64-node-127")
+  assert.deepEqual(platformOptionExpectations.map((expectation) => expectation.target), ["linux-arm64-node-127"])
   assert.equal(linuxHostExpectation.target, "linux-x64-node-127")
   assert.deepEqual(explicitTargetExpectations.map((expectation) => expectation.target), ["linux-x64-node-127"])
   assert.notEqual(linuxHostExpectation.paths.packDir, expectations[0].paths.packDir)
@@ -505,11 +560,109 @@ test("published runtime pack verifier rejects stale, unsafe, or fixture-only art
       /platform\.os must match target platform/u,
     )
 
+    const malformedManifest = tempCopy()
+    writeFileSync(malformedManifest.paths.manifestPath, "{", "utf8")
+    assert.match(
+      verifyTempPack(malformedManifest).errors.join("\n"),
+      /runtime dependency pack manifest must be readable JSON/u,
+    )
+
+    const malformedChecksum = tempCopy()
+    writeFileSync(malformedChecksum.paths.checksumPath, "not-a-sha  runtime-deps.tgz\n", "utf8")
+    assert.match(
+      verifyTempPack(malformedChecksum).errors.join("\n"),
+      /runtime dependency pack checksum runtime-deps\.sha256 must start with a sha256 hex digest/u,
+    )
+
+    const untrackedArtifact = tempCopy()
+    const untracked = generatedArtifacts.verifyPublishedRuntimeDependencyPack({
+      expectation: untrackedArtifact,
+      spawn: () => ({ status: 1, stdout: "", stderr: "" }),
+    })
+    assert.match(
+      untracked.errors.join("\n"),
+      /generated artifact must be tracked by git:/u,
+    )
+
     const bundledSource = tempCopy()
     writeArchiveWithExtraEntry(bundledSource, "src/server.js", "export default 'mutable source'\n")
     assert.match(
       verifyTempPack(bundledSource).errors.join("\n"),
       /runtime dependency archive must not include mutable MCP source src\/server\.js/u,
+    )
+
+    const missingArchiveRoots = tempCopy()
+    writeArchiveContents(missingArchiveRoots, new Map([
+      ["package-lock.json", readFileSync(packageLockPath)],
+    ]))
+    assert.match(
+      verifyTempPack(missingArchiveRoots).errors.join("\n"),
+      /runtime dependency archive must include root package\.json/u,
+    )
+
+    const malformedArchiveJson = tempCopy()
+    writeArchiveContents(malformedArchiveJson, new Map([
+      ["package.json", Buffer.from("{", "utf8")],
+      ["package-lock.json", readFileSync(packageLockPath)],
+    ]))
+    assert.match(
+      verifyTempPack(malformedArchiveJson).errors.join("\n"),
+      /runtime dependency archive package\.json must be readable JSON/u,
+    )
+
+    const noProductionDependencies = tempCopy()
+    writeMutatedManifest(noProductionDependencies, (manifest) => {
+      delete manifest.production_dependencies
+    })
+    writeArchiveContents(noProductionDependencies, new Map([
+      ["package.json", readFileSync(packageJsonPath)],
+      ["package-lock.json", readFileSync(packageLockPath)],
+    ]))
+    assert.ok(
+      verifyTempPack(noProductionDependencies).errors.length > 0,
+      "runtime packs without production dependency metadata must fail closed",
+    )
+
+    const missingDependencyMarkers = tempCopy()
+    writeArchiveContents(missingDependencyMarkers, new Map([
+      ["package.json", readFileSync(packageJsonPath)],
+      ["package-lock.json", readFileSync(packageLockPath)],
+    ]))
+    assert.match(
+      verifyTempPack(missingDependencyMarkers).errors.join("\n"),
+      /runtime dependency archive must include dependency package marker/u,
+    )
+
+    const emptyDependencyRuntime = tempCopy()
+    const emptyRuntimeManifest = loadJson(emptyDependencyRuntime.paths.manifestPath)
+    writeArchiveContents(emptyDependencyRuntime, new Map([
+      ["package.json", readFileSync(packageJsonPath)],
+      ["package-lock.json", readFileSync(packageLockPath)],
+      ...emptyRuntimeManifest.production_dependencies.map((dependency) => [
+        `${dependency.lock_path}/package.json`,
+        Buffer.from("{}", "utf8"),
+      ]),
+    ]))
+    assert.match(
+      verifyTempPack(emptyDependencyRuntime).errors.join("\n"),
+      /runtime dependency archive must include at least one runtime file/u,
+    )
+
+    const unexpectedArchiveEntries = tempCopy()
+    writeArchiveContents(unexpectedArchiveEntries, new Map([
+      ["package.json", readFileSync(packageJsonPath)],
+      ["package-lock.json", readFileSync(packageLockPath)],
+      ["node_modules/@scope", Buffer.from("bad scoped marker", "utf8")],
+      ["node_modules/not-prod/index.js", Buffer.from("not prod", "utf8")],
+      ["unexpected-root.txt", Buffer.from("surprise", "utf8")],
+    ]))
+    assert.match(
+      verifyTempPack(unexpectedArchiveEntries).errors.join("\n"),
+      /runtime dependency archive must not include non-production dependency/u,
+    )
+    assert.match(
+      verifyTempPack(unexpectedArchiveEntries).errors.join("\n"),
+      /runtime dependency archive must not include unexpected root path unexpected-root\.txt/u,
     )
 
     const stdout = []

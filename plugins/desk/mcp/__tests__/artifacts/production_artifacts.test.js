@@ -307,6 +307,39 @@ test("production policy approval must pass the committed publication-policy sche
   }
 })
 
+test("production policy must require explicit publication approval", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-policy-approval-required-"))
+  try {
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => ({
+          vector_packs: { count: 0, artifacts: [] },
+          snapshots: { count: 0, artifacts: [] },
+        }),
+      },
+    })
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sha256("source"),
+      documentTreeHash: docTree([]),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy({
+      approval_required: false,
+    }))
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production artifact publication policy must require explicit approval/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
 test("production document freshness compares manifests to the published current document tree", async () => {
   const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-doc-tree-"))
   try {
@@ -362,6 +395,243 @@ test("production document freshness compares manifests to the published current 
     assert.equal(result.ok, false)
     assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl document_tree_hash must match production-artifacts\.md/u)
     assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst document_tree_hash must match production-artifacts\.md/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifact sidecars must exist, be tracked, and start with valid checksums", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-sidecars-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+    rmSync(path.join(expectation.vectorPackDir, "unit-pack.manifest.json"))
+    writeFile(expectation.snapshotDir, "unit-snapshot.sha256", "not-a-digest  unit-snapshot.sqlite.zst\n")
+
+    const missingOrMalformed = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+    assert.equal(missingOrMalformed.ok, false)
+    assert.match(missingOrMalformed.errors.join("\n"), /production vector pack sidecar missing:/u)
+    assert.match(missingOrMalformed.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst checksum must start with a sha256 digest/u)
+
+    const untracked = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 1, stdout: "", stderr: "" }),
+    })
+    assert.equal(untracked.ok, false)
+    assert.match(untracked.errors.join("\n"), /production vector pack artifact must be tracked by git:/u)
+    assert.match(untracked.errors.join("\n"), /production snapshot artifact must be tracked by git:/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production verifier reports plain validation failures", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-plain-validation-failure-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => {
+          throw "plain validation failure"
+        },
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production shared artifact validation failed: plain validation failure/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production freshness manifests fail closed when snapshot sidecar JSON is unreadable", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-malformed-snapshot-manifest-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+    writeFile(expectation.snapshotDir, "unit-snapshot.manifest.json", "{")
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production snapshot manifest must be readable JSON/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifact checksums can be validated from string git blobs", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-string-git-blobs-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    const vectorPrimaryPath = writeFile(expectation.vectorPackDir, "unit-pack.jsonl", "artifact bytes\n")
+    const vectorChecksumPath = writeFile(
+      expectation.vectorPackDir,
+      "unit-pack.sha256",
+      `${sha256("artifact bytes\n")}  unit-pack.jsonl\n`,
+    )
+    writeJson(expectation.vectorPackDir, "unit-pack.manifest.json", manifest)
+    const snapshotPrimaryPath = writeFile(expectation.snapshotDir, "unit-snapshot.sqlite.zst", "artifact bytes\n")
+    const snapshotChecksumPath = writeFile(
+      expectation.snapshotDir,
+      "unit-snapshot.sha256",
+      `${sha256("artifact bytes\n")}  unit-snapshot.sqlite.zst\n`,
+    )
+    writeJson(expectation.snapshotDir, "unit-snapshot.manifest.json", manifest)
+    const blobs = new Map([
+      [repoPath(vectorPrimaryPath), "artifact bytes\n"],
+      [repoPath(vectorChecksumPath), `${sha256("artifact bytes\n")}  unit-pack.jsonl\n`],
+      [repoPath(snapshotPrimaryPath), "artifact bytes\n"],
+      [repoPath(snapshotChecksumPath), `${sha256("artifact bytes\n")}  unit-snapshot.sqlite.zst\n`],
+    ])
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: (_command, args) => {
+        if (args[0] === "ls-files" || (args[0] === "diff" && args[1] === "--quiet")) {
+          return { status: 0, stdout: "", stderr: "" }
+        }
+        if (args[0] === "show") {
+          const repoPath = String(args[1]).replace(/^:/u, "")
+          return { status: 0, stdout: blobs.get(repoPath) ?? "", stderr: "" }
+        }
+        return { status: 1, stdout: "", stderr: "" }
+      },
+    })
+
+    assert.equal(result.ok, true, result.errors.join("\n"))
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }
@@ -753,6 +1023,66 @@ test("production artifacts reject traversal syntax in represented document paths
     })
 
     assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /represented document path must be a normalized relative path/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifacts reject malformed represented document entries", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-doc-entry-shape-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const representedDocuments = [
+      null,
+      [],
+      { path: " ", hash: sha256("current") },
+      { path: path.join(tempDir, "desk", "tasks", "dependency-activation", "task.md"), hash: sha256("current") },
+      { path: "tasks\\dependency-activation\\task.md", hash: sha256("current") },
+    ]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: representedDocuments,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /represented document must be an object/u)
     assert.match(result.errors.join("\n"), /represented document path must be a normalized relative path/u)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })

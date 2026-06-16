@@ -164,7 +164,7 @@ function readJsonIfPresent(filePath, errors, label) {
   try {
     return readJson(filePath);
   } catch (error) {
-    errors.push(`${label} must be readable JSON: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(`${label} must be readable JSON: ${formatErrorMessage(error)}`);
     return undefined;
   }
 }
@@ -192,7 +192,7 @@ function parseArchiveJson(bytes, label, errors) {
   try {
     return JSON.parse(bytes.toString("utf8"));
   } catch (error) {
-    errors.push(`runtime dependency archive ${label} must be readable JSON: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(`runtime dependency archive ${label} must be readable JSON: ${formatErrorMessage(error)}`);
     return undefined;
   }
 }
@@ -468,7 +468,7 @@ async function verifyProductionSharedArtifacts({
       mcpRoot: expectation.mcpRoot,
     });
   } catch (error) {
-    errors.push(`production shared artifact validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(`production shared artifact validation failed: ${formatErrorMessage(error)}`);
   }
 
   const expectedHashes = verifyProductionHashes({ expectation, errors, existsSync });
@@ -950,22 +950,49 @@ async function verifyGeneratedArtifacts(options = {}) {
 
 async function runCli(options = {}) {
   try {
-    const result = await verifyGeneratedArtifacts(options);
+    const verifyGeneratedArtifactsFn =
+      options.verifyGeneratedArtifactsFn ?? verifyGeneratedArtifacts;
+    const result = await verifyGeneratedArtifactsFn(options);
     return result.ok ? 0 : 1;
   } catch (error) {
     const io = options.io ?? { stderr: process.stderr };
-    io.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    io.stderr.write(`${formatErrorMessage(error)}\n`);
     return 1;
   }
 }
 
-if (require.main === module) {
-  runCli().then((exitCode) => {
-    process.exitCode = exitCode;
-  });
+function setProcessExitCode(exitCode) {
+  process.exitCode = exitCode;
 }
 
+function formatErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function startCli(options = {}) {
+  const isMain = options.isMain ?? require.main === module;
+  if (!isMain) return null;
+  const run = options.run ?? runCli;
+  const setExitCode = options.setExitCode ?? setProcessExitCode;
+  return Promise.resolve(run(options)).then(setExitCode);
+}
+
+startCli({ isMain: require.main === module });
+
 module.exports = {
+  __generatedArtifactVerifierInternalsForTests: {
+    canonicalSha,
+    formatErrorMessage,
+    gitTracksFile,
+    packageRootFromArchiveEntry,
+    parseArchiveJson,
+    primaryArtifactFiles,
+    propagateValidationFreshness,
+    readJsonIfPresent,
+    readTrackedFileBytes,
+    validatePublishedArchiveShape,
+    verifyProductionArtifactChecksum,
+  },
   defaultMcpRoot,
   defaultPublishedRuntimePackTargets,
   defaultProductionNotesPath,
@@ -981,6 +1008,7 @@ module.exports = {
   productionRuntimePackExpectation,
   publishedRuntimePackTargets,
   runCli,
+  startCli,
   verifyGeneratedArtifacts,
   verifyProductionSharedArtifacts,
   verifyPublishedRuntimeDependencyPack,

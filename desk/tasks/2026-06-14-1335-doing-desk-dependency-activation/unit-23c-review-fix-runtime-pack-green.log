@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: production runtime dependency pack is committed at the current canonical path
+ok 1 - production runtime dependency pack is committed at the current canonical path
+  ---
+  duration_ms: 148.290666
+  type: 'test'
+  ...
+# Subtest: production runtime dependency pack manifest records freshness and dependency-only provenance
+ok 2 - production runtime dependency pack manifest records freshness and dependency-only provenance
+  ---
+  duration_ms: 7.078375
+  type: 'test'
+  ...
+# Subtest: generated artifact freshness script verifies the production runtime dependency pack
+ok 3 - generated artifact freshness script verifies the production runtime dependency pack
+  ---
+  duration_ms: 441.346459
+  type: 'test'
+  ...
+# Subtest: runtime archive extraction handles tar prefixes, blank sizes, and null file types
+ok 4 - runtime archive extraction handles tar prefixes, blank sizes, and null file types
+  ---
+  duration_ms: 3.025875
+  type: 'test'
+  ...
+# Subtest: generated artifact verification uses explicit published targets instead of the verifier host
+ok 5 - generated artifact verification uses explicit published targets instead of the verifier host
+  ---
+  duration_ms: 330.690209
+  type: 'test'
+  ...
+# Subtest: published runtime pack verifier rejects stale, unsafe, or fixture-only artifacts
+ok 6 - published runtime pack verifier rejects stale, unsafe, or fixture-only artifacts
+  ---
+  duration_ms: 1211.368084
+  type: 'test'
+  ...
+# Subtest: CI checks committed generated artifacts before rebuilding runtime dependency packs
+ok 7 - CI checks committed generated artifacts before rebuilding runtime dependency packs
+  ---
+  duration_ms: 1.760333
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2240.290333

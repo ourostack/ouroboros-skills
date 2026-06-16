@@ -458,6 +458,7 @@ test("coverage runner discovers changed files from git state and falls back from
       "plugins/desk/mcp/src/coverage/runner.js",
       "plugins/desk/mcp/scripts/run-coverage.js",
       "scripts/test-desk-docs.cjs",
+      "scripts/test-desk-generated-artifacts.cjs",
       "scripts/validate-desk-activation.cjs",
     ]
     for (const file of included) writeFixture(fixtureRoot, file, "export {}\n")
@@ -477,6 +478,7 @@ test("coverage runner discovers changed files from git state and falls back from
             "plugins/desk/mcp/index.js",
             "plugins/desk/mcp/src/coverage/gate.js",
             "scripts/test-desk-docs.cjs",
+            "scripts/test-desk-generated-artifacts.cjs",
             "scripts/validate-desk-activation.cjs",
           ].join("\n"),
           stderr: "",
@@ -500,6 +502,7 @@ test("coverage runner discovers changed files from git state and falls back from
         "plugins/desk/mcp/index.js",
         "plugins/desk/mcp/src/coverage/gate.js",
         "scripts/test-desk-docs.cjs",
+        "scripts/test-desk-generated-artifacts.cjs",
         "scripts/validate-desk-activation.cjs",
       ],
     )
@@ -512,6 +515,7 @@ test("coverage runner discovers changed files from git state and falls back from
         "plugins/desk/mcp/src/coverage/gate.js",
         "plugins/desk/mcp/src/coverage/runner.js",
         "scripts/test-desk-docs.cjs",
+        "scripts/test-desk-generated-artifacts.cjs",
         "scripts/validate-desk-activation.cjs",
       ],
     )
@@ -800,6 +804,7 @@ test("coverage required-file discovery includes production targets and excludes 
       "plugins/desk/mcp/src/activation/validate.js",
       "plugins/desk/mcp/scripts/activation-support-matrix.js",
       "scripts/test-desk-docs.cjs",
+      "scripts/test-desk-generated-artifacts.cjs",
       "scripts/validate-desk-activation.cjs",
     ]
     const excluded = [
@@ -808,6 +813,7 @@ test("coverage required-file discovery includes production targets and excludes 
       "plugins/desk/mcp/scripts/activation-support-matrix.test.js",
       "plugins/desk/mcp/scripts/test-helper.js",
       "scripts/test-desk-activation.cjs",
+      "scripts/test-desk-generated-artifacts.test.cjs",
     ]
 
     for (const file of [...included, ...excluded]) {

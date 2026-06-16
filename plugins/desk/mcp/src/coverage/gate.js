@@ -6,6 +6,7 @@ const REQUIRED_WORKFLOW_PATH_FILTER = "scripts/*.cjs"
 const REQUIRED_WORKFLOW_EVENTS = ["pull_request", "push"]
 const REQUIRED_ROOT_VALIDATION_SCRIPTS = new Set([
   "scripts/test-desk-docs.cjs",
+  "scripts/test-desk-generated-artifacts.cjs",
 ])
 const DEFAULT_THRESHOLDS = {
   lines: 100,

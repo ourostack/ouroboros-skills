@@ -506,6 +506,219 @@ test("root generated-artifact verifier rejects present but stale runtime depende
   }
 })
 
+test("root generated-artifact verifier CLI fails closed on setup exceptions", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-generated-cli-exception-"))
+  try {
+    const stdout = []
+    const stderr = []
+    const exitCode = await generatedArtifacts.runCli({
+      repoRoot: tempRoot,
+      mcpRoot: path.join(tempRoot, "plugins", "desk", "mcp"),
+      io: {
+        stdout: { write: (text) => stdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      },
+    })
+
+    assert.equal(exitCode, 1)
+    assert.equal(stdout.join(""), "")
+    assert.match(stderr.join(""), /Cannot find module|ENOENT|no such file or directory/u)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("root generated-artifact verifier covers defensive helper and CLI branches", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const internals = generatedArtifacts.__generatedArtifactVerifierInternalsForTests
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-generated-internals-"))
+  try {
+    const fixtureJson = path.join(tempRoot, "fixture.json")
+    writeFileSync(fixtureJson, "{}", "utf8")
+
+    assert.equal(generatedArtifacts.startCli({ isMain: false }), null)
+    assert.equal(generatedArtifacts.startCli(), null)
+    const exitCodes = []
+    assert.equal(
+      await generatedArtifacts.startCli({
+        isMain: true,
+        run: async () => 7,
+        setExitCode: (code) => exitCodes.push(code),
+      }),
+      1,
+    )
+    assert.deepEqual(exitCodes, [7])
+    const defaultRunExitCodes = []
+    assert.equal(
+      await generatedArtifacts.startCli({
+        isMain: true,
+        verifyGeneratedArtifactsFn: async () => ({ ok: true }),
+        setExitCode: (code) => defaultRunExitCodes.push(code),
+        io: { stdout: { write: () => {} }, stderr: { write: () => {} } },
+      }),
+      1,
+    )
+    assert.deepEqual(defaultRunExitCodes, [0])
+    const previousExitCode = process.exitCode
+    try {
+      await generatedArtifacts.startCli({ isMain: true, run: async () => 0 })
+      assert.equal(process.exitCode, 0)
+    } finally {
+      process.exitCode = previousExitCode
+    }
+
+    assert.equal(
+      await generatedArtifacts.runCli({
+        verifyGeneratedArtifactsFn: async () => ({ ok: true }),
+        io: { stdout: { write: () => {} }, stderr: { write: () => {} } },
+      }),
+      0,
+    )
+    assert.equal(
+      await generatedArtifacts.runCli({
+        verifyGeneratedArtifactsFn: async () => ({ ok: false }),
+        io: { stdout: { write: () => {} }, stderr: { write: () => {} } },
+      }),
+      1,
+    )
+    const plainErrorStderr = []
+    assert.equal(
+      await generatedArtifacts.runCli({
+        verifyGeneratedArtifactsFn: async () => {
+          throw "plain verifier failure"
+        },
+        io: { stderr: { write: (text) => plainErrorStderr.push(text) } },
+      }),
+      1,
+    )
+    assert.equal(plainErrorStderr.join(""), "plain verifier failure\n")
+    assert.equal(
+      await generatedArtifacts.runCli({
+        verifyGeneratedArtifactsFn: async () => {
+          throw new Error("default io verifier failure")
+        },
+      }),
+      1,
+    )
+
+    const defaultExpectation = await generatedArtifacts.productionRuntimePackExpectation()
+    assert.equal(defaultExpectation.target, "darwin-arm64-node-127")
+    const defaultShared = await generatedArtifacts.productionSharedArtifactExpectation()
+    assert.ok(defaultShared.relativeVectorPackDir.startsWith("plugins/desk/artifacts/vector-packs/"))
+    const processIoVerify = await generatedArtifacts.verifyGeneratedArtifacts()
+    assert.equal(processIoVerify.ok, true, processIoVerify.errors.join("\n"))
+    const defaultVerifyStdout = []
+    const defaultVerify = await generatedArtifacts.verifyGeneratedArtifacts({
+      io: {
+        stdout: { write: (text) => defaultVerifyStdout.push(text) },
+        stderr: { write: () => {} },
+      },
+    })
+    assert.equal(defaultVerify.ok, true, defaultVerify.errors.join("\n"))
+    assert.match(defaultVerifyStdout.join(""), /Desk generated artifacts verified/u)
+
+    assert.equal(internals.gitTracksFile({
+      repoRoot,
+      repoPath: "missing",
+      spawn: () => ({}),
+    }), false)
+    assert.equal(generatedArtifacts.artifactSourceScopeHash(tempRoot).startsWith("sha256:"), true)
+    assert.equal(
+      generatedArtifacts.documentTreeHash([
+        { path: "b.md", hash: "sha256:b" },
+        { path: "a.md", hash: "a" },
+      ]).startsWith("sha256:"),
+      true,
+    )
+    assert.equal(internals.canonicalSha("abc"), "sha256:abc")
+    assert.equal(internals.formatErrorMessage(new Error("error object")), "error object")
+    assert.equal(internals.formatErrorMessage("plain string"), "plain string")
+
+    const previousParse = JSON.parse
+    try {
+      JSON.parse = () => {
+        throw "plain parse failure"
+      }
+      const readJsonErrors = []
+      assert.equal(internals.readJsonIfPresent(fixtureJson, readJsonErrors, "fixture json"), undefined)
+      assert.match(readJsonErrors.join("\n"), /plain parse failure/u)
+      const archiveErrors = []
+      assert.equal(internals.parseArchiveJson(Buffer.from("{}", "utf8"), "archive json", archiveErrors), undefined)
+      assert.match(archiveErrors.join("\n"), /plain parse failure/u)
+    } finally {
+      JSON.parse = previousParse
+    }
+
+    const missingArchiveJsonErrors = []
+    assert.equal(internals.parseArchiveJson(undefined, "missing.json", missingArchiveJsonErrors), undefined)
+    assert.match(missingArchiveJsonErrors.join("\n"), /must include root missing\.json/u)
+    assert.equal(internals.packageRootFromArchiveEntry("not-node-modules/file.js"), undefined)
+    assert.equal(internals.packageRootFromArchiveEntry("node_modules/"), undefined)
+    assert.equal(internals.packageRootFromArchiveEntry("node_modules/@scope"), undefined)
+    assert.match(
+      internals.validatePublishedArchiveShape({
+        entries: ["package.json", "package-lock.json", "runtime-deps.manifest.json", "node_modules/@scope"],
+        productionDependencies: [],
+      }).join("\n"),
+      /non-production dependency/u,
+    )
+
+    const freshnessErrors = []
+    internals.propagateValidationFreshness({
+      artifacts: undefined,
+      errors: freshnessErrors,
+      idField: "pack_id",
+      label: "production vector pack",
+    })
+    internals.propagateValidationFreshness({
+      artifacts: [{ freshness: { artifact_source_scope: "stale", document_tree: "stale" } }],
+      errors: freshnessErrors,
+      idField: "pack_id",
+      label: "production vector pack",
+    })
+    assert.match(freshnessErrors.join("\n"), /production vector pack <unknown> artifact_source_scope_hash is stale/u)
+
+    assert.throws(
+      () => internals.primaryArtifactFiles({ dir: fixtureJson, suffix: ".jsonl" }),
+      /ENOTDIR|not a directory/u,
+    )
+    const checksumErrors = []
+    internals.verifyProductionArtifactChecksum({
+      errors: checksumErrors,
+      label: "missing artifact",
+      primaryPath: path.join(tempRoot, "missing.jsonl"),
+      checksumPath: path.join(tempRoot, "missing.sha256"),
+      existsSync: () => false,
+      repoRoot,
+      primaryRepoPath: "missing.jsonl",
+      checksumRepoPath: "missing.sha256",
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+    assert.deepEqual(checksumErrors, [])
+    assert.equal(internals.readTrackedFileBytes({
+      repoRoot,
+      repoPath: "missing",
+      spawn: () => ({ stdout: Buffer.from("tracked bytes"), stderr: "" }),
+    }), undefined)
+    assert.equal(internals.readTrackedFileBytes({
+      repoRoot,
+      repoPath: "missing",
+      spawn: () => ({ status: 0, stdout: Buffer.alloc(0), stderr: "" }),
+    }), undefined)
+    assert.deepEqual(
+      internals.readTrackedFileBytes({
+        repoRoot,
+        repoPath: "string",
+        spawn: () => ({ status: 0, stdout: "string bytes", stderr: "" }),
+      }),
+      Buffer.from("string bytes", "utf8"),
+    )
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
 test("root host-manifest verifier exists and validates current host-facing generated files", async () => {
   const hostManifests = loadHostManifestVerifier()
   assert.equal(typeof hostManifests.verifyDeskHostManifests, "function")

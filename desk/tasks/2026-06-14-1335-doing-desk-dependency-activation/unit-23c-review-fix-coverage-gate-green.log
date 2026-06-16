@@ -1,0 +1,129 @@
+TAP version 13
+# \# start of coverage report
+# \# --------------------------------------------------------------
+# \# file          | line % | branch % | funcs % | uncovered lines
+# \# --------------------------------------------------------------
+# \# plugins              |        |          |         |
+# \#  desk                |        |          |         |
+# \#   mcp                |        |          |         |
+# \#    scripts           |        |          |         |
+# \#     run-coverage.js  | 100.00 |   100.00 |  100.00 |
+# \#    src               |        |          |         |
+# \#     coverage         |        |          |         |
+# \#      runner.js       | 100.00 |   100.00 |  100.00 |
+# \# --------------------------------------------------------------
+# \# all files     | 100.00 |   100.00 |  100.00 |
+# \# --------------------------------------------------------------
+# \# end of coverage report
+# [coverage-gate] passed for 2 changed production file(s)
+# Subtest: coverage gate reports a missing coverage report as a hard failure
+ok 1 - coverage gate reports a missing coverage report as a hard failure
+  ---
+  duration_ms: 4.322583
+  type: 'test'
+  ...
+# Subtest: coverage gate requires 100% coverage for new MCP entrypoints, source, MCP scripts, and root scripts
+ok 2 - coverage gate requires 100% coverage for new MCP entrypoints, source, MCP scripts, and root scripts
+  ---
+  duration_ms: 2.098333
+  type: 'test'
+  ...
+# Subtest: coverage gate fails when a required new file is absent from the report
+ok 3 - coverage gate fails when a required new file is absent from the report
+  ---
+  duration_ms: 0.96525
+  type: 'test'
+  ...
+# Subtest: coverage gate accepts relative report keys and flags missing metric blocks
+ok 4 - coverage gate accepts relative report keys and flags missing metric blocks
+  ---
+  duration_ms: 0.922791
+  type: 'test'
+  ...
+# Subtest: coverage exclusions require an explicit owner and reason
+ok 5 - coverage exclusions require an explicit owner and reason
+  ---
+  duration_ms: 1.539084
+  type: 'test'
+  ...
+# Subtest: coverage command parity rejects CI/local drift
+ok 6 - coverage command parity rejects CI/local drift
+  ---
+  duration_ms: 3.028375
+  type: 'test'
+  ...
+# Subtest: coverage runner discovers changed files from git state and falls back from origin/main to main
+ok 7 - coverage runner discovers changed files from git state and falls back from origin/main to main
+  ---
+  duration_ms: 4.729083
+  type: 'test'
+  ...
+# Subtest: coverage runner reports no merge-base diff when neither main ref resolves
+ok 8 - coverage runner reports no merge-base diff when neither main ref resolves
+  ---
+  duration_ms: 0.224583
+  type: 'test'
+  ...
+# Subtest: coverage runner invokes node coverage with include filters and child no-op environment
+ok 9 - coverage runner invokes node coverage with include filters and child no-op environment
+  ---
+  duration_ms: 0.431417
+  type: 'test'
+  ...
+# Subtest: coverage runner parses Node's tree coverage report
+ok 10 - coverage runner parses Node's tree coverage report
+  ---
+  duration_ms: 0.537791
+  type: 'test'
+  ...
+# Subtest: coverage runner returns child status, coverage failures, and success codes
+ok 11 - coverage runner returns child status, coverage failures, and success codes
+  ---
+  duration_ms: 5.307042
+  type: 'test'
+  ...
+# Subtest: coverage runner default wiring uses repo paths, temp files, and stdio
+ok 12 - coverage runner default wiring uses repo paths, temp files, and stdio
+  ---
+  duration_ms: 96.963958
+  type: 'test'
+  ...
+# Subtest: coverage runner no-ops when imported by the child coverage process
+ok 13 - coverage runner no-ops when imported by the child coverage process
+  ---
+  duration_ms: 0.967917
+  type: 'test'
+  ...
+# Subtest: coverage required-file discovery includes production targets and excludes tests
+ok 14 - coverage required-file discovery includes production targets and excludes tests
+  ---
+  duration_ms: 4.512042
+  type: 'test'
+  ...
+# Subtest: coverage runner exists and delegates to the coverage gate
+ok 15 - coverage runner exists and delegates to the coverage gate
+  ---
+  duration_ms: 0.441958
+  type: 'test'
+  ...
+# Subtest: Desk MCP package exposes the local test:coverage command contract
+ok 16 - Desk MCP package exposes the local test:coverage command contract
+  ---
+  duration_ms: 0.103667
+  type: 'test'
+  ...
+# Subtest: Desk MCP CI uses the same local coverage command
+ok 17 - Desk MCP CI uses the same local coverage command
+  ---
+  duration_ms: 0.092625
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 221.319875
