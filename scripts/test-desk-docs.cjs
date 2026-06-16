@@ -96,7 +96,7 @@ function isNegatedGuidance(record) {
 }
 
 function isStrictNegativeGuidance(record) {
-  return /\b(do not|don't|never|must not|should not|not part of the healthy path|without manual|without requiring|does not require|do not require|no healthy-path|no (?:normal |manual )?(?:need|requirement|manual|copy|append|mcp registration)|avoid(?:s|ing)? manual)\b/u
+  return /\b(do not|don't|never|must not|should not|not part of the healthy path|without manual|without requiring|without (?:me |the operator |users? )?(?:installing|running|copying|appending)|does not require|do not require|no healthy-path|no (?:normal |manual )?(?:need|requirement|manual|copy|append|mcp registration)|avoid(?:s|ing)? manual)\b/u
     .test(record.lower);
 }
 
@@ -116,6 +116,11 @@ function hasUncontrolledWorkerInstructionGuidance(record) {
     /\b(?:append|copy|copied|paste|write|drop|place|add|hand-edit|hand edit|manually edit)\b/u
       .test(record.lower);
   return mentionsInstructionTarget && hasManualEditVerb;
+}
+
+function hasManualPluginDependencyInstall(record) {
+  return /\/plugin\s+install\s+(?:desk|work-suite)(?:@|\b)/u.test(record.lower) ||
+    /\binstall(?:s|ed|ing)?\s+`?(?:desk|work-suite)`?\s+(?:explicitly|separately)\b/u.test(record.lower);
 }
 
 function validateHealthyPathRecord(errors, record) {
@@ -139,6 +144,13 @@ function validateHealthyPathRecord(errors, record) {
     !isAllowedManualCommandContext(record)
   ) {
     errors.push(`${lineRef(record)} presents codex mcp add outside troubleshooting/developer notes`);
+  }
+
+  if (
+    hasManualPluginDependencyInstall(record) &&
+    !isAllowedManualCommandContext(record)
+  ) {
+    errors.push(`${lineRef(record)} presents manual Desk/Work Suite plugin dependency installation outside troubleshooting/developer notes`);
   }
 
   if (
@@ -238,6 +250,16 @@ function validateValidatorFixtures(errors) {
     "Append the worker-default instruction block to AGENTS.md.",
     "AGENTS/worker copy or append",
   );
+  assertFixtureFails(
+    errors,
+    "/plugin install desk@ouroboros-skills",
+    "manual Desk/Work Suite plugin dependency installation",
+  );
+  assertFixtureFails(
+    errors,
+    "Claude Code requires you to install `work-suite` explicitly.",
+    "manual Desk/Work Suite plugin dependency installation",
+  );
 
   assertFixturePasses(errors, "Do not run `codex mcp add` for the healthy path.");
   assertFixturePasses(
@@ -250,6 +272,7 @@ function validateValidatorFixtures(errors) {
     "Direct development checkouts can still run `npm install` when intentionally working on the MCP package.",
     ["Developer notes"],
   );
+  assertFixturePasses(errors, "/plugin install desk@ouroboros-skills", ["Troubleshooting"]);
   assertFixturePasses(errors, "Copied agent files are not part of the healthy path.");
 }
 

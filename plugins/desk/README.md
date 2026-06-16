@@ -48,17 +48,11 @@ Your desk: ~/AgentBundles/<agent>.ouro/desk/
 
 ### Under Claude Code
 
-The `ourostack/ouroboros-skills` repo ships a Claude Code marketplace manifest at `.claude-plugin/marketplace.json`, so installation is two slash commands inside a Claude Code session:
+The `ourostack/ouroboros-skills` repo ships Claude plugin metadata for Desk and Work Suite. Desk declares Work Suite as a dependency, so the healthy path is a host-native marketplace activation or flattened bundle that brings both surfaces together.
 
-```
-/plugin marketplace add ourostack/ouroboros-skills
-/plugin install desk@ouroboros-skills
-/plugin install work-suite@ouroboros-skills
-```
+When transitive plugin dependencies are available, the host resolves that dependency from Desk's `.claude-plugin/plugin.json`. When a Claude-compatible host does not resolve dependencies, release packaging should ship a flattened Desk + Work Suite bundle instead of asking the operator to assemble the dependency chain by hand.
 
-Claude Code doesn't auto-resolve plugin deps — install `work-suite` explicitly (it provides the doing-phase skills the desk agent references).
-
-After install, launch the default worker agent:
+Once the host has activated the plugin package, launch the default worker agent:
 
 ```bash
 claude --agent desk:worker
