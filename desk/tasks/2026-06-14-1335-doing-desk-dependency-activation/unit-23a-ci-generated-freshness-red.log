@@ -1,0 +1,209 @@
+TAP version 13
+# Subtest: Desk MCP package exposes every freshness artifact script CI needs
+ok 1 - Desk MCP package exposes every freshness artifact script CI needs
+  ---
+  duration_ms: 1.484917
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier exports the production freshness contract
+ok 2 - root generated-artifact verifier exports the production freshness contract
+  ---
+  duration_ms: 7.239833
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier fails closed when required runtime packs are absent
+ok 3 - root generated-artifact verifier fails closed when required runtime packs are absent
+  ---
+  duration_ms: 265.441417
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier propagates missing production vector and snapshot artifacts
+ok 4 - root generated-artifact verifier propagates missing production vector and snapshot artifacts
+  ---
+  duration_ms: 2.666458
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier exists and validates current host-facing generated files
+not ok 5 - root host-manifest verifier exists and validates current host-facing generated files
+  ---
+  duration_ms: 0.884
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:443:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    scripts/test-desk-host-manifests.cjs must be the single CI-facing host manifest drift verifier
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    loadHostManifestVerifier (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:357:10)
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:444:25)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: root host-manifest verifier catches stale generated host-facing files
+not ok 6 - root host-manifest verifier catches stale generated host-facing files
+  ---
+  duration_ms: 0.30975
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:463:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    scripts/test-desk-host-manifests.cjs must be the single CI-facing host manifest drift verifier
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    loadHostManifestVerifier (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:357:10)
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:464:25)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: validate-skills exits nonzero when desk freshness child verifiers fail
+not ok 7 - validate-skills exits nonzero when desk freshness child verifiers fail
+  ---
+  duration_ms: 229.812417
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:568:1'
+  failureType: 'testCodeFailure'
+  error: 'host manifest verifier failure must fail validate-skills.cjs'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:575:12
+    withValidateSkillsFixture (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:177:18)
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:569:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: root validation delegates host manifest freshness and artifact availability checks
+not ok 8 - root validation delegates host manifest freshness and artifact availability checks
+  ---
+  duration_ms: 0.46375
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:590:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    validate-skills.cjs must execute the host manifest verifier and fail the repo when it fails
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:591:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: desk MCP CI runs committed artifact and host manifest verifiers
+not ok 9 - desk MCP CI runs committed artifact and host manifest verifiers
+  ---
+  duration_ms: 1.068834
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:612:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    desk MCP CI must run the host manifest drift verifier
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:620:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: desk MCP CI path filters include every host-facing freshness input
+not ok 10 - desk MCP CI path filters include every host-facing freshness input
+  ---
+  duration_ms: 1.2235
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:627:1'
+  failureType: 'testCodeFailure'
+  error: 'desk MCP CI pull_request.paths must include or cover plugins/desk/activation/**'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    assertPathFiltersCoverAll (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:326:12)
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:632:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: validate-skills workflow reaches host manifest freshness through workflow or validator
+not ok 11 - validate-skills workflow reaches host manifest freshness through workflow or validator
+  ---
+  duration_ms: 0.429458
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:644:1'
+  failureType: 'testCodeFailure'
+  error: 'validate-skills.yml must fail on host manifest drift directly or through validate-skills.cjs'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js:652:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 4
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 606.529167

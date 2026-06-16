@@ -1,0 +1,656 @@
+// Unit 23a: red contract for CI-level generated artifact freshness.
+
+import { test } from "node:test"
+import { strict as assert } from "node:assert"
+import { spawnSync } from "node:child_process"
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
+import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
+import * as path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const repoRoot = path.resolve(
+  fileURLToPath(new URL("../../../../..", import.meta.url)),
+)
+const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
+const generatedArtifactsScript = "scripts/test-desk-generated-artifacts.cjs"
+const hostManifestScript = "scripts/test-desk-host-manifests.cjs"
+const require = createRequire(import.meta.url)
+
+const requiredPackageScripts = {
+  "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
+  "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",
+  "runtime:deps-pack:build": "node scripts/build-runtime-deps-pack.js",
+  "runtime:deps-pack:verify": "node scripts/verify-runtime-deps-pack.js",
+  "artifact:vector-pack:build": "node scripts/build-vector-pack.js",
+  "artifact:snapshot:build": "node scripts/build-snapshot.js",
+  "artifact:snapshot:verify": "node scripts/verify-snapshot.js",
+  "artifact:validate": "node scripts/validate-artifacts.js",
+}
+
+const requiredHostFreshnessPathFilters = [
+  "plugins/desk/activation/**",
+  "plugins/desk/.claude-plugin/plugin.json",
+  "plugins/desk/.codex-plugin/plugin.json",
+  "plugins/desk/.mcp.json",
+  "plugins/desk/agents/**",
+  "plugins/desk/hooks/**",
+  "plugins/desk/output-styles/**",
+  "plugins/desk/plugin.json",
+  "plugins/desk/skills/**",
+  "plugins/work-suite/.claude-plugin/plugin.json",
+  "plugins/work-suite/.codex-plugin/plugin.json",
+  "plugins/work-suite/plugin.json",
+  "plugins/work-suite/skills/**",
+]
+
+const requiredHostManifestChecks = [
+  "support-matrix",
+  "copilot-bundle",
+  "codex-plugin",
+  "claude-plugin",
+  "worker-sources",
+  "codex-fixtures",
+]
+
+const hostManifestFixtureFiles = [
+  ".github/workflows/desk-mcp-tests.yml",
+  ".github/workflows/validate-skills.yml",
+  "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md",
+  "plugins/desk/.claude-plugin/plugin.json",
+  "plugins/desk/.codex-plugin/plugin.json",
+  "plugins/desk/.mcp.json",
+  "plugins/desk/activation/copilot-root.flattened-bundle.json",
+  "plugins/desk/activation/desk.activation.json",
+  "plugins/desk/activation/support-matrix.json",
+  "plugins/desk/agents/worker.agent.md",
+  "plugins/desk/agents/worker.md",
+  "plugins/desk/agents/worker.toml",
+  "plugins/desk/hooks/hooks.json",
+  "plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml",
+  "plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-instructions.md",
+  "plugins/desk/mcp/__tests__/fixtures/activation/codex/manual-only/generated-config.toml",
+  "plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-config.toml",
+  "plugins/desk/mcp/__tests__/fixtures/activation/codex/project-local/generated-instructions.md",
+  "plugins/desk/output-styles/worker.md",
+  "plugins/desk/plugin.json",
+  "plugins/work-suite/.claude-plugin/plugin.json",
+  "plugins/work-suite/.codex-plugin/plugin.json",
+  "plugins/work-suite/plugin.json",
+  "scripts/validate-skills.cjs",
+]
+
+function loadJson(...segments) {
+  return JSON.parse(readFileSync(path.join(repoRoot, ...segments), "utf8"))
+}
+
+function loadText(...segments) {
+  return readFileSync(path.join(repoRoot, ...segments), "utf8")
+}
+
+function writeText(root, relativePath, content) {
+  const filePath = path.join(root, relativePath)
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, content, "utf8")
+}
+
+function writeJson(root, relativePath, value) {
+  writeText(root, relativePath, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function copyRepoFile(relativePath, targetRoot) {
+  const targetPath = path.join(targetRoot, relativePath)
+  mkdirSync(path.dirname(targetPath), { recursive: true })
+  copyFileSync(path.join(repoRoot, relativePath), targetPath)
+}
+
+async function withHostFreshnessFixture(fn) {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-host-freshness-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  try {
+    for (const relativePath of hostManifestFixtureFiles) {
+      copyRepoFile(relativePath, fixtureRoot)
+    }
+    return await fn(fixtureRoot)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
+async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }, fn) {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-validate-skills-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  try {
+    writeJson(fixtureRoot, "manifest.json", { skills: [] })
+    writeJson(fixtureRoot, ".claude-plugin/marketplace.json", { plugins: [] })
+    copyRepoFile(".github/workflows/desk-mcp-tests.yml", fixtureRoot)
+    copyRepoFile(".github/workflows/validate-skills.yml", fixtureRoot)
+    copyRepoFile("scripts/validate-skills.cjs", fixtureRoot)
+    writeJson(fixtureRoot, "plugins/desk/mcp/package.json", {
+      scripts: requiredPackageScripts,
+    })
+    for (const command of Object.values(requiredPackageScripts)) {
+      const relativeScript = command.replace(/^node\s+/u, "plugins/desk/mcp/")
+      writeText(fixtureRoot, relativeScript, "#!/usr/bin/env node\nprocess.exit(0)\n")
+    }
+
+    for (const name of [
+      "autopilot",
+      "inch-worm",
+      "stay-in-turn",
+      "work-doer",
+      "work-ideator",
+      "work-merger",
+      "work-planner",
+    ]) {
+      const body = `---\nname: ${name}\ndescription: fixture skill\n---\n# ${name}\n`
+      writeText(fixtureRoot, `skills/${name}/SKILL.md`, body)
+      writeText(fixtureRoot, `plugins/work-suite/skills/${name}/SKILL.md`, body)
+    }
+
+    for (const script of [
+      "scripts/test-autopilot-state-audit.cjs",
+      "scripts/test-work-suite-runtime-audit.cjs",
+      "scripts/audit-work-suite-runtime.cjs",
+    ]) {
+      writeText(fixtureRoot, script, "#!/usr/bin/env node\nprocess.exit(0)\n")
+    }
+    writeText(
+      fixtureRoot,
+      hostManifestScript,
+      `#!/usr/bin/env node\nconsole.error("host manifest fixture failure")\nprocess.exit(${hostStatus})\n`,
+    )
+    writeText(
+      fixtureRoot,
+      generatedArtifactsScript,
+      `#!/usr/bin/env node\nconsole.error("generated artifact fixture failure")\nprocess.exit(${generatedStatus})\n`,
+    )
+
+    return await fn(fixtureRoot)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
+function stripYamlComment(line) {
+  let quote = null
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if ((char === "\"" || char === "'") && line[index - 1] !== "\\") {
+      quote = quote === char ? null : quote ?? char
+    }
+    if (char === "#" && !quote) return line.slice(0, index)
+  }
+  return line
+}
+
+function unquoteYamlScalar(value) {
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
+}
+
+function workflowPathFilters(workflow, eventName) {
+  const filters = []
+  const stack = []
+  for (const line of workflow.split(/\r?\n/u)) {
+    const clean = stripYamlComment(line)
+    if (!clean.trim()) continue
+    const indent = clean.match(/^ */u)[0].length
+    const trimmed = clean.trim()
+
+    if (trimmed.startsWith("- ")) {
+      const keys = stack.map((entry) => entry.key)
+      if (keys.at(-1) === "paths" && keys.at(-2) === eventName && keys.at(-3) === "on") {
+        filters.push(unquoteYamlScalar(trimmed.slice(2)))
+      }
+      continue
+    }
+
+    const keyMatch = trimmed.match(/^(['"]?)([A-Za-z0-9_-]+)\1:\s*(?:.*)?$/u)
+    if (!keyMatch) continue
+    while (stack.length && stack.at(-1).indent >= indent) stack.pop()
+    stack.push({ indent, key: keyMatch[2] })
+  }
+  return filters
+}
+
+function workflowJob(workflow, jobName) {
+  const lines = workflow.split(/\r?\n/u)
+  const jobStart = lines.findIndex((line) => line === `  ${jobName}:`)
+  assert.notEqual(jobStart, -1, `workflow must define job ${jobName}`)
+  const jobEnd = lines.findIndex((line, index) => (
+    index > jobStart
+    && /^  [A-Za-z0-9_-]+:\s*$/u.test(line)
+  ))
+  return lines.slice(jobStart, jobEnd === -1 ? lines.length : jobEnd).join("\n")
+}
+
+function workflowStepBlocks(jobSection) {
+  const blocks = []
+  let current
+  for (const line of jobSection.split(/\r?\n/u)) {
+    if (/^      - /u.test(line)) {
+      if (current !== undefined) blocks.push(current.join("\n"))
+      current = [line]
+      continue
+    }
+    if (current !== undefined) current.push(line)
+  }
+  if (current !== undefined) blocks.push(current.join("\n"))
+  return blocks
+}
+
+function workflowStepAllowsFailure(stepBlock) {
+  const match = stepBlock.match(/^\s*continue-on-error:\s+(.+?)\s*$/mu)
+  return match !== null && !/^["']?false["']?$/iu.test(match[1])
+}
+
+function workflowStepWorkingDirectory(stepBlock) {
+  const match = stepBlock.match(/^\s*working-directory:\s+(.+?)\s*$/mu)
+  return match?.[1]?.replace(/^["']|["']$/gu, "")
+}
+
+function workflowStepRunText(stepBlock) {
+  const lines = stepBlock.split(/\r?\n/u)
+  for (let index = 0; index < lines.length; index += 1) {
+    const inline = lines[index].match(/^\s*run:\s+(.+?)\s*$/u)
+    if (inline !== null && inline[1] !== "|" && inline[1] !== ">") {
+      return inline[1]
+    }
+    if (/^\s*run:\s*[|>]\s*$/u.test(lines[index])) {
+      return lines
+        .slice(index + 1)
+        .filter((line) => /^\s{10,}\S/u.test(line))
+        .map((line) => line.replace(/^\s{10}/u, ""))
+        .join("\n")
+    }
+  }
+  return ""
+}
+
+function workflowStepRunsRootScript(stepBlock, scriptPath) {
+  if (workflowStepAllowsFailure(stepBlock)) return false
+  const workingDirectory = workflowStepWorkingDirectory(stepBlock)
+  if (workingDirectory !== undefined && workingDirectory !== ".") return false
+  const escapedScript = scriptPath.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+  const optionalDotScript = escapedScript.replace(/^scripts\//u, "(?:\\.\\/)?scripts/")
+  const commandPattern = new RegExp(`^node\\s+${optionalDotScript}(?:\\s|$)`, "u")
+  return workflowStepRunText(stepBlock)
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .some((line) => commandPattern.test(line))
+}
+
+function workflowRunsRootScript(workflow, jobName, scriptPath) {
+  return workflowStepBlocks(workflowJob(workflow, jobName))
+    .some((stepBlock) => workflowStepRunsRootScript(stepBlock, scriptPath))
+}
+
+function assertIncludesAll(actual, expected, label) {
+  for (const value of expected) {
+    assert.ok(actual.includes(value), `${label} must include ${value}`)
+  }
+}
+
+function pathFilterCovers(actualFilter, requiredPath) {
+  if (actualFilter === requiredPath) return true
+  if (actualFilter.endsWith("/**")) {
+    const prefix = actualFilter.slice(0, -3)
+    return requiredPath === prefix || requiredPath.startsWith(`${prefix}/`)
+  }
+  if (actualFilter.endsWith("/*")) {
+    const prefix = actualFilter.slice(0, -2)
+    const remainder = requiredPath.slice(prefix.length + 1)
+    return requiredPath.startsWith(`${prefix}/`) && !remainder.includes("/")
+  }
+  return false
+}
+
+function assertPathFiltersCoverAll(actual, expected, label) {
+  for (const value of expected) {
+    assert.ok(
+      actual.some((filter) => pathFilterCovers(filter, value)),
+      `${label} must include or cover ${value}`,
+    )
+  }
+}
+
+function scriptExists(scriptPath) {
+  return existsSync(path.join(repoRoot, scriptPath))
+}
+
+function packageScriptTargetPath(command) {
+  const match = command.match(/^node\s+scripts\/(.+\.js)$/u)
+  assert.ok(match, `package script command must run a local JS script: ${command}`)
+  return path.join(mcpRoot, "scripts", match[1])
+}
+
+function stripJsComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//gu, "")
+    .replace(/^\s*\/\/.*$/gmu, "")
+}
+
+function validatorRunsScript(scriptPath) {
+  const source = stripJsComments(loadText("scripts", "validate-skills.cjs"))
+  const escaped = scriptPath.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+  return new RegExp(`spawnSync\\(\\s*process\\.execPath\\s*,\\s*\\[\\s*["']${escaped}["']`, "u")
+    .test(source)
+}
+
+function loadHostManifestVerifier() {
+  assert.equal(
+    scriptExists(hostManifestScript),
+    true,
+    `${hostManifestScript} must be the single CI-facing host manifest drift verifier`,
+  )
+  return require(path.join(repoRoot, hostManifestScript))
+}
+
+test("Desk MCP package exposes every freshness artifact script CI needs", () => {
+  const packageJson = loadJson("plugins", "desk", "mcp", "package.json")
+
+  for (const [scriptName, command] of Object.entries(requiredPackageScripts)) {
+    assert.equal(packageJson.scripts?.[scriptName], command)
+    assert.equal(
+      existsSync(packageScriptTargetPath(command)),
+      true,
+      `${scriptName} target script must exist`,
+    )
+  }
+})
+
+test("root generated-artifact verifier exports the production freshness contract", () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+
+  for (const exportName of [
+    "verifyGeneratedArtifacts",
+    "verifyPublishedRuntimeDependencyPack",
+    "verifyProductionSharedArtifacts",
+    "productionRuntimePackExpectations",
+    "productionSharedArtifactExpectation",
+    "artifactSourceScopeHash",
+    "documentTreeHash",
+  ]) {
+    assert.equal(typeof generatedArtifacts[exportName], "function", `${exportName} must be exported`)
+  }
+})
+
+test("root generated-artifact verifier fails closed when required runtime packs are absent", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const stdout = []
+  const stderr = []
+
+  const result = await generatedArtifacts.verifyGeneratedArtifacts({
+    repoRoot,
+    mcpRoot,
+    targets: [{ platform: "unit", arch: "fixture", nodeAbi: "999" }],
+    io: {
+      stdout: { write: (text) => stdout.push(text) },
+      stderr: { write: (text) => stderr.push(text) },
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.match(result.errors.join("\n"), /generated artifact missing/u)
+  assert.match(stderr.join(""), /unit-fixture-node-999/u)
+  assert.equal(stdout.join(""), "")
+})
+
+test("root generated-artifact verifier propagates missing production vector and snapshot artifacts", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-generated-artifacts-"))
+  try {
+    const stdout = []
+    const stderr = []
+    const result = await generatedArtifacts.verifyGeneratedArtifacts({
+      repoRoot,
+      mcpRoot,
+      pluginRoot: path.join(tempRoot, "plugins", "desk"),
+      targets: [],
+      io: {
+        stdout: { write: (text) => stdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      },
+      spawn: () => ({ status: 1, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production vector pack artifact missing/u)
+    assert.match(result.errors.join("\n"), /production snapshot artifact missing/u)
+    assert.match(stderr.join(""), /vector-packs/u)
+    assert.equal(stdout.join(""), "")
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("root host-manifest verifier exists and validates current host-facing generated files", async () => {
+  const hostManifests = loadHostManifestVerifier()
+  assert.equal(typeof hostManifests.verifyDeskHostManifests, "function")
+  assert.equal(typeof hostManifests.runCli, "function")
+
+  const stderr = []
+  const stdout = []
+  const result = await hostManifests.verifyDeskHostManifests({
+    repoRoot,
+    mcpRoot,
+    io: {
+      stderr: { write: (text) => stderr.push(text) },
+      stdout: { write: (text) => stdout.push(text) },
+    },
+  })
+
+  assert.equal(result.ok, true, result.errors?.join("\n") ?? stderr.join(""))
+  assertIncludesAll(result.checked ?? [], requiredHostManifestChecks, "host manifest checks")
+})
+
+test("root host-manifest verifier catches stale generated host-facing files", async () => {
+  const hostManifests = loadHostManifestVerifier()
+
+  await withHostFreshnessFixture(async (freshRoot) => {
+    const result = await hostManifests.verifyDeskHostManifests({
+      repoRoot: freshRoot,
+      mcpRoot,
+      io: {
+        stderr: { write: () => {} },
+        stdout: { write: () => {} },
+      },
+    })
+    assert.equal(result.ok, true, result.errors?.join("\n") ?? "")
+    assertIncludesAll(result.checked ?? [], requiredHostManifestChecks, "fresh fixture host manifest checks")
+  })
+
+  const staleCases = [
+    {
+      label: "support-matrix",
+      errorPattern: /support[- ]matrix/u,
+      mutate: (fixtureRoot) => {
+        const matrix = loadJson("plugins", "desk", "activation", "support-matrix.json")
+        matrix.hosts = matrix.hosts.filter((row) => row.host_id !== "codex")
+        writeJson(fixtureRoot, "plugins/desk/activation/support-matrix.json", matrix)
+      },
+    },
+    {
+      label: "copilot-bundle",
+      errorPattern: /copilot[- ]bundle/u,
+      mutate: (fixtureRoot) => {
+        const bundle = loadJson("plugins", "desk", "activation", "copilot-root.flattened-bundle.json")
+        bundle.dependency_closure = bundle.dependency_closure.filter((entry) => entry.id !== "work-suite")
+        writeJson(fixtureRoot, "plugins/desk/activation/copilot-root.flattened-bundle.json", bundle)
+      },
+    },
+    {
+      label: "claude-plugin",
+      errorPattern: /claude[- ]plugin/u,
+      mutate: (fixtureRoot) => {
+        const claude = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+        claude.agents = []
+        writeJson(fixtureRoot, "plugins/desk/.claude-plugin/plugin.json", claude)
+      },
+    },
+    {
+      label: "codex-plugin",
+      errorPattern: /codex[- ]plugin/u,
+      mutate: (fixtureRoot) => {
+        const codex = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
+        codex.activation.codex.targets["desk:worker"].source = "agents/worker.md"
+        writeJson(fixtureRoot, "plugins/desk/.codex-plugin/plugin.json", codex)
+      },
+    },
+    {
+      label: "worker-sources",
+      errorPattern: /worker[- ]sources/u,
+      mutate: (fixtureRoot) => {
+        writeText(
+          fixtureRoot,
+          "plugins/desk/agents/worker.toml",
+          loadText("plugins", "desk", "agents", "worker.toml")
+            .replace('name = "worker"', 'name = "worker-stale"'),
+        )
+      },
+    },
+    {
+      label: "codex-fixtures",
+      errorPattern: /codex[- ]fixtures/u,
+      mutate: (fixtureRoot) => {
+        writeText(
+          fixtureRoot,
+          "plugins/desk/mcp/__tests__/fixtures/activation/codex/global-personal/generated-config.toml",
+          loadText(
+            "plugins",
+            "desk",
+            "mcp",
+            "__tests__",
+            "fixtures",
+            "activation",
+            "codex",
+            "global-personal",
+            "generated-config.toml",
+          ).replace("[plugins.\"desk@ourostack\"]", "[plugins.\"desk-stale@ourostack\"]"),
+        )
+      },
+    },
+  ]
+
+  for (const staleCase of staleCases) {
+    await withHostFreshnessFixture(async (caseRoot) => {
+      staleCase.mutate(caseRoot)
+      const result = await hostManifests.verifyDeskHostManifests({
+        repoRoot: caseRoot,
+        mcpRoot,
+        io: {
+          stderr: { write: () => {} },
+          stdout: { write: () => {} },
+        },
+      })
+      assert.equal(result.ok, false, `${staleCase.label} drift must fail verification`)
+      assert.match(result.errors.join("\n"), staleCase.errorPattern)
+    })
+  }
+})
+
+test("validate-skills exits nonzero when desk freshness child verifiers fail", async () => {
+  await withValidateSkillsFixture({ hostStatus: 1, generatedStatus: 0 }, (fixtureRoot) => {
+    const result = spawnSync(process.execPath, ["scripts/validate-skills.cjs"], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    })
+
+    assert.notEqual(result.status, 0, "host manifest verifier failure must fail validate-skills.cjs")
+    assert.match(`${result.stdout}\n${result.stderr}`, /host manifest|test-desk-host-manifests/u)
+  })
+
+  await withValidateSkillsFixture({ hostStatus: 0, generatedStatus: 1 }, (fixtureRoot) => {
+    const result = spawnSync(process.execPath, ["scripts/validate-skills.cjs"], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    })
+
+    assert.notEqual(result.status, 0, "generated artifact verifier failure must fail validate-skills.cjs")
+    assert.match(`${result.stdout}\n${result.stderr}`, /generated artifact|test-desk-generated-artifacts/u)
+  })
+})
+
+test("root validation delegates host manifest freshness and artifact availability checks", () => {
+  assert.equal(
+    validatorRunsScript(hostManifestScript),
+    true,
+    "validate-skills.cjs must execute the host manifest verifier and fail the repo when it fails",
+  )
+  assert.equal(
+    validatorRunsScript(generatedArtifactsScript),
+    true,
+    "validate-skills.cjs must execute the committed generated-artifact verifier and fail the repo when it fails",
+  )
+
+  const source = loadText("scripts", "validate-skills.cjs")
+  for (const scriptName of Object.keys(requiredPackageScripts)) {
+    assert.match(
+      source,
+      new RegExp(scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"),
+      `validate-skills.cjs must verify package script ${scriptName}`,
+    )
+  }
+})
+
+test("desk MCP CI runs committed artifact and host manifest verifiers", () => {
+  const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
+
+  assert.equal(
+    workflowRunsRootScript(workflow, "desk-mcp-tests", generatedArtifactsScript),
+    true,
+    "desk MCP CI must run the committed generated artifact verifier",
+  )
+  assert.equal(
+    workflowRunsRootScript(workflow, "desk-mcp-tests", hostManifestScript),
+    true,
+    "desk MCP CI must run the host manifest drift verifier",
+  )
+})
+
+test("desk MCP CI path filters include every host-facing freshness input", () => {
+  const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
+
+  for (const eventName of ["pull_request", "push"]) {
+    const filters = workflowPathFilters(workflow, eventName)
+    assertPathFiltersCoverAll(
+      filters,
+      requiredHostFreshnessPathFilters,
+      `desk MCP CI ${eventName}.paths`,
+    )
+    assert.ok(
+      filters.includes("scripts/*.cjs") || filters.includes(hostManifestScript),
+      `desk MCP CI ${eventName}.paths must include root host verifier script changes`,
+    )
+  }
+})
+
+test("validate-skills workflow reaches host manifest freshness through workflow or validator", () => {
+  const workflow = loadText(".github", "workflows", "validate-skills.yml")
+  const workflowDirectlyRunsHostVerifier = workflowRunsRootScript(
+    workflow,
+    "validate",
+    hostManifestScript,
+  )
+
+  assert.ok(
+    workflowDirectlyRunsHostVerifier || validatorRunsScript(hostManifestScript),
+    "validate-skills.yml must fail on host manifest drift directly or through validate-skills.cjs",
+  )
+})
