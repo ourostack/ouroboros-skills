@@ -1,0 +1,304 @@
+TAP version 13
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 1 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 117.572792
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 2 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 117.310833
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 3 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 156.193958
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+ok 4 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 258.164
+  type: 'test'
+  ...
+# Subtest: ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+ok 5 - ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+  ---
+  duration_ms: 90.870875
+  type: 'test'
+  ...
+# Subtest: ensureIndex honors skipEmbed when a fresh DB is missing vectors
+ok 6 - ensureIndex honors skipEmbed when a fresh DB is missing vectors
+  ---
+  duration_ms: 57.910375
+  type: 'test'
+  ...
+# Subtest: ensureIndex probes with default embed options when none are provided
+ok 7 - ensureIndex probes with default embed options when none are provided
+  ---
+  duration_ms: 200.755334
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+ok 8 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 174.363542
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+ok 9 - ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+  ---
+  duration_ms: 114.769125
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves successful probe diagnostics after live embedding repair
+ok 10 - ensureIndex preserves successful probe diagnostics after live embedding repair
+  ---
+  duration_ms: 201.535375
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves failed probe diagnostics when stale content is skipped
+ok 11 - ensureIndex preserves failed probe diagnostics when stale content is skipped
+  ---
+  duration_ms: 52.252708
+  type: 'test'
+  ...
+# Subtest: ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+ok 12 - ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+  ---
+  duration_ms: 144.11425
+  type: 'test'
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+ok 13 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 197.041166
+  type: 'test'
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 14 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 360.091209
+  type: 'test'
+  ...
+# Subtest: runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+ok 15 - runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+  ---
+  duration_ms: 12.629708
+  type: 'test'
+  ...
+# Subtest: prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+ok 16 - prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+  ---
+  duration_ms: 52.655208
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+ok 17 - restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+  ---
+  duration_ms: 41.886334
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+ok 18 - restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+  ---
+  duration_ms: 11.201917
+  type: 'test'
+  ...
+# Subtest: source hashing ignores nested node_modules and mirrors clean up staging directories
+ok 19 - source hashing ignores nested node_modules and mirrors clean up staging directories
+  ---
+  duration_ms: 22.282875
+  type: 'test'
+  ...
+# Subtest: bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+ok 20 - bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+  ---
+  duration_ms: 77.753958
+  type: 'test'
+  ...
+# Subtest: extractRuntimeArchive handles tar name variants and rejects unsafe paths
+ok 21 - extractRuntimeArchive handles tar name variants and rejects unsafe paths
+  ---
+  duration_ms: 31.459
+  type: 'test'
+  ...
+# Subtest: runtime pack diagnostics list expected paths, available targets, and remediation
+ok 22 - runtime pack diagnostics list expected paths, available targets, and remediation
+  ---
+  duration_ms: 3.66325
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions preserves explicit artifact opt-outs
+ok 23 - resolveEnsureIndexOptions preserves explicit artifact opt-outs
+  ---
+  duration_ms: 1.061333
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions uses the configured runtime artifact root
+ok 24 - resolveEnsureIndexOptions uses the configured runtime artifact root
+  ---
+  duration_ms: 51.560625
+  type: 'test'
+  ...
+# Subtest: ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+ok 25 - ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+  ---
+  duration_ms: 147.616833
+  type: 'test'
+  ...
+# Subtest: ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+ok 26 - ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+  ---
+  duration_ms: 179.365625
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+ok 27 - ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+  ---
+  duration_ms: 127.9645
+  type: 'test'
+  ...
+# Subtest: ensureIndex auto-discovers snapshots from the runtime plugin root
+ok 28 - ensureIndex auto-discovers snapshots from the runtime plugin root
+  ---
+  duration_ms: 320.906916
+  type: 'test'
+  ...
+# Subtest: desk_reindex uses runtime artifacts without artifact opts
+ok 29 - desk_reindex uses runtime artifacts without artifact opts
+  ---
+  duration_ms: 252.516125
+  type: 'test'
+  ...
+# Subtest: ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+ok 30 - ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+  ---
+  duration_ms: 254.588709
+  type: 'test'
+  ...
+# Subtest: ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+ok 31 - ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+  ---
+  duration_ms: 276.074459
+  type: 'test'
+  ...
+# Subtest: server.callTool routes task_create to the real implementation
+ok 32 - server.callTool routes task_create to the real implementation
+  ---
+  duration_ms: 129.122583
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with structured body
+ok 33 - server.callTool surfaces tool errors as isError with structured body
+  ---
+  duration_ms: 3.635709
+  type: 'test'
+  ...
+# Subtest: server.callTool routes desk_thread to the real implementation
+ok 34 - server.callTool routes desk_thread to the real implementation
+  ---
+  duration_ms: 43.706583
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names
+ok 35 - server.callTool rejects unknown tool names
+  ---
+  duration_ms: 0.95725
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names even with person set
+ok 36 - server.callTool rejects unknown tool names even with person set
+  ---
+  duration_ms: 0.659542
+  type: 'test'
+  ...
+# Subtest: server.callTool reports registered tools missing from the implementation table
+ok 37 - server.callTool reports registered tools missing from the implementation table
+  ---
+  duration_ms: 0.723584
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with person set
+ok 38 - server.callTool surfaces tool errors as isError with person set
+  ---
+  duration_ms: 1.0935
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces non-Error throws as string messages
+ok 39 - server.callTool surfaces non-Error throws as string messages
+  ---
+  duration_ms: 0.861541
+  type: 'test'
+  ...
+# Subtest: server.callTool defaults omitted input to an empty object
+ok 40 - server.callTool defaults omitted input to an empty object
+  ---
+  duration_ms: 2.084667
+  type: 'test'
+  ...
+# Subtest: server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+ok 41 - server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+  ---
+  duration_ms: 4.3185
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces an invalid-alias throw as isError
+ok 42 - server.callTool surfaces an invalid-alias throw as isError
+  ---
+  duration_ms: 1.063041
+  type: 'test'
+  ...
+# Subtest: server.startServer registers list/call handlers and forwards status context
+ok 43 - server.startServer registers list/call handlers and forwards status context
+  ---
+  duration_ms: 14.757625
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct its default transport
+ok 44 - server.startServer can construct its default transport
+  ---
+  duration_ms: 2.418334
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct server and transport through injected factories
+ok 45 - server.startServer can construct server and transport through injected factories
+  ---
+  duration_ms: 2.417459
+  type: 'test'
+  ...
+# Subtest: server MCP factory helpers construct default SDK instances
+ok 46 - server MCP factory helpers construct default SDK instances
+  ---
+  duration_ms: 3.237125
+  type: 'test'
+  ...
+1..46
+# tests 46
+# suites 0
+# pass 46
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2495.462625
+# start of coverage report
+# -----------------------------------------------------------------------
+# file                   | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------
+# plugins                |        |          |         |
+#  desk                  |        |          |         |
+#   mcp                  |        |          |         |
+#    src                 |        |          |         |
+#     runtime            |        |          |         |
+#      bootstrap.js      | 100.00 |   100.00 |  100.00 |
+#     server-helpers.js  | 100.00 |   100.00 |  100.00 |
+#     server.js          | 100.00 |   100.00 |  100.00 |
+# -----------------------------------------------------------------------
+# all files              | 100.00 |   100.00 |  100.00 |
+# -----------------------------------------------------------------------
+# end of coverage report

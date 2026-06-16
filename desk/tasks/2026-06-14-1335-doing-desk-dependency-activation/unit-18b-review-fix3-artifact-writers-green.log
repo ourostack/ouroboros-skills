@@ -1,0 +1,220 @@
+TAP version 13
+# Subtest: vector pack paths are canonical, plugin-root relative, and spec-scoped
+ok 1 - vector pack paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.396959
+  type: 'test'
+  ...
+# Subtest: valid vector packs require adjacent manifest and checksum sidecars
+ok 2 - valid vector packs require adjacent manifest and checksum sidecars
+  ---
+  duration_ms: 23.571166
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+ok 3 - vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+  ---
+  duration_ms: 17.615875
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects unknown row fields before sensitive text can enter packs
+ok 4 - vector pack validation rejects unknown row fields before sensitive text can enter packs
+  ---
+  duration_ms: 2.825667
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects malformed manifests before import
+ok 5 - vector pack validation rejects malformed manifests before import
+  ---
+  duration_ms: 10.223625
+  type: 'test'
+  ...
+# Subtest: vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+ok 6 - vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+  ---
+  duration_ms: 45.240333
+  type: 'test'
+  ...
+# Subtest: vector pack import accepts empty active packs as no-op artifacts
+ok 7 - vector pack import accepts empty active packs as no-op artifacts
+  ---
+  duration_ms: 10.229042
+  type: 'test'
+  ...
+# Subtest: vector pack validation streams final rows without a trailing newline
+ok 8 - vector pack validation streams final rows without a trailing newline
+  ---
+  duration_ms: 4.031
+  type: 'test'
+  ...
+# Subtest: vector pack validation flushes incomplete UTF-8 at EOF through row parsing
+ok 9 - vector pack validation flushes incomplete UTF-8 at EOF through row parsing
+  ---
+  duration_ms: 4.376083
+  type: 'test'
+  ...
+# Subtest: vector pack validation yields while streaming many blank lines
+ok 10 - vector pack validation yields while streaming many blank lines
+  ---
+  duration_ms: 5.426583
+  type: 'test'
+  ...
+# Subtest: vector pack validation propagates aborts thrown inside the pack stream reader
+ok 11 - vector pack validation propagates aborts thrown inside the pack stream reader
+  ---
+  duration_ms: 2.34875
+  type: 'test'
+  ...
+# Subtest: vector pack validation reports missing pack bytes after sidecars validate
+ok 12 - vector pack validation reports missing pack bytes after sidecars validate
+  ---
+  duration_ms: 1.533417
+  type: 'test'
+  ...
+# Subtest: vector pack validation surfaces unexpected pack stream failures
+ok 13 - vector pack validation surfaces unexpected pack stream failures
+  ---
+  duration_ms: 2.004916
+  type: 'test'
+  ...
+# Subtest: vector pack validation and import reject when startup abort signal is tripped
+ok 14 - vector pack validation and import reject when startup abort signal is tripped
+  ---
+  duration_ms: 6.306666
+  type: 'test'
+  ...
+# Subtest: vector pack import lets startup abort timers fire before whole-pack validation
+ok 15 - vector pack import lets startup abort timers fire before whole-pack validation
+  ---
+  duration_ms: 6.925917
+  type: 'test'
+  ...
+# Subtest: vector pack import deduplicates repeated chunk keys across packs after hash verification
+ok 16 - vector pack import deduplicates repeated chunk keys across packs after hash verification
+  ---
+  duration_ms: 36.389959
+  type: 'test'
+  ...
+# Subtest: vector pack import handles missing pack directories and missing local chunks safely
+ok 17 - vector pack import handles missing pack directories and missing local chunks safely
+  ---
+  duration_ms: 10.115083
+  type: 'test'
+  ...
+# Subtest: vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+ok 18 - vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+  ---
+  duration_ms: 6.694083
+  type: 'test'
+  ...
+# Subtest: vector pack import surfaces unexpected artifact directory failures
+ok 19 - vector pack import surfaces unexpected artifact directory failures
+  ---
+  duration_ms: 5.925709
+  type: 'test'
+  ...
+# Subtest: vector pack import verifies chunk text hashes against the local DB before inserting
+ok 20 - vector pack import verifies chunk text hashes against the local DB before inserting
+  ---
+  duration_ms: 9.112584
+  type: 'test'
+  ...
+# Subtest: vector pack import inserts vectors for every local chunk that shares a covered chunk key
+ok 21 - vector pack import inserts vectors for every local chunk that shares a covered chunk key
+  ---
+  duration_ms: 35.042834
+  type: 'test'
+  ...
+# Subtest: vector pack import rejects contradictory duplicate rows before deduplication
+ok 22 - vector pack import rejects contradictory duplicate rows before deduplication
+  ---
+  duration_ms: 39.555292
+  type: 'test'
+  ...
+# Subtest: snapshot paths are canonical, plugin-root relative, and spec-scoped
+ok 23 - snapshot paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.298833
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts require manifest fields and checksum sidecars
+ok 24 - valid snapshot artifacts require manifest fields and checksum sidecars
+  ---
+  duration_ms: 8.857792
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts infer sidecars and compare nested manifest metadata
+ok 25 - valid snapshot artifacts infer sidecars and compare nested manifest metadata
+  ---
+  duration_ms: 2.719792
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts accept raw checksum sidecars
+ok 26 - valid snapshot artifacts accept raw checksum sidecars
+  ---
+  duration_ms: 2.205084
+  type: 'test'
+  ...
+# Subtest: manifest source/document hash mismatch is freshness, not compatibility failure
+ok 27 - manifest source/document hash mismatch is freshness, not compatibility failure
+  ---
+  duration_ms: 0.280292
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects compatibility and provenance drift
+ok 28 - snapshot manifest rejects compatibility and provenance drift
+  ---
+  duration_ms: 0.653416
+  type: 'test'
+  ...
+# Subtest: snapshot manifests reject absolute, traversal, and unexpected source paths
+ok 29 - snapshot manifests reject absolute, traversal, and unexpected source paths
+  ---
+  duration_ms: 0.416417
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects checksum mismatch
+ok 30 - snapshot artifact validation rejects checksum mismatch
+  ---
+  duration_ms: 3.747875
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects manifest and snapshot filename drift
+ok 31 - snapshot artifact validation rejects manifest and snapshot filename drift
+  ---
+  duration_ms: 2.243416
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation preserves non-missing filesystem errors
+ok 32 - snapshot artifact validation preserves non-missing filesystem errors
+  ---
+  duration_ms: 3.078208
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects missing and malformed sidecars
+ok 33 - snapshot artifact validation rejects missing and malformed sidecars
+  ---
+  duration_ms: 4.185875
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects invalid paths and missing sidecars
+ok 34 - snapshot artifact validation rejects invalid paths and missing sidecars
+  ---
+  duration_ms: 4.465792
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects missing expected compatibility context and defensive shapes
+ok 35 - snapshot manifest rejects missing expected compatibility context and defensive shapes
+  ---
+  duration_ms: 0.487166
+  type: 'test'
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 35
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 398.153875

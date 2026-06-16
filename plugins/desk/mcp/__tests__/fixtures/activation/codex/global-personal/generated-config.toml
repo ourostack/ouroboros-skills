@@ -1,0 +1,15 @@
+# user-authored Codex config
+model = "gpt-5.4"
+approval_policy = "on-request"
+
+# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+[plugins."work-suite@ourostack"]
+enabled = true
+
+[plugins."desk@ourostack"]
+enabled = true
+
+[plugins."desk@ourostack".mcp_servers.desk]
+enabled = true
+default_tools_approval_mode = "prompt"
+# END desk activation

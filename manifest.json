@@ -67,6 +67,12 @@
       "tags": ["design", "frontend", "creative", "aesthetics"]
     },
     {
+      "name": "build-native-apple-app",
+      "path": "skills/build-native-apple-app/SKILL.md",
+      "description": "Use when planning, building, auditing, or shipping a native Apple app for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS. Applies to SwiftUI, UIKit, AppKit, Xcode projects, Swift packages, simulator/device validation, App Intents, Apple Intelligence, TestFlight/App Store readiness, and work that must justify native Apple platform leverage instead of a web or cross-platform shell.",
+      "tags": ["native", "apple", "ios", "macos", "workflow"]
+    },
+    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",

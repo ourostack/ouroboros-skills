@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "host": "copilot-root",
+  "generated_by": "npm --prefix plugins/desk/mcp run activation:copilot-bundle:generate",
+  "generated_from": {
+    "activation_manifest": "plugins/desk/activation/desk.activation.json",
+    "desk_plugin": "plugins/desk/plugin.json",
+    "work_suite_plugin": "plugins/work-suite/plugin.json"
+  },
+  "launch": {
+    "agent": "plugins/desk/agents/worker.agent.md",
+    "mcp": "plugins/desk/.mcp.json"
+  },
+  "dependency_closure": [
+    {
+      "id": "desk",
+      "version": "1.7.3",
+      "plugin": "plugins/desk/plugin.json",
+      "skills": "plugins/desk/skills/",
+      "agents": "plugins/desk/agents/",
+      "mcpServers": "plugins/desk/.mcp.json"
+    },
+    {
+      "id": "work-suite",
+      "version": "1.4.9",
+      "plugin": "plugins/work-suite/plugin.json",
+      "skills": "plugins/work-suite/skills/"
+    }
+  ],
+  "manual_steps": []
+}

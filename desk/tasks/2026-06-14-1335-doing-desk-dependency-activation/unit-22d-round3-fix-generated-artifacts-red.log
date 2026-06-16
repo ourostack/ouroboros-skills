@@ -1,0 +1,7 @@
+Desk generated artifact verification failed for plugins/desk/mcp/artifacts/runtime-deps/1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be, plugins/desk/artifacts/vector-packs/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768, plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768
+- production artifact publication policy must approve vector-pack: artifact_type_not_approved
+- production artifact publication policy must approve snapshot: artifact_type_not_approved
+- production vector pack artifact missing under plugins/desk/artifacts/vector-packs/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768
+- production snapshot artifact missing under plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768
+- production-artifacts.md must record current_artifact_source_scope_hash as sha256:<hex>
+- production-artifacts.md must record current_document_tree_hash as sha256:<hex>

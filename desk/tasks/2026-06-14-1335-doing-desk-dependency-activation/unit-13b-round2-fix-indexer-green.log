@@ -1,0 +1,102 @@
+TAP version 13
+# Subtest: empty desk → empty index
+ok 1 - empty desk → empty index
+  ---
+  duration_ms: 21.0135
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 2 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 24.113833
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 3 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 13.421166
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 4 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 14.413125
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+ok 5 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 12.237458
+  type: 'test'
+  ...
+# Subtest: unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+ok 6 - unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+  ---
+  duration_ms: 14.063625
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 7 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 37.425208
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 8 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 21.98125
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 9 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 6.453666
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 10 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 14.833791
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 11 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 11.951916
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 12 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 26.116834
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 13 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 8.667292
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+ok 14 - unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+  ---
+  duration_ms: 10.369459
+  type: 'test'
+  ...
+# Subtest: large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+ok 15 - large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+  ---
+  duration_ms: 9818.927167
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10206.082625

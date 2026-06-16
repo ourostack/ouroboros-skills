@@ -1,0 +1,249 @@
+TAP version 13
+# Subtest: openDb creates parent .state dir + applies schema idempotently
+ok 1 - openDb creates parent .state dir + applies schema idempotently
+  ---
+  duration_ms: 10.778541
+  type: 'test'
+  ...
+# Subtest: openDb installs all required tables (docs, chunks, refs_graph, meta)
+ok 2 - openDb installs all required tables (docs, chunks, refs_graph, meta)
+  ---
+  duration_ms: 3.757833
+  type: 'test'
+  ...
+# Subtest: schema exposes chunk key and embedding spec metadata surfaces
+not ok 3 - schema exposes chunk key and embedding spec metadata surfaces
+  ---
+  duration_ms: 3.947917
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/db/init.test.js:54:1'
+  failureType: 'testCodeFailure'
+  error: 'missing embedding_specs; got: chunk_vecs, chunk_vecs_chunks, chunk_vecs_info, chunk_vecs_rowids, chunk_vecs_vector_chunks00, chunks, chunks_fts, chunks_fts_config, chunks_fts_data, chunks_fts_docsize, chunks_fts_idx, docs, meta, refs_graph, sqlite_sequence'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/db/init.test.js:62:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: migrations upgrade older chunk tables with key and spec metadata columns
+not ok 4 - migrations upgrade older chunk tables with key and spec metadata columns
+  ---
+  duration_ms: 4.694084
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/db/init.test.js:78:1'
+  failureType: 'testCodeFailure'
+  error: 'migration missing chunks.chunk_key; got: id, doc_id, chunk_index, text, heading, start_offset, end_offset'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/db/init.test.js:104:14)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: FTS5 virtual table chunks_fts is queryable
+ok 5 - FTS5 virtual table chunks_fts is queryable
+  ---
+  duration_ms: 3.819708
+  type: 'test'
+  ...
+# Subtest: chunk_vecs vec0 virtual table accepts a 768-dim float vector
+ok 6 - chunk_vecs vec0 virtual table accepts a 768-dim float vector
+  ---
+  duration_ms: 15.477166
+  type: 'test'
+  ...
+# Subtest: insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+ok 7 - insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+  ---
+  duration_ms: 4.516917
+  type: 'test'
+  ...
+# Subtest: meta key set/get roundtrips
+ok 8 - meta key set/get roundtrips
+  ---
+  duration_ms: 4.094875
+  type: 'test'
+  ...
+# Subtest: active embedding spec is versioned, path-safe, and tied to chunker identity
+not ok 9 - active embedding spec is versioned, path-safe, and tied to chunker identity
+  ---
+  duration_ms: 1.617
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js:18:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/spec.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: normalized text identity is stable across line endings and insignificant whitespace
+not ok 10 - normalized text identity is stable across line endings and insignificant whitespace
+  ---
+  duration_ms: 0.268959
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/spec.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: chunk keys are stable when unchanged text moves within a document
+not ok 11 - chunk keys are stable when unchanged text moves within a document
+  ---
+  duration_ms: 0.22625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js:43:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/spec.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: inactive embedding specs are rejected by spec identity helpers
+not ok 12 - inactive embedding specs are rejected by spec identity helpers
+  ---
+  duration_ms: 0.159916
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js:67:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/spec.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/chunk_keys.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: empty desk → empty index
+ok 13 - empty desk → empty index
+  ---
+  duration_ms: 11.257667
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 14 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 20.892791
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 15 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 9.242875
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+not ok 16 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 6.551292
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:77:1'
+  failureType: 'testCodeFailure'
+  error: 'missing active_embedding_spec_id meta'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: ~
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:88:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+not ok 17 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 22.029083
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:129:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:157:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 18 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 8.5295
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 19 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 10.040917
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 20 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 17.982
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 21 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 6.6305
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 13
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 220.923416

@@ -1,0 +1,285 @@
+TAP version 13
+# Subtest: discover picks up only the indexable shapes
+ok 1 - discover picks up only the indexable shapes
+  ---
+  duration_ms: 27.345125
+  type: 'test'
+  ...
+# Subtest: discover rejects immediately when startup abort signal is already tripped
+not ok 2 - discover rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 9.327084
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/discover.test.js:64:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/discover.test.js:69:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: discover flags _archive docs with is_archived=true
+ok 3 - discover flags _archive docs with is_archived=true
+  ---
+  duration_ms: 6.933125
+  type: 'test'
+  ...
+# Subtest: discover classifies each doc correctly + extracts frontmatter
+ok 4 - discover classifies each doc correctly + extracts frontmatter
+  ---
+  duration_ms: 13.4825
+  type: 'test'
+  ...
+# Subtest: discover returns hash + mtime for dirty-detection
+ok 5 - discover returns hash + mtime for dirty-detection
+  ---
+  duration_ms: 6.152667
+  type: 'test'
+  ...
+# Subtest: isIndexable matches the intended set
+ok 6 - isIndexable matches the intended set
+  ---
+  duration_ms: 0.136417
+  type: 'test'
+  ...
+# Subtest: classify is purely path-driven
+ok 7 - classify is purely path-driven
+  ---
+  duration_ms: 0.1225
+  type: 'test'
+  ...
+# Subtest: vector pack paths are canonical, plugin-root relative, and spec-scoped
+ok 8 - vector pack paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.451
+  type: 'test'
+  ...
+# Subtest: valid vector packs require adjacent manifest and checksum sidecars
+ok 9 - valid vector packs require adjacent manifest and checksum sidecars
+  ---
+  duration_ms: 21.135541
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+ok 10 - vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+  ---
+  duration_ms: 23.052792
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects unknown row fields before sensitive text can enter packs
+ok 11 - vector pack validation rejects unknown row fields before sensitive text can enter packs
+  ---
+  duration_ms: 2.66525
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects malformed manifests before import
+ok 12 - vector pack validation rejects malformed manifests before import
+  ---
+  duration_ms: 11.757291
+  type: 'test'
+  ...
+# Subtest: vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+ok 13 - vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+  ---
+  duration_ms: 40.735541
+  type: 'test'
+  ...
+# Subtest: vector pack import accepts empty active packs as no-op artifacts
+ok 14 - vector pack import accepts empty active packs as no-op artifacts
+  ---
+  duration_ms: 9.290834
+  type: 'test'
+  ...
+# Subtest: vector pack validation and import reject when startup abort signal is tripped
+not ok 15 - vector pack validation and import reject when startup abort signal is tripped
+  ---
+  duration_ms: 8.574208
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/vector_packs.test.js:707:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/vector_packs.test.js:727:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: vector pack import deduplicates repeated chunk keys across packs after hash verification
+ok 16 - vector pack import deduplicates repeated chunk keys across packs after hash verification
+  ---
+  duration_ms: 29.050042
+  type: 'test'
+  ...
+# Subtest: vector pack import handles missing pack directories and missing local chunks safely
+ok 17 - vector pack import handles missing pack directories and missing local chunks safely
+  ---
+  duration_ms: 8.096625
+  type: 'test'
+  ...
+# Subtest: vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+ok 18 - vector pack import ignores inactive spec directories and rejects inactive manifests in the active dir
+  ---
+  duration_ms: 8.103625
+  type: 'test'
+  ...
+# Subtest: vector pack import surfaces unexpected artifact directory failures
+ok 19 - vector pack import surfaces unexpected artifact directory failures
+  ---
+  duration_ms: 7.517875
+  type: 'test'
+  ...
+# Subtest: vector pack import verifies chunk text hashes against the local DB before inserting
+ok 20 - vector pack import verifies chunk text hashes against the local DB before inserting
+  ---
+  duration_ms: 8.209583
+  type: 'test'
+  ...
+# Subtest: vector pack import inserts vectors for every local chunk that shares a covered chunk key
+ok 21 - vector pack import inserts vectors for every local chunk that shares a covered chunk key
+  ---
+  duration_ms: 26.808333
+  type: 'test'
+  ...
+# Subtest: vector pack import rejects contradictory duplicate rows before deduplication
+ok 22 - vector pack import rejects contradictory duplicate rows before deduplication
+  ---
+  duration_ms: 27.029542
+  type: 'test'
+  ...
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 23 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 59.083792
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 24 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 30.272833
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 25 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 29.172458
+  type: 'test'
+  ...
+# Subtest: rebuildIndex reports validated vector packs when no rows match local chunks
+ok 26 - rebuildIndex reports validated vector packs when no rows match local chunks
+  ---
+  duration_ms: 14.660709
+  type: 'test'
+  ...
+# Subtest: rebuildIndex rejects immediately when startup abort signal is already tripped
+ok 27 - rebuildIndex rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 5.053875
+  type: 'test'
+  ...
+# Subtest: rebuildIndex forwards startup abort signal into vector-pack import
+not ok 28 - rebuildIndex forwards startup abort signal into vector-pack import
+  ---
+  duration_ms: 8.278459
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:266:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:282:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+ok 29 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 37.855208
+  type: 'test'
+  ...
+# Subtest: ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+ok 30 - ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+  ---
+  duration_ms: 29.138416
+  type: 'test'
+  ...
+# Subtest: ensureIndex honors skipEmbed when a fresh DB is missing vectors
+ok 31 - ensureIndex honors skipEmbed when a fresh DB is missing vectors
+  ---
+  duration_ms: 9.691959
+  type: 'test'
+  ...
+# Subtest: ensureIndex rejects immediately when startup abort signal is already tripped
+ok 32 - ensureIndex rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 0.9565
+  type: 'test'
+  ...
+# Subtest: ensureIndex probes with default embed options when none are provided
+ok 33 - ensureIndex probes with default embed options when none are provided
+  ---
+  duration_ms: 24.64575
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+ok 34 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 27.280417
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+ok 35 - ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+  ---
+  duration_ms: 11.433208
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves successful probe diagnostics after live embedding repair
+ok 36 - ensureIndex preserves successful probe diagnostics after live embedding repair
+  ---
+  duration_ms: 21.370084
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves failed probe diagnostics when stale content is skipped
+ok 37 - ensureIndex preserves failed probe diagnostics when stale content is skipped
+  ---
+  duration_ms: 14.2945
+  type: 'test'
+  ...
+# Subtest: ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+ok 38 - ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+  ---
+  duration_ms: 22.467542
+  type: 'test'
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+ok 39 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 25.276125
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports vector-pack fallback for cold covered rebuilds without snapshots
+ok 40 - ensureIndex reports vector-pack fallback for cold covered rebuilds without snapshots
+  ---
+  duration_ms: 21.743458
+  type: 'test'
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 41 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 26.918833
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 38
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 569.880833

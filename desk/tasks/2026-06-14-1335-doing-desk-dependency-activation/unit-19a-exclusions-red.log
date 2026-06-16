@@ -1,0 +1,151 @@
+TAP version 13
+# Subtest: discover excludes gitignored markdown before indexing
+not ok 1 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 15.875292
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:153:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    gitignored task.md files must not be discovered
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:162:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+not ok 2 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 7.075875
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:169:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    sensitive active paths must not be discovered
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:182:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+not ok 3 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 1.968834
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:193:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    archive indexing must not override sensitive-path exclusion
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:201:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+not ok 4 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 43.3675
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:208:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    3 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 3
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:228:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+not ok 5 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 0.651917
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:251:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/indexer/exclusions.js' imported from <repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+not ok 6 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.326292
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:330:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async assertArtifactWriterRejectsExcludedSourceDocs (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:312:3)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:332:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+not ok 7 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.0805
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:344:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async assertArtifactWriterRejectsExcludedSourceDocs (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:312:3)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:346:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 0
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 223.002333

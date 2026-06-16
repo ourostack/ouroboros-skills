@@ -54,13 +54,12 @@ The state file must record `Current Item`, `Terminal Evidence`, `Continuation Sc
 Pick the command for your engine:
 
 ```bash
-# GitHub Copilot CLI
-copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
-
 # Anthropic Claude Code (native)
 # Needs a marketplace manifest. Add one alongside this plugin, or consume via the
 # top-level skills/ directory using the skill-management flow instead.
 ```
+
+Copilot-compatible hosts normally receive Work Suite through Desk's generated flattened bundle metadata. Install this plugin directly only when you want the workflow skills without Desk.
 
 ## Relationship to `skills/`
 

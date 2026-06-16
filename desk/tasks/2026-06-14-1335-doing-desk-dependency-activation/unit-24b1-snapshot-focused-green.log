@@ -1,0 +1,143 @@
+TAP version 13
+# Subtest: resolveEnsureIndexOptions preserves explicit artifact opt-outs
+ok 1 - resolveEnsureIndexOptions preserves explicit artifact opt-outs
+  ---
+  duration_ms: 0.909042
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions uses the configured runtime artifact root
+ok 2 - resolveEnsureIndexOptions uses the configured runtime artifact root
+  ---
+  duration_ms: 4.276959
+  type: 'test'
+  ...
+# Subtest: ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+ok 3 - ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+  ---
+  duration_ms: 91.782292
+  type: 'test'
+  ...
+# Subtest: ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+ok 4 - ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+  ---
+  duration_ms: 56.853917
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+ok 5 - ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+  ---
+  duration_ms: 13.7755
+  type: 'test'
+  ...
+# Subtest: ensureIndex auto-discovers snapshots from the runtime plugin root
+ok 6 - ensureIndex auto-discovers snapshots from the runtime plugin root
+  ---
+  duration_ms: 71.953292
+  type: 'test'
+  ...
+# Subtest: desk_reindex uses runtime artifacts without artifact opts
+ok 7 - desk_reindex uses runtime artifacts without artifact opts
+  ---
+  duration_ms: 56.994334
+  type: 'test'
+  ...
+# Subtest: ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+ok 8 - ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+  ---
+  duration_ms: 53.098917
+  type: 'test'
+  ...
+# Subtest: ensureIndex reconciles stale snapshot manifests even when mtimes look fresh
+ok 9 - ensureIndex reconciles stale snapshot manifests even when mtimes look fresh
+  ---
+  duration_ms: 28.470916
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs vectors before returning a fresh restored snapshot
+ok 10 - ensureIndex repairs vectors before returning a fresh restored snapshot
+  ---
+  duration_ms: 70.321541
+  type: 'test'
+  ...
+# Subtest: ensureIndex reconcile removes deleted snapshot docs and refreshes archived docs
+ok 11 - ensureIndex reconcile removes deleted snapshot docs and refreshes archived docs
+  ---
+  duration_ms: 41.816167
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex treats missing vector packs and disabled embeddings as lexical fallback
+ok 12 - ensureIndex treats missing vector packs and disabled embeddings as lexical fallback
+  ---
+  duration_ms: 16.490875
+  type: 'test'
+  ...
+# Subtest: ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+ok 13 - ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+  ---
+  duration_ms: 114.692459
+  type: 'test'
+  ...
+# Subtest: selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+ok 14 - selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+  ---
+  duration_ms: 20.731125
+  type: 'test'
+  ...
+# Subtest: selectNewestCompatibleSnapshot returns null for no compatible snapshots and ties by snapshot id
+ok 15 - selectNewestCompatibleSnapshot returns null for no compatible snapshots and ties by snapshot id
+  ---
+  duration_ms: 15.311917
+  type: 'test'
+  ...
+# Subtest: discoverSnapshotArtifacts ignores non-directory entries and rejects invalid snapshot roots
+ok 16 - discoverSnapshotArtifacts ignores non-directory entries and rejects invalid snapshot roots
+  ---
+  duration_ms: 4.052792
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+ok 17 - restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+  ---
+  duration_ms: 14.864
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState repairs corrupt metadata and missing state DB markers
+ok 18 - restoreSnapshotToState repairs corrupt metadata and missing state DB markers
+  ---
+  duration_ms: 11.592291
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState treats corrupt compressed snapshots as cache misses
+ok 19 - restoreSnapshotToState treats corrupt compressed snapshots as cache misses
+  ---
+  duration_ms: 12.844292
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState surfaces unwritable state paths
+ok 20 - restoreSnapshotToState surfaces unwritable state paths
+  ---
+  duration_ms: 10.685375
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState reports cache miss when no compatible snapshot exists
+ok 21 - restoreSnapshotToState reports cache miss when no compatible snapshot exists
+  ---
+  duration_ms: 2.066167
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState is idempotent for repeated compatible restores
+ok 22 - restoreSnapshotToState is idempotent for repeated compatible restores
+  ---
+  duration_ms: 6.173459
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 768.577584

@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: activation artifact ownership writes generated files and a ledger
+ok 1 - activation artifact ownership writes generated files and a ledger
+  ---
+  duration_ms: 5.901958
+  type: 'test'
+  ...
+# Subtest: activation artifact ownership replaces generated artifacts during upgrades
+ok 2 - activation artifact ownership replaces generated artifacts during upgrades
+  ---
+  duration_ms: 2.423292
+  type: 'test'
+  ...
+# Subtest: deactivation removes owned activation blocks while preserving user-authored config
+ok 3 - deactivation removes owned activation blocks while preserving user-authored config
+  ---
+  duration_ms: 1.948792
+  type: 'test'
+  ...
+# Subtest: deactivation uses ledger never-delete boundaries for desk data
+ok 4 - deactivation uses ledger never-delete boundaries for desk data
+  ---
+  duration_ms: 3.587125
+  type: 'test'
+  ...
+# Subtest: deactivation reports a missing ledger as an idempotent no-op
+ok 5 - deactivation reports a missing ledger as an idempotent no-op
+  ---
+  duration_ms: 0.840375
+  type: 'test'
+  ...
+# Subtest: deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+ok 6 - deactivation rejects corrupt ownership ledgers with an actionable diagnostic
+  ---
+  duration_ms: 0.675875
+  type: 'test'
+  ...
+# Subtest: deactivation preserves user-edited generated artifacts and keeps the ledger
+ok 7 - deactivation preserves user-edited generated artifacts and keeps the ledger
+  ---
+  duration_ms: 1.858292
+  type: 'test'
+  ...
+# Subtest: deactivation is idempotent after a successful deactivate
+ok 8 - deactivation is idempotent after a successful deactivate
+  ---
+  duration_ms: 1.426834
+  type: 'test'
+  ...
+# Subtest: activation rolls back partial writes when an artifact cannot be written
+ok 9 - activation rolls back partial writes when an artifact cannot be written
+  ---
+  duration_ms: 1.477875
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111.287917

@@ -34,7 +34,6 @@ CREATE INDEX IF NOT EXISTS idx_docs_track ON docs(track);
 CREATE INDEX IF NOT EXISTS idx_docs_kind ON docs(kind);
 CREATE INDEX IF NOT EXISTS idx_docs_status ON docs(status);
 CREATE INDEX IF NOT EXISTS idx_docs_updated_at ON docs(updated_at);
-CREATE INDEX IF NOT EXISTS idx_docs_is_archived ON docs(is_archived);
 
 -- ---------------------------------------------------------------------------
 -- chunks: one row per semantic chunk extracted from a doc.
@@ -43,6 +42,11 @@ CREATE TABLE IF NOT EXISTS chunks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   doc_id INTEGER NOT NULL REFERENCES docs(id) ON DELETE CASCADE,
   chunk_index INTEGER NOT NULL,             -- 0-based position within doc
+  chunk_key TEXT,
+  text_hash TEXT,
+  embedding_spec_id TEXT,
+  chunker_id TEXT,
+  normalization_id TEXT,
   text TEXT NOT NULL,
   heading TEXT,                             -- nearest preceding heading, if any
   start_offset INTEGER,                     -- byte offset into doc
@@ -50,6 +54,21 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON chunks(doc_id);
+
+-- ---------------------------------------------------------------------------
+-- embedding_specs: versioned embedding/chunker identity metadata.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS embedding_specs (
+  id TEXT PRIMARY KEY,
+  model TEXT NOT NULL,
+  model_revision TEXT NOT NULL,
+  dimension INTEGER NOT NULL,
+  chunker_id TEXT NOT NULL,
+  normalization_id TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_embedding_specs_is_active ON embedding_specs(is_active);
 
 -- ---------------------------------------------------------------------------
 -- refs_graph: directed edges between docs (e.g., task.md → its planning.md,

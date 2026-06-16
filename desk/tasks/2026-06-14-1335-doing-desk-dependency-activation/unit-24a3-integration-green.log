@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: cold start restores the committed production snapshot without rebuild or embeddings
+ok 1 - cold start restores the committed production snapshot without rebuild or embeddings
+  ---
+  duration_ms: 44.583083
+  type: 'test'
+  ...
+# Subtest: cold rebuild imports committed production vector packs without embeddings
+ok 2 - cold rebuild imports committed production vector packs without embeddings
+  ---
+  duration_ms: 45.002458
+  type: 'test'
+  ...
+# Subtest: cold rebuild live-generates only production vectors missing from committed packs
+ok 3 - cold rebuild live-generates only production vectors missing from committed packs
+  ---
+  duration_ms: 40.671084
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 268.573167

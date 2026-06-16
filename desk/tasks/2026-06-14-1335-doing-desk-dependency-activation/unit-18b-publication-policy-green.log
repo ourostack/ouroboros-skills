@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: committed publication policy and schema declare conservative privacy defaults
+ok 1 - committed publication policy and schema declare conservative privacy defaults
+  ---
+  duration_ms: 4.539542
+  type: 'test'
+  ...
+# Subtest: publication policy schema requires approval and repository-sensitivity fields
+ok 2 - publication policy schema requires approval and repository-sensitivity fields
+  ---
+  duration_ms: 0.856916
+  type: 'test'
+  ...
+# Subtest: publication policy denies public and sensitive repo artifact publication without approval
+ok 3 - publication policy denies public and sensitive repo artifact publication without approval
+  ---
+  duration_ms: 0.325208
+  type: 'test'
+  ...
+# Subtest: publication policy accepts explicit repo and organization approvals for allowed artifact types
+ok 4 - publication policy accepts explicit repo and organization approvals for allowed artifact types
+  ---
+  duration_ms: 0.249333
+  type: 'test'
+  ...
+# Subtest: artifact write guard blocks vector-pack and snapshot writes without approval
+ok 5 - artifact write guard blocks vector-pack and snapshot writes without approval
+  ---
+  duration_ms: 0.531083
+  type: 'test'
+  ...
+# Subtest: ordinary startup does not write committed artifact files
+ok 6 - ordinary startup does not write committed artifact files
+  ---
+  duration_ms: 42.720042
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 194.818625

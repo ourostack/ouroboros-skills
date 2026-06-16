@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ouroboros.local/desk/tombstone.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "document_path",
+    "document_hash",
+    "reason",
+    "redacted_at",
+    "effective_from",
+    "artifact_rotation_id",
+    "actor"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "document_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)(?!.*\\\\).+$"
+    },
+    "document_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "deleted",
+        "redacted"
+      ]
+    },
+    "redacted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifact_rotation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

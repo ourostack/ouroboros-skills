@@ -1,0 +1,75 @@
+TAP version 13
+# Subtest: cold start restores the committed production snapshot without rebuild or embeddings
+not ok 1 - cold start restores the committed production snapshot without rebuild or embeddings
+  ---
+  duration_ms: 50.729041
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js:100:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {
+      "built": true,
+      "reason": "stale_snapshot_reconciled",
+      "summary": {
+        "docs_indexed": 0,
+        "docs_skipped": 1,
+        "docs_removed": 0,
+        "docs_tombstoned": 0,
+        "chunks_inserted": 0,
+        "semantic_warnings": 0,
+        "vector_packs": {
+          "import_state": "validated",
+          "packs_considered": 1,
+          "packs_imported": 1,
+          "rows_imported": 0,
+          "rows_skipped_duplicate": 2,
+          "rows_skipped_missing_chunk": 0
+        }
+      },
+      "semantic": {
+        "chunks_total": 2,
+        "vectors_indexed": 2,
+        "missing_vectors": 0
+      },
+      "vector_packs": {
+        "import_state": "validated",
+        "packs_considered": 1,
+        "packs_imported": 1,
+        "rows_imported": 0,
+        "rows_skipped_duplicate": 2,
+        "rows_skipped_missing_chunk": 0
+      },
+      "snapshot": {
+        "restored": true,
+        "reason": "snapshot_restored",
+        "snapshot_id": "repo-public-bootstrap-2026-06-15",
+        "state_db_path": "<tmp>",
+        "freshness": {
+          "artifact_source_scope": "stale",
+          "document_tree": "stale"
+        },
+        "reconciled": true
+      }
+    }
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/integration/dependency_activation_flow.test.js:133:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 196.243791

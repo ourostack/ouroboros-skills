@@ -1,0 +1,161 @@
+TAP version 13
+# Subtest: openDb creates parent .state dir + applies schema idempotently
+ok 1 - openDb creates parent .state dir + applies schema idempotently
+  ---
+  duration_ms: 17.682208
+  type: 'test'
+  ...
+# Subtest: openDb installs all required tables (docs, chunks, refs_graph, meta)
+ok 2 - openDb installs all required tables (docs, chunks, refs_graph, meta)
+  ---
+  duration_ms: 4.33825
+  type: 'test'
+  ...
+# Subtest: schema exposes chunk key and embedding spec metadata surfaces
+ok 3 - schema exposes chunk key and embedding spec metadata surfaces
+  ---
+  duration_ms: 4.694958
+  type: 'test'
+  ...
+# Subtest: migrations upgrade older chunk tables with key and spec metadata columns
+ok 4 - migrations upgrade older chunk tables with key and spec metadata columns
+  ---
+  duration_ms: 5.354083
+  type: 'test'
+  ...
+# Subtest: migrations upgrade older docs tables with archive metadata
+ok 5 - migrations upgrade older docs tables with archive metadata
+  ---
+  duration_ms: 5.221084
+  type: 'test'
+  ...
+# Subtest: FTS5 virtual table chunks_fts is queryable
+ok 6 - FTS5 virtual table chunks_fts is queryable
+  ---
+  duration_ms: 4.440084
+  type: 'test'
+  ...
+# Subtest: chunk_vecs vec0 virtual table accepts a 768-dim float vector
+ok 7 - chunk_vecs vec0 virtual table accepts a 768-dim float vector
+  ---
+  duration_ms: 16.127875
+  type: 'test'
+  ...
+# Subtest: insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+ok 8 - insert into chunks triggers a chunks_fts row via the AFTER INSERT trigger
+  ---
+  duration_ms: 4.632792
+  type: 'test'
+  ...
+# Subtest: meta key set/get roundtrips
+ok 9 - meta key set/get roundtrips
+  ---
+  duration_ms: 5.557708
+  type: 'test'
+  ...
+# Subtest: active embedding spec is versioned, path-safe, and tied to chunker identity
+ok 10 - active embedding spec is versioned, path-safe, and tied to chunker identity
+  ---
+  duration_ms: 6.160917
+  type: 'test'
+  ...
+# Subtest: normalized text identity is stable across line endings and insignificant whitespace
+ok 11 - normalized text identity is stable across line endings and insignificant whitespace
+  ---
+  duration_ms: 0.881208
+  type: 'test'
+  ...
+# Subtest: chunk identity handles empty text and custom embedding specs
+ok 12 - chunk identity handles empty text and custom embedding specs
+  ---
+  duration_ms: 0.447416
+  type: 'test'
+  ...
+# Subtest: chunk keys are stable when unchanged text moves within a document
+ok 13 - chunk keys are stable when unchanged text moves within a document
+  ---
+  duration_ms: 0.426083
+  type: 'test'
+  ...
+# Subtest: inactive embedding specs are rejected by spec identity helpers
+ok 14 - inactive embedding specs are rejected by spec identity helpers
+  ---
+  duration_ms: 0.120958
+  type: 'test'
+  ...
+# Subtest: empty desk → empty index
+ok 15 - empty desk → empty index
+  ---
+  duration_ms: 12.101792
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 16 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 21.910417
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 17 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 11.637792
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 18 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 12.484459
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 19 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 31.457
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 20 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 18.172916
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 21 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 5.174208
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 22 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 9.930375
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 23 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 11.148125
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 24 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 19.065916
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 25 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 9.250459
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 290.876208

@@ -1,0 +1,323 @@
+TAP version 13
+# Subtest: Codex plugin metadata declares host-native Desk activation surfaces
+ok 1 - Codex plugin metadata declares host-native Desk activation surfaces
+  ---
+  duration_ms: 3.106375
+  type: 'test'
+  ...
+# Subtest: Codex worker source no longer documents healthy-path copy registration
+ok 2 - Codex worker source no longer documents healthy-path copy registration
+  ---
+  duration_ms: 0.570459
+  type: 'test'
+  ...
+# Subtest: global personal activation materializes worker and Desk as the default
+ok 3 - global personal activation materializes worker and Desk as the default
+  ---
+  duration_ms: 1.751875
+  type: 'test'
+  ...
+# Subtest: project-local opt-out materializes project config without mutating global defaults
+ok 4 - project-local opt-out materializes project config without mutating global defaults
+  ---
+  duration_ms: 0.552
+  type: 'test'
+  ...
+# Subtest: manual-only opt-out keeps Desk available without default worker or MCP autostart
+ok 5 - manual-only opt-out keeps Desk available without default worker or MCP autostart
+  ---
+  duration_ms: 0.432042
+  type: 'test'
+  ...
+# Subtest: Codex activation preserves user-authored config and instructions with owned generated blocks
+ok 6 - Codex activation preserves user-authored config and instructions with owned generated blocks
+  ---
+  duration_ms: 0.249
+  type: 'test'
+  ...
+# Subtest: Codex activation replaces existing owned blocks and stays idempotent
+not ok 7 - Codex activation replaces existing owned blocks and stays idempotent
+  ---
+  duration_ms: 1.409333
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:181:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    ... Skipped lines
+
+      '# user-authored Codex config\n' +
+        'model = "gpt-5.4"\n' +
+        'approval_policy = "on-request"\n' +
+        '\n' +
+        '# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation\n' +
+    ...
+        'default_tools_approval_mode = "prompt"\n' +
+    +   '# END desk activation\n' +
+    +   '\n' +
+    +   '# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation\n' +
+    +   '[plugins."work-suite@ourostack"]\n' +
+    +   'enabled = true\n' +
+    +   '\n' +
+    +   '[plugins."desk@ourostack"]\n' +
+    +   'enabled = true\n' +
+    +   '\n' +
+    +   '[plugins."desk@ourostack".mcp_servers.desk]\n' +
+    +   'enabled = true\n' +
+    +   'default_tools_approval_mode = "prompt"\n' +
+        '# END desk activation\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    # user-authored Codex config
+    model = "gpt-5.4"
+    approval_policy = "on-request"
+
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+  actual: |-
+    # user-authored Codex config
+    model = "gpt-5.4"
+    approval_policy = "on-request"
+
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:189:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation upgrades older owned blocks without duplicating activation content
+not ok 8 - Codex activation upgrades older owned blocks without duplicating activation content
+  ---
+  duration_ms: 0.538166
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:195:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /desk@1\.6\.0/. Input:
+
+    '# user-authored Codex config\n' +
+      'model = "gpt-5.4"\n' +
+      'approval_policy = "on-request"\n' +
+      '\n' +
+      '# BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation\n' +
+      '[plugins."desk@ourostack"]\n' +
+      'enabled = false\n' +
+      '# END desk activation\n' +
+      '\n' +
+      '# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation\n' +
+      '[plugins."work-suite@ourostack"]\n' +
+      'enabled = true\n' +
+      '\n' +
+      '[plugins."desk@ourostack"]\n' +
+      'enabled = true\n' +
+      '\n' +
+      '[plugins."desk@ourostack".mcp_servers.desk]\n' +
+      'enabled = true\n' +
+      'default_tools_approval_mode = "prompt"\n' +
+      '# END desk activation\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    # user-authored Codex config
+    model = "gpt-5.4"
+    approval_policy = "on-request"
+
+    # BEGIN desk activation: desk@1.6.0 mode=manual-only owner=desk-activation
+    [plugins."desk@ourostack"]
+    enabled = false
+    # END desk activation
+
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:213:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation fails closed for malformed owned activation blocks
+not ok 9 - Codex activation fails closed for malformed owned activation blocks
+  ---
+  duration_ms: 0.515292
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:219:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:222:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation rejects duplicate owned activation blocks
+not ok 10 - Codex activation rejects duplicate owned activation blocks
+  ---
+  duration_ms: 0.493
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:253:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:267:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation replaces an owned block at EOF without adding extra spacing
+not ok 11 - Codex activation replaces an owned block at EOF without adding extra spacing
+  ---
+  duration_ms: 0.375583
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:275:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+      '# user-authored Codex config\n' +
+        'model = "gpt-5.4"\n' +
+        'approval_policy = "on-request"\n' +
+        '\n' +
+    +   '# BEGIN desk activation: desk@1.7.2 mode=manual-only owner=desk-activation\n' +
+    +   '[plugins."desk@ourostack"]\n' +
+    +   'enabled = false\n' +
+    +   '# END desk activation\n' +
+        '# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation\n' +
+        '[plugins."work-suite@ourostack"]\n' +
+        'enabled = true\n' +
+        '\n' +
+        '[plugins."desk@ourostack"]\n' +
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    # user-authored Codex config
+    model = "gpt-5.4"
+    approval_policy = "on-request"
+
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+  actual: |-
+    # user-authored Codex config
+    model = "gpt-5.4"
+    approval_policy = "on-request"
+
+    # BEGIN desk activation: desk@1.7.2 mode=manual-only owner=desk-activation
+    [plugins."desk@ourostack"]
+    enabled = false
+    # END desk activation
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack"]
+    enabled = true
+
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:286:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation does not silently override user-authored disabled Desk config
+not ok 12 - Codex activation does not silently override user-authored disabled Desk config
+  ---
+  duration_ms: 0.146
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:289:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_activation.test.js:300:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex activation rejects unsupported requested host capabilities
+ok 13 - Codex activation rejects unsupported requested host capabilities
+  ---
+  duration_ms: 0.319625
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 7
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92.58525

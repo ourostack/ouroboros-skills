@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: parseArgs captures activation config path without losing root or person
+ok 1 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 1.453875
+  type: 'test'
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+ok 2 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 3.23625
+  type: 'test'
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+ok 3 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 2.266083
+  type: 'test'
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+ok 4 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 1.273792
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+ok 5 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 1.180583
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+ok 6 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 514.087833
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 621.039667

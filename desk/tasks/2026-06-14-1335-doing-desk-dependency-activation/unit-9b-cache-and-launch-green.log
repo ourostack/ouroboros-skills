@@ -1,0 +1,128 @@
+TAP version 13
+# Subtest: runtime cache and host launch contract
+    # Subtest: resolves committed host manifest MCP references relative to the installed plugin root
+        # Subtest: desk plugin.json
+        ok 1 - desk plugin.json
+          ---
+          duration_ms: 0.801083
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 2 - codex plugin.json
+          ---
+          duration_ms: 0.1705
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 3 - claude plugin.json
+          ---
+          duration_ms: 0.253625
+          type: 'test'
+          ...
+        1..3
+    ok 1 - resolves committed host manifest MCP references relative to the installed plugin root
+      ---
+      duration_ms: 2.014458
+      type: 'test'
+      ...
+    # Subtest: committed MCP launch configs use cwd-independent installed entrypoint args
+        # Subtest: desk .mcp.json
+        ok 1 - desk .mcp.json
+          ---
+          duration_ms: 1.027792
+          type: 'test'
+          ...
+        # Subtest: desk plugin.json
+        ok 2 - desk plugin.json
+          ---
+          duration_ms: 0.258625
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 3 - codex plugin.json
+          ---
+          duration_ms: 0.201625
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 4 - claude plugin.json
+          ---
+          duration_ms: 0.110167
+          type: 'test'
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 0.194416
+          type: 'test'
+          ...
+        1..5
+    ok 2 - committed MCP launch configs use cwd-independent installed entrypoint args
+      ---
+      duration_ms: 2.338
+      type: 'test'
+      ...
+    # Subtest: uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
+    ok 3 - uses activation-config runtimeCacheDir before DESK_RUNTIME_CACHE_DIR and never writes runtime deps under desk .state
+      ---
+      duration_ms: 856.878417
+      type: 'test'
+      ...
+    # Subtest: launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
+        # Subtest: desk .mcp.json
+        ok 1 - desk .mcp.json
+          ---
+          duration_ms: 452.595458
+          type: 'test'
+          ...
+        # Subtest: desk plugin.json
+        ok 2 - desk plugin.json
+          ---
+          duration_ms: 453.057416
+          type: 'test'
+          ...
+        # Subtest: codex plugin.json
+        ok 3 - codex plugin.json
+          ---
+          duration_ms: 482.938625
+          type: 'test'
+          ...
+        # Subtest: claude plugin.json
+        ok 4 - claude plugin.json
+          ---
+          duration_ms: 457.504541
+          type: 'test'
+          ...
+        # Subtest: generic stdio fixture
+        ok 5 - generic stdio fixture
+          ---
+          duration_ms: 458.428709
+          type: 'test'
+          ...
+        1..5
+    ok 4 - launches every committed host declaration from a temporary cwd without mutating plugin source/cache directories
+      ---
+      duration_ms: 2647.062416
+      type: 'test'
+      ...
+    # Subtest: repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
+    ok 5 - repairs cached runtime dependencies when the cache marker and dependency artifacts are stale
+      ---
+      duration_ms: 889.16925
+      type: 'test'
+      ...
+    1..5
+ok 1 - runtime cache and host launch contract
+  ---
+  duration_ms: 4398.066416
+  type: 'suite'
+  ...
+1..1
+# tests 18
+# suites 1
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4482.154542

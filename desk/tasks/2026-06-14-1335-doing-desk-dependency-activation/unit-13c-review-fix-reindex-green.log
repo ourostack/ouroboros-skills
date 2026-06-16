@@ -1,0 +1,59 @@
+TAP version 13
+# Subtest: desk_reindex — empty bundle returns ok with built=true and zero docs
+ok 1 - desk_reindex — empty bundle returns ok with built=true and zero docs
+  ---
+  duration_ms: 17.24575
+  type: 'test'
+  ...
+# Subtest: desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+ok 2 - desk_reindex — after writing a doc, reindex returns docs_indexed >= 1
+  ---
+  duration_ms: 10.523708
+  type: 'test'
+  ...
+# Subtest: desk_reindex — second call without force returns built=false reason=fresh
+ok 3 - desk_reindex — second call without force returns built=false reason=fresh
+  ---
+  duration_ms: 11.30775
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+ok 4 - desk_reindex — no-force repairs a fresh lexical-only index when embeddings return
+  ---
+  duration_ms: 31.486459
+  type: 'test'
+  ...
+# Subtest: desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+ok 5 - desk_reindex — no-force repairs fresh vectors from an inactive embedding spec
+  ---
+  duration_ms: 44.608375
+  type: 'test'
+  ...
+# Subtest: desk_reindex — stale lexical-only indexes repair through default embedding options
+ok 6 - desk_reindex — stale lexical-only indexes repair through default embedding options
+  ---
+  duration_ms: 26.572041
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true drops the DB and rebuilds from scratch
+ok 7 - desk_reindex — force:true drops the DB and rebuilds from scratch
+  ---
+  duration_ms: 12.942916
+  type: 'test'
+  ...
+# Subtest: desk_reindex — force:true on a fresh root with no DB still succeeds
+ok 8 - desk_reindex — force:true on a fresh root with no DB still succeeds
+  ---
+  duration_ms: 7.715375
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 285.950708

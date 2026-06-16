@@ -1,0 +1,120 @@
+TAP version 13
+# Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+  ---
+  duration_ms: 1.678417
+  type: 'test'
+  ...
+# Subtest: Work Suite Claude manifest stays a strict-loadable skill provider
+ok 2 - Work Suite Claude manifest stays a strict-loadable skill provider
+  ---
+  duration_ms: 0.168541
+  type: 'test'
+  ...
+# Subtest: Claude worker agent is exposed without unsupported scoped permission fields
+ok 3 - Claude worker agent is exposed without unsupported scoped permission fields
+  ---
+  duration_ms: 0.31
+  type: 'test'
+  ...
+# Subtest: Claude activation metadata records Agent View and background-session disposition
+ok 4 - Claude activation metadata records Agent View and background-session disposition
+  ---
+  duration_ms: 0.388042
+  type: 'test'
+  ...
+# Subtest: Claude packaging metadata is backed by fresh evidence and support matrix rows
+ok 5 - Claude packaging metadata is backed by fresh evidence and support matrix rows
+  ---
+  duration_ms: 0.53975
+  type: 'test'
+  ...
+# Subtest: Claude packaging documents its permission and capability boundary
+ok 6 - Claude packaging documents its permission and capability boundary
+  ---
+  duration_ms: 0.107292
+  type: 'test'
+  ...
+# Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 7 - Claude hook and MCP configuration stay plugin-relative and non-manual
+  ---
+  duration_ms: 0.162916
+  type: 'test'
+  ...
+# Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 8 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+  ---
+  duration_ms: 0.279375
+  type: 'test'
+  ...
+# Subtest: Claude packaging validation rejects missing Work Suite dependency and stale versions
+not ok 9 - Claude packaging validation rejects missing Work Suite dependency and stale versions
+  ---
+  duration_ms: 2.223042
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:393:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+    + []
+    - [
+    -   'missing Work Suite dependency in Claude plugin metadata'
+    - ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'missing Work Suite dependency in Claude plugin metadata'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:398:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Claude packaging validation rejects missing worker exposure and unsupported Agent View assumptions
+not ok 10 - Claude packaging validation rejects missing worker exposure and unsupported Agent View assumptions
+  ---
+  duration_ms: 0.717291
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:418:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+    + []
+    - [
+    -   'Claude plugin metadata must expose ./agents/worker.md'
+    - ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'Claude plugin metadata must expose ./agents/worker.md'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/claude_packaging.test.js:421:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 8
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 96.940333

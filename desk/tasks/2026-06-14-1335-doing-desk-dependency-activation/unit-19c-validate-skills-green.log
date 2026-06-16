@@ -1,0 +1,10 @@
+Validated 17 skills.
+Validated 7 work-suite plugin skill copies.
+Validated plugin metadata.
+autopilot state audit tests passed.
+work-suite runtime audit tests passed.
+work-suite runtime audit: pass
+source: pass
+installed roots: not provided
+active host menu: not_provided
+  guidance: No active host-menu snapshot was provided. Installed files can still be authoritative mid-session, but visibility was not proven.

@@ -9,10 +9,22 @@
 
 import { promises as fs } from "node:fs"
 import { openDb, closeDb, setMeta } from "../db/init.js"
+import {
+  filterTombstonedDocuments,
+  tombstoneStatusForDocuments,
+} from "../artifacts/tombstones.js"
 import { discover } from "./discover.js"
 import { chunkBody } from "./chunk.js"
 import { embedChunks, EMBEDDING_DIM } from "./embed.js"
 import { computeRefs } from "./refs.js"
+import {
+  ACTIVE_EMBEDDING_SPEC,
+  chunkIdentity,
+  writeActiveEmbeddingSpec,
+} from "./spec.js"
+import { importVectorPacks } from "./vector-packs.js"
+
+const SQLITE_PARAMETER_BATCH_SIZE = 500
 
 /**
  * Run the indexer against `deskRoot`. Creates/refreshes
@@ -26,6 +38,10 @@ import { computeRefs } from "./refs.js"
  * @param {boolean} [opts.skipEmbed] — skip embedding entirely (testing).
  * @param {boolean} [opts.reembedMissing] — reindex unchanged docs whose
  *   chunks exist but do not have vectors.
+ * @param {object} [opts.vectorPacks] — import shared vector packs before
+ *   live embedding generation.
+ * @param {string} [opts.vectorPacks.pluginRoot] — plugin root containing
+ *   artifacts/vector-packs/<embedding-spec-id>/.
  * @returns {Promise<{ docs_indexed: number, docs_skipped: number,
  *                     docs_removed: number, chunks_inserted: number,
  *                     semantic_warnings: number }>}
@@ -38,12 +54,22 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     docs_indexed: 0,
     docs_skipped: 0,
     docs_removed: 0,
+    docs_tombstoned: 0,
     chunks_inserted: 0,
     semantic_warnings: 0,
   }
 
   try {
-    const discovered = await discover(deskRoot)
+    throwIfAborted(opts.signal)
+    writeActiveEmbeddingSpec(db, setMeta)
+    const discoveredRaw = await discover(deskRoot, { signal: opts.signal })
+    const tombstoneFilter = await filterTombstonedDocuments({
+      pluginRoot: opts.tombstones?.pluginRoot,
+      docs: discoveredRaw,
+    })
+    const discovered = tombstoneFilter.docs
+    summary.docs_tombstoned = tombstoneFilter.tombstoned_count
+    throwIfAborted(opts.signal)
     const discoveredByPath = new Map(discovered.map((d) => [d.path, d]))
 
     // Compare against existing docs table. Anything no longer on disk gets
@@ -55,6 +81,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
 
     const deletedPaths = []
     for (const row of existing) {
+      throwIfAborted(opts.signal)
       if (!discoveredByPath.has(row.path)) {
         deletedPaths.push(row.path)
       }
@@ -71,12 +98,17 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     // Decide which docs need reindexing.
     const toReindex = []
     for (const doc of discovered) {
+      throwIfAborted(opts.signal)
       const existingRow = existingByPath.get(doc.path)
       if (existingRow && existingRow.hash === doc.hash) {
+        if (docNeedsActiveChunkMetadata(db, existingRow.id, doc)) {
+          toReindex.push(doc)
+          continue
+        }
         if (
           opts.reembedMissing &&
           !opts.skipEmbed &&
-          docHasMissingEmbeddings(db, existingRow.id)
+          docHasMissingActiveEmbeddings(db, existingRow.id)
         ) {
           toReindex.push(doc)
           continue
@@ -87,10 +119,26 @@ export async function rebuildIndex(deskRoot, opts = {}) {
       toReindex.push(doc)
     }
 
-    // Per doc: upsert docs row, replace chunks, embed + write vecs.
+    // Per doc: upsert docs row and replace chunks. Vectors are imported from
+    // committed packs first, then live-generated only for remaining gaps.
+    const reindexedDocIds = []
     for (const doc of toReindex) {
-      await indexOneDoc(db, doc, opts, summary)
+      throwIfAborted(opts.signal)
+      reindexedDocIds.push(indexOneDoc(db, doc, summary))
       summary.docs_indexed += 1
+    }
+
+    if (opts.vectorPacks?.pluginRoot) {
+      summary.vector_packs = vectorPackImportStatus(await importVectorPacks({
+        db,
+        pluginRoot: opts.vectorPacks.pluginRoot,
+        signal: opts.signal,
+      }))
+    }
+
+    if (!opts.skipEmbed) {
+      throwIfAborted(opts.signal)
+      await embedMissingVectors(db, opts, summary, reindexedDocIds)
     }
 
     // Refs graph — recompute from scratch each pass. Cheap (just a table
@@ -107,43 +155,99 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   return summary
 }
 
-function docHasMissingEmbeddings(db, docId) {
+function vectorPackImportStatus(summary) {
+  return {
+    import_state: summary.rows_imported > 0
+      ? "imported"
+      : summary.packs_imported > 0
+        ? "validated"
+        : "absent",
+    ...summary,
+  }
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  const err = new Error("operation aborted")
+  err.name = "AbortError"
+  throw err
+}
+
+function docNeedsActiveChunkMetadata(db, docId, doc) {
+  const expectedKeys = chunkBody(doc.body).map((chunk) =>
+    chunkIdentity({ docPath: doc.path, chunk }).chunk_key
+  )
+  const row = db
+    .prepare(
+      `SELECT
+         COUNT(*) AS total,
+         COALESCE(SUM(
+           CASE
+             WHEN chunk_key IS NULL OR
+                  text_hash IS NULL OR
+                  embedding_spec_id IS NULL OR
+                  embedding_spec_id != ? OR
+                  chunker_id IS NULL OR
+                  chunker_id != ? OR
+                  normalization_id IS NULL OR
+                  normalization_id != ?
+             THEN 1 ELSE 0 END
+         ), 0) AS stale
+       FROM chunks
+       WHERE doc_id = ?`,
+    )
+    .get(
+      ACTIVE_EMBEDDING_SPEC.id,
+      ACTIVE_EMBEDDING_SPEC.chunker_id,
+      ACTIVE_EMBEDDING_SPEC.normalization_id,
+      docId,
+    )
+  if (row.stale > 0) return true
+  if (row.total !== expectedKeys.length) return true
+  if (expectedKeys.length === 0) return false
+  const storedKeys = db
+    .prepare(
+      `SELECT chunk_key
+       FROM chunks
+       WHERE doc_id = ?
+       ORDER BY chunk_index`,
+    )
+    .all(docId)
+    .map((chunk) => chunk.chunk_key)
+  return storedKeys.some((chunkKey, index) => chunkKey !== expectedKeys[index])
+}
+
+function docHasMissingActiveEmbeddings(db, docId) {
   const row = db
     .prepare(
       `SELECT COUNT(*) AS missing
        FROM chunks c
        LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
-       WHERE c.doc_id = ? AND v.chunk_id IS NULL`,
+       WHERE c.doc_id = ?
+         AND (
+           v.chunk_id IS NULL OR
+           c.embedding_spec_id IS NULL OR
+           c.embedding_spec_id != ? OR
+           c.chunker_id != ? OR
+           c.normalization_id != ?
+         )`,
     )
-    .get(docId)
-  return (row?.missing ?? 0) > 0
+    .get(
+      docId,
+      ACTIVE_EMBEDDING_SPEC.id,
+      ACTIVE_EMBEDDING_SPEC.chunker_id,
+      ACTIVE_EMBEDDING_SPEC.normalization_id,
+    )
+  return row.missing > 0
 }
 
-async function indexOneDoc(db, doc, opts, summary) {
-  const chunks = chunkBody(doc.body)
+function indexOneDoc(db, doc, summary) {
+  const chunks = chunkBody(doc.body).map((chunk) => ({
+    ...chunk,
+    ...chunkIdentity({ docPath: doc.path, chunk }),
+  }))
 
-  // Embed chunks unless caller asked us to skip. embedChunks returns an
-  // array of either Float32-friendly arrays or nulls; nulls mean Ollama
-  // was unreachable for that chunk (typically because it's been
-  // unreachable for ALL chunks this run).
-  let embeddings = chunks.map(() => null)
-  if (!opts.skipEmbed && chunks.length > 0) {
-    embeddings = await embedChunks(
-      chunks.map((c) => c.text),
-      opts.embed ?? {},
-    )
-    if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
-      summary.semantic_warnings += 1
-      // One log line per run is enough; downstream tools surface the
-      // semantic_unavailable warning at query time.
-      console.warn(
-        "[desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only",
-      )
-    }
-  }
-
-  // Upsert in a transaction so a crash mid-doc doesn't leave a half-indexed
-  // row.
+  // Upsert in a transaction so a crash mid-doc doesn't leave a half-indexed row.
   const txn = db.transaction(() => {
     // Upsert docs row.
     const upsert = db.prepare(
@@ -177,7 +281,7 @@ async function indexOneDoc(db, doc, opts, summary) {
       hash: doc.hash,
       mtime: doc.mtime,
       is_archived: doc.is_archived ? 1 : 0,
-      frontmatter: JSON.stringify(doc.frontmatter ?? {}),
+      frontmatter: JSON.stringify(doc.frontmatter),
     })
     const docId = row.id
 
@@ -195,30 +299,89 @@ async function indexOneDoc(db, doc, opts, summary) {
     db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(docId)
 
     const insertChunk = db.prepare(
-      `INSERT INTO chunks (doc_id, chunk_index, text, heading, start_offset, end_offset)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    )
-    const insertVec = db.prepare(
-      `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
+      `INSERT INTO chunks (
+         doc_id,
+         chunk_index,
+         chunk_key,
+         text_hash,
+         embedding_spec_id,
+         chunker_id,
+         normalization_id,
+         text,
+         heading,
+         start_offset,
+         end_offset
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     for (let i = 0; i < chunks.length; i++) {
       const c = chunks[i]
-      const ins = insertChunk.get(
+      insertChunk.get(
         docId,
         c.index,
+        c.chunk_key,
+        c.text_hash,
+        c.embedding_spec_id,
+        c.chunker_id,
+        c.normalization_id,
         c.text,
         c.heading,
         c.start_offset,
         c.end_offset,
       )
       summary.chunks_inserted += 1
+    }
+    return docId
+  })
+  return txn()
+}
+
+async function embedMissingVectors(db, opts, summary, docIds) {
+  if (docIds.length === 0) return
+  const missing = []
+  for (let start = 0; start < docIds.length; start += SQLITE_PARAMETER_BATCH_SIZE) {
+    const batch = docIds.slice(start, start + SQLITE_PARAMETER_BATCH_SIZE)
+    const placeholders = batch.map(() => "?").join(", ")
+    const rows = db
+      .prepare(
+        `SELECT c.id, c.text
+         FROM chunks c
+         LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+         WHERE v.chunk_id IS NULL
+           AND c.doc_id IN (${placeholders})
+         ORDER BY c.id`,
+      )
+      .all(...batch)
+    for (const row of rows) {
+      missing.push(row)
+    }
+  }
+  if (missing.length === 0) return
+
+  const embeddings = await embedChunks(
+    missing.map((c) => c.text),
+    opts.embed ?? {},
+  )
+  if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
+    summary.semantic_warnings += 1
+    // One log line per run is enough; downstream tools surface the
+    // semantic_unavailable warning at query time.
+    console.warn(
+      "[desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only",
+    )
+  }
+
+  const insertVec = db.prepare(
+    `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
+  )
+  const txn = db.transaction(() => {
+    for (let i = 0; i < missing.length; i++) {
       const vec = embeddings[i]
       if (vec) {
         // sqlite-vec's vec0 virtual table requires BigInt for primary-key
         // bind values — plain JS numbers raise "Only integers are allows
-        // for primary key values on chunk_vecs". The ins.id comes back as
-        // a number from better-sqlite3's RETURNING; convert at the bind.
-        insertVec.run(BigInt(ins.id), new Float32Array(vec))
+        // for primary key values on chunk_vecs".
+        insertVec.run(BigInt(missing[i].id), new Float32Array(vec))
       }
     }
   })
@@ -235,10 +398,7 @@ function refreshRefs(db, docs) {
       "INSERT OR IGNORE INTO refs_graph (src_doc_id, dst_doc_id, ref_kind) VALUES (?, ?, ?)",
     )
     for (const e of edges) {
-      const from = lookup.get(e.from)
-      const to = lookup.get(e.to)
-      if (!from || !to) continue
-      ins.run(from.id, to.id, e.ref_kind)
+      ins.run(lookup.get(e.from).id, lookup.get(e.to).id, e.ref_kind)
     }
   })
   txn()
@@ -252,16 +412,22 @@ function refreshRefs(db, docs) {
  * inside rebuildIndex. This is just for the boot-time "do we need to do
  * anything?" decision.
  */
-export async function isIndexFresh(deskRoot, db) {
+export async function isIndexFresh(deskRoot, db, { signal, tombstones } = {}) {
   const row = db
     .prepare("SELECT value FROM meta WHERE key = 'last_indexed_at'")
     .get()
   if (!row) return false
   const indexedMs = Date.parse(row.value)
   if (Number.isNaN(indexedMs)) return false
+  const tombstoneStatus = await tombstoneStatusForDocuments({
+    pluginRoot: tombstones?.pluginRoot,
+    docs: db.prepare("SELECT path, hash FROM docs").all(),
+  })
+  if (tombstoneStatus.tombstoned) return false
   // Walk discover() targets and bail on the first newer mtime.
-  const docs = await discover(deskRoot)
+  const docs = await discover(deskRoot, { signal })
   for (const d of docs) {
+    throwIfAborted(signal)
     if (d.mtime > indexedMs) return false
   }
   return true

@@ -1,0 +1,5 @@
+$ git diff --check 9ea3f97..HEAD
+exit 0
+
+$ git diff --check
+exit 0

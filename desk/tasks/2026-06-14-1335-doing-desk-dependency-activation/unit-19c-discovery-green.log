@@ -1,0 +1,268 @@
+TAP version 13
+# Subtest: discover picks up only the indexable shapes
+ok 1 - discover picks up only the indexable shapes
+  ---
+  duration_ms: 31.041833
+  type: 'test'
+  ...
+# Subtest: discover returns an empty list for a missing root
+ok 2 - discover returns an empty list for a missing root
+  ---
+  duration_ms: 0.651916
+  type: 'test'
+  ...
+# Subtest: discover surfaces unexpected directory read errors
+ok 3 - discover surfaces unexpected directory read errors
+  ---
+  duration_ms: 4.285584
+  type: 'test'
+  ...
+# Subtest: discover rejects immediately when startup abort signal is already tripped
+ok 4 - discover rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 2.945375
+  type: 'test'
+  ...
+# Subtest: discover propagates aborts tripped while describing a document
+ok 5 - discover propagates aborts tripped while describing a document
+  ---
+  duration_ms: 5.733833
+  type: 'test'
+  ...
+# Subtest: discover skips documents that become unreadable mid-walk
+ok 6 - discover skips documents that become unreadable mid-walk
+  ---
+  duration_ms: 6.313791
+  type: 'test'
+  ...
+# Subtest: discover indexes malformed frontmatter with empty metadata
+ok 7 - discover indexes malformed frontmatter with empty metadata
+  ---
+  duration_ms: 1.839041
+  type: 'test'
+  ...
+# Subtest: discover flags _archive docs with is_archived=true
+ok 8 - discover flags _archive docs with is_archived=true
+  ---
+  duration_ms: 6.979666
+  type: 'test'
+  ...
+# Subtest: discover classifies each doc correctly + extracts frontmatter
+ok 9 - discover classifies each doc correctly + extracts frontmatter
+  ---
+  duration_ms: 6.185167
+  type: 'test'
+  ...
+# Subtest: discover returns hash + mtime for dirty-detection
+ok 10 - discover returns hash + mtime for dirty-detection
+  ---
+  duration_ms: 8.501
+  type: 'test'
+  ...
+# Subtest: isIndexable matches the intended set
+ok 11 - isIndexable matches the intended set
+  ---
+  duration_ms: 0.202
+  type: 'test'
+  ...
+# Subtest: classify is purely path-driven
+ok 12 - classify is purely path-driven
+  ---
+  duration_ms: 0.195292
+  type: 'test'
+  ...
+# Subtest: normalizeDate preserves strings and normalizes Date or scalar values
+ok 13 - normalizeDate preserves strings and normalizes Date or scalar values
+  ---
+  duration_ms: 0.049375
+  type: 'test'
+  ...
+# Subtest: discover excludes gitignored markdown before indexing
+ok 14 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 11.922167
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 15 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.264
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 16 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 0.896958
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 17 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 1.298334
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules surfaces unexpected directory scan errors
+ok 18 - loadExclusionRules surfaces unexpected directory scan errors
+  ---
+  duration_ms: 0.607625
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 19 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 13.475875
+  type: 'test'
+  ...
+# Subtest: discover applies nested gitignore files and negated rules
+ok 20 - discover applies nested gitignore files and negated rules
+  ---
+  duration_ms: 7.295708
+  type: 'test'
+  ...
+# Subtest: discover excludes symlink and hidden docs while preserving person and shared docs
+ok 21 - discover excludes symlink and hidden docs while preserving person and shared docs
+  ---
+  duration_ms: 5.497375
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 22 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 3.391208
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 23 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 31.352583
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 24 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 2.170375
+  type: 'test'
+  ...
+# Subtest: artifact publication guard honors nested gitignore files and negated rules
+ok 25 - artifact publication guard honors nested gitignore files and negated rules
+  ---
+  duration_ms: 1.66425
+  type: 'test'
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 26 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 1.99525
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 27 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 5.557833
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 28 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.840625
+  type: 'test'
+  ...
+# Subtest: classify strips desks/<alias>/ and reports the real track + slug
+ok 29 - classify strips desks/<alias>/ and reports the real track + slug
+  ---
+  duration_ms: 1.056625
+  type: 'test'
+  ...
+# Subtest: classify still works for the OFF (non-person) shape
+ok 30 - classify still works for the OFF (non-person) shape
+  ---
+  duration_ms: 0.189459
+  type: 'test'
+  ...
+# Subtest: classify attributes track-local friction under desks/<alias>/ correctly
+ok 31 - classify attributes track-local friction under desks/<alias>/ correctly
+  ---
+  duration_ms: 0.086625
+  type: 'test'
+  ...
+# Subtest: classify keeps cross-cutting friction under desks/<alias>/_meta/friction.md as friction
+ok 32 - classify keeps cross-cutting friction under desks/<alias>/_meta/friction.md as friction
+  ---
+  duration_ms: 0.078041
+  type: 'test'
+  ...
+# Subtest: classify keeps lessons under desks/<alias>/_meta/tips/<topic>.md as lesson
+ok 33 - classify keeps lessons under desks/<alias>/_meta/tips/<topic>.md as lesson
+  ---
+  duration_ms: 0.185375
+  type: 'test'
+  ...
+# Subtest: discover finds task docs across multiple persons' desks
+ok 34 - discover finds task docs across multiple persons' desks
+  ---
+  duration_ms: 21.817959
+  type: 'test'
+  ...
+# Subtest: discover still finds + attributes OFF-mode (top-level) task docs unchanged
+ok 35 - discover still finds + attributes OFF-mode (top-level) task docs unchanged
+  ---
+  duration_ms: 1.741625
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts arbitrary .md under _shared/landscape/
+ok 36 - isIndexable accepts arbitrary .md under _shared/landscape/
+  ---
+  duration_ms: 0.85225
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts .md under _shared/decisions/
+ok 37 - isIndexable accepts .md under _shared/decisions/
+  ---
+  duration_ms: 0.116417
+  type: 'test'
+  ...
+# Subtest: isIndexable accepts nested .md under _shared/
+ok 38 - isIndexable accepts nested .md under _shared/
+  ---
+  duration_ms: 0.057542
+  type: 'test'
+  ...
+# Subtest: isIndexable still rejects non-md under _shared/
+ok 39 - isIndexable still rejects non-md under _shared/
+  ---
+  duration_ms: 0.090333
+  type: 'test'
+  ...
+# Subtest: classify reports a _shared/landscape doc as kind=shared
+ok 40 - classify reports a _shared/landscape doc as kind=shared
+  ---
+  duration_ms: 0.18575
+  type: 'test'
+  ...
+# Subtest: classify reports a _shared/decisions doc as kind=shared
+ok 41 - classify reports a _shared/decisions doc as kind=shared
+  ---
+  duration_ms: 0.059417
+  type: 'test'
+  ...
+# Subtest: discover finds _shared/landscape facts AND person desk tasks together
+ok 42 - discover finds _shared/landscape facts AND person desk tasks together
+  ---
+  duration_ms: 21.361291
+  type: 'test'
+  ...
+# Subtest: discover unchanged when no _shared/ dir present (single-desk)
+ok 43 - discover unchanged when no _shared/ dir present (single-desk)
+  ---
+  duration_ms: 1.68625
+  type: 'test'
+  ...
+1..43
+# tests 43
+# suites 0
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 217.96325

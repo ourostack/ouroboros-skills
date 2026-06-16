@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: package declares artifact maintenance scripts without adding a user Desk CLI
+ok 1 - package declares artifact maintenance scripts without adding a user Desk CLI
+  ---
+  duration_ms: 434.540084
+  type: 'test'
+  ...
+# Subtest: artifact build scripts publish allowed artifacts only under canonical dirs
+ok 2 - artifact build scripts publish allowed artifacts only under canonical dirs
+  ---
+  duration_ms: 603.20225
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject publication-policy denial before writing bytes
+ok 3 - artifact build scripts reject publication-policy denial before writing bytes
+  ---
+  duration_ms: 531.3005
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject excluded local DB docs before writing bytes
+ok 4 - artifact build scripts reject excluded local DB docs before writing bytes
+  ---
+  duration_ms: 515.742459
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject tombstoned local DB docs before writing bytes
+ok 5 - artifact build scripts reject tombstoned local DB docs before writing bytes
+  ---
+  duration_ms: 525.183458
+  type: 'test'
+  ...
+# Subtest: performance budget config declares startup, rebuild, and artifact thresholds
+ok 6 - performance budget config declares startup, rebuild, and artifact thresholds
+  ---
+  duration_ms: 0.267666
+  type: 'test'
+  ...
+# Subtest: performance budget loader fails closed for malformed, missing, or invalid configs
+ok 7 - performance budget loader fails closed for malformed, missing, or invalid configs
+  ---
+  duration_ms: 4.511625
+  type: 'test'
+  ...
+# Subtest: MCP startup reads ensure-index budget from plugin performance config
+ok 8 - MCP startup reads ensure-index budget from plugin performance config
+  ---
+  duration_ms: 5.636042
+  type: 'test'
+  ...
+# Subtest: artifact validation output does not leak resolved local roots
+ok 9 - artifact validation output does not leak resolved local roots
+  ---
+  duration_ms: 760.178375
+  type: 'test'
+  ...
+# Subtest: artifact script CLIs cover help, usage errors, repeated args, and targeted snapshot verification
+ok 10 - artifact script CLIs cover help, usage errors, repeated args, and targeted snapshot verification
+  ---
+  duration_ms: 575.085333
+  type: 'test'
+  ...
+# Subtest: vector-pack build supports lexical-only local DBs with no vector rows
+ok 11 - vector-pack build supports lexical-only local DBs with no vector rows
+  ---
+  duration_ms: 25.260167
+  type: 'test'
+  ...
+# Subtest: artifact script defensive helpers cover filesystem and fallback branches
+ok 12 - artifact script defensive helpers cover filesystem and fallback branches
+  ---
+  duration_ms: 9.77775
+  type: 'test'
+  ...
+# Subtest: artifact scripts fail when configured rebuild or validation budgets are exceeded
+ok 13 - artifact scripts fail when configured rebuild or validation budgets are exceeded
+  ---
+  duration_ms: 1446.116541
+  type: 'test'
+  ...
+# Subtest: CI invokes artifact validation and watches artifact script inputs
+ok 14 - CI invokes artifact validation and watches artifact script inputs
+  ---
+  duration_ms: 1.974875
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5600.528375

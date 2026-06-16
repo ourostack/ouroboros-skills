@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "repo-public-bootstrap-2026-06-15",
+  "embedding_spec_id": "nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768",
+  "dimension": 768,
+  "chunker_id": "desk-md-h2-paragraph-v1",
+  "normalization_id": "unicode-whitespace-v1",
+  "db_schema": {
+    "id": "desk-index-sqlite-v1",
+    "version": 1
+  },
+  "sqlite_vec": {
+    "package": "sqlite-vec",
+    "version": "0.1.9",
+    "table": "vec0"
+  },
+  "runtime": {
+    "platform": "portable",
+    "arch": "portable",
+    "node_abi": "portable"
+  },
+  "artifact_source_scope_hash": "sha256:8b978e8566c015bee3d46c924286bc309582117057cc533d6d0ce05d255beb4d",
+  "document_tree_hash": "sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8",
+  "included_pack_ids": [
+    "repo-public-bootstrap-2026-06-15"
+  ],
+  "represented_documents": [
+    {
+      "path": "tasks/dependency-activation/task.md",
+      "hash": "sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59"
+    }
+  ],
+  "created_at": "2026-06-16T15:58:45.372Z",
+  "artifact": {
+    "file": "repo-public-bootstrap-2026-06-15.sqlite.zst",
+    "format": "sqlite-zstd",
+    "sha256": "sha256:8a16b98403babe5e8dd2d40bc72957283b361a157f3d5aa100a3bfcb881e77a9",
+    "compressed": true
+  },
+  "provenance": {
+    "builder": "plugins/desk/mcp/scripts/build-snapshot.js",
+    "source": "local-db",
+    "commit": "afc202300c6ad40df150adb7876a88a64c06df8d"
+  },
+  "source_paths": [
+    "plugins/desk/mcp/src/indexer/index.js",
+    "plugins/desk/mcp/src/indexer/vector-packs.js",
+    "plugins/desk/mcp/src/snapshots/manifest.js",
+    "plugins/desk/mcp/src/snapshots/restore.js",
+    "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+    "plugins/desk/mcp/src/artifacts/policy.js",
+    "plugins/desk/mcp/scripts/build-vector-pack.js",
+    "plugins/desk/mcp/scripts/build-snapshot.js",
+    "plugins/desk/mcp/scripts/verify-snapshot.js",
+    "plugins/desk/mcp/scripts/validate-artifacts.js",
+    "plugins/desk/mcp/src/db/schema.sql",
+    "plugins/desk/mcp/package.json",
+    "plugins/desk/mcp/package-lock.json"
+  ]
+}

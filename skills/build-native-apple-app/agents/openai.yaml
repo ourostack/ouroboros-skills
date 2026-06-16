@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Native Apple App"
+  short_description: "Build validated native iOS/macOS apps."
+  default_prompt: "Use $build-native-apple-app to build a native Apple app end to end with platform leverage, validation, and reviewer gates."

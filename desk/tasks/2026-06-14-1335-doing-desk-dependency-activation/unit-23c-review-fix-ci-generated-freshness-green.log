@@ -1,0 +1,114 @@
+TAP version 13
+# Subtest: Desk MCP package exposes every freshness artifact script CI needs
+ok 1 - Desk MCP package exposes every freshness artifact script CI needs
+  ---
+  duration_ms: 1.343
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier exports the production freshness contract
+ok 2 - root generated-artifact verifier exports the production freshness contract
+  ---
+  duration_ms: 6.9505
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier fails closed when required runtime packs are absent
+ok 3 - root generated-artifact verifier fails closed when required runtime packs are absent
+  ---
+  duration_ms: 277.99975
+  type: 'test'
+  ...
+# default io verifier failure
+# Subtest: root generated-artifact verifier propagates missing production vector and snapshot artifacts
+ok 4 - root generated-artifact verifier propagates missing production vector and snapshot artifacts
+  ---
+  duration_ms: 3.03075
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier rejects present but stale runtime dependency packs
+ok 5 - root generated-artifact verifier rejects present but stale runtime dependency packs
+  ---
+  duration_ms: 3.590333
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier CLI fails closed on setup exceptions
+ok 6 - root generated-artifact verifier CLI fails closed on setup exceptions
+  ---
+  duration_ms: 0.904584
+  type: 'test'
+  ...
+# Desk generated artifacts verified for plugins/desk/mcp/artifacts/runtime-deps/1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be, plugins/desk/artifacts/vector-packs/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768, plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768
+# Subtest: root generated-artifact verifier covers defensive helper and CLI branches
+ok 7 - root generated-artifact verifier covers defensive helper and CLI branches
+  ---
+  duration_ms: 628.982583
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier exists and validates current host-facing generated files
+ok 8 - root host-manifest verifier exists and validates current host-facing generated files
+  ---
+  duration_ms: 12.552375
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier catches stale generated host-facing files
+ok 9 - root host-manifest verifier catches stale generated host-facing files
+  ---
+  duration_ms: 80.218042
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier catches cross-host plugin version drift
+ok 10 - root host-manifest verifier catches cross-host plugin version drift
+  ---
+  duration_ms: 62.502125
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier catches worker body drift across host formats
+ok 11 - root host-manifest verifier catches worker body drift across host formats
+  ---
+  duration_ms: 29.0005
+  type: 'test'
+  ...
+# Subtest: validate-skills exits nonzero when desk freshness child verifiers fail
+ok 12 - validate-skills exits nonzero when desk freshness child verifiers fail
+  ---
+  duration_ms: 326.473542
+  type: 'test'
+  ...
+# Subtest: root validation delegates host manifest freshness and artifact availability checks
+ok 13 - root validation delegates host manifest freshness and artifact availability checks
+  ---
+  duration_ms: 0.439333
+  type: 'test'
+  ...
+# Subtest: desk MCP CI runs committed artifact and host manifest verifiers
+ok 14 - desk MCP CI runs committed artifact and host manifest verifiers
+  ---
+  duration_ms: 0.727542
+  type: 'test'
+  ...
+# Subtest: desk MCP CI path filters include every host-facing freshness input
+ok 15 - desk MCP CI path filters include every host-facing freshness input
+  ---
+  duration_ms: 0.7975
+  type: 'test'
+  ...
+# Subtest: validate-skills workflow reaches host manifest freshness through workflow or validator
+ok 16 - validate-skills workflow reaches host manifest freshness through workflow or validator
+  ---
+  duration_ms: 0.185709
+  type: 'test'
+  ...
+# Subtest: validate-skills workflow installs Desk MCP dependencies before root freshness validation
+ok 17 - validate-skills workflow installs Desk MCP dependencies before root freshness validation
+  ---
+  duration_ms: 0.14775
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1533.515083

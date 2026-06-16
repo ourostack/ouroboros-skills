@@ -1,0 +1,9 @@
+Desk docs validation failed:
+- plugins/desk/README.md:7 frames Desk as something to install manually in healthy-path prose
+- plugins/desk/README.md:8 frames Desk as something to install manually in healthy-path prose
+- plugins/desk/README.md:9 frames Desk as something to install manually in healthy-path prose
+- plugins/desk/README.md:21 frames Desk as something to install manually in healthy-path prose
+- plugins/desk/mcp/README.md:79 mentions npm install outside troubleshooting/developer notes
+- plugins/desk/README.md must state that embeddings and snapshots are derivative data and may carry privacy risk
+- plugins/desk/mcp/README.md must state that embeddings and snapshots are derivative data and may carry privacy risk
+- plugins/desk/activation/README.md must state that embeddings and snapshots are derivative data and may carry privacy risk

@@ -1,0 +1,105 @@
+TAP version 13
+# Subtest: canonical tombstone ledger and schema exist under plugin artifacts
+not ok 1 - canonical tombstone ledger and schema exist under plugin artifacts
+  ---
+  duration_ms: 2.471875
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:344:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '<repo>/plugins/desk/artifacts/tombstones/tombstone.schema.json'"
+  code: 'ENOENT'
+  stack: |-
+    async open (node:internal/fs/promises:636:25)
+    async Object.readFile (node:internal/fs/promises:1235:14)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:345:29)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: tombstone loader validates required row fields and repeated tombstones
+not ok 2 - tombstone loader validates required row fields and repeated tombstones
+  ---
+  duration_ms: 1.206917
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:407:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/tombstones.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: artifact writers reject tombstoned active and archived source docs before writes
+not ok 3 - artifact writers reject tombstoned active and archived source docs before writes
+  ---
+  duration_ms: 19.488666
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:576:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async assertInvalidLedgerRejectsBeforeArtifactWrites (file://<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:337:5)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:652:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact validation rejects packs and snapshots that still reference tombstoned docs
+not ok 4 - artifact validation rejects packs and snapshots that still reference tombstoned docs
+  ---
+  duration_ms: 0.710167
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:726:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/tombstones.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
+not ok 5 - artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
+  ---
+  duration_ms: 0.370458
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js:1019:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/tombstones.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/redaction_cleanup.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 0
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 143.585625

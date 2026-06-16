@@ -1,0 +1,136 @@
+TAP version 13
+# Subtest: discover excludes gitignored markdown before indexing
+ok 1 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 11.257625
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 2 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.211917
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 3 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 1.148833
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 4 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 1.092875
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules surfaces unexpected directory scan errors
+ok 5 - loadExclusionRules surfaces unexpected directory scan errors
+  ---
+  duration_ms: 0.597125
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 6 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 12.903041
+  type: 'test'
+  ...
+# Subtest: discover applies nested gitignore files and negated rules
+not ok 7 - discover applies nested gitignore files and negated rules
+  ---
+  duration_ms: 7.173625
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:283:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:308:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: discover excludes symlink and hidden docs while preserving person and shared docs
+ok 8 - discover excludes symlink and hidden docs while preserving person and shared docs
+  ---
+  duration_ms: 5.380625
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 9 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 3.989458
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 10 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 42.678875
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 11 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 1.787792
+  type: 'test'
+  ...
+# Subtest: artifact publication guard honors nested gitignore files and negated rules
+not ok 12 - artifact publication guard honors nested gitignore files and negated rules
+  ---
+  duration_ms: 3.4925
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:448:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    2 !== 3
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 3
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    Object.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:479:14)
+    expectedException (node:assert:576:17)
+    expectsError (node:assert:701:21)
+    Function.rejects (node:assert:767:3)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:466:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 13 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 2.40075
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 14 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.356666
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 15 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.267333
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 13
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 257.797333

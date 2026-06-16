@@ -1,0 +1,137 @@
+TAP version 13
+# Subtest: production shared artifact expectation uses canonical active-spec repo paths
+ok 1 - production shared artifact expectation uses canonical active-spec repo paths
+  ---
+  duration_ms: 14.376541
+  type: 'test'
+  ...
+# Subtest: production artifact verification notes declare commands, hashes, policy, and redaction checks
+ok 2 - production artifact verification notes declare commands, hashes, policy, and redaction checks
+  ---
+  duration_ms: 0.240875
+  type: 'test'
+  ...
+# Desk generated artifacts verified for plugins/desk/mcp/artifacts/runtime-deps/1.3.1/darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be, plugins/desk/artifacts/vector-packs/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768, plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768
+# Subtest: production shared artifacts are committed, approved, policy-checked, and fresh
+ok 3 - production shared artifacts are committed, approved, policy-checked, and fresh
+  ---
+  duration_ms: 321.748875
+  type: 'test'
+  ...
+# Subtest: production shared artifact verifier rejects missing or fixture-only artifacts
+ok 4 - production shared artifact verifier rejects missing or fixture-only artifacts
+  ---
+  duration_ms: 2.488584
+  type: 'test'
+  ...
+# Subtest: production policy approval must pass the committed publication-policy schema
+ok 5 - production policy approval must pass the committed publication-policy schema
+  ---
+  duration_ms: 3.855833
+  type: 'test'
+  ...
+# Subtest: production policy must require explicit publication approval
+ok 6 - production policy must require explicit publication approval
+  ---
+  duration_ms: 3.286291
+  type: 'test'
+  ...
+# Subtest: production document freshness compares manifests to the published current document tree
+ok 7 - production document freshness compares manifests to the published current document tree
+  ---
+  duration_ms: 4.222042
+  type: 'test'
+  ...
+# Subtest: production artifact sidecars must exist, be tracked, and start with valid checksums
+ok 8 - production artifact sidecars must exist, be tracked, and start with valid checksums
+  ---
+  duration_ms: 7.432959
+  type: 'test'
+  ...
+# Subtest: production verifier reports plain validation failures
+ok 9 - production verifier reports plain validation failures
+  ---
+  duration_ms: 4.904333
+  type: 'test'
+  ...
+# Subtest: production freshness manifests fail closed when snapshot sidecar JSON is unreadable
+ok 10 - production freshness manifests fail closed when snapshot sidecar JSON is unreadable
+  ---
+  duration_ms: 6.223708
+  type: 'test'
+  ...
+# Subtest: production artifact checksums can be validated from string git blobs
+ok 11 - production artifact checksums can be validated from string git blobs
+  ---
+  duration_ms: 5.94775
+  type: 'test'
+  ...
+# Subtest: production verifier propagates validator freshness for vector packs and snapshots
+ok 12 - production verifier propagates validator freshness for vector packs and snapshots
+  ---
+  duration_ms: 5.621917
+  type: 'test'
+  ...
+# Subtest: production notes must use canonical current freshness hash fields
+ok 13 - production notes must use canonical current freshness hash fields
+  ---
+  duration_ms: 4.086125
+  type: 'test'
+  ...
+# Subtest: production notes reject duplicate canonical current hash placeholders
+ok 14 - production notes reject duplicate canonical current hash placeholders
+  ---
+  duration_ms: 3.780542
+  type: 'test'
+  ...
+# Subtest: production artifact sidecar checksums must match committed bytes
+ok 15 - production artifact sidecar checksums must match committed bytes
+  ---
+  duration_ms: 4.455416
+  type: 'test'
+  ...
+# Subtest: production artifacts fail when repo-local represented docs changed after publication
+ok 16 - production artifacts fail when repo-local represented docs changed after publication
+  ---
+  duration_ms: 6.195666
+  type: 'test'
+  ...
+# Subtest: production artifacts require represented document metadata independent of artifact validation
+ok 17 - production artifacts require represented document metadata independent of artifact validation
+  ---
+  duration_ms: 4.275125
+  type: 'test'
+  ...
+# Subtest: production artifacts reject traversal syntax in represented document paths
+ok 18 - production artifacts reject traversal syntax in represented document paths
+  ---
+  duration_ms: 4.684625
+  type: 'test'
+  ...
+# Subtest: production artifacts reject malformed represented document entries
+ok 19 - production artifacts reject malformed represented document entries
+  ---
+  duration_ms: 4.679917
+  type: 'test'
+  ...
+# Subtest: production artifact checksums are compared against tracked bytes, not dirty working-tree bytes
+ok 20 - production artifact checksums are compared against tracked bytes, not dirty working-tree bytes
+  ---
+  duration_ms: 5.344833
+  type: 'test'
+  ...
+# Subtest: production verifier reports stale source scope, policy denial, and tombstoned validation failures
+ok 21 - production verifier reports stale source scope, policy denial, and tombstoned validation failures
+  ---
+  duration_ms: 5.678792
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 521.626333

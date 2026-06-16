@@ -1,0 +1,173 @@
+TAP version 13
+# Subtest: Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+ok 1 - Codex CLI activation smoke uses a temp profile and proves worker instructions plus desk_status
+  ---
+  duration_ms: 13.1455
+  type: 'test'
+  ...
+# Subtest: Codex smoke replaces stale temp activation blocks while preserving temp user config
+not ok 2 - Codex smoke replaces stale temp activation blocks while preserving temp user config
+  ---
+  duration_ms: 3.315
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:226:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /model = "gpt-5\.4"/u. Input:
+    
+    '# BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation\n' +
+      '[plugins."work-suite@ourostack"]\n' +
+      'enabled = true\n' +
+      '\n' +
+      '[plugins."desk@ourostack"]\n' +
+      'enabled = true\n' +
+      '\n' +
+      '[plugins."desk@ourostack".mcp_servers.desk]\n' +
+      'enabled = true\n' +
+      'default_tools_approval_mode = "prompt"\n' +
+      '# END desk activation\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    # BEGIN desk activation: desk@1.7.3 mode=global-personal owner=desk-activation
+    [plugins."work-suite@ourostack"]
+    enabled = true
+    
+    [plugins."desk@ourostack"]
+    enabled = true
+    
+    [plugins."desk@ourostack".mcp_servers.desk]
+    enabled = true
+    default_tools_approval_mode = "prompt"
+    # END desk activation
+    
+  operator: 'match'
+  stack: |-
+    codexRunner (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:258:16)
+    runCodexCliActivationSmoke (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/codex-smoke.js:43:30)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:251:26)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex smoke supports project-local activation without mutating global defaults
+not ok 3 - Codex smoke supports project-local activation without mutating global defaults
+  ---
+  duration_ms: 1.442375
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:284:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    codexRunner (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:297:16)
+    runCodexCliActivationSmoke (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/codex-smoke.js:43:30)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:289:26)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex smoke treats manual-only as an opt-out and can clean temp profile files
+not ok 4 - Codex smoke treats manual-only as an opt-out and can clean temp profile files
+  ---
+  duration_ms: 1.044208
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:331:1'
+  failureType: 'testCodeFailure'
+  error: 'Unexpected end of JSON input'
+  code: 'ERR_TEST_FAILURE'
+  name: 'SyntaxError'
+  stack: |-
+    JSON.parse (<anonymous>)
+    runCodexCliActivationSmoke (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/codex-smoke.js:54:33)
+    async TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:337:20)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+not ok 5 - Codex smoke reports missing Codex binary and failed MCP launch without stack traces
+  ---
+  duration_ms: 2.473458
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:361:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Codex CLI unavailable: codex binary not found/u. Input:
+    
+    'spawn codex ENOENT'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'spawn codex ENOENT'
+  operator: 'match'
+  stack: |-
+    Object.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:379:16)
+    expectedException (node:assert:576:17)
+    expectsError (node:assert:701:21)
+    Function.rejects (node:assert:767:3)
+    async TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:367:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex smoke rejects malformed output and desk_status proof failures
+not ok 6 - Codex smoke rejects malformed output and desk_status proof failures
+  ---
+  duration_ms: 1.643041
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:427:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Codex CLI smoke output did not contain a parseable final JSON message/u. Input:
+    
+    `SyntaxError: Unexpected token 'o', "not-json" is not valid JSON`
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: `Unexpected token 'o', "not-json" is not valid JSON`
+  name: 'SyntaxError'
+  stack: |-
+    JSON.parse (<anonymous>)
+    runCodexCliActivationSmoke (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/codex-smoke.js:54:33)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:433:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/codex_smoke.test.js:433:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Codex smoke evidence records CLI proof and an exact Desktop App fallback
+ok 7 - Codex smoke evidence records CLI proof and an exact Desktop App fallback
+  ---
+  duration_ms: 0.451916
+  type: 'test'
+  ...
+# Subtest: Codex support matrix points at the smoke contract and evidence artifact
+ok 8 - Codex support matrix points at the smoke contract and evidence artifact
+  ---
+  duration_ms: 0.122583
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 3
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 103.251209

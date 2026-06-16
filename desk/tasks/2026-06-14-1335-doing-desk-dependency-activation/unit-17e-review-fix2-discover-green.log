@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: discover picks up only the indexable shapes
+ok 1 - discover picks up only the indexable shapes
+  ---
+  duration_ms: 24.006708
+  type: 'test'
+  ...
+# Subtest: discover returns an empty list for a missing root
+ok 2 - discover returns an empty list for a missing root
+  ---
+  duration_ms: 0.576792
+  type: 'test'
+  ...
+# Subtest: discover surfaces unexpected directory read errors
+ok 3 - discover surfaces unexpected directory read errors
+  ---
+  duration_ms: 4.802041
+  type: 'test'
+  ...
+# Subtest: discover rejects immediately when startup abort signal is already tripped
+ok 4 - discover rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 3.094209
+  type: 'test'
+  ...
+# Subtest: discover propagates aborts tripped while describing a document
+ok 5 - discover propagates aborts tripped while describing a document
+  ---
+  duration_ms: 4.122833
+  type: 'test'
+  ...
+# Subtest: discover skips documents that become unreadable mid-walk
+ok 6 - discover skips documents that become unreadable mid-walk
+  ---
+  duration_ms: 4.676458
+  type: 'test'
+  ...
+# Subtest: discover indexes malformed frontmatter with empty metadata
+ok 7 - discover indexes malformed frontmatter with empty metadata
+  ---
+  duration_ms: 1.312291
+  type: 'test'
+  ...
+# Subtest: discover flags _archive docs with is_archived=true
+ok 8 - discover flags _archive docs with is_archived=true
+  ---
+  duration_ms: 5.122625
+  type: 'test'
+  ...
+# Subtest: discover classifies each doc correctly + extracts frontmatter
+ok 9 - discover classifies each doc correctly + extracts frontmatter
+  ---
+  duration_ms: 5.58325
+  type: 'test'
+  ...
+# Subtest: discover returns hash + mtime for dirty-detection
+ok 10 - discover returns hash + mtime for dirty-detection
+  ---
+  duration_ms: 3.983291
+  type: 'test'
+  ...
+# Subtest: isIndexable matches the intended set
+ok 11 - isIndexable matches the intended set
+  ---
+  duration_ms: 0.182125
+  type: 'test'
+  ...
+# Subtest: classify is purely path-driven
+ok 12 - classify is purely path-driven
+  ---
+  duration_ms: 0.196209
+  type: 'test'
+  ...
+# Subtest: normalizeDate preserves strings and normalizes Date or scalar values
+ok 13 - normalizeDate preserves strings and normalizes Date or scalar values
+  ---
+  duration_ms: 0.042709
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 184.21625

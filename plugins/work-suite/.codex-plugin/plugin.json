@@ -16,6 +16,15 @@
     "merge"
   ],
   "skills": "./skills/",
+  "activation": {
+    "codex": {
+      "dependencyProvider": {
+        "id": "work-suite",
+        "version": "1.4.9",
+        "resolution": "flattened"
+      }
+    }
+  },
   "interface": {
     "displayName": "Work Suite",
     "shortDescription": "Ideation, planning, doing, merging, and autonomous execution skills.",

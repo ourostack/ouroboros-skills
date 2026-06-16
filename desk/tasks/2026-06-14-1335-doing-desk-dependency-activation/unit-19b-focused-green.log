@@ -1,0 +1,409 @@
+TAP version 13
+# Subtest: committed publication policy and schema declare conservative privacy defaults
+ok 1 - committed publication policy and schema declare conservative privacy defaults
+  ---
+  duration_ms: 7.837125
+  type: 'test'
+  ...
+# Subtest: loadPublicationPolicy validates policy JSON against the committed schema
+ok 2 - loadPublicationPolicy validates policy JSON against the committed schema
+  ---
+  duration_ms: 6.639625
+  type: 'test'
+  ...
+# Subtest: publication policy loading fails closed for missing and malformed policy files
+ok 3 - publication policy loading fails closed for missing and malformed policy files
+  ---
+  duration_ms: 9.999958
+  type: 'test'
+  ...
+# Subtest: publication policy schema-version drift fails closed before artifact writes
+ok 4 - publication policy schema-version drift fails closed before artifact writes
+  ---
+  duration_ms: 12.4155
+  type: 'test'
+  ...
+# Subtest: publication policy schema requires approval and repository-sensitivity fields
+ok 5 - publication policy schema requires approval and repository-sensitivity fields
+  ---
+  duration_ms: 0.5595
+  type: 'test'
+  ...
+# Subtest: publication policy denies public and sensitive repo artifact publication without approval
+ok 6 - publication policy denies public and sensitive repo artifact publication without approval
+  ---
+  duration_ms: 0.241
+  type: 'test'
+  ...
+# Subtest: publication policy default allow is limited to private or internal nonsensitive repos
+ok 7 - publication policy default allow is limited to private or internal nonsensitive repos
+  ---
+  duration_ms: 3.607083
+  type: 'test'
+  ...
+# Subtest: publication policy explicit deny and uncertain repository state fail closed
+ok 8 - publication policy explicit deny and uncertain repository state fail closed
+  ---
+  duration_ms: 0.2605
+  type: 'test'
+  ...
+# Subtest: publication policy accepts explicit repo and organization approvals for allowed artifact types
+ok 9 - publication policy accepts explicit repo and organization approvals for allowed artifact types
+  ---
+  duration_ms: 5.533917
+  type: 'test'
+  ...
+# Subtest: organization policy approvals override repo-scoped approvals for the same artifact type
+ok 10 - organization policy approvals override repo-scoped approvals for the same artifact type
+  ---
+  duration_ms: 1.0285
+  type: 'test'
+  ...
+# Subtest: artifact write guard blocks vector-pack and snapshot writes without approval
+ok 11 - artifact write guard blocks vector-pack and snapshot writes without approval
+  ---
+  duration_ms: 9.040292
+  type: 'test'
+  ...
+# Subtest: artifact write paths fail closed when the publication policy is invalid
+ok 12 - artifact write paths fail closed when the publication policy is invalid
+  ---
+  duration_ms: 4.798291
+  type: 'test'
+  ...
+# Subtest: ordinary startup does not write committed artifact files
+ok 13 - ordinary startup does not write committed artifact files
+  ---
+  duration_ms: 24.555042
+  type: 'test'
+  ...
+# Subtest: discover picks up only the indexable shapes
+ok 14 - discover picks up only the indexable shapes
+  ---
+  duration_ms: 33.411
+  type: 'test'
+  ...
+# Subtest: discover returns an empty list for a missing root
+ok 15 - discover returns an empty list for a missing root
+  ---
+  duration_ms: 0.699292
+  type: 'test'
+  ...
+# Subtest: discover surfaces unexpected directory read errors
+ok 16 - discover surfaces unexpected directory read errors
+  ---
+  duration_ms: 9.164208
+  type: 'test'
+  ...
+# Subtest: discover rejects immediately when startup abort signal is already tripped
+ok 17 - discover rejects immediately when startup abort signal is already tripped
+  ---
+  duration_ms: 3.829625
+  type: 'test'
+  ...
+# Subtest: discover propagates aborts tripped while describing a document
+ok 18 - discover propagates aborts tripped while describing a document
+  ---
+  duration_ms: 5.8015
+  type: 'test'
+  ...
+# Subtest: discover skips documents that become unreadable mid-walk
+ok 19 - discover skips documents that become unreadable mid-walk
+  ---
+  duration_ms: 6.819667
+  type: 'test'
+  ...
+# Subtest: discover indexes malformed frontmatter with empty metadata
+ok 20 - discover indexes malformed frontmatter with empty metadata
+  ---
+  duration_ms: 2.338708
+  type: 'test'
+  ...
+# Subtest: discover flags _archive docs with is_archived=true
+ok 21 - discover flags _archive docs with is_archived=true
+  ---
+  duration_ms: 11.100334
+  type: 'test'
+  ...
+# Subtest: discover classifies each doc correctly + extracts frontmatter
+ok 22 - discover classifies each doc correctly + extracts frontmatter
+  ---
+  duration_ms: 11.487208
+  type: 'test'
+  ...
+# Subtest: discover returns hash + mtime for dirty-detection
+ok 23 - discover returns hash + mtime for dirty-detection
+  ---
+  duration_ms: 7.588
+  type: 'test'
+  ...
+# Subtest: isIndexable matches the intended set
+ok 24 - isIndexable matches the intended set
+  ---
+  duration_ms: 0.215833
+  type: 'test'
+  ...
+# Subtest: classify is purely path-driven
+ok 25 - classify is purely path-driven
+  ---
+  duration_ms: 0.377667
+  type: 'test'
+  ...
+# Subtest: normalizeDate preserves strings and normalizes Date or scalar values
+ok 26 - normalizeDate preserves strings and normalizes Date or scalar values
+  ---
+  duration_ms: 0.074208
+  type: 'test'
+  ...
+# Subtest: discover excludes gitignored markdown before indexing
+ok 27 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 10.773458
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 28 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.563292
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 29 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 1.246375
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 30 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 1.527041
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 31 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 13.361
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 32 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 2.217583
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 33 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 38.359084
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 34 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 1.384875
+  type: 'test'
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 35 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 2.397292
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 36 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.885541
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 37 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 6.861625
+  type: 'test'
+  ...
+# Subtest: empty desk → empty index
+ok 38 - empty desk → empty index
+  ---
+  duration_ms: 15.401834
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 39 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 29.457541
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 40 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 16.015875
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 41 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 19.402083
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+ok 42 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 12.921333
+  type: 'test'
+  ...
+# Subtest: unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+ok 43 - unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+  ---
+  duration_ms: 14.687666
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 44 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 37.1885
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 45 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 19.370833
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 46 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 7.986125
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 47 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 14.360792
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 48 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 12.667666
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 49 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 18.905625
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 50 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 9.07425
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+ok 51 - unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+  ---
+  duration_ms: 11.080125
+  type: 'test'
+  ...
+# Subtest: large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+ok 52 - large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+  ---
+  duration_ms: 10047.4595
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: large missing-vector batches append rows without spread argument overflow
+ok 53 - large missing-vector batches append rows without spread argument overflow
+  ---
+  duration_ms: 5473.362209
+  type: 'test'
+  ...
+# Subtest: snapshot paths are canonical, plugin-root relative, and spec-scoped
+ok 54 - snapshot paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.707
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts require manifest fields and checksum sidecars
+ok 55 - valid snapshot artifacts require manifest fields and checksum sidecars
+  ---
+  duration_ms: 22.219625
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts infer sidecars and compare nested manifest metadata
+ok 56 - valid snapshot artifacts infer sidecars and compare nested manifest metadata
+  ---
+  duration_ms: 4.654833
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts accept raw checksum sidecars
+ok 57 - valid snapshot artifacts accept raw checksum sidecars
+  ---
+  duration_ms: 2.9205
+  type: 'test'
+  ...
+# Subtest: manifest source/document hash mismatch is freshness, not compatibility failure
+ok 58 - manifest source/document hash mismatch is freshness, not compatibility failure
+  ---
+  duration_ms: 0.337875
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects compatibility and provenance drift
+ok 59 - snapshot manifest rejects compatibility and provenance drift
+  ---
+  duration_ms: 0.66825
+  type: 'test'
+  ...
+# Subtest: snapshot manifests reject absolute, traversal, and unexpected source paths
+ok 60 - snapshot manifests reject absolute, traversal, and unexpected source paths
+  ---
+  duration_ms: 0.408041
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects checksum mismatch
+ok 61 - snapshot artifact validation rejects checksum mismatch
+  ---
+  duration_ms: 4.449208
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects manifest and snapshot filename drift
+ok 62 - snapshot artifact validation rejects manifest and snapshot filename drift
+  ---
+  duration_ms: 3.267041
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation preserves non-missing filesystem errors
+ok 63 - snapshot artifact validation preserves non-missing filesystem errors
+  ---
+  duration_ms: 3.460666
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects missing and malformed sidecars
+ok 64 - snapshot artifact validation rejects missing and malformed sidecars
+  ---
+  duration_ms: 5.285291
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects invalid paths and missing sidecars
+ok 65 - snapshot artifact validation rejects invalid paths and missing sidecars
+  ---
+  duration_ms: 5.859917
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects missing expected compatibility context and defensive shapes
+ok 66 - snapshot manifest rejects missing expected compatibility context and defensive shapes
+  ---
+  duration_ms: 0.690125
+  type: 'test'
+  ...
+1..66
+# tests 66
+# suites 0
+# pass 66
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15895.34325
