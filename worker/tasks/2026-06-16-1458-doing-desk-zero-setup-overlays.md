@@ -119,3 +119,4 @@ Acceptance:
 - 2026-06-16 15:20 Unit 4 complete: overlay ladder docs, Codex cache audit coverage, and host/generated freshness evidence captured under `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-4-*.log`.
 - 2026-06-16 15:34 Unit 5 complete: targeted activation/status, full MCP tests, coverage, root validation, host freshness, generated artifact freshness, and cache audit evidence captured under `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-5-*`.
 - 2026-06-16 15:34 Cold reviewer findings addressed: cache audit namespace now derives from `.agents/plugins/marketplace.json`, `.agents` marketplace validation requires local Desk/Work Suite entries, and final coverage is 100% on all changed production files.
+- 2026-06-16 15:40 Round 2 reviewer minor addressed: CLI `--marketplace` relative paths now remain repo-root-relative instead of shell-CWD-relative; cache audit, coverage, full MCP, and root validation evidence refreshed.

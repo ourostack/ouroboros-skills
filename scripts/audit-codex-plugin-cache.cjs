@@ -157,7 +157,7 @@ function parseArgs(argv) {
     } else if (arg === "--cache-root" && argv[index + 1]) {
       options.cacheRoot = path.resolve(argv[++index]);
     } else if (arg === "--marketplace" && argv[index + 1]) {
-      options.marketplacePath = path.resolve(argv[++index]);
+      options.marketplacePath = argv[++index];
     } else if (arg === "--plugins" && argv[index + 1]) {
       options.plugins = argv[++index].split(",").map((name) => name.trim()).filter(Boolean);
     } else if (arg === "--strict") {

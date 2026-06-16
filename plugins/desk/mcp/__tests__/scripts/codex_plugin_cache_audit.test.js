@@ -210,6 +210,27 @@ test("Codex plugin cache audit CLI covers strict and error paths", () => {
     assert.equal(JSON.parse(stdout.join("")).status, "current")
     assert.equal(stderr.join(""), "")
 
+    const relativeMarketplaceStdout = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--marketplace", ".agents/plugins/marketplace.json",
+          "--plugins", "desk",
+        ],
+        stdout: { write: (text) => relativeMarketplaceStdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      }),
+      0,
+    )
+    assert.equal(JSON.parse(relativeMarketplaceStdout.join("")).marketplace_path, path.join(
+      fixture.repoRoot,
+      ".agents",
+      "plugins",
+      "marketplace.json",
+    ))
+
     rmSync(path.join(fixture.codexHome, "plugins", "cache"), { recursive: true, force: true })
     const staleStdout = []
     assert.equal(
