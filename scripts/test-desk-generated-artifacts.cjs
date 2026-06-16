@@ -57,12 +57,15 @@ async function loadRuntimeDeps(mcpRoot = defaultMcpRoot) {
 }
 
 async function loadProductionArtifactModules(mcpRoot = defaultMcpRoot) {
-  const [spec, artifactScripts] = await Promise.all([
+  const [spec, artifactScripts, policy] = await Promise.all([
     import(pathToFileURL(path.join(mcpRoot, "src", "indexer", "spec.js")).href),
     import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "artifact-scripts.js")).href),
+    import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "policy.js")).href),
   ]);
   return {
     activeEmbeddingSpec: spec.ACTIVE_EMBEDDING_SPEC,
+    evaluateArtifactPublication: policy.evaluateArtifactPublication,
+    loadPublicationPolicy: policy.loadPublicationPolicy,
     validateArtifacts: artifactScripts.validateArtifacts,
   };
 }
@@ -379,7 +382,11 @@ async function productionSharedArtifactExpectation(options = {}) {
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
   const mcpRoot = options.mcpRoot ?? path.join(repoRoot, "plugins", "desk", "mcp");
   const pluginRoot = options.pluginRoot ?? path.join(repoRoot, "plugins", "desk");
-  const modules = options.productionArtifactModules ?? await loadProductionArtifactModules(mcpRoot);
+  const defaultModules = await loadProductionArtifactModules(mcpRoot);
+  const modules = {
+    ...defaultModules,
+    ...(options.productionArtifactModules ?? {}),
+  };
   const embeddingSpecId = options.embeddingSpecId ?? modules.activeEmbeddingSpec.id;
   const relativeVectorPackDir = normalizePath(path.join(
     "plugins",
@@ -427,7 +434,7 @@ async function verifyProductionSharedArtifacts({
   });
 
   verifyProductionNotes({ expectation, errors, existsSync, spawn });
-  verifyPublicationPolicyApprovals({ expectation, errors, existsSync });
+  await verifyPublicationPolicyApprovals({ expectation, errors, existsSync });
   verifyPrimaryArtifactSet({
     errors,
     files: vectorPackFiles,
@@ -459,9 +466,11 @@ async function verifyProductionSharedArtifacts({
     errors.push(`production shared artifact validation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
+  const expectedHashes = verifyProductionHashes({ expectation, errors, existsSync });
   verifyFreshnessManifests({
     errors,
     expectation,
+    expectedHashes,
     vectorPackFiles,
     snapshotFiles,
   });
@@ -530,22 +539,25 @@ function verifyProductionNotes({ expectation, errors, existsSync, spawn }) {
   }
 }
 
-function verifyPublicationPolicyApprovals({ expectation, errors, existsSync }) {
+async function verifyPublicationPolicyApprovals({ expectation, errors, existsSync }) {
   if (!existsSync(expectation.policyPath)) {
     errors.push("production artifact publication policy missing: plugins/desk/artifacts/publication-policy.json");
     return;
   }
-  const policy = readJsonIfPresent(expectation.policyPath, errors, "production artifact publication policy");
-  if (policy === undefined) return;
+  const loaded = await expectation.modules.loadPublicationPolicy({ pluginRoot: expectation.pluginRoot });
+  if (!loaded.valid) {
+    errors.push(...loaded.diagnostics);
+    return;
+  }
+  const policy = loaded.policy;
   for (const artifactType of productionArtifactTypes) {
-    if (!Array.isArray(policy.approved_artifact_types) || !policy.approved_artifact_types.includes(artifactType)) {
-      errors.push(`production artifact publication policy must approve ${artifactType}`);
-    }
-    const approval = Array.isArray(policy.approvals)
-      ? policy.approvals.find((entry) => entry?.artifact_type === artifactType)
-      : undefined;
-    if (!approval) {
-      errors.push(`production artifact publication policy must include a ${artifactType} approval`);
+    const decision = expectation.modules.evaluateArtifactPublication({
+      policy,
+      artifact_type: artifactType,
+      operation: "publish",
+    });
+    if (!decision.allowed) {
+      errors.push(`production artifact publication policy must approve ${artifactType}: ${decision.reason}`);
     }
   }
   if (policy.approval_required !== true) {
@@ -585,8 +597,35 @@ function verifyPrimaryArtifactSet({
   }
 }
 
-function verifyFreshnessManifests({ errors, expectation, vectorPackFiles, snapshotFiles }) {
+function verifyProductionHashes({ expectation, errors, existsSync }) {
   const expectedArtifactSourceScopeHash = artifactSourceScopeHash(expectation.mcpRoot);
+  const out = {
+    artifactSourceScopeHash: expectedArtifactSourceScopeHash,
+    documentTreeHash: null,
+  };
+  if (!existsSync(expectation.notesPath)) return out;
+  const notes = fs.readFileSync(expectation.notesPath, "utf8");
+  const notedSourceHash = hashFieldFromNotes(notes, "artifact_source_scope_hash");
+  const notedDocumentTreeHash = hashFieldFromNotes(notes, "document_tree_hash");
+  if (!notedSourceHash) {
+    errors.push("production-artifacts.md must record artifact_source_scope_hash as sha256:<hex>");
+  } else if (notedSourceHash !== expectedArtifactSourceScopeHash) {
+    errors.push("production-artifacts.md artifact_source_scope_hash must match current source scope");
+  }
+  if (!notedDocumentTreeHash) {
+    errors.push("production-artifacts.md must record document_tree_hash as sha256:<hex>");
+  } else {
+    out.documentTreeHash = notedDocumentTreeHash;
+  }
+  return out;
+}
+
+function hashFieldFromNotes(notes, field) {
+  const match = notes.match(new RegExp(`${escapeRegExp(field)}\\s*:?\\s*(sha256:[a-f0-9]{64})`, "iu"));
+  return match?.[1]?.toLowerCase();
+}
+
+function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorPackFiles, snapshotFiles }) {
   for (const packPath of vectorPackFiles) {
     const manifestPath = sidecarPath(packPath, ".jsonl", ".manifest.json");
     const manifest = readJsonIfPresent(manifestPath, errors, "production vector pack manifest");
@@ -595,7 +634,7 @@ function verifyFreshnessManifests({ errors, expectation, vectorPackFiles, snapsh
       errors,
       label: `production vector pack ${path.basename(packPath)}`,
       manifest,
-      expectedArtifactSourceScopeHash,
+      expectedHashes,
     });
   }
   for (const snapshotPath of snapshotFiles) {
@@ -606,18 +645,20 @@ function verifyFreshnessManifests({ errors, expectation, vectorPackFiles, snapsh
       errors,
       label: `production snapshot ${path.basename(snapshotPath)}`,
       manifest,
-      expectedArtifactSourceScopeHash,
+      expectedHashes,
     });
   }
 }
 
-function verifyFreshnessFields({ errors, label, manifest, expectedArtifactSourceScopeHash }) {
-  const documentTree = documentTreeHash(manifest.represented_documents ?? []);
-  if (manifest.artifact_source_scope_hash !== expectedArtifactSourceScopeHash) {
+function verifyFreshnessFields({ errors, label, manifest, expectedHashes }) {
+  if (manifest.artifact_source_scope_hash !== expectedHashes.artifactSourceScopeHash) {
     errors.push(`${label} artifact_source_scope_hash must match current source scope`);
   }
-  if (manifest.document_tree_hash !== documentTree) {
-    errors.push(`${label} document_tree_hash must match represented documents`);
+  if (
+    expectedHashes.documentTreeHash &&
+    manifest.document_tree_hash !== expectedHashes.documentTreeHash
+  ) {
+    errors.push(`${label} document_tree_hash must match production-artifacts.md`);
   }
 }
 
