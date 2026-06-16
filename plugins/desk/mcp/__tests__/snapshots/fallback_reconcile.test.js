@@ -37,9 +37,9 @@ const SQLITE_VEC = {
   table: "vec0",
 }
 const RUNTIME = {
-  platform: process.platform,
-  arch: process.arch,
-  node_abi: `node-${process.versions.modules}`,
+  platform: "portable",
+  arch: "portable",
+  node_abi: "portable",
 }
 
 async function tmpRoot(prefix) {

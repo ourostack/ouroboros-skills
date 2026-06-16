@@ -25,7 +25,7 @@ Commands run:
 
 Current freshness anchors:
 
-- current_artifact_source_scope_hash: sha256:ea753dd66f7652721d8c60646d8eca457f7b7718b37906a938b01a8fc246d7f5
+- current_artifact_source_scope_hash: sha256:8b978e8566c015bee3d46c924286bc309582117057cc533d6d0ce05d255beb4d
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
 
 Published vector pack:
@@ -36,11 +36,11 @@ Published vector pack:
 - `pack_id`: `repo-public-bootstrap-2026-06-15`
 - `row_count`: 2
 - `rows_sha256`: `974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c`
-- `artifact_source_scope_hash`: `sha256:ea753dd66f7652721d8c60646d8eca457f7b7718b37906a938b01a8fc246d7f5`
+- `artifact_source_scope_hash`: `sha256:8b978e8566c015bee3d46c924286bc309582117057cc533d6d0ce05d255beb4d`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `16c60c935bf30c50282883bfc14e4703224b36a6`
+- Provenance commit: `afc202300c6ad40df150adb7876a88a64c06df8d`
 
 Published snapshot:
 
@@ -48,14 +48,14 @@ Published snapshot:
 - Manifest: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.manifest.json`
 - Checksum: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sha256`
 - `snapshot_id`: `repo-public-bootstrap-2026-06-15`
-- `artifact_source_scope_hash`: `sha256:ea753dd66f7652721d8c60646d8eca457f7b7718b37906a938b01a8fc246d7f5`
+- `artifact_source_scope_hash`: `sha256:8b978e8566c015bee3d46c924286bc309582117057cc533d6d0ce05d255beb4d`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `included_pack_ids`: `repo-public-bootstrap-2026-06-15`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
 - Artifact sha256: `sha256:8a16b98403babe5e8dd2d40bc72957283b361a157f3d5aa100a3bfcb881e77a9`
-- Runtime: `darwin-arm64-node-127`
-- Provenance commit: `16c60c935bf30c50282883bfc14e4703224b36a6`
+- Runtime: `portable-portable-portable`
+- Provenance commit: `afc202300c6ad40df150adb7876a88a64c06df8d`
 
 Approval state:
 

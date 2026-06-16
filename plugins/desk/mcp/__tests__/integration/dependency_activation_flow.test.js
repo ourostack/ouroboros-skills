@@ -37,9 +37,9 @@ const productionSnapshotRoot = path.join(
   ACTIVE_EMBEDDING_SPEC.id,
 )
 const expectedRuntime = {
-  platform: process.platform,
-  arch: process.arch,
-  node_abi: `node-${process.versions.modules}`,
+  platform: "portable",
+  arch: "portable",
+  node_abi: "portable",
 }
 const expectedSqliteVec = {
   package: "sqlite-vec",

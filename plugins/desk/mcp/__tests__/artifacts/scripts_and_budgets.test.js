@@ -962,6 +962,11 @@ test("artifact script CLIs cover help, usage errors, repeated args, and targeted
       `${nextSnapshotId}.manifest.json`,
     ))
     assert.deepEqual(manifest.included_pack_ids, [vectorTarget.id, "second-pack", "third-pack"])
+    assert.deepEqual(manifest.runtime, {
+      platform: "portable",
+      arch: "portable",
+      node_abi: "portable",
+    })
 
     for (const snapshotId of [snapshotTarget.id, nextSnapshotId]) {
       rewriteJson(

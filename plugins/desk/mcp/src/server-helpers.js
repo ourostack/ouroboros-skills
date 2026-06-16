@@ -24,6 +24,11 @@ const DEFAULT_MCP_ROOT = path.resolve(MODULE_DIR, "..")
 const DEFAULT_PLUGIN_ROOT = path.resolve(DEFAULT_MCP_ROOT, "..")
 const SNAPSHOT_DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
 const SNAPSHOT_SQLITE_VEC_TABLE = "vec0"
+const SNAPSHOT_PORTABLE_RUNTIME = Object.freeze({
+  platform: "portable",
+  arch: "portable",
+  node_abi: "portable",
+})
 const ARTIFACT_SOURCE_SCOPE_PATHS = Object.freeze([
   "plugins/desk/mcp/src/indexer/index.js",
   "plugins/desk/mcp/src/indexer/vector-packs.js",
@@ -223,11 +228,7 @@ function defaultSnapshotCompatibilityContext({ deskRoot, signal } = {}) {
       version: sqliteVecVersion(),
       table: SNAPSHOT_SQLITE_VEC_TABLE,
     },
-    expectedRuntime: {
-      platform: process.platform,
-      arch: process.arch,
-      node_abi: `node-${process.versions.modules}`,
-    },
+    expectedRuntime: SNAPSHOT_PORTABLE_RUNTIME,
     expectedArtifactSourceScopeHash: artifactSourceScopeHash(),
     expectedDocumentTreeHash: () => currentDocumentTreeHash(deskRoot, signal),
   }
