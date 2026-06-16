@@ -132,11 +132,34 @@ function writePrimaryWithSidecars({ dir, id, primarySuffix, manifest }) {
   writeFile(dir, `${id}.sha256`, `${sha256("artifact bytes\n")}  ${id}${primarySuffix}\n`)
 }
 
+function writePrimaryWithBadChecksum({ dir, id, primarySuffix, manifest }) {
+  writeFile(dir, `${id}${primarySuffix}`, "artifact bytes\n")
+  writeJson(dir, `${id}.manifest.json`, manifest)
+  writeFile(dir, `${id}.sha256`, `${sha256("wrong artifact bytes\n")}  ${id}${primarySuffix}\n`)
+}
+
+function greenValidation() {
+  return {
+    vector_packs: { count: 1, artifacts: [{ pack_id: "unit-pack", rows: 1 }] },
+    snapshots: {
+      count: 1,
+      artifacts: [{
+        snapshot_id: "unit-snapshot",
+        freshness: {
+          artifact_source_scope: "fresh",
+          document_tree: "fresh",
+        },
+      }],
+    },
+  }
+}
+
 async function tempExpectation({ tempDir, modules } = {}) {
   return generatedArtifacts.productionSharedArtifactExpectation({
     repoRoot,
     mcpRoot,
     pluginRoot: path.join(tempDir, "plugins", "desk"),
+    deskRoot: path.join(tempDir, "desk"),
     notesPath: path.join(tempDir, "production-artifacts.md"),
     productionArtifactModules: modules,
   })
@@ -419,6 +442,174 @@ test("production notes reject duplicate canonical current hash placeholders", as
     assert.equal(result.ok, false)
     assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_artifact_source_scope_hash/u)
     assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_document_tree_hash/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifact sidecar checksums must match committed bytes", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-checksum-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithBadChecksum({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithBadChecksum({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl checksum must match artifact bytes/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst checksum must match artifact bytes/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production artifacts fail when repo-local represented docs changed after publication", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-current-docs-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const publishedDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("old body\n") }]
+    const currentDocHash = sha256("new body\n")
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "new body\n",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(publishedDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const manifest = {
+      artifact_source_scope_hash: sourceHash,
+      document_tree_hash: docTree(publishedDocs),
+      represented_documents: publishedDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /represented document tasks\/dependency-activation\/task\.md hash must match current repo document/u)
+    assert.match(result.errors.join("\n"), new RegExp(`current ${currentDocHash.slice(0, 18)}`, "u"))
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production verifier reports stale source scope, policy denial, and tombstoned validation failures", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-hardening-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{ path: "tasks/dependency-activation/task.md", hash: sha256("current") }]
+    const tombstoneError = new Error("artifact represents redacted documents")
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        activeEmbeddingSpec: { id: "unit-spec" },
+        validateArtifacts: async () => {
+          throw tombstoneError
+        },
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy({
+      approved_artifact_types: ["vector-pack"],
+      approvals: [validApproval("vector-pack")],
+    }))
+    const manifest = {
+      artifact_source_scope_hash: sha256("stale source"),
+      document_tree_hash: docTree(currentDocs),
+      represented_documents: currentDocs,
+    }
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.vectorPackDir),
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest,
+    })
+    writePrimaryWithSidecars({
+      dir: path.join(expectation.snapshotDir),
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest,
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    })
+
+    assert.equal(result.ok, false)
+    assert.match(result.errors.join("\n"), /production artifact publication policy must approve snapshot/u)
+    assert.match(result.errors.join("\n"), /production shared artifact validation failed: artifact represents redacted documents/u)
+    assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl artifact_source_scope_hash must match current source scope/u)
+    assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst artifact_source_scope_hash must match current source scope/u)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }

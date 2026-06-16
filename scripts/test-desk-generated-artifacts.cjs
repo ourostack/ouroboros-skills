@@ -385,6 +385,7 @@ async function productionSharedArtifactExpectation(options = {}) {
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
   const mcpRoot = options.mcpRoot ?? path.join(repoRoot, "plugins", "desk", "mcp");
   const pluginRoot = options.pluginRoot ?? path.join(repoRoot, "plugins", "desk");
+  const deskRoot = options.deskRoot ?? path.join(repoRoot, "desk");
   const defaultModules = await loadProductionArtifactModules(mcpRoot);
   const modules = {
     ...defaultModules,
@@ -409,6 +410,7 @@ async function productionSharedArtifactExpectation(options = {}) {
     repoRoot,
     mcpRoot,
     pluginRoot,
+    deskRoot,
     modules,
     embeddingSpecId,
     vectorPackDir: path.join(pluginRoot, "artifacts", "vector-packs", embeddingSpecId),
@@ -597,7 +599,35 @@ function verifyPrimaryArtifactSet({
         errors.push(`${label} artifact must be tracked by git: ${repoPath}`);
       }
     }
+    verifyProductionArtifactChecksum({
+      errors,
+      label: `${label} ${path.basename(primaryPath)}`,
+      primaryPath,
+      checksumPath: sidecarPath(primaryPath, primarySuffix, ".sha256"),
+      existsSync,
+    });
   }
+}
+
+function verifyProductionArtifactChecksum({ errors, label, primaryPath, checksumPath, existsSync }) {
+  if (!existsSync(primaryPath) || !existsSync(checksumPath)) return;
+  const checksum = readProductionArtifactChecksum(checksumPath, errors, label);
+  if (!checksum) return;
+  const artifactSha = `sha256:${sha256(fs.readFileSync(primaryPath))}`;
+  if (checksum !== artifactSha) {
+    errors.push(`${label} checksum must match artifact bytes`);
+  }
+}
+
+function readProductionArtifactChecksum(checksumPath, errors, label) {
+  const bytes = readFileIfPresent(checksumPath);
+  if (bytes === undefined) return undefined;
+  const match = bytes.toString("utf8").match(/^\s*(sha256:[a-f0-9]{64}|[a-f0-9]{64})\b/u);
+  if (!match) {
+    errors.push(`${label} checksum must start with a sha256 digest`);
+    return undefined;
+  }
+  return match[1].startsWith("sha256:") ? match[1] : `sha256:${match[1]}`;
 }
 
 function verifyProductionHashes({ expectation, errors, existsSync }) {
@@ -655,6 +685,13 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
       manifest,
       expectedHashes,
     });
+    verifyCurrentRepresentedDocuments({
+      errors,
+      expectation,
+      label: `production vector pack ${path.basename(packPath)}`,
+      manifest,
+      expectedHashes,
+    });
   }
   for (const snapshotPath of snapshotFiles) {
     const manifestPath = sidecarPath(snapshotPath, ".sqlite.zst", ".manifest.json");
@@ -662,6 +699,13 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
     if (manifest === undefined) continue;
     verifyFreshnessFields({
       errors,
+      label: `production snapshot ${path.basename(snapshotPath)}`,
+      manifest,
+      expectedHashes,
+    });
+    verifyCurrentRepresentedDocuments({
+      errors,
+      expectation,
       label: `production snapshot ${path.basename(snapshotPath)}`,
       manifest,
       expectedHashes,
@@ -679,6 +723,51 @@ function verifyFreshnessFields({ errors, label, manifest, expectedHashes }) {
   ) {
     errors.push(`${label} document_tree_hash must match production-artifacts.md`);
   }
+}
+
+function verifyCurrentRepresentedDocuments({ errors, expectation, label, manifest, expectedHashes }) {
+  if (!Array.isArray(manifest.represented_documents)) return;
+  const currentDocs = [];
+  for (const doc of manifest.represented_documents) {
+    if (!doc || typeof doc !== "object" || Array.isArray(doc)) continue;
+    const docPath = normalizedRelativeDocPath(doc.path);
+    if (!docPath) {
+      errors.push(`${label} represented document path must be a normalized relative path`);
+      continue;
+    }
+    const currentPath = path.join(expectation.deskRoot, docPath);
+    const currentBytes = readFileIfPresent(currentPath);
+    if (currentBytes === undefined) {
+      errors.push(`${label} represented document ${docPath} must exist in current repo desk`);
+      continue;
+    }
+    const currentHash = `sha256:${sha256(currentBytes)}`;
+    currentDocs.push({ path: docPath, hash: currentHash });
+    const manifestHash = canonicalSha(doc.hash);
+    if (manifestHash !== currentHash) {
+      errors.push(`${label} represented document ${docPath} hash must match current repo document (manifest ${manifestHash}, current ${currentHash})`);
+    }
+  }
+  if (expectedHashes.documentTreeHash && currentDocs.length > 0) {
+    const currentTreeHash = documentTreeHash(currentDocs);
+    if (currentTreeHash !== expectedHashes.documentTreeHash) {
+      errors.push(`${label} current repo document tree must match production-artifacts.md ${productionCurrentDocumentHashField}`);
+    }
+  }
+}
+
+function normalizedRelativeDocPath(value) {
+  if (typeof value !== "string" || value.trim() === "" || value !== value.trim()) {
+    return undefined;
+  }
+  if (path.isAbsolute(value) || value.includes("\\") || value.includes("\0")) {
+    return undefined;
+  }
+  const normalized = normalizePath(path.posix.normalize(value));
+  if (normalized === "." || normalized.startsWith("../") || normalized.includes("/../")) {
+    return undefined;
+  }
+  return normalized;
 }
 
 function artifactSourceScopeHash(mcpRoot) {
