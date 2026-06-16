@@ -55,6 +55,7 @@ const requiredHostFreshnessPathFilters = [
 const requiredHostManifestChecks = [
   "support-matrix",
   "copilot-bundle",
+  "copilot-plugin-metadata",
   "codex-plugin",
   "claude-plugin",
   "worker-sources",
@@ -496,6 +497,17 @@ test("root host-manifest verifier catches stale generated host-facing files", as
       },
     },
     {
+      label: "copilot-plugin-metadata",
+      errorPattern: /copilot[- ]plugin[- ]metadata|Copilot desk:worker target|Copilot Work Suite dependency/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "desk", "plugin.json")
+        plugin.activation.copilot.targets["desk:worker"].source = "agents/worker.md"
+        plugin.activation.copilot.dependencies["work-suite"].bundleMetadata =
+          "plugins/desk/activation/stale-bundle.json"
+        writeJson(fixtureRoot, "plugins/desk/plugin.json", plugin)
+      },
+    },
+    {
       label: "claude-plugin",
       errorPattern: /claude[- ]plugin/u,
       mutate: (fixtureRoot) => {
@@ -652,5 +664,31 @@ test("validate-skills workflow reaches host manifest freshness through workflow 
   assert.ok(
     workflowDirectlyRunsHostVerifier || validatorRunsScript(hostManifestScript),
     "validate-skills.yml must fail on host manifest drift directly or through validate-skills.cjs",
+  )
+})
+
+test("validate-skills workflow installs Desk MCP dependencies before root freshness validation", () => {
+  const workflow = loadText(".github", "workflows", "validate-skills.yml")
+  const steps = workflowStepBlocks(workflowJob(workflow, "validate"))
+  const validateIndex = steps.findIndex((stepBlock) => (
+    workflowStepRunsRootScript(stepBlock, "scripts/validate-skills.cjs")
+  ))
+  const installIndex = steps.findIndex((stepBlock) => (
+    workflowStepWorkingDirectory(stepBlock) === "plugins/desk/mcp" &&
+      workflowStepRunText(stepBlock)
+        .split(/\r?\n/u)
+        .some((line) => line.trim() === "npm ci")
+  ))
+
+  assert.notEqual(validateIndex, -1, "validate-skills.yml must run node scripts/validate-skills.cjs")
+  assert.notEqual(installIndex, -1, "validate-skills.yml must install Desk MCP dependencies")
+  assert.ok(
+    installIndex < validateIndex,
+    "validate-skills.yml must run npm ci before validate-skills.cjs imports MCP freshness verifiers",
+  )
+  assert.match(
+    workflow,
+    /cache-dependency-path:\s+plugins\/desk\/mcp\/package-lock\.json/u,
+    "validate-skills.yml should cache the Desk MCP package-lock install",
   )
 })

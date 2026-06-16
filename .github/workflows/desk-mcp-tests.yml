@@ -12,6 +12,19 @@ on:
   pull_request:
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/activation/**"
+      - "plugins/desk/.claude-plugin/plugin.json"
+      - "plugins/desk/.codex-plugin/plugin.json"
+      - "plugins/desk/.mcp.json"
+      - "plugins/desk/agents/**"
+      - "plugins/desk/hooks/**"
+      - "plugins/desk/output-styles/**"
+      - "plugins/desk/plugin.json"
+      - "plugins/desk/skills/**"
+      - "plugins/work-suite/.claude-plugin/plugin.json"
+      - "plugins/work-suite/.codex-plugin/plugin.json"
+      - "plugins/work-suite/plugin.json"
+      - "plugins/work-suite/skills/**"
       - "plugins/desk/mcp/artifacts/runtime-deps/**"
       - "plugins/desk/artifacts/vector-packs/**"
       - "plugins/desk/artifacts/snapshots/**"
@@ -38,6 +51,19 @@ on:
       - main
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/activation/**"
+      - "plugins/desk/.claude-plugin/plugin.json"
+      - "plugins/desk/.codex-plugin/plugin.json"
+      - "plugins/desk/.mcp.json"
+      - "plugins/desk/agents/**"
+      - "plugins/desk/hooks/**"
+      - "plugins/desk/output-styles/**"
+      - "plugins/desk/plugin.json"
+      - "plugins/desk/skills/**"
+      - "plugins/work-suite/.claude-plugin/plugin.json"
+      - "plugins/work-suite/.codex-plugin/plugin.json"
+      - "plugins/work-suite/plugin.json"
+      - "plugins/work-suite/skills/**"
       - "plugins/desk/mcp/artifacts/runtime-deps/**"
       - "plugins/desk/artifacts/vector-packs/**"
       - "plugins/desk/artifacts/snapshots/**"
@@ -90,6 +116,9 @@ jobs:
 
       - name: Verify committed generated artifacts
         run: node scripts/test-desk-generated-artifacts.cjs
+
+      - name: Verify Desk host manifests
+        run: node scripts/test-desk-host-manifests.cjs
 
       - name: Validate Desk healthy-path docs
         run: node scripts/test-desk-docs.cjs

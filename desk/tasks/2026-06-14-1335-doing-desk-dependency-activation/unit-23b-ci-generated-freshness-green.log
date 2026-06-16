@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: Desk MCP package exposes every freshness artifact script CI needs
+ok 1 - Desk MCP package exposes every freshness artifact script CI needs
+  ---
+  duration_ms: 1.426708
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier exports the production freshness contract
+ok 2 - root generated-artifact verifier exports the production freshness contract
+  ---
+  duration_ms: 7.543375
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier fails closed when required runtime packs are absent
+ok 3 - root generated-artifact verifier fails closed when required runtime packs are absent
+  ---
+  duration_ms: 270.549916
+  type: 'test'
+  ...
+# Subtest: root generated-artifact verifier propagates missing production vector and snapshot artifacts
+ok 4 - root generated-artifact verifier propagates missing production vector and snapshot artifacts
+  ---
+  duration_ms: 3.592375
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier exists and validates current host-facing generated files
+ok 5 - root host-manifest verifier exists and validates current host-facing generated files
+  ---
+  duration_ms: 4.631625
+  type: 'test'
+  ...
+# Subtest: root host-manifest verifier catches stale generated host-facing files
+ok 6 - root host-manifest verifier catches stale generated host-facing files
+  ---
+  duration_ms: 95.010333
+  type: 'test'
+  ...
+# Subtest: validate-skills exits nonzero when desk freshness child verifiers fail
+ok 7 - validate-skills exits nonzero when desk freshness child verifiers fail
+  ---
+  duration_ms: 326.509333
+  type: 'test'
+  ...
+# Subtest: root validation delegates host manifest freshness and artifact availability checks
+ok 8 - root validation delegates host manifest freshness and artifact availability checks
+  ---
+  duration_ms: 0.528416
+  type: 'test'
+  ...
+# Subtest: desk MCP CI runs committed artifact and host manifest verifiers
+ok 9 - desk MCP CI runs committed artifact and host manifest verifiers
+  ---
+  duration_ms: 1.141667
+  type: 'test'
+  ...
+# Subtest: desk MCP CI path filters include every host-facing freshness input
+ok 10 - desk MCP CI path filters include every host-facing freshness input
+  ---
+  duration_ms: 1.147334
+  type: 'test'
+  ...
+# Subtest: validate-skills workflow reaches host manifest freshness through workflow or validator
+ok 11 - validate-skills workflow reaches host manifest freshness through workflow or validator
+  ---
+  duration_ms: 0.239375
+  type: 'test'
+  ...
+# Subtest: validate-skills workflow installs Desk MCP dependencies before root freshness validation
+ok 12 - validate-skills workflow installs Desk MCP dependencies before root freshness validation
+  ---
+  duration_ms: 0.177666
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 811.581333

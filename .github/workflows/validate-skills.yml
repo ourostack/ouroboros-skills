@@ -18,6 +18,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: plugins/desk/mcp/package-lock.json
+
+      - name: Install Desk MCP dependencies
+        working-directory: plugins/desk/mcp
+        run: npm ci
 
       - name: Validate skill repository
         run: node scripts/validate-skills.cjs

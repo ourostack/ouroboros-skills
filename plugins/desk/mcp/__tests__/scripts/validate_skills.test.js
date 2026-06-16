@@ -1,0 +1,471 @@
+import { strict as assert } from "node:assert"
+import { test } from "node:test"
+import { createRequire } from "node:module"
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import * as path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
+const require = createRequire(import.meta.url)
+const validator = require(path.join(repoRoot, "scripts", "validate-skills.cjs"))
+
+const expectedSkillNames = [
+  "autopilot",
+  "inch-worm",
+  "stay-in-turn",
+  "work-doer",
+  "work-ideator",
+  "work-merger",
+  "work-planner",
+]
+
+const requiredPackageScripts = {
+  "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
+  "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",
+  "runtime:deps-pack:build": "node scripts/build-runtime-deps-pack.js",
+  "runtime:deps-pack:verify": "node scripts/verify-runtime-deps-pack.js",
+  "artifact:vector-pack:build": "node scripts/build-vector-pack.js",
+  "artifact:snapshot:build": "node scripts/build-snapshot.js",
+  "artifact:snapshot:verify": "node scripts/verify-snapshot.js",
+  "artifact:validate": "node scripts/validate-artifacts.js",
+}
+
+function writeText(root, relativePath, content) {
+  const filePath = path.join(root, relativePath)
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, content, "utf8")
+}
+
+function writeJson(root, relativePath, value) {
+  writeText(root, relativePath, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function removePath(root, relativePath) {
+  rmSync(path.join(root, relativePath), { force: true, recursive: true })
+}
+
+function skillBody(name) {
+  return `---\nname: ${name}\ndescription: fixture skill\n---\n# ${name}\n`
+}
+
+function createFixtureRepo(root) {
+  writeJson(root, "manifest.json", {
+    skills: expectedSkillNames.map((name) => ({
+      name,
+      path: `skills/${name}/SKILL.md`,
+      description: `${name} fixture`,
+      tags: ["fixture"],
+    })),
+  })
+
+  for (const name of expectedSkillNames) {
+    writeText(root, `skills/${name}/SKILL.md`, skillBody(name))
+    writeText(root, `plugins/work-suite/skills/${name}/SKILL.md`, skillBody(name))
+  }
+
+  writeText(root, "plugins/no-host-metadata/README.md", "fixture\n")
+  writeJson(root, "plugins/desk/.claude-plugin/plugin.json", {
+    name: "desk",
+    version: "1.7.3",
+  })
+  writeJson(root, "plugins/desk/.codex-plugin/plugin.json", {
+    name: "desk",
+    version: "1.7.3",
+  })
+  writeJson(root, "plugins/work-suite/.claude-plugin/plugin.json", {
+    name: "work-suite",
+    version: "1.4.9",
+  })
+  writeJson(root, "plugins/work-suite/.codex-plugin/plugin.json", {
+    name: "work-suite",
+    version: "1.4.9",
+  })
+  writeJson(root, ".claude-plugin/marketplace.json", {
+    plugins: [
+      { name: "ignored", version: "0.0.0", source: false },
+      { name: "desk", version: "1.7.3", source: "plugins/desk" },
+    ],
+  })
+
+  writeJson(root, "plugins/desk/mcp/package.json", {
+    scripts: requiredPackageScripts,
+  })
+  for (const command of Object.values(requiredPackageScripts)) {
+    writeText(
+      root,
+      path.join("plugins", "desk", "mcp", command.replace(/^node\s+scripts\//u, "scripts/")),
+      "#!/usr/bin/env node\nprocess.exit(0)\n",
+    )
+  }
+}
+
+async function withFixtureRepo(fn) {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-validate-skills-unit-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  try {
+    createFixtureRepo(fixtureRoot)
+    return await fn(fixtureRoot)
+  } finally {
+    rmSync(tempRoot, { force: true, recursive: true })
+  }
+}
+
+function spawnSequence(statuses, calls = []) {
+  const queue = [...statuses]
+  return (command, args, options) => {
+    calls.push({ command, args, options })
+    const next = queue.length > 0 ? queue.shift() : 0
+    return typeof next === "object" ? next : { status: next, stdout: "", stderr: "" }
+  }
+}
+
+function assertThrowsWith(repoMutator, fn, expected) {
+  return withFixtureRepo((fixtureRoot) => {
+    repoMutator(fixtureRoot)
+    assert.throws(() => fn(fixtureRoot), expected)
+  })
+}
+
+test("validate-skills exports a testable CLI contract and validates a healthy repo", async () => {
+  for (const exportName of [
+    "readJson",
+    "run",
+    "runDeskFreshnessChecks",
+    "runRuntimeAudit",
+    "startCli",
+    "validateAll",
+    "validateDeskMcpPackageScripts",
+    "validateManifest",
+    "validatePluginMetadata",
+    "validateWorkSuiteCopies",
+  ]) {
+    assert.equal(typeof validator[exportName], "function", `${exportName} must be exported`)
+  }
+
+  await withFixtureRepo((fixtureRoot) => {
+    const calls = []
+    validator.validateAll({
+      repoRoot: fixtureRoot,
+      childStdio: "pipe",
+      spawnSync: spawnSequence([0, 0, 0, 0, 0], calls),
+    })
+
+    assert.deepEqual(calls.map((call) => call.args.join(" ")), [
+      "scripts/test-desk-host-manifests.cjs",
+      "scripts/test-desk-generated-artifacts.cjs",
+      "scripts/test-autopilot-state-audit.cjs",
+      "scripts/test-work-suite-runtime-audit.cjs",
+      "scripts/audit-work-suite-runtime.cjs --repo-root .",
+    ])
+    assert.ok(calls.every((call) => call.options.cwd === fixtureRoot))
+    assert.deepEqual(
+      validator.readJson(path.join(fixtureRoot, "manifest.json")).skills.map((skill) => skill.name),
+      expectedSkillNames,
+    )
+
+    const stderr = []
+    const stdout = []
+    assert.equal(
+      validator.run({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 0, 0, 0, 0]),
+        stdout: { write: (text) => stdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      }),
+      0,
+    )
+    assert.equal(stdout.join(""), "")
+    assert.equal(stderr.join(""), "")
+  })
+})
+
+test("validateManifest reports every schema and skill-copy failure mode", async () => {
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", { skills: {} }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /manifest\.skills must be an array/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", { skills: [null] }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /every skill entry/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", { skills: [{ name: " ", path: "skills/x/SKILL.md" }] }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /invalid skill name/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", {
+      skills: [
+        { name: "autopilot", path: "skills/autopilot/SKILL.md", description: "a", tags: ["x"] },
+        { name: "autopilot", path: "skills/autopilot/SKILL.md", description: "b", tags: ["x"] },
+      ],
+    }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /duplicate skill name/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", {
+      skills: [{ name: "bad", path: "skills/bad/README.md", description: "bad", tags: ["x"] }],
+    }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /path must point at SKILL\.md/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", {
+      skills: [{ name: "missing", path: "skills/missing/SKILL.md", description: "missing", tags: ["x"] }],
+    }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /missing skills\/missing\/SKILL\.md/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", {
+      skills: [{ name: "autopilot", path: "skills/autopilot/SKILL.md", description: " ", tags: ["x"] }],
+    }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /description is required/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "manifest.json", {
+      skills: [{ name: "autopilot", path: "skills/autopilot/SKILL.md", description: "x", tags: [] }],
+    }),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /tags must be a non-empty array/u,
+  )
+  await assertThrowsWith(
+    (root) => writeText(root, "skills/autopilot/SKILL.md", "# missing frontmatter\n"),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /missing YAML frontmatter/u,
+  )
+  await assertThrowsWith(
+    (root) => writeText(root, "skills/autopilot/SKILL.md", "---\ndescription: no declared name\n---\n# autopilot\n"),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /frontmatter name is missing/u,
+  )
+  await assertThrowsWith(
+    (root) => writeText(root, "skills/autopilot/SKILL.md", skillBody("not-autopilot")),
+    (root) => validator.validateManifest({ repoRoot: root }),
+    /frontmatter name is not-autopilot/u,
+  )
+})
+
+test("validateWorkSuiteCopies catches set, missing file, and drift errors", async () => {
+  await assertThrowsWith(
+    (root) => {
+      removePath(root, "plugins/work-suite/skills/autopilot")
+      writeText(root, "plugins/work-suite/skills/extra/SKILL.md", skillBody("extra"))
+    },
+    (root) => validator.validateWorkSuiteCopies({ repoRoot: root }),
+    /work-suite skill set mismatch/u,
+  )
+  await assertThrowsWith(
+    (root) => removePath(root, "skills/autopilot/SKILL.md"),
+    (root) => validator.validateWorkSuiteCopies({ repoRoot: root }),
+    /missing canonical/u,
+  )
+  await assertThrowsWith(
+    (root) => removePath(root, "plugins/work-suite/skills/autopilot/SKILL.md"),
+    (root) => validator.validateWorkSuiteCopies({ repoRoot: root }),
+    /missing plugin copy/u,
+  )
+  await assertThrowsWith(
+    (root) => writeText(root, "plugins/work-suite/skills/autopilot/SKILL.md", skillBody("autopilot").replace("# autopilot", "# changed")),
+    (root) => validator.validateWorkSuiteCopies({ repoRoot: root }),
+    /out of sync/u,
+  )
+})
+
+test("validatePluginMetadata catches host manifest and marketplace drift", async () => {
+  await withFixtureRepo((fixtureRoot) => {
+    writeJson(fixtureRoot, ".claude-plugin/marketplace.json", {})
+    validator.validatePluginMetadata({ repoRoot: fixtureRoot })
+  })
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/.codex-plugin/plugin.json", { name: "desk-other", version: "1.7.3" }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /does not match Codex plugin name/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/.codex-plugin/plugin.json", { name: "desk", version: "9.9.9" }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /does not match Codex plugin version/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".claude-plugin/marketplace.json", {
+      plugins: [{ name: "missing", version: "1.0.0", source: "plugins/missing" }],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /marketplace source is missing/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".claude-plugin/marketplace.json", {
+      plugins: [{ name: "desk-wrong", version: "1.7.3", source: "plugins/desk" }],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /marketplace name does not match/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".claude-plugin/marketplace.json", {
+      plugins: [{ name: "desk", version: "9.9.9", source: "plugins/desk" }],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /marketplace version/u,
+  )
+})
+
+test("validateDeskMcpPackageScripts catches missing scripts, command drift, and missing targets", async () => {
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/mcp/package.json", {}),
+    (root) => validator.validateDeskMcpPackageScripts({ repoRoot: root }),
+    /desk MCP package script activation:support-matrix:generate/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/mcp/package.json", {
+      scripts: { ...requiredPackageScripts, "artifact:validate": "node scripts/validate-artifacts-stale.js" },
+    }),
+    (root) => validator.validateDeskMcpPackageScripts({ repoRoot: root }),
+    /artifact:validate must be node scripts\/validate-artifacts\.js/u,
+  )
+  await assertThrowsWith(
+    (root) => removePath(root, "plugins/desk/mcp/scripts/validate-artifacts.js"),
+    (root) => validator.validateDeskMcpPackageScripts({ repoRoot: root }),
+    /target is missing/u,
+  )
+})
+
+test("freshness and runtime child checks propagate child process failures", async () => {
+  await withFixtureRepo((fixtureRoot) => {
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([1]),
+      }),
+      /desk host manifest freshness tests failed/u,
+    )
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 1]),
+      }),
+      /desk generated artifact freshness tests failed/u,
+    )
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([{}]),
+      }),
+      /desk host manifest freshness tests failed/u,
+    )
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, {}]),
+      }),
+      /desk generated artifact freshness tests failed/u,
+    )
+
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([1]),
+      }),
+      /autopilot state audit tests failed/u,
+    )
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([{}]),
+      }),
+      /autopilot state audit tests failed/u,
+    )
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 1]),
+      }),
+      /work-suite runtime visibility audit tests failed/u,
+    )
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, {}]),
+      }),
+      /work-suite runtime visibility audit tests failed/u,
+    )
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 0, 1]),
+      }),
+      /work-suite runtime visibility contract audit failed/u,
+    )
+    assert.throws(
+      () => validator.runRuntimeAudit({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 0, {}]),
+      }),
+      /work-suite runtime visibility contract audit failed/u,
+    )
+  })
+})
+
+test("run and startCli expose success, Error, non-Error, and no-op CLI paths", async () => {
+  await withFixtureRepo((fixtureRoot) => {
+    const errorStderr = []
+    assert.equal(
+      validator.run({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([1]),
+        stderr: { write: (text) => errorStderr.push(text) },
+      }),
+      1,
+    )
+    assert.match(errorStderr.join(""), /desk host manifest freshness tests failed/u)
+
+    const stringStderr = []
+    assert.equal(
+      validator.run({
+        validateAllFn: () => {
+          throw "plain failure"
+        },
+        stderr: { write: (text) => stringStderr.push(text) },
+      }),
+      1,
+    )
+    assert.equal(stringStderr.join(""), "plain failure\n")
+  })
+
+  assert.equal(validator.startCli({ isMain: false }), null)
+  const exitCodes = []
+  assert.equal(
+    validator.startCli({
+      isMain: true,
+      runFn: () => 3,
+      setExitCode: (code) => exitCodes.push(code),
+    }),
+    3,
+  )
+  assert.deepEqual(exitCodes, [3])
+
+  const previousExitCode = process.exitCode
+  try {
+    assert.equal(validator.startCli({ isMain: true, runFn: () => 0 }), 0)
+    assert.equal(process.exitCode, 0)
+  } finally {
+    process.exitCode = previousExitCode
+  }
+})
