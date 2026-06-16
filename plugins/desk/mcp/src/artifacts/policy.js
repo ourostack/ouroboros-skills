@@ -8,19 +8,34 @@ const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u
 export async function loadPublicationPolicy({ pluginRoot } = {}) {
   const policyPath = path.join(pluginRoot, ARTIFACT_POLICY_PATH)
   const schemaPath = path.join(pluginRoot, ARTIFACT_POLICY_SCHEMA_PATH)
-  const policy = JSON.parse(await fs.readFile(policyPath, "utf8"))
-  const schema = JSON.parse(await fs.readFile(schemaPath, "utf8"))
-  const diagnostics = validatePublicationPolicy({ policy, schema })
+  const [policyRead, schemaRead] = await Promise.all([
+    readJsonFile(policyPath, "publication policy"),
+    readJsonFile(schemaPath, "publication policy schema"),
+  ])
+  const diagnostics = [
+    ...policyRead.diagnostics,
+    ...schemaRead.diagnostics,
+  ]
+  if (policyRead.ok && schemaRead.ok) {
+    diagnostics.push(...validatePublicationPolicy({
+      policy: policyRead.value,
+      schema: schemaRead.value,
+    }))
+  }
   return {
     valid: diagnostics.length === 0,
     diagnostics,
-    policy,
+    policy: policyRead.value,
+    schema: schemaRead.value,
     policy_path: policyPath,
     schema_path: schemaPath,
   }
 }
 
 export function validatePublicationPolicy({ policy, schema }) {
+  if (!policy || typeof policy !== "object" || Array.isArray(policy)) {
+    return ["publication policy must be an object"]
+  }
   const requiredFields = schema.required
   const properties = schema.properties
   const diagnostics = requiredFields
@@ -91,8 +106,10 @@ export function evaluateArtifactPublication({ policy, artifact_type, operation }
     }
   }
 
-  const approval = policy.approvals
-    .find((candidate) => candidate.artifact_type === artifact_type)
+  const approval = approvalForArtifact({
+    approvals: policy.approvals,
+    artifact_type,
+  })
   if (approval) {
     return {
       allowed: true,
@@ -102,10 +119,25 @@ export function evaluateArtifactPublication({ policy, artifact_type, operation }
     }
   }
 
+  if (requiresExplicitApproval(policy)) {
+    return {
+      allowed: false,
+      reason: "approval_required",
+      message: `${artifact_type} publication requires explicit approval`,
+    }
+  }
+
+  if (policy.default_publication === "deny") {
+    return {
+      allowed: false,
+      reason: "default_denied",
+      message: `${artifact_type} publication policy denies default publication`,
+    }
+  }
+
   return {
-    allowed: false,
-    reason: "approval_required",
-    message: `${artifact_type} publication requires explicit approval`,
+    allowed: true,
+    reason: "default_allowed",
   }
 }
 
@@ -134,14 +166,56 @@ export async function policyForArtifactWrite({ pluginRoot, policy }) {
 
 async function validateSuppliedPublicationPolicy({ pluginRoot, policy }) {
   const schemaPath = path.join(pluginRoot, ARTIFACT_POLICY_SCHEMA_PATH)
-  const schema = JSON.parse(await fs.readFile(schemaPath, "utf8"))
-  const diagnostics = validatePublicationPolicy({ policy, schema })
+  const schemaRead = await readJsonFile(schemaPath, "publication policy schema")
+  const diagnostics = [...schemaRead.diagnostics]
+  if (schemaRead.ok) {
+    diagnostics.push(...validatePublicationPolicy({
+      policy,
+      schema: schemaRead.value,
+    }))
+  }
   return {
     valid: diagnostics.length === 0,
     diagnostics,
     policy,
+    schema: schemaRead.value,
     schema_path: schemaPath,
   }
+}
+
+async function readJsonFile(filePath, label) {
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(await fs.readFile(filePath, "utf8")),
+      diagnostics: [],
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      value: null,
+      diagnostics: [jsonReadDiagnostic({ error, label })],
+    }
+  }
+}
+
+function jsonReadDiagnostic({ error, label }) {
+  if (error?.code === "ENOENT") return `${label} file is missing`
+  if (error instanceof SyntaxError) return `${label} JSON is malformed`
+  return `${label} file could not be read`
+}
+
+function approvalForArtifact({ approvals, artifact_type }) {
+  const matching = approvals
+    .filter((candidate) => candidate.artifact_type === artifact_type)
+  return matching.find((candidate) => candidate.scope === "org") ?? matching[0]
+}
+
+function requiresExplicitApproval(policy) {
+  return policy.approval_required ||
+    policy.sensitive_repo ||
+    policy.repo_visibility === "public" ||
+    policy.repo_visibility === "unknown"
 }
 
 function validateApprovedArtifactTypes({ approvedTypes, allowedTypes, diagnostics }) {

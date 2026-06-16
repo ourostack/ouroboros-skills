@@ -58,6 +58,12 @@ async function writePolicyFixture(pluginRoot, policy) {
   await fs.copyFile(schemaPath, path.join(artifactsRoot, "publication-policy.schema.json"))
 }
 
+async function writeSchemaFixture(pluginRoot) {
+  const artifactsRoot = path.join(pluginRoot, "artifacts")
+  await fs.mkdir(artifactsRoot, { recursive: true })
+  await fs.copyFile(schemaPath, path.join(artifactsRoot, "publication-policy.schema.json"))
+}
+
 function validPolicy(overrides = {}) {
   return {
     schema_version: 1,
@@ -331,6 +337,94 @@ test("loadPublicationPolicy validates policy JSON against the committed schema",
   )
 })
 
+test("publication policy loading fails closed for missing and malformed policy files", async () => {
+  const { loadPublicationPolicy } = await loadPolicyModule()
+  const { writeVectorPackArtifact } = await loadVectorPackModule()
+
+  const missingPolicyRoot = await tmpRoot("desk-publication-policy-missing-")
+  await writeSchemaFixture(missingPolicyRoot)
+  const missingPolicyBefore = await fileHashes(path.join(missingPolicyRoot, "artifacts"))
+  const missingPolicy = await loadPublicationPolicy({ pluginRoot: missingPolicyRoot })
+  assert.equal(missingPolicy.valid, false)
+  assert.ok(missingPolicy.diagnostics.includes("publication policy file is missing"))
+  await assert.rejects(
+    () => writeVectorPackArtifact({
+      pluginRoot: missingPolicyRoot,
+      packId: "missing-policy-pack",
+      packBytes: "",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:missing  missing-policy-pack.jsonl\n",
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_publication_policy_invalid")
+      assert.ok(error.diagnostics.includes("publication policy file is missing"))
+      return true
+    },
+  )
+  assert.deepEqual(await fileHashes(path.join(missingPolicyRoot, "artifacts")), missingPolicyBefore)
+
+  const malformedPolicyRoot = await tmpRoot("desk-publication-policy-malformed-")
+  await writeSchemaFixture(malformedPolicyRoot)
+  await fs.writeFile(
+    path.join(malformedPolicyRoot, "artifacts", "publication-policy.json"),
+    "{not-json",
+    "utf8",
+  )
+  const malformedPolicy = await loadPublicationPolicy({ pluginRoot: malformedPolicyRoot })
+  assert.equal(malformedPolicy.valid, false)
+  assert.ok(malformedPolicy.diagnostics.includes("publication policy JSON is malformed"))
+
+  const nonObjectPolicyRoot = await tmpRoot("desk-publication-policy-shape-")
+  await writeSchemaFixture(nonObjectPolicyRoot)
+  await fs.writeFile(
+    path.join(nonObjectPolicyRoot, "artifacts", "publication-policy.json"),
+    "[]\n",
+    "utf8",
+  )
+  const nonObjectPolicy = await loadPublicationPolicy({ pluginRoot: nonObjectPolicyRoot })
+  assert.equal(nonObjectPolicy.valid, false)
+  assert.ok(nonObjectPolicy.diagnostics.includes("publication policy must be an object"))
+
+  const unreadablePolicyRoot = await tmpRoot("desk-publication-policy-unreadable-")
+  await writeSchemaFixture(unreadablePolicyRoot)
+  await fs.mkdir(path.join(unreadablePolicyRoot, "artifacts", "publication-policy.json"))
+  const unreadablePolicy = await loadPublicationPolicy({ pluginRoot: unreadablePolicyRoot })
+  assert.equal(unreadablePolicy.valid, false)
+  assert.ok(unreadablePolicy.diagnostics.includes("publication policy file could not be read"))
+})
+
+test("publication policy schema-version drift fails closed before artifact writes", async () => {
+  const { loadPublicationPolicy } = await loadPolicyModule()
+  const { writeVectorPackArtifact } = await loadVectorPackModule()
+  const pluginRoot = await tmpRoot("desk-publication-policy-drift-")
+  await writePolicyFixture(pluginRoot, validPolicy({
+    schema_version: 2,
+    default_publication: "allow",
+    approved_artifact_types: ["vector-pack"],
+    approval_required: false,
+  }))
+  const before = await fileHashes(path.join(pluginRoot, "artifacts"))
+
+  const loaded = await loadPublicationPolicy({ pluginRoot })
+  assert.equal(loaded.valid, false)
+  assert.ok(loaded.diagnostics.includes("publication policy schema_version is unsupported"))
+  await assert.rejects(
+    () => writeVectorPackArtifact({
+      pluginRoot,
+      packId: "schema-drift-pack",
+      packBytes: "",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:drift  schema-drift-pack.jsonl\n",
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_publication_policy_invalid")
+      assert.ok(error.diagnostics.includes("publication policy schema_version is unsupported"))
+      return true
+    },
+  )
+  assert.deepEqual(await fileHashes(path.join(pluginRoot, "artifacts")), before)
+})
+
 test("publication policy schema requires approval and repository-sensitivity fields", async () => {
   const schema = await readJson(schemaPath)
 
@@ -372,6 +466,97 @@ test("publication policy denies public and sensitive repo artifact publication w
     const decision = evaluateArtifactPublication({
       policy,
       artifact_type: policy.approved_artifact_types[0],
+      operation: "write",
+    })
+    assert.equal(decision.allowed, false)
+    assert.equal(decision.reason, "approval_required")
+    assert.match(decision.message, /explicit approval/u)
+  }
+})
+
+test("publication policy default allow is limited to private or internal nonsensitive repos", async () => {
+  const { evaluateArtifactPublication } = await loadPolicyModule()
+  const { writeVectorPackArtifact } = await loadVectorPackModule()
+
+  for (const repoVisibility of ["private", "internal"]) {
+    const policy = validPolicy({
+      default_publication: "allow",
+      repo_visibility: repoVisibility,
+      sensitive_repo: false,
+      approved_artifact_types: ["vector-pack"],
+      approval_required: false,
+    })
+    assert.deepEqual(
+      evaluateArtifactPublication({ policy, artifact_type: "vector-pack", operation: "write" }),
+      {
+        allowed: true,
+        reason: "default_allowed",
+      },
+    )
+  }
+
+  const pluginRoot = await tmpRoot("desk-publication-policy-default-allow-")
+  await writePolicyFixture(pluginRoot, validPolicy({
+    default_publication: "allow",
+    repo_visibility: "private",
+    sensitive_repo: false,
+    approved_artifact_types: ["vector-pack"],
+    approval_required: false,
+  }))
+  const paths = await writeVectorPackArtifact({
+    pluginRoot,
+    packId: "default-allowed-pack",
+    packBytes: "",
+    manifestBytes: "{}\n",
+    checksumBytes: "sha256:default  default-allowed-pack.jsonl\n",
+  })
+  assert.equal(await fs.readFile(paths.packPath, "utf8"), "")
+})
+
+test("publication policy explicit deny and uncertain repository state fail closed", async () => {
+  const { evaluateArtifactPublication } = await loadPolicyModule()
+
+  const defaultDenied = evaluateArtifactPublication({
+    policy: validPolicy({
+      default_publication: "deny",
+      repo_visibility: "private",
+      sensitive_repo: false,
+      approved_artifact_types: ["vector-pack"],
+      approval_required: false,
+    }),
+    artifact_type: "vector-pack",
+    operation: "write",
+  })
+  assert.equal(defaultDenied.allowed, false)
+  assert.equal(defaultDenied.reason, "default_denied")
+  assert.match(defaultDenied.message, /denies/u)
+
+  for (const policy of [
+    validPolicy({
+      default_publication: "allow",
+      repo_visibility: "unknown",
+      sensitive_repo: false,
+      approved_artifact_types: ["vector-pack"],
+      approval_required: false,
+    }),
+    validPolicy({
+      default_publication: "allow",
+      repo_visibility: "public",
+      sensitive_repo: false,
+      approved_artifact_types: ["vector-pack"],
+      approval_required: false,
+    }),
+    validPolicy({
+      default_publication: "allow",
+      repo_visibility: "private",
+      sensitive_repo: true,
+      approved_artifact_types: ["vector-pack"],
+      approval_required: false,
+    }),
+  ]) {
+    const decision = evaluateArtifactPublication({
+      policy,
+      artifact_type: "vector-pack",
       operation: "write",
     })
     assert.equal(decision.allowed, false)
@@ -441,6 +626,37 @@ test("publication policy accepts explicit repo and organization approvals for al
     policy,
   })
   assert.equal(await fs.readFile(snapshotPaths.snapshotPath, "utf8"), "sqlite bytes")
+})
+
+test("organization policy approvals override repo-scoped approvals for the same artifact type", async () => {
+  const { evaluateArtifactPublication } = await loadPolicyModule()
+  const policy = validPolicy({
+    repo_visibility: "public",
+    sensitive_repo: true,
+    approved_artifact_types: ["snapshot"],
+    approvals: [
+      repoApproval("snapshot", {
+        scope: "repo",
+        approved_by: "repo-review",
+        reason: "repo scoped approval",
+      }),
+      repoApproval("snapshot", {
+        scope: "org",
+        approved_by: "org-security-review",
+        reason: "organization override approval",
+      }),
+    ],
+  })
+
+  assert.deepEqual(
+    evaluateArtifactPublication({ policy, artifact_type: "snapshot", operation: "write" }),
+    {
+      allowed: true,
+      reason: "approved",
+      approval_scope: "org",
+      approval_actor: "org-security-review",
+    },
+  )
 })
 
 test("artifact write guard blocks vector-pack and snapshot writes without approval", async () => {
