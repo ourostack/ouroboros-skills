@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: committed publication policy and schema declare conservative privacy defaults
+ok 1 - committed publication policy and schema declare conservative privacy defaults
+  ---
+  duration_ms: 6.953
+  type: 'test'
+  ...
+# Subtest: loadPublicationPolicy validates policy JSON against the committed schema
+ok 2 - loadPublicationPolicy validates policy JSON against the committed schema
+  ---
+  duration_ms: 4.235958
+  type: 'test'
+  ...
+# Subtest: publication policy loading fails closed for missing and malformed policy files
+ok 3 - publication policy loading fails closed for missing and malformed policy files
+  ---
+  duration_ms: 6.614959
+  type: 'test'
+  ...
+# Subtest: publication policy schema-version drift fails closed before artifact writes
+ok 4 - publication policy schema-version drift fails closed before artifact writes
+  ---
+  duration_ms: 11.260625
+  type: 'test'
+  ...
+# Subtest: publication policy schema requires approval and repository-sensitivity fields
+ok 5 - publication policy schema requires approval and repository-sensitivity fields
+  ---
+  duration_ms: 0.782208
+  type: 'test'
+  ...
+# Subtest: publication policy denies public and sensitive repo artifact publication without approval
+ok 6 - publication policy denies public and sensitive repo artifact publication without approval
+  ---
+  duration_ms: 0.303625
+  type: 'test'
+  ...
+# Subtest: publication policy default allow is limited to private or internal nonsensitive repos
+ok 7 - publication policy default allow is limited to private or internal nonsensitive repos
+  ---
+  duration_ms: 2.587167
+  type: 'test'
+  ...
+# Subtest: publication policy explicit deny and uncertain repository state fail closed
+ok 8 - publication policy explicit deny and uncertain repository state fail closed
+  ---
+  duration_ms: 0.21075
+  type: 'test'
+  ...
+# Subtest: publication policy accepts explicit repo and organization approvals for allowed artifact types
+ok 9 - publication policy accepts explicit repo and organization approvals for allowed artifact types
+  ---
+  duration_ms: 6.065625
+  type: 'test'
+  ...
+# Subtest: organization policy approvals override repo-scoped approvals for the same artifact type
+ok 10 - organization policy approvals override repo-scoped approvals for the same artifact type
+  ---
+  duration_ms: 0.562834
+  type: 'test'
+  ...
+# Subtest: artifact write guard blocks vector-pack and snapshot writes without approval
+ok 11 - artifact write guard blocks vector-pack and snapshot writes without approval
+  ---
+  duration_ms: 3.798375
+  type: 'test'
+  ...
+# Subtest: artifact write paths fail closed when the publication policy is invalid
+ok 12 - artifact write paths fail closed when the publication policy is invalid
+  ---
+  duration_ms: 2.789917
+  type: 'test'
+  ...
+# Subtest: ordinary startup does not write committed artifact files
+ok 13 - ordinary startup does not write committed artifact files
+  ---
+  duration_ms: 27.988459
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 217.264917
