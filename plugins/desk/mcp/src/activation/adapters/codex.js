@@ -2,6 +2,7 @@ import {
   applyActivationArtifacts,
   deactivateActivationArtifacts,
 } from "../artifact-ledger.js"
+import { resolveActivationChain } from "../validate.js"
 
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
@@ -412,11 +413,24 @@ function renderInstructionsBlock(input, modeConfig) {
   if (!modeConfig.instructionsPath) {
     return ""
   }
+  const selectedActivation = selectedActivationFor(input)
+  const identity = selectedActivation.identity
+  const activationChain = selectedActivation.chain.map((entry) => `\`${entry.id}\``).join(" -> ")
+  const overlayAddenda = selectedActivation.chain
+    .filter((entry) => entry.instructions)
+    .map((entry) => `${entry.instructions.identity}: ${entry.instructions.addendum}`)
+  const overlaySection = overlayAddenda.length > 0
+    ? `
+Active Desk activation: ${activationChain}.
+
+${overlayAddenda.join("\n")}
+`
+    : ""
 
   return `# BEGIN desk activation: ${input.manifest.id}@${input.manifest.version} mode=${input.mode} owner=desk-activation
-You are the desk worker ${modeConfig.workerContext}.
+You are the ${identity} ${modeConfig.workerContext}.
 
-Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work, with harsh sub-agent reviewer gates when the task calls for them.
+Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work, with harsh sub-agent reviewer gates when the task calls for them.${overlaySection}
 # END desk activation
 `
 }
@@ -437,6 +451,7 @@ function generatedArtifactContent(activation, artifact) {
 export function materializeCodexActivation(input) {
   const modeConfig = MODE_CONFIG[input.mode]
   assertCodexCapabilities(input.manifest)
+  const selectedActivation = selectedActivationFor(input)
   const configWithoutOwnedBlock = removeOwnedActivationBlock(input.existingConfig)
   assertNoUserDisabledDeskConfig(configWithoutOwnedBlock)
   const generatedConfig = mergeOwnedActivationBlock(input.existingConfig, renderConfigBlock(input, modeConfig))
@@ -464,6 +479,7 @@ export function materializeCodexActivation(input) {
       requestedCapabilities: input.manifest.permissions.requested_capabilities,
       neverDelete: input.manifest.permissions.never_delete,
     },
+    selectedActivation,
     generatedArtifacts: [
       {
         owner: "desk-activation",
@@ -474,6 +490,18 @@ export function materializeCodexActivation(input) {
     ],
     generatedConfig,
     generatedInstructions,
+  }
+}
+
+function selectedActivationFor(input) {
+  const chain = resolveActivationChain(input.manifest, input.selectedActivationId ?? "desk:worker")
+  const selected = chain.at(-1)
+  const selectedInstructions = selected.instructions
+  return {
+    id: selected.id,
+    launchAs: selected.launch_as ?? selected.id,
+    identity: selectedInstructions?.identity ?? "desk worker",
+    chain,
   }
 }
 

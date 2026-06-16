@@ -55,10 +55,10 @@ Acceptance:
 
 ## Unit 2 — Green: Codex Selected Overlay Rendering
 
-- [ ] Extend Codex activation input with selected activation id.
-- [ ] Render active overlay identity and inherited instruction addenda into owned instructions.
-- [ ] Preserve existing `global-personal`, `project-local`, and `manual-only` behavior.
-- [ ] Keep generated config unchanged unless selected-overlay config metadata is required.
+- [x] Extend Codex activation input with selected activation id.
+- [x] Render active overlay identity and inherited instruction addenda into owned instructions.
+- [x] Preserve existing `global-personal`, `project-local`, and `manual-only` behavior.
+- [x] Keep generated config unchanged unless selected-overlay config metadata is required.
 
 Output:
 - Passing Codex activation tests.
@@ -112,3 +112,4 @@ Acceptance:
 - 2026-06-16 14:58 Created doing doc for first-class zero-setup Desk overlays.
 - 2026-06-16 14:59 Unit 0 complete: red activation tests captured in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-0-red.log`.
 - 2026-06-16 15:02 Unit 1 complete: activation graph validation and ordering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-1-activation-contract-green.log`.
+- 2026-06-16 15:04 Unit 2 complete: Codex selected-overlay rendering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-2-codex-activation-green.log`.
