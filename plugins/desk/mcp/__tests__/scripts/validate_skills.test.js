@@ -87,6 +87,12 @@ function createFixtureRepo(root) {
       { name: "desk", version: "1.7.3", source: "plugins/desk" },
     ],
   })
+  writeJson(root, ".agents/plugins/marketplace.json", {
+    plugins: [
+      { name: "ignored", source: false },
+      { name: "desk", source: { source: "local", path: "plugins/desk" } },
+    ],
+  })
 
   writeJson(root, "plugins/desk/mcp/package.json", {
     scripts: requiredPackageScripts,
@@ -148,12 +154,13 @@ test("validate-skills exports a testable CLI contract and validates a healthy re
     validator.validateAll({
       repoRoot: fixtureRoot,
       childStdio: "pipe",
-      spawnSync: spawnSequence([0, 0, 0, 0, 0], calls),
+      spawnSync: spawnSequence([0, 0, 0, 0, 0, 0], calls),
     })
 
     assert.deepEqual(calls.map((call) => call.args.join(" ")), [
       "scripts/test-desk-host-manifests.cjs",
       "scripts/test-desk-generated-artifacts.cjs",
+      "scripts/test-codex-plugin-cache-audit.cjs",
       "scripts/test-autopilot-state-audit.cjs",
       "scripts/test-work-suite-runtime-audit.cjs",
       "scripts/audit-work-suite-runtime.cjs --repo-root .",
@@ -170,7 +177,7 @@ test("validate-skills exports a testable CLI contract and validates a healthy re
       validator.run({
         repoRoot: fixtureRoot,
         childStdio: "pipe",
-        spawnSync: spawnSequence([0, 0, 0, 0, 0]),
+        spawnSync: spawnSequence([0, 0, 0, 0, 0, 0]),
         stdout: { write: (text) => stdout.push(text) },
         stderr: { write: (text) => stderr.push(text) },
       }),
@@ -314,6 +321,20 @@ test("validatePluginMetadata catches host manifest and marketplace drift", async
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
     /marketplace version/u,
   )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      plugins: [{ name: "missing", source: { source: "local", path: "plugins/missing" } }],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /Codex marketplace source is missing/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      plugins: [{ name: "desk-wrong", source: { source: "local", path: "plugins/desk" } }],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /Codex marketplace name does not match/u,
+  )
 })
 
 test("validateDeskMcpPackageScripts catches missing scripts, command drift, and missing targets", async () => {
@@ -384,6 +405,22 @@ test("freshness and runtime child checks propagate child process failures", asyn
         spawnSync: spawnSequence([0, {}]),
       }),
       /desk generated artifact freshness tests failed/u,
+    )
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 0, 1]),
+      }),
+      /codex plugin cache audit tests failed/u,
+    )
+    assert.throws(
+      () => validator.runDeskFreshnessChecks({
+        repoRoot: fixtureRoot,
+        childStdio: "pipe",
+        spawnSync: spawnSequence([0, 0, {}]),
+      }),
+      /codex plugin cache audit tests failed/u,
     )
 
     assert.throws(

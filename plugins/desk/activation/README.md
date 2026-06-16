@@ -24,6 +24,61 @@ Host adapters may flatten this manifest into their native plugin/config surfaces
 
 The manifest is not a user-facing CLI contract. Healthy activation should be host-native: no manual MCP registration, copied worker files, or hand-edited JSON/TOML on the happy path.
 
+## Overlay Ladder
+
+Desk has three separable layers:
+
+1. `desk` is the substrate dependency: skills, MCP, workspace layout, artifact bootstrap, and `desk_status`.
+2. `desk:worker` is the generic base worker that makes Desk useful as a standalone plugin.
+3. Consumer plugins provide overlays, for example `ms-desk:worker` inheriting `desk:worker`, and an area overlay inheriting `ms-desk:worker`.
+
+An overlay is selected by activation context rather than by changing Desk's substrate default. Standalone Desk still selects `desk:worker`; a global or project profile can select `ms-desk:worker` or an area overlay as the effective worker. The active activation chain is visible through generated instructions and through `desk_status`.
+
+Synthetic shape:
+
+```json
+{
+  "provides": {
+    "activation_targets": [
+      {
+        "id": "desk:worker",
+        "kind": "agent",
+        "default": true,
+        "depends_on": ["desk", "work-suite"]
+      }
+    ],
+    "overlay_agents": [
+      {
+        "id": "ms-desk:worker",
+        "kind": "agent-overlay",
+        "depends_on": ["desk", "work-suite", "ms-desk"],
+        "inherits": ["desk:worker"],
+        "launch_as": "ms-desk:worker"
+      },
+      {
+        "id": "ms-area:worker",
+        "kind": "agent-overlay",
+        "depends_on": ["ms-area-desk"],
+        "inherits": ["ms-desk:worker"],
+        "launch_as": "ms-area:worker"
+      }
+    ]
+  }
+}
+```
+
+Use this ladder when deciding plugin dependencies: depend on `desk` when you only need the substrate, depend on `ms-desk` when you need the Microsoft-flavored worker layer, and depend on the relevant area overlay when the work needs that narrower context.
+
+## Evidence States
+
+Zero-setup support has three different evidence states:
+
+- `repo-source-current`: the repository manifests and `.agents` marketplace source point at the expected Desk and Work Suite plugin files.
+- `installed-cache-current`: the Codex plugin cache contains manifests matching the repository source.
+- `active-session-visible`: the currently running host session has reloaded those manifests and exposes the expected skills, MCP tools, selected activation, and `desk_status`.
+
+The read-only `scripts/audit-codex-plugin-cache.cjs` checks the first two states. It intentionally reports `active-session-visible` as not checked, because that requires host/session reload evidence rather than filesystem comparison.
+
 ## Artifact Privacy
 
 Embeddings and snapshots are derivative data and may carry privacy risk. Activation manifests declare the shared embedding and snapshot policies so host adapters can keep publication explicit, approval-gated, and separate from ordinary startup.

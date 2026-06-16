@@ -171,6 +171,25 @@ function validatePluginMetadata(options = {}) {
     }
   }
 
+  const codexMarketplacePath = path.join(".agents", "plugins", "marketplace.json");
+  if (exists(codexMarketplacePath, options)) {
+    const codexMarketplace = readJson(codexMarketplacePath, options);
+    for (const plugin of codexMarketplace.plugins ?? []) {
+      const sourcePath = plugin?.source?.path;
+      if (typeof sourcePath !== "string") {
+        continue;
+      }
+      const pluginPath = path.join(sourcePath, ".codex-plugin", "plugin.json");
+      if (!exists(pluginPath, options)) {
+        throw new Error(`${plugin.name}: Codex marketplace source is missing ${pluginPath}`);
+      }
+      const manifest = readJson(pluginPath, options);
+      if (plugin.name !== manifest.name) {
+        throw new Error(`${plugin.name}: Codex marketplace name does not match ${pluginPath} name ${manifest.name}`);
+      }
+    }
+  }
+
   console.log("Validated plugin metadata.");
 }
 
@@ -212,6 +231,14 @@ function runDeskFreshnessChecks(options = {}) {
   });
   if ((generatedArtifactResult.status ?? 1) !== 0) {
     throw new Error("desk generated artifact freshness tests failed");
+  }
+
+  const codexCacheAuditResult = spawnSync(process.execPath, ["scripts/test-codex-plugin-cache-audit.cjs"], {
+    cwd: repoRoot,
+    stdio: childStdio,
+  });
+  if ((codexCacheAuditResult.status ?? 1) !== 0) {
+    throw new Error("codex plugin cache audit tests failed");
   }
 }
 
