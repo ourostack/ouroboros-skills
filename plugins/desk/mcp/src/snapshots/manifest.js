@@ -5,6 +5,7 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
+import { assertArtifactInputsAllowed } from "../indexer/exclusions.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 
 const SNAPSHOT_FORMAT = "sqlite-zstd"
@@ -53,8 +54,15 @@ export async function writeSnapshotArtifact({
   manifestBytes,
   checksumBytes,
   policy,
+  deskRoot,
+  sourceDocs,
 } = {}) {
   const paths = deriveSnapshotPaths({ pluginRoot, embeddingSpecId, snapshotId })
+  await assertArtifactInputsAllowed({
+    deskRoot,
+    artifact_type: "snapshot",
+    docs: sourceDocs,
+  })
   const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
   await assertArtifactPublicationAllowed({
     policy: publicationPolicy,

@@ -7,6 +7,7 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
+import { assertArtifactInputsAllowed } from "./exclusions.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
 const VECTOR_ENCODING = "float32-json"
@@ -53,8 +54,15 @@ export async function writeVectorPackArtifact({
   manifestBytes,
   checksumBytes,
   policy,
+  deskRoot,
+  sourceDocs,
 } = {}) {
   const paths = deriveVectorPackPaths({ pluginRoot, embeddingSpecId, packId })
+  await assertArtifactInputsAllowed({
+    deskRoot,
+    artifact_type: "vector-pack",
+    docs: sourceDocs,
+  })
   const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
   await assertArtifactPublicationAllowed({
     policy: publicationPolicy,

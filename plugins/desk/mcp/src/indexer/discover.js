@@ -24,6 +24,7 @@ import { promises as fs } from "node:fs"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
 import matter from "gray-matter"
+import { exclusionForPath, loadExclusionRules } from "./exclusions.js"
 
 /** Filenames we always pick up regardless of where they sit in the tree. */
 const TASK_DOC_BASENAMES = new Set([
@@ -72,14 +73,15 @@ export function stripPersonPrefix(relPath) {
 export async function discover(deskRoot, { signal } = {}) {
   throwIfAborted(signal)
   const results = []
-  await walk(deskRoot, deskRoot, results, signal)
+  const exclusionRules = await loadExclusionRules({ deskRoot })
+  await walk(deskRoot, deskRoot, results, signal, exclusionRules)
   throwIfAborted(signal)
   // Stable ordering — easier to reason about in tests and in CLI output.
   results.sort((a, b) => a.path.localeCompare(b.path))
   return results
 }
 
-async function walk(deskRoot, dir, out, signal) {
+async function walk(deskRoot, dir, out, signal, exclusionRules) {
   throwIfAborted(signal)
   let entries
   try {
@@ -98,7 +100,9 @@ async function walk(deskRoot, dir, out, signal) {
       // is_archived=true in describeDoc and per-tool search defaults
       // decide whether to include them.
       const sub = path.join(dir, name)
-      await walk(deskRoot, sub, out, signal)
+      const relDir = path.relative(deskRoot, sub)
+      if (isExcluded(relDir, exclusionRules)) continue
+      await walk(deskRoot, sub, out, signal, exclusionRules)
       continue
     }
     if (!ent.isFile()) continue
@@ -107,11 +111,16 @@ async function walk(deskRoot, dir, out, signal) {
 
     const abs = path.join(dir, name)
     const rel = path.relative(deskRoot, abs)
+    if (isExcluded(rel, exclusionRules)) continue
     if (!isIndexable(rel)) continue
 
     const desc = await describeDoc(deskRoot, abs, rel, signal)
     if (desc) out.push(desc)
   }
+}
+
+function isExcluded(relPath, rules) {
+  return exclusionForPath(relPath, rules).excluded
 }
 
 /**

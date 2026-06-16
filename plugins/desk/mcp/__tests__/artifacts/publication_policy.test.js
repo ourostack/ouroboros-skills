@@ -64,6 +64,10 @@ async function writeSchemaFixture(pluginRoot) {
   await fs.copyFile(schemaPath, path.join(artifactsRoot, "publication-policy.schema.json"))
 }
 
+async function safeDeskRoot() {
+  return tmpRoot("desk-publication-policy-desk-")
+}
+
 function validPolicy(overrides = {}) {
   return {
     schema_version: 1,
@@ -87,6 +91,10 @@ function repoApproval(artifactType, overrides = {}) {
     reason: "explicit publication approval for test fixture",
     ...overrides,
   }
+}
+
+function safeSourceDocs() {
+  return [{ path: "visible-track/task-1/task.md", body: "public body" }]
 }
 
 function sha256(value) {
@@ -348,12 +356,14 @@ test("publication policy loading fails closed for missing and malformed policy f
   assert.equal(missingPolicy.valid, false)
   assert.ok(missingPolicy.diagnostics.includes("publication policy file is missing"))
   await assert.rejects(
-    () => writeVectorPackArtifact({
+    async () => writeVectorPackArtifact({
       pluginRoot: missingPolicyRoot,
       packId: "missing-policy-pack",
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:missing  missing-policy-pack.jsonl\n",
+      deskRoot: await safeDeskRoot(),
+      sourceDocs: safeSourceDocs(),
     }),
     (error) => {
       assert.equal(error.code, "artifact_publication_policy_invalid")
@@ -409,12 +419,14 @@ test("publication policy schema-version drift fails closed before artifact write
   assert.equal(loaded.valid, false)
   assert.ok(loaded.diagnostics.includes("publication policy schema_version is unsupported"))
   await assert.rejects(
-    () => writeVectorPackArtifact({
+    async () => writeVectorPackArtifact({
       pluginRoot,
       packId: "schema-drift-pack",
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:drift  schema-drift-pack.jsonl\n",
+      deskRoot: await safeDeskRoot(),
+      sourceDocs: safeSourceDocs(),
     }),
     (error) => {
       assert.equal(error.code, "artifact_publication_policy_invalid")
@@ -509,6 +521,8 @@ test("publication policy default allow is limited to private or internal nonsens
     packBytes: "",
     manifestBytes: "{}\n",
     checksumBytes: "sha256:default  default-allowed-pack.jsonl\n",
+    deskRoot: await safeDeskRoot(),
+    sourceDocs: safeSourceDocs(),
   })
   assert.equal(await fs.readFile(paths.packPath, "utf8"), "")
 })
@@ -614,6 +628,8 @@ test("publication policy accepts explicit repo and organization approvals for al
     packBytes: "",
     manifestBytes: "{}\n",
     checksumBytes: "sha256:approved  approved-pack.jsonl\n",
+    deskRoot: await safeDeskRoot(),
+    sourceDocs: safeSourceDocs(),
   })
   assert.equal(await fs.readFile(vectorPaths.packPath, "utf8"), "")
 
@@ -623,7 +639,9 @@ test("publication policy accepts explicit repo and organization approvals for al
     snapshotBytes: "sqlite bytes",
     manifestBytes: "{}\n",
     checksumBytes: "sha256:approved  approved-snapshot.sqlite.zst\n",
+    deskRoot: await safeDeskRoot(),
     policy,
+    sourceDocs: safeSourceDocs(),
   })
   assert.equal(await fs.readFile(snapshotPaths.snapshotPath, "utf8"), "sqlite bytes")
 })
@@ -675,25 +693,29 @@ test("artifact write guard blocks vector-pack and snapshot writes without approv
     [
       "vector-pack",
       `plugins/desk/artifacts/vector-packs/${ACTIVE_EMBEDDING_SPEC.id}/blocked-pack.jsonl`,
-      () => writeVectorPackArtifact({
+      async () => writeVectorPackArtifact({
         pluginRoot,
         packId: "blocked-pack",
         packBytes: "",
         manifestBytes: "{}\n",
         checksumBytes: "sha256:blocked  blocked-pack.jsonl\n",
+        deskRoot: await safeDeskRoot(),
         policy,
+        sourceDocs: safeSourceDocs(),
       }),
     ],
     [
       "snapshot",
       `plugins/desk/artifacts/snapshots/${ACTIVE_EMBEDDING_SPEC.id}/blocked-snapshot.sqlite.zst`,
-      () => writeSnapshotArtifact({
+      async () => writeSnapshotArtifact({
         pluginRoot,
         snapshotId: "blocked-snapshot",
         snapshotBytes: "sqlite bytes",
         manifestBytes: "{}\n",
         checksumBytes: "sha256:blocked  blocked-snapshot.sqlite.zst\n",
+        deskRoot: await safeDeskRoot(),
         policy,
+        sourceDocs: safeSourceDocs(),
       }),
     ],
   ]) {
@@ -719,12 +741,14 @@ test("artifact write paths fail closed when the publication policy is invalid", 
   await writePolicyFixture(pluginRoot, policy)
 
   await assert.rejects(
-    () => writeVectorPackArtifact({
+    async () => writeVectorPackArtifact({
       pluginRoot,
       packId: "invalid-policy-pack",
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:invalid  invalid-policy-pack.jsonl\n",
+      deskRoot: await safeDeskRoot(),
+      sourceDocs: safeSourceDocs(),
     }),
     (error) => {
       assert.equal(error.code, "artifact_publication_policy_invalid")
@@ -734,12 +758,14 @@ test("artifact write paths fail closed when the publication policy is invalid", 
   )
 
   await assert.rejects(
-    () => writeVectorPackArtifact({
+    async () => writeVectorPackArtifact({
       pluginRoot,
       packId: "invalid-supplied-policy-pack",
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:invalid  invalid-supplied-policy-pack.jsonl\n",
+      deskRoot: await safeDeskRoot(),
+      sourceDocs: safeSourceDocs(),
       policy: validPolicy({
         approved_artifact_types: ["vector-pack"],
         approvals: [{ artifact_type: "vector-pack" }],
@@ -756,12 +782,14 @@ test("artifact write paths fail closed when the publication policy is invalid", 
   )
 
   await assert.rejects(
-    () => writeVectorPackArtifact({
+    async () => writeVectorPackArtifact({
       pluginRoot,
       packId: "invalid-date-policy-pack",
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:invalid  invalid-date-policy-pack.jsonl\n",
+      deskRoot: await safeDeskRoot(),
+      sourceDocs: safeSourceDocs(),
       policy: validPolicy({
         approved_artifact_types: ["vector-pack"],
         approvals: [

@@ -152,9 +152,12 @@ function assertPublicErrorDoesNotLeak(error) {
 
 test("discover excludes gitignored markdown before indexing", async () => {
   const root = await tmpRoot()
-  await writeFile(root, ".gitignore", "ignored-track/**\n*.pem\n")
+  await writeFile(root, ".gitignore", "ignored-track/\nignored-too\n*.pem\n")
   await writeFile(root, "visible-track/task-1/task.md", "# Visible\n\npublic body")
   await writeFile(root, "ignored-track/leaked-task/task.md", "# Ignored\n\nfixture secret")
+  await writeFile(root, "ignored-too/leaked-task/task.md", "# Ignored\n\nfixture secret")
+  await writeFile(root, "outer/ignored-track/leaked-task/task.md", "# Ignored\n\nfixture secret")
+  await writeFile(root, "outer/ignored-too/leaked-task/task.md", "# Ignored\n\nfixture secret")
 
   const paths = (await discover(root)).map((doc) => doc.path)
 
@@ -163,6 +166,77 @@ test("discover excludes gitignored markdown before indexing", async () => {
     paths.includes("ignored-track/leaked-task/task.md"),
     false,
     "gitignored task.md files must not be discovered",
+  )
+  assert.equal(
+    paths.includes("ignored-too/leaked-task/task.md"),
+    false,
+    "gitignored bare directory names must exclude descendants",
+  )
+  assert.equal(
+    paths.includes("outer/ignored-track/leaked-task/task.md"),
+    false,
+    "gitignored directory patterns must exclude nested directory descendants",
+  )
+  assert.equal(
+    paths.includes("outer/ignored-too/leaked-task/task.md"),
+    false,
+    "gitignored bare directory names must exclude nested directory descendants",
+  )
+})
+
+test("discover fails closed when root gitignore cannot be read", async () => {
+  const root = await tmpRoot()
+  await writeFile(root, ".gitignore/rules", "ignored-track/**\n")
+
+  await assert.rejects(
+    () => discover(root),
+    (error) => {
+      assert.equal(error.code, "exclusion_rules_unavailable")
+      assert.equal(error.reason, "gitignore_unreadable")
+      assertPublicErrorDoesNotLeak(error)
+      return true
+    },
+  )
+})
+
+test("loadExclusionRules fails closed on unexpected gitignore filesystem errors", async (t) => {
+  const { loadExclusionRules } = await loadExclusionsModule()
+  const root = await tmpRoot()
+
+  t.mock.method(fs, "stat", async () => {
+    const error = new Error("blocked")
+    error.code = "EACCES"
+    throw error
+  })
+
+  await assert.rejects(
+    () => loadExclusionRules({ deskRoot: root }),
+    (error) => {
+      assert.equal(error.code, "exclusion_rules_unavailable")
+      assert.equal(error.reason, "gitignore_unreadable")
+      return true
+    },
+  )
+})
+
+test("loadExclusionRules fails closed when gitignore bytes become unreadable", async (t) => {
+  const { loadExclusionRules } = await loadExclusionsModule()
+  const root = await tmpRoot()
+  await writeFile(root, ".gitignore", "ignored-track/**\n")
+
+  t.mock.method(fs, "readFile", async () => {
+    const error = new Error("blocked")
+    error.code = "EACCES"
+    throw error
+  })
+
+  await assert.rejects(
+    () => loadExclusionRules({ deskRoot: root }),
+    (error) => {
+      assert.equal(error.code, "exclusion_rules_unavailable")
+      assert.equal(error.reason, "gitignore_unreadable")
+      return true
+    },
   )
 })
 
@@ -286,6 +360,137 @@ test("artifact publication guard rejects excluded inputs without leaking content
   )
 })
 
+test("exclusion helpers cover path globs and benign artifact inputs", async () => {
+  const {
+    assertArtifactInputsAllowed,
+    exclusionForPath,
+    loadExclusionRules,
+  } = await loadExclusionsModule()
+  const root = await tmpRoot()
+  await writeFile(
+    root,
+    ".gitignore",
+    "# comments ignored\n!negations-covered-later\ntrackA/*.md\n*.pem\n",
+  )
+
+  const rules = await loadExclusionRules({ deskRoot: root })
+
+  assert.deepEqual(await loadExclusionRules({}), { gitignore: [] })
+  for (const docs of [
+    undefined,
+    [],
+    "not-an-array",
+    [null],
+    ["not-a-doc"],
+    [[]],
+    [{ body: "GITIGNORED_SECRET_PAYLOAD" }],
+    [{ path: "" }],
+    [{ path: "   " }],
+    [{ path: "/absolute/task.md" }],
+    [{ path: "C:\\absolute\\task.md" }],
+  ]) {
+    await assert.rejects(
+      () => assertArtifactInputsAllowed({
+        deskRoot: root,
+        artifact_type: "snapshot",
+        docs,
+      }),
+      (error) => {
+        assert.equal(error.code, "artifact_input_unknown")
+        assert.equal(error.artifact_type, "snapshot")
+        assertPublicErrorDoesNotLeak(error)
+        return true
+      },
+    )
+  }
+  await assert.rejects(
+    () => assertArtifactInputsAllowed({
+      artifact_type: "snapshot",
+      docs: [{ path: "visible-track/task-1/task.md", body: "public body" }],
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_input_unknown")
+      assert.equal(error.artifact_type, "snapshot")
+      assertPublicErrorDoesNotLeak(error)
+      return true
+    },
+  )
+  assert.equal(exclusionForPath(null, rules).excluded, false)
+  assert.equal(exclusionForPath("visible-track/task-1/task.md").excluded, false)
+  assert.equal(exclusionForPath("/trackA/task.md", rules).reason, "gitignore")
+  assert.equal(exclusionForPath("cert.pem", rules).reason, "gitignore")
+  assert.equal(
+    exclusionForPath("outer/ignored-track/leaked-task/task.md", {
+      gitignore: ["ignored-track/"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("outer/ignored-too/leaked-task/task.md", {
+      gitignore: ["ignored-too"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("top/ignored-track", {
+      gitignore: ["top/ignored-track/"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("top/ignored-track/leaked-task/task.md", {
+      gitignore: ["top/ignored-track/"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("other/ignored-track/leaked-task/task.md", {
+      gitignore: ["top/ignored-track/"],
+    }).excluded,
+    false,
+  )
+  assert.equal(
+    exclusionForPath("ignored-track/leaked-task/task.md", {
+      gitignore: ["ignored-track/"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("ignored-track", {
+      gitignore: ["ignored-track/**"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("ignored-track/leaked-task/task.md", {
+      gitignore: ["ignored-track/**"],
+    }).reason,
+    "gitignore",
+  )
+  assert.equal(
+    exclusionForPath("other-track/leaked-task/task.md", {
+      gitignore: ["ignored-track/**"],
+    }).excluded,
+    false,
+  )
+  assert.equal(
+    exclusionForPath("other-track/leaked-task/task.md", {
+      gitignore: ["ignored-too"],
+    }).excluded,
+    false,
+  )
+  assert.equal(exclusionForPath("trackA/deep/task.md", rules).excluded, false)
+  assert.deepEqual(
+    await assertArtifactInputsAllowed({
+      deskRoot: root,
+      artifact_type: "snapshot",
+      docs: [{ path: "visible-track/task-1/task.md", body: "public body" }],
+      rules,
+    }),
+    { allowed: true },
+  )
+})
+
 async function assertArtifactWriterRejectsExcludedSourceDocs({ artifactType, write }) {
   const deskRoot = await tmpRoot("desk-exclusions-writer-desk-")
   const pluginRoot = await tmpRoot("desk-exclusions-writer-plugin-")
@@ -327,6 +532,29 @@ async function assertArtifactWriterRejectsExcludedSourceDocs({ artifactType, wri
   assert.deepEqual(await fileHashes(artifactsRoot), before)
 }
 
+async function assertArtifactWriterRejectsUnknownSourceContext({ artifactType, write }) {
+  const pluginRoot = await tmpRoot("desk-exclusions-writer-plugin-")
+  const artifactsRoot = path.join(pluginRoot, "artifacts")
+  await writePolicySchemaFixture(pluginRoot)
+  const before = await fileHashes(artifactsRoot)
+
+  await assert.rejects(
+    () => write({
+      pluginRoot,
+      policy: approvedPublicationPolicy(),
+      sourceDocs: [{ path: "visible-track/task-1/task.md", body: "public body" }],
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_input_unknown")
+      assert.equal(error.artifact_type, artifactType)
+      assertPublicErrorDoesNotLeak(error)
+      return true
+    },
+  )
+
+  assert.deepEqual(await fileHashes(artifactsRoot), before)
+}
+
 test("vector-pack writer rejects excluded source docs before writing bytes", async () => {
   const { writeVectorPackArtifact } = await loadVectorPackModule()
   await assertArtifactWriterRejectsExcludedSourceDocs({
@@ -337,6 +565,16 @@ test("vector-pack writer rejects excluded source docs before writing bytes", asy
       packBytes: "",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:excluded  excluded-pack.jsonl\n",
+    }),
+  })
+  await assertArtifactWriterRejectsUnknownSourceContext({
+    artifactType: "vector-pack",
+    write: (args) => writeVectorPackArtifact({
+      ...args,
+      packId: "unknown-source-pack",
+      packBytes: "",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:unknown  unknown-source-pack.jsonl\n",
     }),
   })
 })
@@ -351,6 +589,16 @@ test("snapshot writer rejects excluded source docs before writing bytes", async 
       snapshotBytes: "sqlite bytes",
       manifestBytes: "{}\n",
       checksumBytes: "sha256:excluded  excluded-snapshot.sqlite.zst\n",
+    }),
+  })
+  await assertArtifactWriterRejectsUnknownSourceContext({
+    artifactType: "snapshot",
+    write: (args) => writeSnapshotArtifact({
+      ...args,
+      snapshotId: "unknown-source-snapshot",
+      snapshotBytes: "sqlite bytes",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:unknown  unknown-source-snapshot.sqlite.zst\n",
     }),
   })
 })
