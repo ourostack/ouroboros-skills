@@ -82,7 +82,7 @@ function headingText(record) {
 }
 
 function isDeveloperOrTroubleshooting(record) {
-  return /\b(troubleshoot|repair|developer|development|contributor|direct development|local development)\b/u
+  return /\b(troubleshoot|troubleshooting|repair|developer|development|contributor|direct development|local development)\b/u
     .test(headingText(record));
 }
 
@@ -95,44 +95,65 @@ function isNegatedGuidance(record) {
     .test(record.lower);
 }
 
+function isStrictNegativeGuidance(record) {
+  return /\b(do not|don't|never|must not|should not|not part of the healthy path|without manual|without requiring|does not require|do not require|no healthy-path|no (?:normal |manual )?(?:need|requirement|manual|copy|append|mcp registration)|avoid(?:s|ing)? manual)\b/u
+    .test(record.lower);
+}
+
 function isAllowedManualContext(record) {
   return isDeveloperOrTroubleshooting(record) || isMcpOnlyFallback(record) || isNegatedGuidance(record);
+}
+
+function isAllowedManualCommandContext(record) {
+  return isDeveloperOrTroubleshooting(record) || isStrictNegativeGuidance(record);
+}
+
+function hasUncontrolledWorkerInstructionGuidance(record) {
+  const mentionsInstructionTarget =
+    /\b(?:agents\.md|codex instructions?|codex worker instructions?|worker default(?: instruction)? block|worker-default(?: instruction)? block|agent files?|worker\.toml)\b/u
+      .test(record.lower);
+  const hasManualEditVerb =
+    /\b(?:append|copy|copied|paste|write|drop|place|add|hand-edit|hand edit|manually edit)\b/u
+      .test(record.lower);
+  return mentionsInstructionTarget && hasManualEditVerb;
+}
+
+function validateHealthyPathRecord(errors, record) {
+  if (
+    !record.inFence &&
+    /\binstall(?:s|ed|ing)?\s+desk\b/u.test(record.lower) &&
+    !isAllowedManualContext(record)
+  ) {
+    errors.push(`${lineRef(record)} frames Desk as something to install manually in healthy-path prose`);
+  }
+
+  if (
+    /\bnpm\s+install\b/u.test(record.lower) &&
+    !isAllowedManualCommandContext(record)
+  ) {
+    errors.push(`${lineRef(record)} mentions npm install outside troubleshooting/developer notes`);
+  }
+
+  if (
+    /\bcodex\s+mcp\s+add\b/u.test(record.lower) &&
+    !isAllowedManualCommandContext(record)
+  ) {
+    errors.push(`${lineRef(record)} presents codex mcp add outside troubleshooting/developer notes`);
+  }
+
+  if (
+    hasUncontrolledWorkerInstructionGuidance(record) &&
+    !isDeveloperOrTroubleshooting(record) &&
+    !isStrictNegativeGuidance(record)
+  ) {
+    errors.push(`${lineRef(record)} presents uncontrolled AGENTS/worker copy or append guidance`);
+  }
 }
 
 function validateHealthyPathLanguage(errors) {
   for (const doc of DOCS) {
     for (const record of markdownLines(doc)) {
-      if (
-        !record.inFence &&
-        /\binstall(?:s|ed|ing)?\s+desk\b/u.test(record.lower) &&
-        !isAllowedManualContext(record)
-      ) {
-        errors.push(`${lineRef(record)} frames Desk as something to install manually in healthy-path prose`);
-      }
-
-      if (
-        /\bnpm\s+install\b/u.test(record.lower) &&
-        !isDeveloperOrTroubleshooting(record) &&
-        !isNegatedGuidance(record)
-      ) {
-        errors.push(`${lineRef(record)} mentions npm install outside troubleshooting/developer notes`);
-      }
-
-      if (
-        /\bcodex\s+mcp\s+add\b/u.test(record.lower) &&
-        !isDeveloperOrTroubleshooting(record) &&
-        !isNegatedGuidance(record)
-      ) {
-        errors.push(`${lineRef(record)} presents codex mcp add outside troubleshooting/developer notes`);
-      }
-
-      if (
-        /\b(?:append|copy|copied)\b.*\b(?:agents\.md|codex worker instructions|agent files?)\b/u.test(record.lower) &&
-        !/\b(owned|delimited|controlled|without|no |not |never|do not|does not|avoid|avoids|not part of the healthy path)\b/u
-          .test(record.lower)
-      ) {
-        errors.push(`${lineRef(record)} presents uncontrolled AGENTS/worker copy or append guidance`);
-      }
+      validateHealthyPathRecord(errors, record);
     }
   }
 }
@@ -165,8 +186,76 @@ function validateWorkflowWiring(errors) {
   }
 }
 
+function fixtureRecord(text, headingPath = []) {
+  return {
+    file: "fixture.md",
+    line: 1,
+    text,
+    lower: text.toLowerCase(),
+    headingPath,
+    inFence: false,
+  };
+}
+
+function fixtureErrors(text, headingPath = []) {
+  const errors = [];
+  validateHealthyPathRecord(errors, fixtureRecord(text, headingPath));
+  return errors;
+}
+
+function assertFixtureFails(errors, text, expected) {
+  const found = fixtureErrors(text);
+  if (!found.some((error) => error.includes(expected))) {
+    errors.push(`docs validator self-test failed: expected ${JSON.stringify(text)} to fail with ${expected}`);
+  }
+}
+
+function assertFixturePasses(errors, text, headingPath = []) {
+  const found = fixtureErrors(text, headingPath);
+  if (found.length > 0) {
+    errors.push(`docs validator self-test failed: expected ${JSON.stringify(text)} to pass, got ${found.join("; ")}`);
+  }
+}
+
+function validateValidatorFixtures(errors) {
+  assertFixtureFails(
+    errors,
+    "If activation fails, run `codex mcp add desk` from the repo.",
+    "codex mcp add",
+  );
+  assertFixtureFails(
+    errors,
+    "Run `npm install` instead of using the runtime pack.",
+    "npm install",
+  );
+  assertFixtureFails(
+    errors,
+    "Paste the worker default block into your Codex instructions.",
+    "AGENTS/worker copy or append",
+  );
+  assertFixtureFails(
+    errors,
+    "Append the worker-default instruction block to AGENTS.md.",
+    "AGENTS/worker copy or append",
+  );
+
+  assertFixturePasses(errors, "Do not run `codex mcp add` for the healthy path.");
+  assertFixturePasses(
+    errors,
+    "If activation fails, run `codex mcp add desk` from the repo.",
+    ["Troubleshooting"],
+  );
+  assertFixturePasses(
+    errors,
+    "Direct development checkouts can still run `npm install` when intentionally working on the MCP package.",
+    ["Developer notes"],
+  );
+  assertFixturePasses(errors, "Copied agent files are not part of the healthy path.");
+}
+
 function run() {
   const errors = [];
+  validateValidatorFixtures(errors);
   validateWorkflowWiring(errors);
   validateHealthyPathLanguage(errors);
   validatePrivacyNotes(errors);
