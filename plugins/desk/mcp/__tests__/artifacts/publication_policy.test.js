@@ -216,8 +216,12 @@ test("committed publication policy and schema declare conservative privacy defau
 })
 
 test("loadPublicationPolicy validates policy JSON against the committed schema", async () => {
-  const { loadPublicationPolicy } = await loadPolicyModule()
+  const {
+    loadPublicationPolicy,
+    validatePublicationPolicy,
+  } = await loadPolicyModule()
   const pluginRoot = await tmpRoot("desk-publication-policy-invalid-")
+  const schema = await readJson(schemaPath)
   const policy = validPolicy({
     approved_artifact_types: ["vector-pack", "vector-pack", "runtime-deps"],
     approvals: [
@@ -268,6 +272,61 @@ test("loadPublicationPolicy validates policy JSON against the committed schema",
   assert.ok(
     invalidApprovedTypes.diagnostics.includes(
       "publication policy approved_artifact_types must be an array",
+    ),
+  )
+
+  await writePolicyFixture(pluginRoot, validPolicy({
+    updated_at: 42,
+  }))
+  const invalidDateType = await loadPublicationPolicy({ pluginRoot })
+  assert.equal(invalidDateType.valid, false)
+  assert.ok(
+    invalidDateType.diagnostics.includes(
+      "publication policy updated_at must be a date-time string",
+    ),
+  )
+  assert.ok(
+    validatePublicationPolicy({
+      policy: validPolicy({ updated_at: "" }),
+      schema,
+    }).includes("publication policy updated_at must be a date-time string"),
+  )
+  assert.ok(
+    validatePublicationPolicy({
+      policy: validPolicy({ updated_at: "2026-99-99T00:00:00Z" }),
+      schema,
+    }).includes("publication policy updated_at must be a date-time string"),
+  )
+
+  await writePolicyFixture(pluginRoot, validPolicy({
+    approvals: [
+      repoApproval("vector-pack", {
+        approved_at: "2026-06-15T00:00:00Z",
+      }),
+    ],
+    updated_at: "2026-06-15T00:00:00Z",
+  }))
+  const validNoMillisDateTimes = await loadPublicationPolicy({ pluginRoot })
+  assert.equal(validNoMillisDateTimes.valid, true)
+
+  await writePolicyFixture(pluginRoot, validPolicy({
+    updated_at: "2026-99-99Tnot-a-real-date",
+    approvals: [
+      repoApproval("vector-pack", {
+        approved_at: "2026-99-99Tnot-a-real-date",
+      }),
+    ],
+  }))
+  const invalidDateTimes = await loadPublicationPolicy({ pluginRoot })
+  assert.equal(invalidDateTimes.valid, false)
+  assert.ok(
+    invalidDateTimes.diagnostics.includes(
+      "publication policy updated_at must be a date-time string",
+    ),
+  )
+  assert.ok(
+    invalidDateTimes.diagnostics.includes(
+      "publication policy approvals[0].approved_at must be a date-time string",
     ),
   )
 })
@@ -476,6 +535,39 @@ test("artifact write paths fail closed when the publication policy is invalid", 
       assert.ok(error.diagnostics.includes("publication policy approvals[0] missing approved_by"))
       assert.ok(error.diagnostics.includes("publication policy approvals[0] missing approved_at"))
       assert.ok(error.diagnostics.includes("publication policy approvals[0] missing reason"))
+      return true
+    },
+  )
+
+  await assert.rejects(
+    () => writeVectorPackArtifact({
+      pluginRoot,
+      packId: "invalid-date-policy-pack",
+      packBytes: "",
+      manifestBytes: "{}\n",
+      checksumBytes: "sha256:invalid  invalid-date-policy-pack.jsonl\n",
+      policy: validPolicy({
+        approved_artifact_types: ["vector-pack"],
+        approvals: [
+          repoApproval("vector-pack", {
+            approved_at: "2026-99-99Tnot-a-real-date",
+          }),
+        ],
+        updated_at: "2026-99-99Tnot-a-real-date",
+      }),
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_publication_policy_invalid")
+      assert.ok(
+        error.diagnostics.includes(
+          "publication policy updated_at must be a date-time string",
+        ),
+      )
+      assert.ok(
+        error.diagnostics.includes(
+          "publication policy approvals[0].approved_at must be a date-time string",
+        ),
+      )
       return true
     },
   )

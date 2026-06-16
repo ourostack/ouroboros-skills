@@ -3,7 +3,7 @@ import * as path from "node:path"
 
 const ARTIFACT_POLICY_PATH = path.join("artifacts", "publication-policy.json")
 const ARTIFACT_POLICY_SCHEMA_PATH = path.join("artifacts", "publication-policy.schema.json")
-const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}T/u
+const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u
 
 export async function loadPublicationPolicy({ pluginRoot } = {}) {
   const policyPath = path.join(pluginRoot, ARTIFACT_POLICY_PATH)
@@ -196,7 +196,14 @@ function validateApprovals({ approvals, schema, diagnostics }) {
 }
 
 function isDateTime(value) {
-  return typeof value === "string" && DATE_TIME_RE.test(value)
+  if (typeof value !== "string" || !DATE_TIME_RE.test(value)) return false
+  const parsed = Date.parse(value)
+  if (!Number.isFinite(parsed)) return false
+  return new Date(parsed).toISOString() === normalizeDateTime(value)
+}
+
+function normalizeDateTime(value) {
+  return value.includes(".") ? value : value.replace(/Z$/u, ".000Z")
 }
 
 function hasNonEmptyText(value) {
