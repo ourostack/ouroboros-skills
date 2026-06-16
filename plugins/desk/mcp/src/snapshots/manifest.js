@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
+import {
+  assertArtifactPublicationAllowed,
+  policyForArtifactWrite,
+} from "../artifacts/policy.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 
 const SNAPSHOT_FORMAT = "sqlite-zstd"
@@ -39,6 +43,30 @@ export function deriveSnapshotPaths({
       `${snapshotId}.sqlite.zst`,
     )),
   }
+}
+
+export async function writeSnapshotArtifact({
+  pluginRoot,
+  embeddingSpecId = ACTIVE_EMBEDDING_SPEC.id,
+  snapshotId,
+  snapshotBytes,
+  manifestBytes,
+  checksumBytes,
+  policy,
+} = {}) {
+  const paths = deriveSnapshotPaths({ pluginRoot, embeddingSpecId, snapshotId })
+  const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
+  await assertArtifactPublicationAllowed({
+    policy: publicationPolicy,
+    artifact_type: "snapshot",
+    operation: "write",
+    relative_path: paths.relativeSnapshotPath,
+  })
+  await fs.mkdir(paths.snapshotDir, { recursive: true })
+  await fs.writeFile(paths.snapshotPath, snapshotBytes)
+  await fs.writeFile(paths.manifestPath, manifestBytes)
+  await fs.writeFile(paths.checksumPath, checksumBytes)
+  return paths
 }
 
 export async function validateSnapshotArtifact({

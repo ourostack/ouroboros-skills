@@ -3,6 +3,10 @@ import { createReadStream } from "node:fs"
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
 import { StringDecoder } from "node:string_decoder"
+import {
+  assertArtifactPublicationAllowed,
+  policyForArtifactWrite,
+} from "../artifacts/policy.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
 const VECTOR_ENCODING = "float32-json"
@@ -39,6 +43,30 @@ export function deriveVectorPackPaths({
       `${packId}.jsonl`,
     )),
   }
+}
+
+export async function writeVectorPackArtifact({
+  pluginRoot,
+  embeddingSpecId = ACTIVE_EMBEDDING_SPEC.id,
+  packId,
+  packBytes,
+  manifestBytes,
+  checksumBytes,
+  policy,
+} = {}) {
+  const paths = deriveVectorPackPaths({ pluginRoot, embeddingSpecId, packId })
+  const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
+  await assertArtifactPublicationAllowed({
+    policy: publicationPolicy,
+    artifact_type: "vector-pack",
+    operation: "write",
+    relative_path: paths.relativePackPath,
+  })
+  await fs.mkdir(paths.packDir, { recursive: true })
+  await fs.writeFile(paths.packPath, packBytes)
+  await fs.writeFile(paths.manifestPath, manifestBytes)
+  await fs.writeFile(paths.checksumPath, checksumBytes)
+  return paths
 }
 
 export async function validateVectorPackFile({
