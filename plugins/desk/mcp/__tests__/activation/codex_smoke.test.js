@@ -61,6 +61,76 @@ function smokeStdout({
   })}\n`
 }
 
+function pluginDependency(id, version = "1.0.0") {
+  return {
+    id,
+    kind: "plugin",
+    version,
+    provenance: {
+      source: `plugins/${id}/plugin.json`,
+      package: `ourostack/${id}`,
+    },
+    lock: {
+      version,
+      integrity: `sha256-${id}-fixture`,
+    },
+  }
+}
+
+function overlayAgent({
+  id,
+  dependsOn,
+  inherits,
+  identity,
+  addendum,
+}) {
+  return {
+    id,
+    kind: "agent-overlay",
+    depends_on: dependsOn,
+    launch_as: id,
+    inherits,
+    entrypoints: {
+      codex: `agents/${id.replace(/:/gu, "-")}.toml`,
+    },
+    instructions: {
+      identity,
+      addendum,
+    },
+  }
+}
+
+function overlayChainManifest() {
+  const manifest = loadJson(path.join(repoRoot, "plugins", "desk", "activation", "desk.activation.json"))
+  return {
+    ...manifest,
+    dependencies: [
+      ...manifest.dependencies,
+      pluginDependency("ms-desk", "2.3.0"),
+      pluginDependency("ms-area-desk", "4.5.0"),
+    ],
+    provides: {
+      ...manifest.provides,
+      overlay_agents: [
+        overlayAgent({
+          id: "ms-desk:worker",
+          dependsOn: ["desk", "work-suite", "ms-desk"],
+          inherits: ["desk:worker"],
+          identity: "Microsoft Desk worker",
+          addendum: "Use Microsoft employee context without copying Desk setup.",
+        }),
+        overlayAgent({
+          id: "ms-area:worker",
+          dependsOn: ["ms-area-desk"],
+          inherits: ["ms-desk:worker"],
+          identity: "Area Desk worker",
+          addendum: "Use area-specific context layered on Microsoft Desk.",
+        }),
+      ],
+    },
+  }
+}
+
 function assertUnderRoot(root, actualPath, label) {
   const relative = path.relative(root, actualPath)
   assert.equal(
@@ -218,6 +288,70 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
     })
     assert.equal(result.real_profile_touched, false)
     assertNoHealthyPathManualSetup(JSON.stringify(result))
+  } finally {
+    rmSync(hostRoot, { recursive: true, force: true })
+  }
+})
+
+test("Codex CLI activation smoke proves selected overlay activation in desk_status", async () => {
+  const { runCodexCliActivationSmoke } = await loadCodexSmokeHarness()
+  const hostRoot = makeTempHost()
+  try {
+    const workspaceRoot = path.join(hostRoot, "workspace")
+    const result = await runCodexCliActivationSmoke({
+      repoRoot,
+      hostRoot,
+      workspaceRoot,
+      mode: "global-personal",
+      manifest: overlayChainManifest(),
+      selectedActivationId: "ms-area:worker",
+      codexRunner: async (request) => {
+        const generatedInstructions = readFileSync(path.join(request.env.CODEX_HOME, "AGENTS.md"), "utf8")
+        assert.match(generatedInstructions, /You are the Area Desk worker by default\./u)
+        assert.match(generatedInstructions, /Active Desk activation: `desk:worker` -> `ms-desk:worker` -> `ms-area:worker`\./u)
+        assert.match(generatedInstructions, /Microsoft Desk worker: Use Microsoft employee context/u)
+        assert.match(generatedInstructions, /Area Desk worker: Use area-specific context/u)
+        assertNoHealthyPathManualSetup(generatedInstructions)
+
+        return {
+          exitCode: 0,
+          stdout: smokeStdout({
+            instructions: generatedInstructions,
+            deskStatus: {
+              status: "ok",
+              root: {
+                path: path.join(hostRoot, "desk"),
+                source: "activation-config",
+              },
+              activation: {
+                selected_id: "ms-area:worker",
+                chain: ["desk:worker", "ms-desk:worker", "ms-area:worker"],
+                mode: "global-personal",
+                source: "activation-config",
+              },
+              runtime: {
+                loaded_from_source_mirror: true,
+              },
+            },
+          }),
+          stderr: "",
+        }
+      },
+    })
+
+    assert.equal(result.status, "pass")
+    assert.equal(result.activation.selected_activation.id, "ms-area:worker")
+    assert.deepEqual(result.activation.selected_activation.chain.map((entry) => entry.id), [
+      "desk:worker",
+      "ms-desk:worker",
+      "ms-area:worker",
+    ])
+    assert.equal(result.desk_status.activation.selected_id, "ms-area:worker")
+    assert.deepEqual(result.desk_status.activation.chain, [
+      "desk:worker",
+      "ms-desk:worker",
+      "ms-area:worker",
+    ])
   } finally {
     rmSync(hostRoot, { recursive: true, force: true })
   }

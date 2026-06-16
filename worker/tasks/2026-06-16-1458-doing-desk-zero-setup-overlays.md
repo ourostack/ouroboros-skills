@@ -68,9 +68,9 @@ Acceptance:
 
 ## Unit 3 — Green: Health Evidence for Active Activation
 
-- [ ] Carry active activation id/chain into Codex smoke/status context.
-- [ ] Extend `desk_status` output to report activation metadata when provided.
-- [ ] Add tests proving selected-overlay health evidence without relying on Codex Desktop internals.
+- [x] Carry active activation id/chain into Codex smoke/status context.
+- [x] Extend `desk_status` output to report activation metadata when provided.
+- [x] Add tests proving selected-overlay health evidence without relying on Codex Desktop internals.
 
 Output:
 - Passing status and Codex smoke/status tests.
@@ -113,3 +113,4 @@ Acceptance:
 - 2026-06-16 14:59 Unit 0 complete: red activation tests captured in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-0-red.log`.
 - 2026-06-16 15:02 Unit 1 complete: activation graph validation and ordering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-1-activation-contract-green.log`.
 - 2026-06-16 15:04 Unit 2 complete: Codex selected-overlay rendering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-2-codex-activation-green.log`.
+- 2026-06-16 15:08 Unit 3 complete: selected-overlay `desk_status` and Codex smoke evidence green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-3-status-smoke-green.log`.

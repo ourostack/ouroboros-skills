@@ -59,12 +59,16 @@ function activationContext({ hostRoot, workspaceRoot, mode }) {
   }
 }
 
-function activationSummary(activationHostRoot, activation) {
-  return {
+function activationSummary(activationHostRoot, activation, { includeSelectedActivation = false } = {}) {
+  const summary = {
     config_path: hostPath(activationHostRoot, activation.configPath),
     instructions_path: hostPath(activationHostRoot, activation.instructionsPath),
     mode: activation.mode,
   }
+  if (includeSelectedActivation) {
+    summary.selected_activation = activation.selectedActivation
+  }
+  return summary
 }
 
 async function invokeCodexRunner(codexRunner, request) {
@@ -99,11 +103,21 @@ function parseProof(stdout) {
   }
 }
 
-function assertDeskStatusProof(proof, deskRoot) {
+function assertDeskStatusProof(proof, deskRoot, selectedActivation = null) {
   const deskStatus = proof.desk_status ?? {}
   const root = deskStatus.root ?? {}
   if (`${deskStatus.status}:${root.path}` !== `ok:${deskRoot}`) {
     throw new Error("Codex CLI smoke did not prove desk_status availability")
+  }
+  if (selectedActivation) {
+    const statusActivation = deskStatus.activation ?? {}
+    const statusChain = Array.isArray(statusActivation.chain) ? statusActivation.chain : []
+    if (
+      statusActivation.selected_id !== selectedActivation.id ||
+      statusChain.join(" -> ") !== selectedActivation.chain.map((entry) => entry.id).join(" -> ")
+    ) {
+      throw new Error("Codex CLI smoke did not prove selected activation desk_status metadata")
+    }
   }
 }
 
@@ -112,6 +126,8 @@ export async function runCodexCliActivationSmoke({
   hostRoot,
   workspaceRoot,
   mode = DEFAULT_MODE,
+  manifest: manifestOverride = null,
+  selectedActivationId = null,
   cleanupProfile = false,
   codexRunner,
 }) {
@@ -127,10 +143,11 @@ export async function runCodexCliActivationSmoke({
   mkdirSync(actualDeskRoot, { recursive: true })
 
   try {
-    const manifest = JSON.parse(readFileSync(path.join(repoRoot, "plugins", "desk", "activation", "desk.activation.json"), "utf8"))
+    const manifest = manifestOverride ?? JSON.parse(readFileSync(path.join(repoRoot, "plugins", "desk", "activation", "desk.activation.json"), "utf8"))
     const { activation } = applyCodexActivation({
       manifest,
       mode,
+      selectedActivationId,
       hostRoot: activationHostRoot,
       existingConfig: readTextFile(hostPath(activationHostRoot, mode === "project-local" ? ".codex/config.toml" : "~/.codex/config.toml")),
       existingInstructions: readTextFile(hostPath(activationHostRoot, mode === "project-local" ? "AGENTS.md" : "~/.codex/AGENTS.md")),
@@ -139,7 +156,9 @@ export async function runCodexCliActivationSmoke({
       deskRoot: adapterDeskRoot,
       runtimeCacheDir,
     })
-    const activationPaths = activationSummary(activationHostRoot, activation)
+    const activationPaths = activationSummary(activationHostRoot, activation, {
+      includeSelectedActivation: selectedActivationId !== null,
+    })
 
     if (mode === "manual-only") {
       return {
@@ -168,7 +187,11 @@ export async function runCodexCliActivationSmoke({
     })
     assertExitCode(runnerOutput)
     const proof = parseProof(runnerOutput.stdout)
-    assertDeskStatusProof(proof, actualDeskRoot)
+    assertDeskStatusProof(
+      proof,
+      actualDeskRoot,
+      selectedActivationId === null ? null : activation.selectedActivation,
+    )
 
     return {
       status: "pass",
