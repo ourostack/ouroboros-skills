@@ -179,3 +179,46 @@ test("cold start restores the committed production snapshot without rebuild or e
     await rm(tempRoot, { recursive: true, force: true })
   }
 })
+
+test("cold rebuild imports committed production vector packs without embeddings", async () => {
+  const tempRoot = await tmpRoot("desk-dependency-flow-vector-pack-")
+  try {
+    const deskRoot = path.join(tempRoot, "desk")
+    await copyProductionDeskDoc(deskRoot)
+    let embeddingCalls = 0
+
+    const result = await ensureIndex(deskRoot, {
+      startup: true,
+      snapshots: false,
+      embed: {
+        fetch: async () => {
+          embeddingCalls += 1
+          throw new Error("production vector-pack rebuild must not call live embeddings")
+        },
+      },
+    })
+
+    assert.equal(embeddingCalls, 0)
+    assert.equal(result.built, true, JSON.stringify(result, null, 2))
+    assert.equal(result.reason, "missing")
+    assert.equal(result.fallback, "vector_packs")
+    assert.equal(result.vector_packs?.import_state, "used_as_fallback")
+    assert.equal(result.vector_packs?.packs_imported, 1)
+    assert.equal(result.vector_packs?.rows_imported, 2)
+    assert.equal(result.semantic?.missing_vectors, 0)
+
+    const db = openDb(deskRoot)
+    try {
+      assert.deepEqual(
+        db.prepare("SELECT path FROM docs ORDER BY path").all(),
+        [{ path: productionDocPath }],
+      )
+      assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n, 2)
+      assert.equal(db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n, 2)
+    } finally {
+      closeDb(db)
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+})
