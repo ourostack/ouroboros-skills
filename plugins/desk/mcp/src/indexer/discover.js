@@ -24,7 +24,11 @@ import { promises as fs } from "node:fs"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
 import matter from "gray-matter"
-import { exclusionForPath, loadExclusionRules } from "./exclusions.js"
+import {
+  exclusionForPath,
+  hasGitignoreNegation,
+  loadExclusionRules,
+} from "./exclusions.js"
 
 /** Filenames we always pick up regardless of where they sit in the tree. */
 const TASK_DOC_BASENAMES = new Set([
@@ -101,7 +105,7 @@ async function walk(deskRoot, dir, out, signal, exclusionRules) {
       // decide whether to include them.
       const sub = path.join(dir, name)
       const relDir = path.relative(deskRoot, sub)
-      if (isExcluded(relDir, exclusionRules)) continue
+      if (shouldSkipDirectory(relDir, exclusionRules)) continue
       await walk(deskRoot, sub, out, signal, exclusionRules)
       continue
     }
@@ -121,6 +125,13 @@ async function walk(deskRoot, dir, out, signal, exclusionRules) {
 
 function isExcluded(relPath, rules) {
   return exclusionForPath(relPath, rules).excluded
+}
+
+function shouldSkipDirectory(relPath, rules) {
+  const decision = exclusionForPath(relPath, rules)
+  if (!decision.excluded) return false
+  if (decision.reason !== "gitignore") return true
+  return !hasGitignoreNegation(rules)
 }
 
 /**

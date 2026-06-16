@@ -240,6 +240,22 @@ test("loadExclusionRules fails closed when gitignore bytes become unreadable", a
   )
 })
 
+test("loadExclusionRules surfaces unexpected directory scan errors", async (t) => {
+  const { loadExclusionRules } = await loadExclusionsModule()
+  const root = await tmpRoot()
+
+  t.mock.method(fs, "readdir", async () => {
+    const error = new Error("blocked")
+    error.code = "EACCES"
+    throw error
+  })
+
+  await assert.rejects(
+    () => loadExclusionRules({ deskRoot: root }),
+    (error) => error.code === "EACCES" && error.message === "blocked",
+  )
+})
+
 test("discover excludes sensitive active and archived paths", async () => {
   const root = await tmpRoot()
   await writeFile(root, "trackA/task-1/task.md", "# Visible\n\npublic body")
@@ -262,6 +278,75 @@ test("discover excludes sensitive active and archived paths", async () => {
       "sensitive archived paths must remain excluded despite archive indexing",
     )
   }
+})
+
+test("discover applies nested gitignore files and negated rules", async () => {
+  const root = await tmpRoot()
+  await writeFile(
+    root,
+    ".gitignore",
+    "root-ignored/\n/anchored-ignored\n!root-ignored/reincluded/task.md\n!public/task.md\n",
+  )
+  await writeFile(
+    root,
+    "trackA/.gitignore",
+    "local-ignored/\n!local-ignored/reincluded/task.md\n",
+  )
+  await writeFile(root, "trackA/visible/task.md", "# Visible\n\npublic body")
+  await writeFile(root, "root-ignored/private/task.md", "# Root ignored\n\nfixture secret")
+  await writeFile(root, "anchored-ignored/leaked/task.md", "# Anchored ignored\n\nfixture secret")
+  await writeFile(root, "root-ignored/reincluded/task.md", "# Root reinclude\n\npublic body")
+  await writeFile(root, "public/task.md", "# Public\n\npublic body")
+  await writeFile(root, "trackA/local-ignored/private/task.md", "# Local ignored\n\nfixture secret")
+  await writeFile(root, "trackA/local-ignored/reincluded/task.md", "# Local reinclude\n\npublic body")
+
+  const paths = (await discover(root)).map((doc) => doc.path)
+
+  assert.equal(paths.includes("trackA/visible/task.md"), true)
+  assert.equal(paths.includes("public/task.md"), true)
+  assert.equal(paths.includes("root-ignored/private/task.md"), false)
+  assert.equal(paths.includes("anchored-ignored/leaked/task.md"), false)
+  assert.equal(paths.includes("trackA/local-ignored/private/task.md"), false)
+  assert.equal(paths.includes("root-ignored/reincluded/task.md"), true)
+  assert.equal(paths.includes("trackA/local-ignored/reincluded/task.md"), true)
+})
+
+test("discover excludes symlink and hidden docs while preserving person and shared docs", async () => {
+  const root = await tmpRoot()
+  await writeFile(root, "trackA/task-1/task.md", "# Visible\n\npublic body")
+  await writeFile(root, ".hidden/task.md", "# Hidden dir\n\nfixture secret")
+  await writeFile(root, "trackA/_archive/.hidden.md", "# Hidden archive\n\nfixture secret")
+  await writeFile(root, "_shared/.hidden.md", "# Hidden shared\n\nfixture secret")
+  await writeFile(root, "desks/ari/trackP/task-3/task.md", "# Person\n\npublic body")
+  await writeFile(root, "_shared/landscape/glossary.md", "# Shared\n\npublic body")
+
+  let symlinkCreated = false
+  try {
+    await fs.mkdir(path.join(root, "trackA", "symlink-task"), { recursive: true })
+    await fs.symlink(
+      path.join(root, "trackA", "task-1", "task.md"),
+      path.join(root, "trackA", "symlink-task", "task.md"),
+    )
+    symlinkCreated = true
+  } catch {
+    // Some filesystems disallow symlinks; hidden/person/shared coverage still runs.
+  }
+
+  const docs = await discover(root)
+  const byPath = Object.fromEntries(docs.map((doc) => [doc.path, doc]))
+
+  assert.ok(byPath["trackA/task-1/task.md"])
+  assert.equal(byPath[".hidden/task.md"], undefined)
+  assert.equal(byPath["trackA/_archive/.hidden.md"], undefined)
+  assert.equal(byPath["_shared/.hidden.md"], undefined)
+  if (symlinkCreated) {
+    assert.equal(byPath["trackA/symlink-task/task.md"], undefined)
+  }
+  assert.equal(byPath["desks/ari/trackP/task-3/task.md"].kind, "task")
+  assert.equal(byPath["desks/ari/trackP/task-3/task.md"].track, "trackP")
+  assert.equal(byPath["desks/ari/trackP/task-3/task.md"].task_slug, "task-3")
+  assert.equal(byPath["_shared/landscape/glossary.md"].kind, "shared")
+  assert.equal(byPath["_shared/landscape/glossary.md"].track, null)
 })
 
 test("discover keeps ordinary archive recall while excluding archived sensitive paths", async () => {
@@ -360,22 +445,77 @@ test("artifact publication guard rejects excluded inputs without leaking content
   )
 })
 
+test("artifact publication guard honors nested gitignore files and negated rules", async () => {
+  const { assertArtifactInputsAllowed } = await loadExclusionsModule()
+  const root = await tmpRoot()
+  await writeFile(
+    root,
+    "trackA/.gitignore",
+    "local-ignored/\n/anchored-local\n!local-ignored/reincluded/task.md\n!public/task.md\n",
+  )
+
+  assert.deepEqual(
+    await assertArtifactInputsAllowed({
+      deskRoot: root,
+      artifact_type: "snapshot",
+      docs: [{ path: "trackA/local-ignored/reincluded/task.md", body: "public body" }],
+    }),
+    { allowed: true },
+  )
+
+  await assert.rejects(
+    () => assertArtifactInputsAllowed({
+      deskRoot: root,
+      artifact_type: "snapshot",
+      docs: [
+        { path: "trackA/local-ignored/private/task.md", body: "fixture secret" },
+        { path: "trackA/anchored-local/leaked/task.md", body: "fixture secret" },
+        { path: "trackA/_archive/.hidden.md", body: "fixture secret" },
+      ],
+    }),
+    (error) => {
+      assert.equal(error.code, "artifact_input_excluded")
+      assert.equal(error.artifact_type, "snapshot")
+      assert.equal(error.excluded_count, 3)
+      assert.deepEqual([...error.reasons].sort(), ["gitignore", "hidden_path"])
+      assertPublicErrorDoesNotLeak(error)
+      return true
+    },
+  )
+})
+
 test("exclusion helpers cover path globs and benign artifact inputs", async () => {
   const {
     assertArtifactInputsAllowed,
     exclusionForPath,
+    hasGitignoreNegation,
     loadExclusionRules,
   } = await loadExclusionsModule()
   const root = await tmpRoot()
   await writeFile(
     root,
     ".gitignore",
-    "# comments ignored\n!negations-covered-later\ntrackA/*.md\n*.pem\n",
+    "# comments ignored\n!\n!negations-covered-later\ntrackA/*.md\n*.pem\n",
   )
 
   const rules = await loadExclusionRules({ deskRoot: root })
 
   assert.deepEqual(await loadExclusionRules({}), { gitignore: [] })
+  assert.deepEqual(await loadExclusionRules({ deskRoot: path.join(root, "missing") }), { gitignore: [] })
+  assert.equal(hasGitignoreNegation({}), false)
+  assert.equal(hasGitignoreNegation({ gitignore: ["!ignored-track/"] }), true)
+  assert.equal(
+    exclusionForPath("ignored-track/task.md", {
+      gitignore: ["!ignored-track/"],
+    }).excluded,
+    false,
+  )
+  assert.equal(
+    exclusionForPath("visible-track/task-1/task.md", {
+      gitignore: [null, { baseDir: "trackA", negated: true }, { pattern: null }],
+    }).excluded,
+    false,
+  )
   for (const docs of [
     undefined,
     [],
