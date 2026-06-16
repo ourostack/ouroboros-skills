@@ -18,6 +18,7 @@ import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { main as startMcpServer } from "../../index.js"
 import { rebuildIndex } from "../../src/indexer/index.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 
@@ -255,8 +256,16 @@ function filesUnder(root) {
   return out.sort()
 }
 
-function assertNoPrimaryArtifact(pluginRoot, target) {
-  assert.equal(existsSync(path.join(pluginRoot, target.primaryRel)), false)
+function artifactTree(pluginRoot) {
+  return filesUnder(path.join(pluginRoot, "artifacts"))
+    .filter((file) => (
+      !file.startsWith("publication-policy.") &&
+      !file.startsWith("tombstones/")
+    ))
+}
+
+function assertArtifactTreeUnchanged(pluginRoot, before) {
+  assert.deepEqual(artifactTree(pluginRoot), before)
 }
 
 function writeBudgetConfig(file, overrides = {}) {
@@ -411,6 +420,51 @@ function assertPositiveIntegerBudget(value, label) {
   assert.ok(value > 0, `${label} must be positive`)
 }
 
+function runtimeServerWithEnsureIndex(ensureIndexResult = { built: false, reason: "fresh" }) {
+  const ensureCalls = []
+  const startCalls = []
+  return {
+    ensureCalls,
+    startCalls,
+    async ensureIndex(deskRoot, opts = {}) {
+      ensureCalls.push({ deskRoot, opts })
+      return ensureIndexResult
+    },
+    async startServer(args) {
+      startCalls.push(args)
+    },
+  }
+}
+
+async function withSeededArtifactFixture(fn) {
+  const deskRoot = makeTempDir("desk-artifact-scripts-budget-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-budget-plugin-")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    await seedIndexedDesk({ deskRoot })
+    const vectorTarget = ARTIFACT_SCRIPT_TARGETS[0]
+    const vectorRun = runNpmScript(
+      vectorTarget.scriptName,
+      artifactArgs({ target: vectorTarget, deskRoot, pluginRoot }),
+    )
+    assertScriptSucceeded(vectorRun)
+    const snapshotTarget = ARTIFACT_SCRIPT_TARGETS[1]
+    const snapshotRun = runNpmScript(
+      snapshotTarget.scriptName,
+      [
+        ...artifactArgs({ target: snapshotTarget, deskRoot, pluginRoot }),
+        "--included-pack-id",
+        vectorTarget.id,
+      ],
+    )
+    assertScriptSucceeded(snapshotRun)
+    await fn({ deskRoot, pluginRoot, snapshotTarget, vectorTarget })
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 }
@@ -498,13 +552,14 @@ test("artifact build scripts reject publication-policy denial before writing byt
     const doc = await seedIndexedDesk({ deskRoot })
 
     for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const before = artifactTree(pluginRoot)
       const result = runNpmScript(
         target.scriptName,
         artifactArgs({ target, deskRoot, pluginRoot }),
       )
       assertScriptFailedWithCode(result, "artifact_publication_not_approved")
       assertOutputDoesNotLeak(result, doc.body)
-      assertNoPrimaryArtifact(pluginRoot, target)
+      assertArtifactTreeUnchanged(pluginRoot, before)
     }
   } finally {
     rmSync(deskRoot, { recursive: true, force: true })
@@ -525,13 +580,14 @@ test("artifact build scripts reject excluded local DB docs before writing bytes"
     writeFile(deskRoot, ".gitignore", "ignored-track/\n")
 
     for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const before = artifactTree(pluginRoot)
       const result = runNpmScript(
         target.scriptName,
         artifactArgs({ target, deskRoot, pluginRoot }),
       )
       assertScriptFailedWithCode(result, "artifact_input_excluded")
       assertOutputDoesNotLeak(result, doc.body)
-      assertNoPrimaryArtifact(pluginRoot, target)
+      assertArtifactTreeUnchanged(pluginRoot, before)
     }
   } finally {
     rmSync(deskRoot, { recursive: true, force: true })
@@ -562,13 +618,14 @@ test("artifact build scripts reject tombstoned local DB docs before writing byte
     ])
 
     for (const target of ARTIFACT_SCRIPT_TARGETS) {
+      const before = artifactTree(pluginRoot)
       const result = runNpmScript(
         target.scriptName,
         artifactArgs({ target, deskRoot, pluginRoot }),
       )
       assertScriptFailedWithCode(result, "artifact_input_redacted")
       assertOutputDoesNotLeak(result, doc.body)
-      assertNoPrimaryArtifact(pluginRoot, target)
+      assertArtifactTreeUnchanged(pluginRoot, before)
     }
   } finally {
     rmSync(deskRoot, { recursive: true, force: true })
@@ -595,32 +652,108 @@ test("performance budget config declares startup, rebuild, and artifact threshol
   assertPositiveIntegerBudget(budgets.artifacts?.validate_ms, "artifacts.validate_ms")
 })
 
-test("artifact validation script fails when the configured validation budget is exceeded", async () => {
-  const deskRoot = makeTempDir("desk-artifact-scripts-budget-desk-")
-  const pluginRoot = makeTempDir("desk-artifact-scripts-budget-plugin-")
-  const budgetConfig = path.join(makeTempDir("desk-artifact-scripts-budget-config-"), "budgets.json")
+test("MCP startup reads ensure-index budget from plugin performance config", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-startup-budget-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-startup-budget-plugin-")
   try {
-    writeApprovedPolicy(pluginRoot)
-    await seedIndexedDesk({ deskRoot })
-    writeBudgetConfig(budgetConfig, {
-      artifacts: {
-        snapshot_verify_ms: 1000,
-        validate_ms: 0,
+    mkdirSync(path.join(pluginRoot, "config"), { recursive: true })
+    writeBudgetConfig(path.join(pluginRoot, "config", "performance-budgets.json"), {
+      startup: {
+        ensure_index_ms: 37,
       },
     })
+    const runtimeServer = runtimeServerWithEnsureIndex()
 
-    const result = runNpmScript("artifact:validate", [
-      "--desk-root",
-      deskRoot,
-      "--plugin-root",
-      pluginRoot,
-      "--budget-config",
-      budgetConfig,
-    ])
-    assertScriptFailedWithCode(result, "performance_budget_exceeded")
+    await startMcpServer({
+      argv: ["--root", deskRoot],
+      cwd: deskRoot,
+      env: {},
+      homeDir: deskRoot,
+      mcpRoot: pluginRoot,
+      runtimeImporter: async () => runtimeServer,
+    })
+
+    assert.equal(runtimeServer.ensureCalls.length, 1)
+    assert.equal(runtimeServer.ensureCalls[0].deskRoot, deskRoot)
+    assert.equal(runtimeServer.ensureCalls[0].opts.startup, true)
+    assert.equal(runtimeServer.ensureCalls[0].opts.budgetMs, 37)
+    assert.equal(runtimeServer.startCalls.length, 1)
+    assert.equal(runtimeServer.startCalls[0].statusContext.startup.budget_ms, 37)
   } finally {
     rmSync(deskRoot, { recursive: true, force: true })
     rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
+
+test("artifact scripts fail when configured rebuild or validation budgets are exceeded", async () => {
+  const budgetConfig = path.join(makeTempDir("desk-artifact-scripts-budget-config-"), "budgets.json")
+  try {
+    writeBudgetConfig(budgetConfig, {
+      artifacts: {
+        snapshot_verify_ms: 0,
+        validate_ms: 0,
+      },
+      rebuild: {
+        snapshot_build_ms: 0,
+        vector_pack_rebuild_ms: 0,
+      },
+    })
+    await withSeededArtifactFixture(async ({ deskRoot, pluginRoot, snapshotTarget, vectorTarget }) => {
+      for (const [scriptName, args] of [
+        [
+          vectorTarget.scriptName,
+          artifactArgs({
+            target: vectorTarget,
+            deskRoot,
+            pluginRoot,
+            id: "budget-pack",
+            budgetConfig,
+          }),
+        ],
+        [
+          snapshotTarget.scriptName,
+          [
+            ...artifactArgs({
+              target: snapshotTarget,
+              deskRoot,
+              pluginRoot,
+              id: "budget-snapshot",
+              budgetConfig,
+            }),
+            "--included-pack-id",
+            vectorTarget.id,
+          ],
+        ],
+        [
+          "artifact:snapshot:verify",
+          [
+            "--plugin-root",
+            pluginRoot,
+            "--snapshot-id",
+            snapshotTarget.id,
+            "--budget-config",
+            budgetConfig,
+          ],
+        ],
+        [
+          "artifact:validate",
+          [
+            "--desk-root",
+            deskRoot,
+            "--plugin-root",
+            pluginRoot,
+            "--budget-config",
+            budgetConfig,
+          ],
+        ],
+      ]) {
+        const before = artifactTree(pluginRoot)
+        const result = runNpmScript(scriptName, args)
+        assertScriptFailedWithCode(result, "performance_budget_exceeded")
+        assertArtifactTreeUnchanged(pluginRoot, before)
+      }
+    })
+  } finally {
     rmSync(path.dirname(budgetConfig), { recursive: true, force: true })
   }
 })
