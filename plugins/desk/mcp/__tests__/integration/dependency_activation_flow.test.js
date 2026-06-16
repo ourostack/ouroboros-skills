@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url"
 import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
 import { EMBEDDING_DIM } from "../../src/indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
-import { ensureIndex } from "../../src/server-helpers.js"
+import { configureRuntimeArtifacts, ensureIndex } from "../../src/server-helpers.js"
 import { desk_search } from "../../src/tools/search.js"
 import { desk_thread } from "../../src/tools/thread.js"
 
@@ -457,6 +457,77 @@ test("cold rebuild preserves active archive scope and refs graph with production
       )
     } finally {
       closeDb(db)
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("cold rebuild remains fresh and searchable in degraded lexical mode", async () => {
+  const tempRoot = await tmpRoot("desk-dependency-flow-degraded-")
+  try {
+    const deskRoot = path.join(tempRoot, "desk")
+    const emptyPluginRoot = path.join(tempRoot, "empty-plugin")
+    await copyProductionDeskDoc(deskRoot)
+    await mkdir(emptyPluginRoot, { recursive: true })
+
+    let embeddingCalls = 0
+    const embed = {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: async () => {
+        embeddingCalls += 1
+        throw new Error("degraded lexical integration test keeps embeddings offline")
+      },
+    }
+
+    configureRuntimeArtifacts({ pluginRoot: emptyPluginRoot })
+    try {
+      const first = await ensureIndex(deskRoot, { startup: true, embed })
+      assert.equal(first.built, true, JSON.stringify(first, null, 2))
+      assert.equal(first.reason, "missing")
+      assert.equal(first.fallback, undefined)
+      assert.equal(first.summary?.docs_indexed, 1)
+      assert.equal(first.summary?.chunks_inserted, 2)
+      assert.equal(first.summary?.semantic_warnings, 1)
+      assert.equal(first.semantic?.chunks_total, 2)
+      assert.equal(first.semantic?.vectors_indexed, 0)
+      assert.equal(first.semantic?.missing_vectors, 2)
+      assert.equal(first.semantic?.embedding_available, false)
+      assert.equal(
+        first.semantic?.embedding_diagnostic?.reason,
+        "embedding_generation_failed",
+      )
+      assert.equal(embeddingCalls, 1)
+
+      const second = await ensureIndex(deskRoot, { startup: true, embed })
+      assert.equal(second.built, false, JSON.stringify(second, null, 2))
+      assert.equal(second.reason, "fresh")
+      assert.equal(second.semantic?.chunks_total, 2)
+      assert.equal(second.semantic?.vectors_indexed, 0)
+      assert.equal(second.semantic?.missing_vectors, 2)
+      assert.equal(second.semantic?.embedding_available, false)
+      assert.equal(second.semantic?.embedding_diagnostic?.reason, "network_error")
+      assert.equal(embeddingCalls, 2)
+
+      const search = await desk_search({
+        deskRoot,
+        input: { query: "Desk" },
+        opts: { embed },
+      })
+      assert.equal(search.search_mode, "lexical")
+      assert.equal(search.semantic_unavailable, true)
+      assert.ok(
+        search.results.some((resultRow) => resultRow.path === productionDocPath),
+        JSON.stringify(search.results, null, 2),
+      )
+      const productionResult = search.results.find((resultRow) =>
+        resultRow.path === productionDocPath
+      )
+      assert.equal(productionResult.score_breakdown.semantic, 0)
+      assert.ok(productionResult.score_breakdown.bm25 > 0)
+      assert.equal(embeddingCalls, 4)
+    } finally {
+      configureRuntimeArtifacts({ pluginRoot: null })
     }
   } finally {
     await rm(tempRoot, { recursive: true, force: true })

@@ -1,0 +1,41 @@
+TAP version 13
+# Subtest: cold start restores the committed production snapshot without rebuild or embeddings
+ok 1 - cold start restores the committed production snapshot without rebuild or embeddings
+  ---
+  duration_ms: 51.343209
+  type: 'test'
+  ...
+# Subtest: cold rebuild imports committed production vector packs without embeddings
+ok 2 - cold rebuild imports committed production vector packs without embeddings
+  ---
+  duration_ms: 92.500542
+  type: 'test'
+  ...
+# Subtest: cold rebuild live-generates only production vectors missing from committed packs
+ok 3 - cold rebuild live-generates only production vectors missing from committed packs
+  ---
+  duration_ms: 47.215875
+  type: 'test'
+  ...
+# Subtest: cold rebuild preserves active archive scope and refs graph with production vector packs
+ok 4 - cold rebuild preserves active archive scope and refs graph with production vector packs
+  ---
+  duration_ms: 117.971333
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: cold rebuild remains fresh and searchable in degraded lexical mode
+ok 5 - cold rebuild remains fresh and searchable in degraded lexical mode
+  ---
+  duration_ms: 20.036542
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 478.588167
