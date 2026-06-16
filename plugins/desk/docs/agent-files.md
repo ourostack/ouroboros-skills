@@ -35,6 +35,8 @@ Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex pa
 
 Use `manual-only` when Desk should remain available as a plugin/MCP substrate without changing default behavior. Use `project-local` when a repo should own its own Desk binding. If a Codex host exposes an explicit subagent surface, `agents/worker.toml` is the source format for that optional layer, but copied agent files are not part of the healthy path.
 
+No bespoke Desk CLI is required for the default worker path; the host plugin profile, activation adapter, and bundled MCP metadata carry the setup.
+
 For verification and repair of marketplace/plugin exposure, plugin-scoped MCP, runtime-pack health, and owned worker-default blocks, see `desk:codex-onboarding`.
 
 ## What if I want a context-specific overlay?

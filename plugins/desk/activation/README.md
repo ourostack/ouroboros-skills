@@ -24,6 +24,10 @@ Host adapters may flatten this manifest into their native plugin/config surfaces
 
 The manifest is not a user-facing CLI contract. Healthy activation should be host-native: no manual MCP registration, copied worker files, or hand-edited JSON/TOML on the happy path.
 
+## Artifact Privacy
+
+Embeddings and snapshots are derivative data and may carry privacy risk. Activation manifests declare the shared embedding and snapshot policies so host adapters can keep publication explicit, approval-gated, and separate from ordinary startup.
+
 ## Ouroboros Autonomous Agent
 
 Disposition: `supported-flattened`.

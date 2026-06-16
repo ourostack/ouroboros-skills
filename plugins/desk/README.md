@@ -4,13 +4,13 @@ a quiet room for a long-running agent's work — the universal substrate underne
 
 the desk is where the agent does its thinking and keeps its things. drawers for tracks, manilla envelopes for tasks, a corkboard for friction notes, a small reference shelf for lessons earned. archive lives at the back of the room — still browsable, still mine. the same desk serves every consumer because the layout and ceremonies don't depend on whose desk it is:
 
-- **corporate worker overlay** — an enterprise engineer overlay (with whatever work-item tracker, code-review system, and identity provider the org uses) installs desk underneath, then layers org-context overlays on top
-- **autonomous agents** (long-lived agents managed by an agent framework) — install desk into the bundle; declare the desk path in the agent's preamble
-- **personal coding agents** — install desk; declare a workspace path in agent preamble
+- **corporate worker overlay** — an enterprise engineer overlay (with whatever work-item tracker, code-review system, and identity provider the org uses) declares desk as substrate dependency, then layers org-context overlays on top
+- **autonomous agents** (long-lived agents managed by an agent framework) — bundle desk as part of the agent package; declare the desk path in the agent's preamble
+- **personal coding agents** — activate desk through the host/plugin profile; declare a workspace path in agent preamble
 
 cross-context portability runs on the `$DESK` placeholder convention: each consumer agent's preamble binds `$DESK` to its own workspace directory, and desk skills reference paths via `$DESK` rather than any specific literal. one substrate, many overlays.
 
-## Install
+## Activation
 
 ### Under Copilot CLI
 
@@ -18,7 +18,7 @@ cross-context portability runs on the `$DESK` placeholder convention: each consu
 copilot plugin install ourostack/ouroboros-skills:plugins/desk
 ```
 
-The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so the normal path installs Desk once and launches `worker`.
+The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so the normal path activates Desk as the worker substrate and launches `worker`.
 
 ### Under Ouroboros
 
@@ -75,6 +75,10 @@ The default mode is `global-personal`: Desk and Work Suite are enabled together,
 Do not run `codex mcp add` or `npm install` inside the Desk plugin for the healthy path. The MCP entrypoint restores verified production runtime dependencies from the committed runtime pack into a writable cache, then launches from a source mirror. See `desk:codex-onboarding` for repair checks when a local development install or stale host config needs inspection.
 
 For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
+
+### Artifact privacy
+
+Embeddings and snapshots are derivative data and may carry privacy risk even when they are not plain-text documents. Shared vector packs and warm boot snapshots are published only through explicit, policy-controlled artifact paths; public or sensitive repositories should require approval before these artifacts are committed.
 
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 

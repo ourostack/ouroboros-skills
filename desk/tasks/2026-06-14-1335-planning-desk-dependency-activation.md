@@ -198,8 +198,8 @@ Make Desk behave as an automatically resolved dependency of plugins and custom a
 
 ## Context / References
 - `plugins/desk/docs/dependency-activation-stories-and-criteria.md` — 150 story stress test and 240 completion criteria that this planning doc condenses into implementation scope.
-- `plugins/desk/README.md` — current install docs still describe manual installs, manual MCP registration, Codex worker copying, and Ollama/index setup.
-- `plugins/desk/docs/agent-files.md` — current cross-host worker packaging docs and Codex manual agent-layer paths.
+- `plugins/desk/README.md` — host-native activation docs for Copilot, Ouroboros, Claude, Codex, default worker invocation, runtime repair, and artifact privacy.
+- `plugins/desk/docs/agent-files.md` — cross-host worker packaging docs and Codex activation-owned default behavior with project-local and manual-only opt-outs.
 - `plugins/desk/plugin.json` — root/Copilot-style plugin manifest; currently version-drifts from Codex manifest.
 - `plugins/desk/.codex-plugin/plugin.json` — Codex plugin manifest with skills and MCP metadata.
 - `plugins/desk/.claude-plugin/plugin.json` — Claude plugin metadata.

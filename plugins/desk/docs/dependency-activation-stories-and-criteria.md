@@ -16,7 +16,7 @@ This document stress-tests the current Desk dependency design against human and 
 
 The proposed design has the right product shape for "Desk is just there" because it moves setup into host-native dependency activation and MCP startup. It avoids the wrong product move: asking users to learn a new Desk command surface.
 
-The current repo does not yet satisfy that shape. The docs still ask users to install Desk and Work Suite separately in several hosts, run `npm install` for the MCP, manually register the MCP in Codex, manually append or copy Codex worker instructions, and manually keep Ollama/model/index state healthy. There is no declared host-neutral activation contract, no transitive dependency adapter for hosts without dependency support, no self-bootstrapping MCP runtime, no repo vector-pack format, and no snapshot restore path.
+The current implementation is being judged against that shape. The activation contract, host adapters, runtime pack, vector-pack and snapshot paths, diagnostics, publication policy, and redaction cleanup are landing as repo-side primitives. Remaining documentation and artifact-publication work should keep manual setup commands out of healthy-path prose and reserve repair details for troubleshooting or developer notes.
 
 The most important conclusion from the stories below: the design should be judged by whether a dependent plugin or agent can carry Desk along with it. If the human has to think "now I must install Desk," the story fails.
 
