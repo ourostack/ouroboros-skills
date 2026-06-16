@@ -1,0 +1,17 @@
+
+> @ourostack/desk-mcp@1.3.1 artifact:snapshot:build
+> node scripts/build-snapshot.js --desk-root <repo>/desk --snapshot-id repo-public-bootstrap-2026-06-15 --included-pack-id repo-public-bootstrap-2026-06-15 --from-local-db
+
+{
+  "ok": true,
+  "artifact_type": "snapshot",
+  "snapshot_id": "repo-public-bootstrap-2026-06-15",
+  "elapsed_ms": 48,
+  "paths": {
+    "snapshotDir": "artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768",
+    "snapshotPath": "artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sqlite.zst",
+    "manifestPath": "artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.manifest.json",
+    "checksumPath": "artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sha256",
+    "relativeSnapshotPath": "plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sqlite.zst"
+  }
+}

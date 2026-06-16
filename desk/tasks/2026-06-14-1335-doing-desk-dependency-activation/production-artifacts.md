@@ -40,7 +40,7 @@ Published vector pack:
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `bc7b2680093da775a0a2bf11d4df32ae1cf9c58b`
+- Provenance commit: `16c60c935bf30c50282883bfc14e4703224b36a6`
 
 Published snapshot:
 
@@ -55,7 +55,7 @@ Published snapshot:
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
 - Artifact sha256: `sha256:8a16b98403babe5e8dd2d40bc72957283b361a157f3d5aa100a3bfcb881e77a9`
 - Runtime: `darwin-arm64-node-127`
-- Provenance commit: `bc7b2680093da775a0a2bf11d4df32ae1cf9c58b`
+- Provenance commit: `16c60c935bf30c50282883bfc14e4703224b36a6`
 
 Approval state:
 
