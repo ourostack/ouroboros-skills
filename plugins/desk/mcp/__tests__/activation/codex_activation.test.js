@@ -67,6 +67,76 @@ function activationInput(mode, overrides = {}) {
   }
 }
 
+function pluginDependency(id, version = "1.0.0") {
+  return {
+    id,
+    kind: "plugin",
+    version,
+    provenance: {
+      source: `plugins/${id}/plugin.json`,
+      package: `ourostack/${id}`,
+    },
+    lock: {
+      version,
+      integrity: `sha256-${id}-fixture`,
+    },
+  }
+}
+
+function overlayAgent({
+  id,
+  dependsOn,
+  inherits,
+  identity,
+  addendum,
+}) {
+  return {
+    id,
+    kind: "agent-overlay",
+    depends_on: dependsOn,
+    launch_as: id,
+    inherits,
+    entrypoints: {
+      codex: `agents/${id.replace(/:/gu, "-")}.toml`,
+    },
+    instructions: {
+      identity,
+      addendum,
+    },
+  }
+}
+
+function overlayChainManifest() {
+  const manifest = loadJson("plugins", "desk", "activation", "desk.activation.json")
+  return {
+    ...manifest,
+    dependencies: [
+      ...manifest.dependencies,
+      pluginDependency("ms-desk", "2.3.0"),
+      pluginDependency("ms-area-desk", "4.5.0"),
+    ],
+    provides: {
+      ...manifest.provides,
+      overlay_agents: [
+        overlayAgent({
+          id: "ms-desk:worker",
+          dependsOn: ["desk", "work-suite", "ms-desk"],
+          inherits: ["desk:worker"],
+          identity: "Microsoft Desk worker",
+          addendum: "Use Microsoft employee context without copying Desk setup.",
+        }),
+        overlayAgent({
+          id: "ms-area:worker",
+          dependsOn: ["ms-area-desk"],
+          inherits: ["ms-desk:worker"],
+          identity: "Area Desk worker",
+          addendum: "Use area-specific context layered on Microsoft Desk.",
+        }),
+      ],
+    },
+  }
+}
+
 function assertNoManualSetup(content) {
   assert.doesNotMatch(content, /codex\s+mcp\s+add/i)
   assert.doesNotMatch(content, /~\/\.codex\/agents/i)
@@ -143,6 +213,28 @@ test("global personal activation materializes worker and Desk as the default", a
   assert.doesNotMatch(result.generatedConfig, /\[mcp_servers\.desk\]/)
   assert.match(result.generatedInstructions, /desk worker by default/)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
+})
+
+test("global personal activation can select a downstream Desk overlay worker", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    manifest: overlayChainManifest(),
+    selectedActivationId: "ms-area:worker",
+  }))
+
+  assert.equal(result.selectedActivation.id, "ms-area:worker")
+  assert.deepEqual(result.selectedActivation.chain.map((entry) => entry.id), [
+    "desk:worker",
+    "ms-desk:worker",
+    "ms-area:worker",
+  ])
+  assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
+  assert.match(result.generatedInstructions, /You are the Area Desk worker by default\./)
+  assert.match(result.generatedInstructions, /Active Desk activation: `desk:worker` -> `ms-desk:worker` -> `ms-area:worker`\./)
+  assert.match(result.generatedInstructions, /Microsoft Desk worker: Use Microsoft employee context without copying Desk setup\./)
+  assert.match(result.generatedInstructions, /Area Desk worker: Use area-specific context layered on Microsoft Desk\./)
+  assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
+  assertNoManualSetup(result.generatedInstructions)
 })
 
 test("project-local opt-out materializes project config without mutating global defaults", async () => {

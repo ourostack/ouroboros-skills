@@ -71,6 +71,13 @@ function validManifest(overrides = {}) {
           depends_on: ["desk"],
           launch_as: "example:worker",
           inherits: ["desk:worker"],
+          entrypoints: {
+            codex: "agents/example-worker.toml",
+          },
+          instructions: {
+            identity: "Example Desk worker",
+            addendum: "Use the example overlay context on top of the Desk substrate.",
+          },
         },
       ],
     },
@@ -155,6 +162,76 @@ function assertInvalid(result, patterns) {
   assert.equal(result.ok, false)
   const text = diagnostics(result)
   for (const pattern of patterns) assert.match(text, pattern)
+}
+
+function pluginDependency(id, version = "1.0.0") {
+  return {
+    id,
+    kind: "plugin",
+    version,
+    provenance: {
+      source: `plugins/${id}/plugin.json`,
+      package: `ourostack/${id}`,
+    },
+    lock: {
+      version,
+      integrity: `sha256-${id}-fixture`,
+    },
+  }
+}
+
+function overlayAgent({
+  id,
+  dependsOn,
+  inherits,
+  identity,
+  addendum,
+  codex = `agents/${id.replace(/:/gu, "-")}.toml`,
+}) {
+  return {
+    id,
+    kind: "agent-overlay",
+    depends_on: dependsOn,
+    launch_as: id,
+    inherits,
+    entrypoints: {
+      codex,
+    },
+    instructions: {
+      identity,
+      addendum,
+    },
+  }
+}
+
+function overlayChainManifest(overrides = {}) {
+  const deskManifest = validManifest()
+  return validManifest(mergeManifest({
+    dependencies: [
+      ...deskManifest.dependencies,
+      pluginDependency("ms-desk", "2.3.0"),
+      pluginDependency("ms-area-desk", "4.5.0"),
+    ],
+    provides: {
+      activation_targets: deskManifest.provides.activation_targets,
+      overlay_agents: [
+        overlayAgent({
+          id: "ms-desk:worker",
+          dependsOn: ["desk", "work-suite", "ms-desk"],
+          inherits: ["desk:worker"],
+          identity: "Microsoft Desk worker",
+          addendum: "Use Microsoft employee context without copying Desk setup.",
+        }),
+        overlayAgent({
+          id: "ms-area:worker",
+          dependsOn: ["ms-area-desk"],
+          inherits: ["ms-desk:worker"],
+          identity: "Area Desk worker",
+          addendum: "Use area-specific context layered on Microsoft Desk.",
+        }),
+      ],
+    },
+  }, overrides))
 }
 
 test("activation schema exports the supported version and required top-level fields", async () => {
@@ -691,6 +768,30 @@ test("dependency and activation ordering is deterministic", async () => {
   )
 })
 
+test("activation validation accepts multi-level Desk overlay chains", async () => {
+  const { orderActivationDependencies, validateActivationManifest } = await loadActivationContract()
+  const manifest = overlayChainManifest()
+  const result = validateActivationManifest(manifest)
+
+  assert.equal(result.ok, true, diagnostics(result))
+  assert.deepEqual(
+    result.value.provides.overlay_agents.map((overlay) => overlay.id),
+    ["ms-desk:worker", "ms-area:worker"],
+  )
+  assert.deepEqual(
+    orderActivationDependencies(manifest).map((entry) => entry.id),
+    [
+      "desk",
+      "ms-area-desk",
+      "ms-desk",
+      "work-suite",
+      "desk:worker",
+      "ms-desk:worker",
+      "ms-area:worker",
+    ],
+  )
+})
+
 test("activation validation enforces desk:worker and overlay relationship integrity", async () => {
   const { validateActivationManifest } = await loadActivationContract()
   const target = validManifest().provides.activation_targets[0]
@@ -755,6 +856,93 @@ test("activation validation enforces desk:worker and overlay relationship integr
       },
     })),
     [/example:worker.*inherits.*missing:worker/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          overlayAgent({
+            id: "ms-desk:worker",
+            dependsOn: ["desk", "work-suite", "ms-desk"],
+            inherits: ["ms-area:worker"],
+            identity: "Microsoft Desk worker",
+            addendum: "Use Microsoft context.",
+          }),
+          overlayAgent({
+            id: "ms-area:worker",
+            dependsOn: ["ms-area-desk"],
+            inherits: ["ms-desk:worker"],
+            identity: "Area Desk worker",
+            addendum: "Use area context.",
+          }),
+        ],
+      },
+    })),
+    [/overlay inheritance cycle/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          {
+            ...overlayAgent({
+              id: "ms-desk:worker",
+              dependsOn: ["desk", "work-suite", "ms-desk"],
+              inherits: ["desk:worker"],
+              identity: "Microsoft Desk worker",
+              addendum: "Use Microsoft context.",
+            }),
+            entrypoints: undefined,
+          },
+        ],
+      },
+    })),
+    [/provides\.overlay_agents\[0\]\.entrypoints.*missing_required_field/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          {
+            ...overlayAgent({
+              id: "ms-desk:worker",
+              dependsOn: ["desk", "work-suite", "ms-desk"],
+              inherits: ["desk:worker"],
+              identity: "Microsoft Desk worker",
+              addendum: "Use Microsoft context.",
+            }),
+            instructions: undefined,
+          },
+        ],
+      },
+    })),
+    [/provides\.overlay_agents\[0\]\.instructions.*missing_required_field/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          {
+            ...overlayAgent({
+              id: "ms-desk:worker",
+              dependsOn: ["desk", "work-suite", "ms-desk"],
+              inherits: ["desk:worker"],
+              identity: "Microsoft Desk worker",
+              addendum: "Use Microsoft context.",
+            }),
+            instructions: {
+              identity: "",
+              addendum: "",
+            },
+          },
+        ],
+      },
+    })),
+    [/provides\.overlay_agents\[0\]\.instructions\.identity.*invalid_overlay_instruction/i],
   )
 })
 
