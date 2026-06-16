@@ -3,6 +3,7 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
 import * as os from "node:os"
@@ -1231,6 +1232,48 @@ test("tombstones make fresh local indexes stale and prune redacted docs", async 
   assert.equal(ensured.summary.docs_tombstoned, 1)
   assert.equal(ensured.summary.docs_removed, 1)
   assert.equal(ensured.summary.docs_indexed, 0)
+  assert.deepEqual(dbCounts(deskRoot), {
+    docs: 0,
+    chunks: 0,
+    vectors: 0,
+    refs: 0,
+  })
+})
+
+test("manual rebuild-index script honors the committed tombstone ledger", async () => {
+  const deskRoot = await tmpRoot("desk-redaction-script-rebuild-")
+  const pluginRoot = await tmpRoot("desk-redaction-script-plugin-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nscript redaction body"
+  await writeFile(deskRoot, docPath, body)
+  await writeTombstoneLedger(pluginRoot, [
+    tombstoneRow({
+      document_path: docPath,
+      document_hash: sha256(body),
+      reason: "deleted",
+      artifact_rotation_id: "rotation-script-rebuild",
+    }),
+  ])
+
+  const result = spawnSync(
+    process.execPath,
+    [path.join(mcpRoot, "scripts", "rebuild-index.js"), "--root", deskRoot],
+    {
+      cwd: mcpRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DESK_PLUGIN_ROOT: pluginRoot,
+        DESK_EMBED_TIMEOUT_MS: "10",
+      },
+    },
+  )
+
+  assert.equal(result.status, 0, result.stderr)
+  const summary = JSON.parse(result.stdout)
+  assert.equal(summary.docs_tombstoned, 1)
+  assert.equal(summary.docs_indexed, 0)
+  assert.equal(summary.docs_removed, 0)
   assert.deepEqual(dbCounts(deskRoot), {
     docs: 0,
     chunks: 0,

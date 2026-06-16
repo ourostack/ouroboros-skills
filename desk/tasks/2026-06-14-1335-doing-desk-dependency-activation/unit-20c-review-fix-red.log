@@ -1,0 +1,86 @@
+TAP version 13
+# Subtest: canonical tombstone ledger and schema exist under plugin artifacts
+ok 1 - canonical tombstone ledger and schema exist under plugin artifacts
+  ---
+  duration_ms: 6.373875
+  type: 'test'
+  ...
+# Subtest: tombstone loader validates required row fields and repeated tombstones
+ok 2 - tombstone loader validates required row fields and repeated tombstones
+  ---
+  duration_ms: 37.133833
+  type: 'test'
+  ...
+# Subtest: artifact writers reject tombstoned active and archived source docs before writes
+ok 3 - artifact writers reject tombstoned active and archived source docs before writes
+  ---
+  duration_ms: 25.48525
+  type: 'test'
+  ...
+# Subtest: artifact validation rejects packs and snapshots that still reference tombstoned docs
+ok 4 - artifact validation rejects packs and snapshots that still reference tombstoned docs
+  ---
+  duration_ms: 20.54775
+  type: 'test'
+  ...
+# Subtest: tombstone helpers handle defensive edge cases without leaking document details
+ok 5 - tombstone helpers handle defensive edge cases without leaking document details
+  ---
+  duration_ms: 5.95675
+  type: 'test'
+  ...
+# Subtest: tombstones make fresh local indexes stale and prune redacted docs
+ok 6 - tombstones make fresh local indexes stale and prune redacted docs
+  ---
+  duration_ms: 32.960292
+  type: 'test'
+  ...
+# Subtest: manual rebuild-index script honors the committed tombstone ledger
+not ok 7 - manual rebuild-index script honors the committed tombstone ledger
+  ---
+  duration_ms: 172.549916
+  type: 'test'
+  location: '<path>
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<path>
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: local index freshness fails closed for corrupt tombstones and schema drift
+ok 8 - local index freshness fails closed for corrupt tombstones and schema drift
+  ---
+  duration_ms: 16.601709
+  type: 'test'
+  ...
+# Subtest: artifact rotation cleanup is gated by compaction validation and snapshot rotation
+ok 9 - artifact rotation cleanup is gated by compaction validation and snapshot rotation
+  ---
+  duration_ms: 6.237042
+  type: 'test'
+  ...
+# Subtest: artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
+ok 10 - artifact rotation cleanup removes obsolete sidecars and keeps active artifacts
+  ---
+  duration_ms: 6.646709
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 487.264667
