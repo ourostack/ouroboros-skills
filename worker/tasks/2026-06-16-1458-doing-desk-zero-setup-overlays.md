@@ -31,8 +31,8 @@ direct
 
 ## Unit 0 — Red: Overlay Chain Contract
 
-- [ ] Add failing tests for multi-level overlay inheritance, deterministic topological activation ordering, cycle rejection, missing overlay entrypoints, and missing overlay instruction contributions.
-- [ ] Add failing Codex adapter test for selecting an area overlay while preserving Desk config.
+- [x] Add failing tests for multi-level overlay inheritance, deterministic topological activation ordering, cycle rejection, missing overlay entrypoints, and missing overlay instruction contributions.
+- [x] Add failing Codex adapter test for selecting an area overlay while preserving Desk config.
 
 Output:
 - Red targeted activation test output.
@@ -110,3 +110,4 @@ Acceptance:
 # Progress Log
 
 - 2026-06-16 14:58 Created doing doc for first-class zero-setup Desk overlays.
+- 2026-06-16 14:59 Unit 0 complete: red activation tests captured in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-0-red.log`.
