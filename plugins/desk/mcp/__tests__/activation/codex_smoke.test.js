@@ -596,6 +596,10 @@ test("Codex smoke rejects malformed output and desk_status proof failures", asyn
   const failedStatusRoot = makeTempHost()
   const wrongRoot = makeTempHost()
   const missingStatusRoot = makeTempHost()
+  const selectedMismatchRoot = makeTempHost()
+  const selectedMissingChainRoot = makeTempHost()
+  const selectedMissingActivationRoot = makeTempHost()
+  const malformedMessageRoot = makeTempHost()
   try {
     await assert.rejects(
       () => runCodexCliActivationSmoke({
@@ -603,6 +607,20 @@ test("Codex smoke rejects malformed output and desk_status proof failures", asyn
         hostRoot: malformedRoot,
         workspaceRoot: path.join(malformedRoot, "workspace"),
         codexRunner: async () => ({ exitCode: 0, stdout: "not-json\n", stderr: "" }),
+      }),
+      /Codex CLI smoke output did not contain a parseable final JSON message/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: malformedMessageRoot,
+        workspaceRoot: path.join(malformedMessageRoot, "workspace"),
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: `${JSON.stringify({ type: "final_message", message: "not-json" })}\n`,
+          stderr: "",
+        }),
       }),
       /Codex CLI smoke output did not contain a parseable final JSON message/u,
     )
@@ -658,11 +676,86 @@ test("Codex smoke rejects malformed output and desk_status proof failures", asyn
       }),
       /Codex CLI smoke did not prove desk_status availability/u,
     )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: selectedMismatchRoot,
+        workspaceRoot: path.join(selectedMismatchRoot, "workspace"),
+        manifest: overlayChainManifest(),
+        selectedActivationId: "ms-area:worker",
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(selectedMismatchRoot, "desk"), source: "activation-config" },
+              activation: {
+                selected_id: "ms-desk:worker",
+                chain: ["desk:worker", "ms-desk:worker"],
+              },
+            },
+          }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove selected activation desk_status metadata/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: selectedMissingActivationRoot,
+        workspaceRoot: path.join(selectedMissingActivationRoot, "workspace"),
+        manifest: overlayChainManifest(),
+        selectedActivationId: "ms-area:worker",
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(selectedMissingActivationRoot, "desk"), source: "activation-config" },
+            },
+          }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove selected activation desk_status metadata/u,
+    )
+
+    await assert.rejects(
+      () => runCodexCliActivationSmoke({
+        repoRoot,
+        hostRoot: selectedMissingChainRoot,
+        workspaceRoot: path.join(selectedMissingChainRoot, "workspace"),
+        manifest: overlayChainManifest(),
+        selectedActivationId: "ms-area:worker",
+        codexRunner: async () => ({
+          exitCode: 0,
+          stdout: smokeStdout({
+            deskStatus: {
+              status: "ok",
+              root: { path: path.join(selectedMissingChainRoot, "desk"), source: "activation-config" },
+              activation: {
+                selected_id: "ms-area:worker",
+                chain: "desk:worker -> ms-desk:worker -> ms-area:worker",
+              },
+            },
+          }),
+          stderr: "",
+        }),
+      }),
+      /Codex CLI smoke did not prove selected activation desk_status metadata/u,
+    )
   } finally {
     rmSync(malformedRoot, { recursive: true, force: true })
     rmSync(failedStatusRoot, { recursive: true, force: true })
     rmSync(wrongRoot, { recursive: true, force: true })
     rmSync(missingStatusRoot, { recursive: true, force: true })
+    rmSync(selectedMismatchRoot, { recursive: true, force: true })
+    rmSync(selectedMissingActivationRoot, { recursive: true, force: true })
+    rmSync(selectedMissingChainRoot, { recursive: true, force: true })
+    rmSync(malformedMessageRoot, { recursive: true, force: true })
   }
 })
 

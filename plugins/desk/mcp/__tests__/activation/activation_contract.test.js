@@ -769,7 +769,7 @@ test("dependency and activation ordering is deterministic", async () => {
 })
 
 test("activation validation accepts multi-level Desk overlay chains", async () => {
-  const { orderActivationDependencies, validateActivationManifest } = await loadActivationContract()
+  const { orderActivationDependencies, resolveActivationChain, validateActivationManifest } = await loadActivationContract()
   const manifest = overlayChainManifest()
   const result = validateActivationManifest(manifest)
 
@@ -790,12 +790,43 @@ test("activation validation accepts multi-level Desk overlay chains", async () =
       "ms-area:worker",
     ],
   )
+  assert.deepEqual(
+    resolveActivationChain(manifest, "ms-area:worker").map((entry) => entry.id),
+    ["desk:worker", "ms-desk:worker", "ms-area:worker"],
+  )
 })
 
 test("activation validation enforces desk:worker and overlay relationship integrity", async () => {
-  const { validateActivationManifest } = await loadActivationContract()
+  const { orderActivationDependencies, resolveActivationChain, validateActivationManifest } = await loadActivationContract()
   const target = validManifest().provides.activation_targets[0]
   const overlay = validManifest().provides.overlay_agents[0]
+
+  assert.throws(
+    () => resolveActivationChain(validManifest(), "missing:worker"),
+    /unknown activation target: missing:worker/u,
+  )
+  assert.throws(
+    () => resolveActivationChain(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: ["missing:worker"] },
+        ],
+      },
+    }), "example:worker"),
+    /example:worker inherits unknown target missing:worker/u,
+  )
+  assert.deepEqual(
+    resolveActivationChain(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, inherits: ["desk:worker", "desk:worker"] },
+        ],
+      },
+    }), "example:worker").map((entry) => entry.id),
+    ["desk:worker", "example:worker"],
+  )
 
   assertInvalid(
     validateActivationManifest(validManifest({
@@ -819,6 +850,19 @@ test("activation validation enforces desk:worker and overlay relationship integr
       },
     })),
     [/desk:worker.*default/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [
+          target,
+          { ...target, id: "desk:helper", default: true },
+        ],
+        overlay_agents: [overlay],
+      },
+    })),
+    [/only desk:worker may be the substrate default/i],
   )
 
   assertInvalid(
@@ -880,6 +924,60 @@ test("activation validation enforces desk:worker and overlay relationship integr
       },
     })),
     [/overlay inheritance cycle/i],
+  )
+  assert.deepEqual(
+    orderActivationDependencies(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          overlayAgent({
+            id: "ms-desk:worker",
+            dependsOn: ["desk", "work-suite", "ms-desk"],
+            inherits: ["ms-area:worker"],
+            identity: "Microsoft Desk worker",
+            addendum: "Use Microsoft context.",
+          }),
+          overlayAgent({
+            id: "ms-area:worker",
+            dependsOn: ["ms-area-desk"],
+            inherits: ["ms-desk:worker"],
+            identity: "Area Desk worker",
+            addendum: "Use area context.",
+          }),
+        ],
+      },
+    })).map((entry) => entry.id),
+    [
+      "desk",
+      "ms-area-desk",
+      "ms-desk",
+      "work-suite",
+      "desk:worker",
+      "ms-desk:worker",
+      "ms-area:worker",
+    ],
+  )
+  assert.throws(
+    () => resolveActivationChain(overlayChainManifest({
+      provides: {
+        overlay_agents: [
+          overlayAgent({
+            id: "ms-desk:worker",
+            dependsOn: ["desk", "work-suite", "ms-desk"],
+            inherits: ["ms-area:worker"],
+            identity: "Microsoft Desk worker",
+            addendum: "Use Microsoft context.",
+          }),
+          overlayAgent({
+            id: "ms-area:worker",
+            dependsOn: ["ms-area-desk"],
+            inherits: ["ms-desk:worker"],
+            identity: "Area Desk worker",
+            addendum: "Use area context.",
+          }),
+        ],
+      },
+    }), "ms-area:worker"),
+    /overlay inheritance cycle/u,
   )
 
   assertInvalid(
@@ -943,6 +1041,30 @@ test("activation validation enforces desk:worker and overlay relationship integr
       },
     })),
     [/provides\.overlay_agents\[0\]\.instructions\.identity.*invalid_overlay_instruction/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, default: "yes" },
+        ],
+      },
+    })),
+    [/provides\.overlay_agents\[0\]\.default.*invalid_activation_default/i],
+  )
+
+  assertInvalid(
+    validateActivationManifest(validManifest({
+      provides: {
+        activation_targets: [target],
+        overlay_agents: [
+          { ...overlay, default: true },
+        ],
+      },
+    })),
+    [/overlays must be selected by activation context/i],
   )
 })
 

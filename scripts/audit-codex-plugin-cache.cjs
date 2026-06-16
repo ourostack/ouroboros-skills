@@ -6,7 +6,6 @@ const os = require("node:os");
 const path = require("node:path");
 
 const defaultPlugins = Object.freeze(["desk", "work-suite"]);
-const namespace = "ourostack";
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -39,16 +38,19 @@ function marketplacePlugin(marketplace, pluginName) {
   return (marketplace.plugins ?? []).find((plugin) => plugin.name === pluginName) ?? null;
 }
 
+function marketplaceNamespace(marketplace) {
+  return typeof marketplace?.name === "string" && marketplace.name.trim().length > 0
+    ? marketplace.name.trim()
+    : "unknown";
+}
+
 function marketplaceSourcePath({ repoRoot, marketplacePath, plugin }) {
   const sourcePath = plugin?.source?.path;
   if (typeof sourcePath !== "string" || sourcePath.trim().length === 0) return null;
-  const base = path.isAbsolute(marketplacePath)
-    ? path.dirname(path.dirname(path.dirname(marketplacePath)))
-    : repoRoot;
-  return path.resolve(base, sourcePath);
+  return path.resolve(repoRoot, sourcePath);
 }
 
-function cacheManifestPath({ cacheRoot, pluginName, version }) {
+function cacheManifestPath({ cacheRoot, namespace, pluginName, version }) {
   return path.join(
     cacheRoot,
     namespace,
@@ -69,7 +71,7 @@ function compareManifest(actual, expected) {
   return { current: true, reason: "current" };
 }
 
-function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, pluginName }) {
+function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, namespace, pluginName }) {
   const repoManifestPath = pluginManifestPath(repoRoot, pluginName);
   const repoManifest = readJson(repoManifestPath);
   const marketplaceEntry = marketplacePlugin(marketplace, pluginName);
@@ -77,11 +79,14 @@ function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, plugin
   const sourceManifestPath = sourceRoot === null
     ? null
     : path.join(sourceRoot, ".codex-plugin", "plugin.json");
-  const sourceComparison = sourceManifestPath === null
-    ? { current: false, reason: "missing-marketplace-source" }
-    : compareManifest(readJsonIfPresent(sourceManifestPath), repoManifest);
+  const sourceComparison = marketplaceEntry === null
+    ? { current: false, reason: "missing-marketplace-entry" }
+    : sourceManifestPath === null
+      ? { current: false, reason: "missing-marketplace-source" }
+      : compareManifest(readJsonIfPresent(sourceManifestPath), repoManifest);
   const installedManifestPath = cacheManifestPath({
     cacheRoot,
+    namespace,
     pluginName,
     version: repoManifest.version,
   });
@@ -90,6 +95,7 @@ function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, plugin
   return {
     name: pluginName,
     version: repoManifest.version,
+    marketplace_namespace: namespace,
     repo_manifest_path: repoManifestPath,
     marketplace_source_path: sourceManifestPath,
     repo_source_current: sourceComparison.current,
@@ -109,12 +115,17 @@ function auditCodexPluginCache({
   marketplacePath = path.join(repoRoot, ".agents", "plugins", "marketplace.json"),
   plugins = defaultPlugins,
 } = {}) {
-  const marketplace = readJson(marketplacePath);
+  const resolvedMarketplacePath = path.isAbsolute(marketplacePath)
+    ? marketplacePath
+    : path.join(repoRoot, marketplacePath);
+  const marketplace = readJson(resolvedMarketplacePath);
+  const namespace = marketplaceNamespace(marketplace);
   const pluginReports = plugins.map((pluginName) => auditPlugin({
     repoRoot,
     cacheRoot,
     marketplace,
-    marketplacePath,
+    marketplacePath: resolvedMarketplacePath,
+    namespace,
     pluginName,
   }));
   return {
@@ -123,7 +134,8 @@ function auditCodexPluginCache({
     )) ? "current" : "stale",
     repo_root: repoRoot,
     codex_home: codexHome,
-    marketplace_path: marketplacePath,
+    marketplace_namespace: namespace,
+    marketplace_path: resolvedMarketplacePath,
     cache_root: cacheRoot,
     evidence_states: {
       repo_source_current: "compares .agents marketplace source manifests with repo manifests",
@@ -157,12 +169,13 @@ function parseArgs(argv) {
 
 function run({
   argv = process.argv.slice(2),
+  auditFn = auditCodexPluginCache,
   stdout = process.stdout,
   stderr = process.stderr,
 } = {}) {
   try {
     const options = parseArgs(argv);
-    const report = auditCodexPluginCache(options);
+    const report = auditFn(options);
     stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     return options.strict && report.status !== "current" ? 1 : 0;
   } catch (error) {
@@ -171,11 +184,23 @@ function run({
   }
 }
 
-if (require.main === module) {
-  process.exitCode = run();
+function startCli({
+  isMain = require.main === module,
+  runFn = run,
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+} = {}) {
+  if (!isMain) return null;
+  const code = runFn();
+  setExitCode(code);
+  return code;
 }
 
 module.exports = {
   auditCodexPluginCache,
   run,
+  startCli,
 };
+
+startCli();

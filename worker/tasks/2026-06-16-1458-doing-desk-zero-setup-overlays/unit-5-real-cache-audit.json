@@ -1,0 +1,43 @@
+{
+  "status": "stale",
+  "repo_root": "/Users/arimendelow/Projects/ouroboros-skills",
+  "codex_home": "/Users/arimendelow/.codex",
+  "marketplace_namespace": "ourostack",
+  "marketplace_path": "/Users/arimendelow/Projects/ouroboros-skills/.agents/plugins/marketplace.json",
+  "cache_root": "/Users/arimendelow/.codex/plugins/cache",
+  "evidence_states": {
+    "repo_source_current": "compares .agents marketplace source manifests with repo manifests",
+    "installed_cache_current": "compares ~/.codex/plugins/cache manifests with repo manifests",
+    "active_session_visible": "not_checked by this read-only audit; requires host/session reload or host API proof"
+  },
+  "plugins": [
+    {
+      "name": "desk",
+      "version": "1.7.3",
+      "marketplace_namespace": "ourostack",
+      "repo_manifest_path": "/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json",
+      "marketplace_source_path": "/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/.codex-plugin/plugin.json",
+      "repo_source_current": true,
+      "repo_source_reason": "current",
+      "installed_cache_path": "/Users/arimendelow/.codex/plugins/cache/ourostack/desk/1.7.3/.codex-plugin/plugin.json",
+      "installed_cache_current": false,
+      "installed_cache_reason": "manifest-drift",
+      "active_session_visible": "not_checked",
+      "active_session_reason": "Codex Desktop/active-thread plugin visibility is a host runtime state, not a filesystem property."
+    },
+    {
+      "name": "work-suite",
+      "version": "1.4.9",
+      "marketplace_namespace": "ourostack",
+      "repo_manifest_path": "/Users/arimendelow/Projects/ouroboros-skills/plugins/work-suite/.codex-plugin/plugin.json",
+      "marketplace_source_path": "/Users/arimendelow/Projects/ouroboros-skills/plugins/work-suite/.codex-plugin/plugin.json",
+      "repo_source_current": true,
+      "repo_source_reason": "current",
+      "installed_cache_path": "/Users/arimendelow/.codex/plugins/cache/ourostack/work-suite/1.4.9/.codex-plugin/plugin.json",
+      "installed_cache_current": false,
+      "installed_cache_reason": "manifest-drift",
+      "active_session_visible": "not_checked",
+      "active_session_reason": "Codex Desktop/active-thread plugin visibility is a host runtime state, not a filesystem property."
+    }
+  ]
+}

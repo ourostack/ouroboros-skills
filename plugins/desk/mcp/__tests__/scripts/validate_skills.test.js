@@ -88,9 +88,12 @@ function createFixtureRepo(root) {
     ],
   })
   writeJson(root, ".agents/plugins/marketplace.json", {
+    name: "ourostack",
     plugins: [
+      { source: { source: "local", path: "plugins/ignored-without-name" } },
       { name: "ignored", source: false },
       { name: "desk", source: { source: "local", path: "plugins/desk" } },
+      { name: "work-suite", source: { source: "local", path: "plugins/work-suite" } },
     ],
   })
 
@@ -322,15 +325,86 @@ test("validatePluginMetadata catches host manifest and marketplace drift", async
     /marketplace version/u,
   )
   await assertThrowsWith(
+    (root) => removePath(root, ".agents/plugins/marketplace.json"),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /Codex marketplace is missing/u,
+  )
+  await assertThrowsWith(
     (root) => writeJson(root, ".agents/plugins/marketplace.json", {
-      plugins: [{ name: "missing", source: { source: "local", path: "plugins/missing" } }],
+      plugins: [],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /Codex marketplace name is required/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: { desk: true },
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /Codex marketplace plugins must be an array/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: { source: "local", path: "plugins/desk" } },
+        { name: "desk", source: { source: "local", path: "plugins/desk" } },
+      ],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /duplicate Codex marketplace plugin entry/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: { source: "local", path: "plugins/desk" } },
+      ],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /work-suite: Codex marketplace missing plugin entry/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: false },
+        { name: "work-suite", source: { source: "local", path: "plugins/work-suite" } },
+      ],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /desk: Codex marketplace source\.path is required/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: { source: "registry", path: "plugins/desk" } },
+        { name: "work-suite", source: { source: "local", path: "plugins/work-suite" } },
+      ],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /desk: Codex marketplace source\.source must be local/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, ".agents/plugins/marketplace.json", {
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: { source: "local", path: "plugins/missing" } },
+        { name: "work-suite", source: { source: "local", path: "plugins/work-suite" } },
+      ],
     }),
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
     /Codex marketplace source is missing/u,
   )
   await assertThrowsWith(
     (root) => writeJson(root, ".agents/plugins/marketplace.json", {
-      plugins: [{ name: "desk-wrong", source: { source: "local", path: "plugins/desk" } }],
+      name: "ourostack",
+      plugins: [
+        { name: "desk", source: { source: "local", path: "plugins/work-suite" } },
+        { name: "work-suite", source: { source: "local", path: "plugins/work-suite" } },
+      ],
     }),
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
     /Codex marketplace name does not match/u,

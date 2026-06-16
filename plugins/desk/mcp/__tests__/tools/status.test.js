@@ -143,6 +143,71 @@ test("desk_status reports active activation target and overlay chain when provid
   }
 })
 
+test("desk_status normalizes activation aliases and ignores malformed chain entries", async () => {
+  const root = makeRoot()
+  try {
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        activation: {
+          selectedActivationId: "ms-desk:worker",
+          chain: [
+            "desk:worker",
+            "",
+            { id: "ms-desk:worker" },
+            { id: 42 },
+            null,
+            false,
+          ],
+        },
+      },
+    }))
+
+    assert.deepEqual(body.activation, {
+      selected_id: "ms-desk:worker",
+      chain: ["desk:worker", "ms-desk:worker"],
+      mode: null,
+      source: "unknown",
+    })
+
+    const camelCaseBody = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        activation: {
+          selectedId: "ms-desk:worker",
+          chain: "desk:worker -> ms-desk:worker",
+          source: " ",
+        },
+      },
+    }))
+    assert.deepEqual(camelCaseBody.activation, {
+      selected_id: "ms-desk:worker",
+      chain: [],
+      mode: null,
+      source: "unknown",
+    })
+
+    const idBody = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      statusContext: {
+        activation: {
+          id: "desk:worker",
+          chain: [],
+        },
+      },
+    }))
+    assert.equal(idBody.activation.selected_id, "desk:worker")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test("desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing", async () => {
   const root = makeRoot()
   try {

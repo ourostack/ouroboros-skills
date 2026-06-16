@@ -40,14 +40,14 @@ function writePlugin(root, name, version, extra = {}) {
   );
 }
 
-function writeCache(codexHome, name, version, value) {
+function writeCache(codexHome, name, version, value, namespace = "ourostack") {
   writeJson(
-    path.join(codexHome, "plugins", "cache", "ourostack", name, version, ".codex-plugin", "plugin.json"),
+    path.join(codexHome, "plugins", "cache", namespace, name, version, ".codex-plugin", "plugin.json"),
     value,
   );
 }
 
-function makeFixture() {
+function makeFixture({ namespace = "ourostack" } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-cache-audit-"));
   const repoRoot = path.join(root, "repo");
   const codexHome = path.join(root, "codex-home");
@@ -55,7 +55,7 @@ function makeFixture() {
   writePlugin(repoRoot, "desk", "1.7.3");
   writePlugin(repoRoot, "work-suite", "1.4.9");
   writeJson(path.join(repoRoot, ".agents", "plugins", "marketplace.json"), {
-    name: "ourostack",
+    name: namespace,
     plugins: [
       {
         name: "desk",
@@ -67,8 +67,8 @@ function makeFixture() {
       },
     ],
   });
-  writeCache(codexHome, "desk", "1.7.3", manifest("desk", "1.7.3"));
-  writeCache(codexHome, "work-suite", "1.4.9", manifest("work-suite", "1.4.9"));
+  writeCache(codexHome, "desk", "1.7.3", manifest("desk", "1.7.3"), namespace);
+  writeCache(codexHome, "work-suite", "1.4.9", manifest("work-suite", "1.4.9"), namespace);
   return { root, repoRoot, codexHome };
 }
 
@@ -80,8 +80,10 @@ function testCurrentFixture() {
       codexHome: fixture.codexHome,
     });
     assert.equal(report.status, "current");
+    assert.equal(report.marketplace_namespace, "ourostack");
     assert.equal(report.plugins.length, 2);
     for (const plugin of report.plugins) {
+      assert.equal(plugin.marketplace_namespace, "ourostack");
       assert.equal(plugin.repo_source_current, true);
       assert.equal(plugin.installed_cache_current, true);
       assert.equal(plugin.active_session_visible, "not_checked");
@@ -122,6 +124,23 @@ function testStaleSourceAndCache() {
   }
 }
 
+function testAlternateMarketplaceNamespace() {
+  const fixture = makeFixture({ namespace: "contoso" });
+  try {
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    });
+    assert.equal(report.status, "current");
+    assert.equal(report.marketplace_namespace, "contoso");
+    assert.ok(report.plugins.every((plugin) => (
+      plugin.installed_cache_path.includes(path.join("plugins", "cache", "contoso"))
+    )));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
 function testMissingMarketplaceSource() {
   const fixture = makeFixture();
   try {
@@ -142,6 +161,57 @@ function testMissingMarketplaceSource() {
     assert.equal(report.status, "stale");
     assert.equal(report.plugins[0].repo_source_current, false);
     assert.equal(report.plugins[0].repo_source_reason, "missing");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+function testMissingMarketplaceEntryAndSourceObject() {
+  const fixture = makeFixture();
+  try {
+    writeJson(path.join(fixture.repoRoot, ".agents", "plugins", "marketplace.json"), {
+      name: "ourostack",
+      plugins: [
+        {
+          name: "desk",
+          source: false,
+        },
+      ],
+    });
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      plugins: ["desk", "work-suite"],
+    });
+    assert.equal(report.status, "stale");
+    assert.equal(report.plugins[0].repo_source_reason, "missing-marketplace-source");
+    assert.equal(report.plugins[1].repo_source_reason, "missing-marketplace-entry");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+function testRelativeMarketplacePathAndMissingNameFallback() {
+  const fixture = makeFixture();
+  try {
+    writeJson(path.join(fixture.repoRoot, "marketplace.json"), {
+      plugins: [
+        {
+          name: "desk",
+          source: { source: "local", path: "./plugins/desk" },
+        },
+      ],
+    });
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      marketplacePath: "marketplace.json",
+      plugins: ["desk"],
+    });
+    assert.equal(report.marketplace_namespace, "unknown");
+    assert.equal(report.plugins[0].repo_source_current, true);
+    assert.equal(report.plugins[0].installed_cache_current, false);
+    assert.equal(report.plugins[0].installed_cache_reason, "missing");
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -169,7 +239,10 @@ function testCliStrictMode() {
 
 testCurrentFixture();
 testStaleSourceAndCache();
+testAlternateMarketplaceNamespace();
 testMissingMarketplaceSource();
+testMissingMarketplaceEntryAndSourceObject();
+testRelativeMarketplacePathAndMissingNameFallback();
 testCliStrictMode();
 
 console.log("Codex plugin cache audit tests passed.");
