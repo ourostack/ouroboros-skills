@@ -89,10 +89,10 @@ Fetch a skill from the repo and install it into the local skills directory.
    ```
    https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md
    ```
-5. Get the latest commit SHA for the skill file:
+5. Get the latest commit SHA for the complete upstream skill directory:
    ```bash
-   # Use the GitHub API to get the latest commit touching this file
-   curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
+   # Use the GitHub API to get the latest commit touching any file in the skill directory
+   curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>&per_page=1" | jq -r '.[0].sha'
    ```
 6. Update `_registry.json` (see Track Provenance below).
 
@@ -137,9 +137,9 @@ Steps:
    https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
    ```
 3. For each local skill directory containing `SKILL.md`:
-   - If the skill name appears in the manifest, fetch the upstream `SKILL.md` and latest commit SHA for that skill path.
-   - If the local `SKILL.md` is byte-for-byte identical to upstream, add a normal shared-skill registry entry with `source`, `commit`, `installed`, and `selfAuthored: false`.
-   - If the local `SKILL.md` differs from upstream, preserve the local file and add a local/self-authored registry entry with `source: "local"`, `commit: ""`, `installed`, and `selfAuthored: true`. Report that it is a local adaptation instead of overwriting it.
+   - If the skill name appears in the manifest, compare the full local skill directory against the upstream `skills/<skill-name>/` directory, and fetch the latest commit SHA for the directory path.
+   - If the local directory is byte-for-byte identical to upstream, add a normal shared-skill registry entry with `source`, `commit`, `installed`, and `selfAuthored: false`.
+   - If any local file differs from upstream, including bundled `agents/`, `scripts/`, `references/`, or `assets/`, preserve the local directory and add a local/self-authored registry entry with `source: "local"`, `commit: ""`, `installed`, and `selfAuthored: true`. Report that it is a local adaptation instead of overwriting it.
    - If the skill name is not in the manifest, add the same local/self-authored registry entry.
 4. Write `_registry.json` as formatted JSON at the root of that skills directory.
 5. Validate by parsing the written JSON and reporting:
@@ -154,8 +154,8 @@ Freshness checks must fail closed when `_registry.json` is missing. Print the ex
 ```json
 {
   "<skill-name>": {
-    "source": "https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/skills/<skill-name>/SKILL.md",
-    "commit": "<sha of the commit that last touched this skill file>",
+    "source": "https://github.com/ourostack/ouroboros-skills/tree/main/skills/<skill-name>",
+    "commit": "<sha of the commit that last touched this skill directory>",
     "installed": "<ISO 8601 datetime of when the skill was installed or last updated>",
     "selfAuthored": false
   }
@@ -166,8 +166,8 @@ Freshness checks must fail closed when `_registry.json` is missing. Print the ex
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | The raw GitHub URL the skill was fetched from. |
-| `commit` | string | The SHA of the latest commit that touched the skill file at time of install/update. |
+| `source` | string | The GitHub directory URL the skill was fetched from. |
+| `commit` | string | The SHA of the latest commit that touched the skill directory at time of install/update. |
 | `installed` | string | ISO 8601 timestamp (e.g., `2026-03-18T13:30:00Z`) of when the skill was installed or last updated. |
 | `selfAuthored` | boolean | `true` if the skill was written locally by the agent/user (not fetched from the repo). `false` for skills installed from the shared repo. |
 
@@ -193,16 +193,16 @@ Compare locally installed skills against the latest versions in the repo.
    https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
    ```
 3. For each skill in `_registry.json` where `selfAuthored` is `false`:
-   a. Get the latest commit SHA for the skill file from the GitHub API:
+   a. Get the latest commit SHA for the complete skill directory from the GitHub API:
       ```bash
-      curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>/SKILL.md&per_page=1" | jq -r '.[0].sha'
+      curl -s "https://api.github.com/repos/ourostack/ouroboros-skills/commits?path=skills/<skill-name>&per_page=1" | jq -r '.[0].sha'
       ```
    b. Compare against the `commit` field in `_registry.json`.
    c. If they differ, the skill has been updated upstream.
 4. Report which skills are stale.
 5. For each stale skill, offer to update:
-   - Fetch the new SKILL.md content.
-   - Overwrite the local file.
+   - Install the complete upstream skill directory using the same full-directory copy flow as Install.
+   - Replace the local skill directory atomically enough that stale bundled resources are removed. For example, copy into a temporary `<skills-dir>/<skill-name>.tmp`, verify `SKILL.md` exists, then `rm -rf <skills-dir>/<skill-name>.old`, move the current directory aside, move the temp directory into place, and remove the old directory after validation.
    - Update `commit` and `installed` in `_registry.json`.
 6. If the update affects the current workflow and autopilot/no-human-gates is active, apply the Runtime Refresh steps above instead of returning control with "restart to pick this up" as the only outcome.
 
@@ -210,7 +210,7 @@ Compare locally installed skills against the latest versions in the repo.
 
 For a fast staleness check without full update:
 1. Read `_registry.json`.
-2. For each non-self-authored skill, compare the local `commit` SHA against the latest from the API.
+2. For each non-self-authored skill, compare the local `commit` SHA against the latest commit touching the upstream `skills/<skill-name>` directory from the API.
 3. Report: "X skills up to date, Y skills have updates available."
 
 ---
