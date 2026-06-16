@@ -21,3 +21,6 @@ jobs:
 
       - name: Validate skill repository
         run: node scripts/validate-skills.cjs
+
+      - name: Validate Desk healthy-path docs
+        run: node scripts/test-desk-docs.cjs

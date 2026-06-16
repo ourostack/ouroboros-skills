@@ -18,6 +18,10 @@ on:
       - "plugins/desk/artifacts/tombstones/**"
       - "plugins/desk/artifacts/publication-policy.json"
       - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/README.md"
+      - "plugins/desk/docs/**"
+      - "plugins/desk/mcp/README.md"
+      - "plugins/desk/activation/README.md"
       - "plugins/desk/mcp/config/performance-budgets.json"
       - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
       - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
@@ -25,7 +29,9 @@ on:
       - "plugins/desk/mcp/scripts/build-snapshot.js"
       - "plugins/desk/mcp/scripts/verify-snapshot.js"
       - "plugins/desk/mcp/scripts/validate-artifacts.js"
+      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
       - "scripts/*.cjs"
+      - "scripts/test-desk-docs.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
   push:
     branches:
@@ -38,6 +44,10 @@ on:
       - "plugins/desk/artifacts/tombstones/**"
       - "plugins/desk/artifacts/publication-policy.json"
       - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/README.md"
+      - "plugins/desk/docs/**"
+      - "plugins/desk/mcp/README.md"
+      - "plugins/desk/activation/README.md"
       - "plugins/desk/mcp/config/performance-budgets.json"
       - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
       - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
@@ -45,7 +55,9 @@ on:
       - "plugins/desk/mcp/scripts/build-snapshot.js"
       - "plugins/desk/mcp/scripts/verify-snapshot.js"
       - "plugins/desk/mcp/scripts/validate-artifacts.js"
+      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
       - "scripts/*.cjs"
+      - "scripts/test-desk-docs.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
 
 jobs:
@@ -78,6 +90,9 @@ jobs:
 
       - name: Verify committed generated artifacts
         run: node scripts/test-desk-generated-artifacts.cjs
+
+      - name: Validate Desk healthy-path docs
+        run: node scripts/test-desk-docs.cjs
 
       - name: Build runtime dependency pack
         working-directory: plugins/desk/mcp
