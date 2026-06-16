@@ -586,9 +586,12 @@ async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"))
 }
 
-function gitCommit() {
-  const result = spawnSync("git", ["rev-parse", "HEAD"], {
-    cwd: path.resolve(DEFAULT_MCP_ROOT, "..", "..", ".."),
+function gitCommit({
+  spawn = spawnSync,
+  cwd = path.resolve(DEFAULT_MCP_ROOT, "..", "..", ".."),
+} = {}) {
+  const result = spawn("git", ["rev-parse", "HEAD"], {
+    cwd,
     encoding: "utf8",
   })
   return /^[a-f0-9]{40}$/u.test(result.stdout.trim())
@@ -658,4 +661,17 @@ function artifactValidateHelp() {
 
 Usage: npm run artifact:validate -- --desk-root <path> [--plugin-root <path>] [--budget-config <path>]
 `
+}
+
+export const __artifactScriptInternalsForTests = {
+  commonRoots,
+  checkpointDb,
+  documentTreeHash,
+  defaultIo,
+  filesWithSuffix,
+  gitCommit,
+  optionalString,
+  readFileOrEmpty,
+  requiredPath,
+  valuesFor,
 }

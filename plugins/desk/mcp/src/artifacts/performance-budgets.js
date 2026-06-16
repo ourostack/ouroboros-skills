@@ -118,3 +118,7 @@ function requiredPath(value, label) {
 function cloneBudgets(budgets) {
   return JSON.parse(JSON.stringify(budgets))
 }
+
+export const __performanceBudgetInternalsForTests = {
+  requiredPath,
+}

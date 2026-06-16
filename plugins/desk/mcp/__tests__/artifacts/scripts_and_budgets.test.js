@@ -19,6 +19,20 @@ import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { main as startMcpServer } from "../../index.js"
+import {
+  __artifactScriptInternalsForTests,
+  runArtifactValidateCli,
+  runSnapshotBuildCli,
+  runSnapshotVerifyCli,
+  runVectorPackBuildCli,
+} from "../../src/artifacts/artifact-scripts.js"
+import {
+  __performanceBudgetInternalsForTests,
+  assertBudgetAllowsStart,
+  assertWithinBudget,
+  budgetValue,
+  loadPerformanceBudgets,
+} from "../../src/artifacts/performance-budgets.js"
 import { rebuildIndex } from "../../src/indexer/index.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 
@@ -111,6 +125,12 @@ function writeFile(root, rel, body) {
 
 function writeJson(root, rel, value) {
   writeFile(root, rel, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function rewriteJson(file, edit) {
+  const body = loadJson(file)
+  edit(body)
+  writeFileSync(file, `${JSON.stringify(body, null, 2)}\n`, "utf8")
 }
 
 function validPolicy(overrides = {}) {
@@ -302,6 +322,19 @@ function writeBudgetConfig(file, overrides = {}) {
     }, null, 2)}\n`,
     "utf8",
   )
+}
+
+function captureIo() {
+  const stdout = []
+  const stderr = []
+  return {
+    io: {
+      stdout: { write: (text) => stdout.push(text) },
+      stderr: { write: (text) => stderr.push(text) },
+    },
+    stdout,
+    stderr,
+  }
 }
 
 function workflowPathFilters(workflow, eventName) {
@@ -658,6 +691,93 @@ test("performance budget config declares startup, rebuild, and artifact threshol
   assertPositiveIntegerBudget(budgets.artifacts?.validate_ms, "artifacts.validate_ms")
 })
 
+test("performance budget loader fails closed for malformed, missing, or invalid configs", async () => {
+  const fallbackRoot = makeTempDir("desk-artifact-scripts-budget-fallback-")
+  const explicitRoot = makeTempDir("desk-artifact-scripts-budget-invalid-")
+  try {
+    const fallback = await loadPerformanceBudgets({ mcpRoot: fallbackRoot })
+    assert.equal(fallback.startup.ensure_index_ms, 250)
+    fallback.startup.ensure_index_ms = 1
+    assert.equal(
+      (await loadPerformanceBudgets({ mcpRoot: fallbackRoot })).startup.ensure_index_ms,
+      250,
+    )
+
+    await assert.rejects(
+      () => loadPerformanceBudgets(),
+      /mcpRoot is required/u,
+    )
+
+    await assert.rejects(
+      () => loadPerformanceBudgets({
+        configPath: path.join(explicitRoot, "missing.json"),
+        mcpRoot: explicitRoot,
+      }),
+      (error) => error.code === "performance_budget_config_invalid" &&
+        /could not be read/u.test(error.message),
+    )
+
+    const malformed = path.join(explicitRoot, "malformed.json")
+    writeFileSync(malformed, "{", "utf8")
+    await assert.rejects(
+      () => loadPerformanceBudgets({ configPath: malformed, mcpRoot: explicitRoot }),
+      (error) => error.code === "performance_budget_config_invalid" &&
+        /valid JSON/u.test(error.message),
+    )
+
+    for (const [body, expectedDiagnostic] of [
+      [null, "performance budget config must be an object"],
+      [{ schema_version: 2 }, "performance budget config schema_version must be 1"],
+      [{ schema_version: 1, startup: [], rebuild: {}, artifacts: {} }, "performance budget startup must be an object"],
+      [
+        {
+          schema_version: 1,
+          startup: { ensure_index_ms: -1, snapshot_restore_ms: 1, vector_pack_import_ms: 1 },
+          rebuild: { vector_pack_rebuild_ms: 1, snapshot_build_ms: 1 },
+          artifacts: { snapshot_verify_ms: 1, validate_ms: 1 },
+        },
+        "performance budget startup.ensure_index_ms must be a non-negative integer",
+      ],
+    ]) {
+      const config = path.join(explicitRoot, `invalid-${expectedDiagnostic.split(" ").at(-1)}.json`)
+      writeFileSync(config, `${JSON.stringify(body)}\n`, "utf8")
+      await assert.rejects(
+        () => loadPerformanceBudgets({ configPath: config, mcpRoot: explicitRoot }),
+        (error) => error.code === "performance_budget_config_invalid" &&
+          error.diagnostics.includes(expectedDiagnostic),
+      )
+    }
+
+    assert.throws(
+      () => budgetValue({ startup: { ensure_index_ms: "250" } }, "startup", "ensure_index_ms"),
+      (error) => error.code === "performance_budget_config_invalid",
+    )
+    assert.throws(
+      () => assertBudgetAllowsStart({ budgetMs: 0, label: "unit budget" }),
+      (error) => error.code === "performance_budget_exceeded" &&
+        error.budget_ms === 0 &&
+        error.elapsed_ms === 0,
+    )
+    assert.equal(
+      assertWithinBudget({ startedAt: 10, budgetMs: 5, label: "unit budget", now: () => 12 }),
+      2,
+    )
+    assert.throws(
+      () => assertWithinBudget({ startedAt: 10, budgetMs: 5, label: "unit budget", now: () => 20 }),
+      (error) => error.code === "performance_budget_exceeded" &&
+        error.budget_ms === 5 &&
+        error.elapsed_ms === 10,
+    )
+    assert.throws(
+      () => __performanceBudgetInternalsForTests.requiredPath("", "budget root"),
+      /budget root is required/u,
+    )
+  } finally {
+    rmSync(fallbackRoot, { recursive: true, force: true })
+    rmSync(explicitRoot, { recursive: true, force: true })
+  }
+})
+
 test("MCP startup reads ensure-index budget from plugin performance config", async () => {
   const deskRoot = makeTempDir("desk-artifact-scripts-startup-budget-desk-")
   const pluginRoot = makeTempDir("desk-artifact-scripts-startup-budget-plugin-")
@@ -707,6 +827,323 @@ test("artifact validation output does not leak resolved local roots", async () =
     assert.equal(Object.hasOwn(output, "desk_root"), false)
     assert.equal(Object.hasOwn(output, "plugin_root"), false)
   })
+})
+
+test("artifact script CLIs cover help, usage errors, repeated args, and targeted snapshot verification", async () => {
+  for (const [run, pattern] of [
+    [runVectorPackBuildCli, /Build a Desk vector-pack artifact/u],
+    [runSnapshotBuildCli, /Build a Desk snapshot artifact/u],
+    [runSnapshotVerifyCli, /Verify a Desk snapshot artifact/u],
+    [runArtifactValidateCli, /Validate Desk vector-pack/u],
+  ]) {
+    for (const helpFlag of ["-h", "--help"]) {
+      const { io, stdout, stderr } = captureIo()
+      assert.equal(await run({ argv: [helpFlag], io }), 0)
+      assert.match(stdout.join(""), pattern)
+      assert.equal(stderr.join(""), "")
+    }
+  }
+
+  const usage = captureIo()
+  assert.equal(await runVectorPackBuildCli({ argv: ["ignored-positional"], io: usage.io }), 1)
+  assert.match(usage.stderr.join(""), /artifact_script_usage: --desk-root is required/u)
+
+  const defaultRootVerify = captureIo()
+  assert.equal(await runSnapshotVerifyCli({ argv: [], io: defaultRootVerify.io }), 0)
+  assert.equal(JSON.parse(defaultRootVerify.stdout.join("")).snapshots.count, 0)
+
+  const invalidManifestPluginRoot = makeTempDir("desk-artifact-scripts-invalid-snapshot-")
+  try {
+    writeFile(
+      invalidManifestPluginRoot,
+      path.join(
+        "artifacts",
+        "snapshots",
+        ACTIVE_EMBEDDING_SPEC.id,
+        "invalid-snapshot.manifest.json",
+      ),
+      "{",
+    )
+    const plainError = captureIo()
+    assert.equal(
+      await runSnapshotVerifyCli({
+        argv: ["--plugin-root", invalidManifestPluginRoot, "--snapshot-id", "invalid-snapshot"],
+        io: plainError.io,
+      }),
+      1,
+    )
+    assert.match(plainError.stderr.join(""), /artifact_script_failed:/u)
+  } finally {
+    rmSync(invalidManifestPluginRoot, { recursive: true, force: true })
+  }
+
+  await withSeededArtifactFixture(async ({ deskRoot, pluginRoot, snapshotTarget, vectorTarget }) => {
+    const buildPack = captureIo()
+    const nextPackId = "direct-build-pack"
+    assert.equal(
+      await runVectorPackBuildCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+          "--pack-id",
+          nextPackId,
+          "--from-local-db",
+        ],
+        io: buildPack.io,
+      }),
+      0,
+      buildPack.stderr.join(""),
+    )
+    const builtPack = JSON.parse(buildPack.stdout.join(""))
+    assert.equal(builtPack.pack_id, nextPackId)
+    assert.equal(builtPack.rows_written, 1)
+
+    const allVerify = captureIo()
+    assert.equal(
+      await runSnapshotVerifyCli({
+        argv: ["--plugin-root", pluginRoot],
+        io: allVerify.io,
+      }),
+      0,
+      allVerify.stderr.join(""),
+    )
+    const allVerifyBody = JSON.parse(allVerify.stdout.join(""))
+    assert.equal(allVerifyBody.snapshots.count, 1)
+    assert.equal(allVerifyBody.snapshots.artifacts[0].snapshot_id, snapshotTarget.id)
+
+    const directVerify = captureIo()
+    assert.equal(
+      await runSnapshotVerifyCli({
+        argv: ["--plugin-root", pluginRoot, "--snapshot-id", snapshotTarget.id],
+        io: directVerify.io,
+      }),
+      0,
+      directVerify.stderr.join(""),
+    )
+    const directVerifyBody = JSON.parse(directVerify.stdout.join(""))
+    assert.equal(directVerifyBody.snapshot_id, snapshotTarget.id)
+    assert.equal(directVerifyBody.freshness.artifact_source_scope, "fresh")
+
+    const buildSnapshot = captureIo()
+    const nextSnapshotId = "multi-pack-snapshot"
+    assert.equal(
+      await runSnapshotBuildCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+          "--snapshot-id",
+          nextSnapshotId,
+          "--included-pack-id",
+          vectorTarget.id,
+          "--included-pack-id",
+          "second-pack",
+          "--included-pack-id",
+          "third-pack",
+        ],
+        io: buildSnapshot.io,
+      }),
+      0,
+      buildSnapshot.stderr.join(""),
+    )
+    const builtSnapshot = JSON.parse(buildSnapshot.stdout.join(""))
+    assert.equal(builtSnapshot.snapshot_id, nextSnapshotId)
+    const manifest = loadJson(path.join(
+      pluginRoot,
+      "artifacts",
+      "snapshots",
+      ACTIVE_EMBEDDING_SPEC.id,
+      `${nextSnapshotId}.manifest.json`,
+    ))
+    assert.deepEqual(manifest.included_pack_ids, [vectorTarget.id, "second-pack", "third-pack"])
+
+    for (const snapshotId of [snapshotTarget.id, nextSnapshotId]) {
+      rewriteJson(
+        path.join(
+          pluginRoot,
+          "artifacts",
+          "snapshots",
+          ACTIVE_EMBEDDING_SPEC.id,
+          `${snapshotId}.manifest.json`,
+        ),
+        (body) => {
+          delete body.represented_documents
+        },
+      )
+    }
+
+    const missingDocsVerify = captureIo()
+    assert.equal(
+      await runSnapshotVerifyCli({
+        argv: ["--plugin-root", pluginRoot, "--snapshot-id", snapshotTarget.id],
+        io: missingDocsVerify.io,
+      }),
+      0,
+      missingDocsVerify.stderr.join(""),
+    )
+    const missingDocsVerifyBody = JSON.parse(missingDocsVerify.stdout.join(""))
+    assert.equal(missingDocsVerifyBody.snapshot_id, snapshotTarget.id)
+    assert.equal(missingDocsVerifyBody.freshness.document_tree, "stale")
+
+    const directValidate = captureIo()
+    assert.equal(
+      await runArtifactValidateCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+        ],
+        io: directValidate.io,
+      }),
+      0,
+      directValidate.stderr.join(""),
+    )
+    const directValidateBody = JSON.parse(directValidate.stdout.join(""))
+    assert.equal(directValidateBody.vector_packs.count, 2)
+    assert.equal(directValidateBody.snapshots.count, 2)
+
+    const emptyPluginRoot = makeTempDir("desk-artifact-scripts-empty-plugin-")
+    try {
+      writeApprovedPolicy(emptyPluginRoot)
+      const emptyValidate = captureIo()
+      assert.equal(
+        await runArtifactValidateCli({
+          argv: [
+            "--desk-root",
+            deskRoot,
+            "--plugin-root",
+            emptyPluginRoot,
+          ],
+          io: emptyValidate.io,
+        }),
+        0,
+        emptyValidate.stderr.join(""),
+      )
+      const emptyValidateBody = JSON.parse(emptyValidate.stdout.join(""))
+      assert.equal(emptyValidateBody.vector_packs.count, 0)
+      assert.equal(emptyValidateBody.snapshots.count, 0)
+    } finally {
+      rmSync(emptyPluginRoot, { recursive: true, force: true })
+    }
+  })
+})
+
+test("vector-pack build supports lexical-only local DBs with no vector rows", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-empty-pack-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-empty-pack-plugin-")
+  try {
+    writeApprovedPolicy(pluginRoot)
+    writeFile(deskRoot, "trackA/task-1/task.md", "---\nstatus: processing\n---\nrelease fixture text\n")
+    await rebuildIndex(deskRoot, { skipEmbed: true })
+
+    const buildPack = captureIo()
+    const packId = "lexical-only-pack"
+    assert.equal(
+      await runVectorPackBuildCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+          "--pack-id",
+          packId,
+          "--from-local-db",
+        ],
+        io: buildPack.io,
+      }),
+      0,
+      buildPack.stderr.join(""),
+    )
+    const output = JSON.parse(buildPack.stdout.join(""))
+    assert.equal(output.rows_written, 0)
+    const packDir = path.join(pluginRoot, "artifacts", "vector-packs", ACTIVE_EMBEDDING_SPEC.id)
+    assert.equal(readFileSync(path.join(packDir, `${packId}.jsonl`), "utf8"), "")
+    assert.equal(loadJson(path.join(packDir, `${packId}.manifest.json`)).row_count, 0)
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
+
+test("artifact script defensive helpers cover filesystem and fallback branches", async () => {
+  const tempRoot = makeTempDir("desk-artifact-scripts-helper-")
+  try {
+    assert.throws(
+      () => __artifactScriptInternalsForTests.requiredPath("", "helper root"),
+      /helper root is required/u,
+    )
+    assert.equal(
+      Buffer.compare(
+        __artifactScriptInternalsForTests.readFileOrEmpty(path.join(tempRoot, "missing.txt")),
+        Buffer.alloc(0),
+      ),
+      0,
+    )
+    const fakeDb = {
+      calls: [],
+      pragma(sql) {
+        this.calls.push(sql)
+        if (sql.includes("TRUNCATE")) throw new Error("checkpoint busy")
+      },
+    }
+    __artifactScriptInternalsForTests.checkpointDb(fakeDb)
+    assert.deepEqual(fakeDb.calls, ["wal_checkpoint(TRUNCATE)", "wal_checkpoint(PASSIVE)"])
+
+    const notDirectory = path.join(tempRoot, "not-a-directory")
+    writeFileSync(notDirectory, "fixture", "utf8")
+    await assert.rejects(
+      () => __artifactScriptInternalsForTests.filesWithSuffix(notDirectory, ".jsonl"),
+      (error) => error.code !== "ENOENT",
+    )
+    const defaultIo = __artifactScriptInternalsForTests.defaultIo()
+    assert.equal(defaultIo.stdout, process.stdout)
+    assert.equal(defaultIo.stderr, process.stderr)
+    assert.deepEqual(__artifactScriptInternalsForTests.valuesFor({}, "missing"), [])
+    assert.deepEqual(__artifactScriptInternalsForTests.valuesFor({ flag: true }, "flag"), [])
+    assert.deepEqual(__artifactScriptInternalsForTests.valuesFor({ flag: "one" }, "flag"), ["one"])
+    assert.deepEqual(__artifactScriptInternalsForTests.valuesFor({ flag: ["one", "two"] }, "flag"), ["one", "two"])
+    assert.equal(__artifactScriptInternalsForTests.optionalString(" value "), " value ")
+    assert.equal(__artifactScriptInternalsForTests.optionalString(""), undefined)
+    assert.equal(__artifactScriptInternalsForTests.optionalString(true), undefined)
+    assert.equal(
+      __artifactScriptInternalsForTests.gitCommit({
+        spawn: () => ({ stdout: "not-a-sha\n" }),
+        cwd: tempRoot,
+      }),
+      "0000000000000000000000000000000000000000",
+    )
+    assert.match(
+      __artifactScriptInternalsForTests.documentTreeHash([
+        { path: "b.md", hash: `${"b".repeat(64)}` },
+        { path: "a.md", hash: `sha256:${"a".repeat(64)}` },
+      ]),
+      /^sha256:[a-f0-9]{64}$/u,
+    )
+    assert.equal(
+      __artifactScriptInternalsForTests.commonRoots({ "desk-root": tempRoot }).deskRoot,
+      path.resolve(tempRoot),
+    )
+    assert.equal(
+      __artifactScriptInternalsForTests.commonRoots({ "desk-root": "~" }).deskRoot,
+      path.resolve(process.env.HOME),
+    )
+    const oldHome = process.env.HOME
+    try {
+      delete process.env.HOME
+      assert.equal(
+        __artifactScriptInternalsForTests.commonRoots({ "desk-root": "~", "plugin-root": "~" }).deskRoot,
+        path.resolve(""),
+      )
+    } finally {
+      process.env.HOME = oldHome
+    }
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
 })
 
 test("artifact scripts fail when configured rebuild or validation budgets are exceeded", async () => {
