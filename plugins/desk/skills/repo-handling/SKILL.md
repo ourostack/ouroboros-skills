@@ -109,8 +109,15 @@ Probe candidates in this order, stopping at the first match:
    - `~/src/<repo-name>`
    - `~/dev/<repo-name>`
    - `~/<repo-name>`
+4. **Common Windows dev-machine roots** (when running on Windows): `C:\src\<repo-name>`, `Q:\src\<repo-name>`. Windows dev machines often prefer a drive-rooted `src` dir over a home-directory root, so a clone present on the box won't be found by the POSIX conventions above.
 
 For each candidate, verify it's a git repo whose origin matches the expected upstream repo (same remote check as section 2).
+
+### Match on the remote, not the directory name
+
+The candidates above all assume the local directory is named `<repo-name>`. That assumption breaks when an operator keeps a clone under a different name — most commonly **two clones of one upstream** under distinct names (e.g. one per long-lived branch) so parallel work doesn't thrash a single working tree. A card authored against one clone's name then can't find the sibling even though it's sitting in a conventional root.
+
+So before falling back to asking the operator: for each conventional root above, scan its immediate children for **any** directory whose `git -C <dir> remote get-url origin` matches the target's upstream (by org + repo, the same remote check as section 2), not just the one named `<repo-name>`. A rename or a parallel-clone layout still resolves. Only after the remote-match scan comes up empty is the clone genuinely absent — then offer the two-option flow below.
 
 ### On success
 
