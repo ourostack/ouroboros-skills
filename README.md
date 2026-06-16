@@ -80,10 +80,12 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **dragon-hunt** | Adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. |
 | **design** | Design and build production-grade frontend interfaces from scratch. |
 | **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality. |
+| **build-native-apple-app** | Plan, build, audit, and ship native Apple apps for iOS, iPadOS, macOS, watchOS, tvOS, and visionOS. |
 | **seo-titles** | Write HTML title tags that rank and get clicked. |
 | **book-fetch** | Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. |
 | **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
 | **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
+| **product-cloner** | Clone an existing app's look, feel, and behavior from shipped source as ground truth. |
 
 ## Work-Suite Autopilot Loop
 
