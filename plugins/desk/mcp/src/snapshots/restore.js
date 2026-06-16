@@ -40,8 +40,12 @@ export async function discoverSnapshotArtifacts({
           expectedDbSchema,
           expectedSqliteVec,
           expectedRuntime,
-          expectedArtifactSourceScopeHash,
-          expectedDocumentTreeHash,
+          expectedArtifactSourceScopeHash: await resolveExpectedHash(
+            expectedArtifactSourceScopeHash,
+          ),
+          expectedDocumentTreeHash: await resolveExpectedHash(
+            expectedDocumentTreeHash,
+          ),
         })
         compatible.push({
           ...validation,
@@ -56,6 +60,10 @@ export async function discoverSnapshotArtifacts({
   }
 
   return { compatible, ignored }
+}
+
+async function resolveExpectedHash(expected) {
+  return typeof expected === "function" ? await expected() : expected
 }
 
 export function selectNewestCompatibleSnapshot(discovered) {

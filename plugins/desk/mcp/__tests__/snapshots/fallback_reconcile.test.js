@@ -323,6 +323,28 @@ test("resolveEnsureIndexOptions uses the configured runtime artifact root", asyn
   }
 })
 
+test("resolveEnsureIndexOptions treats missing runtime artifact dirs as absent", async () => {
+  const parent = await tmpRoot("desk-missing-artifacts-parent-")
+  const pluginRoot = path.join(parent, "missing-plugin")
+  const original = process.env.DESK_PLUGIN_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    configureRuntimeArtifacts({ pluginRoot })
+    const resolved = resolveEnsureIndexOptions({})
+    assert.equal(resolved.snapshots, undefined)
+    assert.equal(resolved.vectorPacks, undefined)
+    assert.equal(resolved.tombstones.pluginRoot, path.resolve(pluginRoot))
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
+    await fs.rm(parent, { recursive: true, force: true })
+  }
+})
+
 test("ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls", async () => {
   const deskRoot = await tmpRoot("desk-snapshot-fallback-desk-")
   const pluginRoot = await tmpRoot("desk-snapshot-fallback-plugin-")

@@ -4,10 +4,12 @@
 // without creating an import cycle (server.js imports the search tools, the
 // search tools need ensureIndex, ensureIndex used to live in server.js).
 
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 import { closeDb, indexDbPath, openDb } from "./db/init.js"
+import { discover } from "./indexer/discover.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./indexer/spec.js"
@@ -22,6 +24,21 @@ const DEFAULT_MCP_ROOT = path.resolve(MODULE_DIR, "..")
 const DEFAULT_PLUGIN_ROOT = path.resolve(DEFAULT_MCP_ROOT, "..")
 const SNAPSHOT_DB_SCHEMA = { id: "desk-index-sqlite-v1", version: 1 }
 const SNAPSHOT_SQLITE_VEC_TABLE = "vec0"
+const ARTIFACT_SOURCE_SCOPE_PATHS = Object.freeze([
+  "plugins/desk/mcp/src/indexer/index.js",
+  "plugins/desk/mcp/src/indexer/vector-packs.js",
+  "plugins/desk/mcp/src/snapshots/manifest.js",
+  "plugins/desk/mcp/src/snapshots/restore.js",
+  "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+  "plugins/desk/mcp/src/artifacts/policy.js",
+  "plugins/desk/mcp/scripts/build-vector-pack.js",
+  "plugins/desk/mcp/scripts/build-snapshot.js",
+  "plugins/desk/mcp/scripts/verify-snapshot.js",
+  "plugins/desk/mcp/scripts/validate-artifacts.js",
+  "plugins/desk/mcp/src/db/schema.sql",
+  "plugins/desk/mcp/package.json",
+  "plugins/desk/mcp/package-lock.json",
+])
 let configuredArtifactPluginRoot = null
 
 /**
@@ -43,7 +60,7 @@ let configuredArtifactPluginRoot = null
  *   `built=false` (fresh), `summary` is omitted — nothing was reindexed.
  */
 export async function ensureIndex(deskRoot, opts = {}) {
-  const effectiveOpts = resolveEnsureIndexOptions(opts)
+  const effectiveOpts = resolveEnsureIndexOptions(opts, { deskRoot })
   const dbPath = indexDbPath(deskRoot)
   let snapshot = null
   let dbExisted = existsSync(dbPath)
@@ -61,6 +78,19 @@ export async function ensureIndex(deskRoot, opts = {}) {
     const semanticBefore = getSemanticCoverage(db)
     let repairMissing = false
     if (dbExisted) {
+      if (snapshot?.restored && !snapshotNeedsReconcile(snapshot)) {
+        const repair = await maybeRepairMissingEmbeddings(
+          deskRoot,
+          db,
+          effectiveOpts,
+          semanticBefore,
+        )
+        if (repair) return withSnapshot(repair, snapshot)
+        return withSnapshot(
+          { built: false, reason: "snapshot_restored", semantic: semanticBefore },
+          snapshot,
+        )
+      }
       const fresh = await isIndexFresh(deskRoot, db, {
         signal: effectiveOpts.signal,
         tombstones: effectiveOpts.tombstones,
@@ -74,12 +104,6 @@ export async function ensureIndex(deskRoot, opts = {}) {
             semanticBefore,
           )
           if (repair) return withSnapshot(repair, snapshot)
-          if (snapshot) {
-            return withSnapshot(
-              { built: false, reason: "snapshot_restored", semantic: semanticBefore },
-              snapshot,
-            )
-          }
           return withSnapshot(
             { built: false, reason: "fresh", semantic: semanticBefore },
             snapshot,
@@ -121,10 +145,15 @@ export async function ensureIndex(deskRoot, opts = {}) {
   }
 }
 
-export function resolveEnsureIndexOptions(opts = {}) {
+export function resolveEnsureIndexOptions(opts = {}, context = {}) {
   const pluginRoot = resolveArtifactPluginRoot(opts)
   const effective = { ...opts }
-  effective.snapshots = resolveSnapshotOptions({ opts, pluginRoot })
+  effective.snapshots = resolveSnapshotOptions({
+    opts,
+    pluginRoot,
+    deskRoot: context.deskRoot,
+    signal: opts.signal,
+  })
   effective.vectorPacks = resolveVectorPackOptions({ opts, pluginRoot })
   effective.tombstones = {
     pluginRoot,
@@ -146,11 +175,11 @@ function snapshotNeedsReconcile(snapshot) {
     snapshot.freshness?.document_tree === "stale"
 }
 
-function resolveSnapshotOptions({ opts, pluginRoot }) {
+function resolveSnapshotOptions({ opts, pluginRoot, deskRoot, signal }) {
   if (opts.snapshots === false || opts.snapshots === null) return undefined
   if (opts.snapshots !== undefined) {
     return {
-      ...defaultSnapshotCompatibilityContext(),
+      ...defaultSnapshotCompatibilityContext({ deskRoot, signal }),
       pluginRoot,
       ...opts.snapshots,
     }
@@ -158,7 +187,7 @@ function resolveSnapshotOptions({ opts, pluginRoot }) {
   if (!hasSnapshotArtifacts(pluginRoot)) return undefined
   return {
     pluginRoot,
-    ...defaultSnapshotCompatibilityContext(),
+    ...defaultSnapshotCompatibilityContext({ deskRoot, signal }),
   }
 }
 
@@ -185,7 +214,7 @@ function resolveArtifactPluginRoot(opts) {
   )
 }
 
-function defaultSnapshotCompatibilityContext() {
+function defaultSnapshotCompatibilityContext({ deskRoot, signal } = {}) {
   return {
     expectedDbSchema: SNAPSHOT_DB_SCHEMA,
     expectedSqliteVec: {
@@ -198,7 +227,36 @@ function defaultSnapshotCompatibilityContext() {
       arch: process.arch,
       node_abi: `node-${process.versions.modules}`,
     },
+    expectedArtifactSourceScopeHash: artifactSourceScopeHash(),
+    expectedDocumentTreeHash: () => currentDocumentTreeHash(deskRoot, signal),
   }
+}
+
+async function currentDocumentTreeHash(deskRoot, signal) {
+  return documentTreeHash(await discover(deskRoot, { signal }))
+}
+
+function documentTreeHash(docs) {
+  const hash = createHash("sha256")
+  for (const doc of docs) {
+    hash.update(`${normalizeArtifactPath(doc.path)}\0sha256:${doc.hash}\0`)
+  }
+  return `sha256:${hash.digest("hex")}`
+}
+
+function artifactSourceScopeHash() {
+  const hash = createHash("sha256")
+  for (const repoPath of ARTIFACT_SOURCE_SCOPE_PATHS) {
+    const relFromMcp = repoPath.replace(/^plugins\/desk\/mcp\//u, "")
+    hash.update(`${repoPath}\0`)
+    hash.update(readFileSync(path.join(DEFAULT_MCP_ROOT, relFromMcp)))
+    hash.update("\0")
+  }
+  return `sha256:${hash.digest("hex")}`
+}
+
+function normalizeArtifactPath(value) {
+  return value.replaceAll(path.sep, "/")
 }
 
 function sqliteVecVersion() {
