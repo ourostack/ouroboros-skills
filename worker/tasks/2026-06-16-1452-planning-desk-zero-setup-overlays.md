@@ -84,7 +84,9 @@ This task continues the merged dependency-activation work from PR #113 by modeli
 - Current implementation already has `provides.overlay_agents`, but it only validates overlays against base activation targets and does not yet prove multi-level overlay inheritance.
 - Current Codex adapter hard-codes generated worker wording around `desk:worker`; selected overlays need first-class rendering while preserving Desk root/session-start behavior.
 - Codex Desktop cache refresh/reload is partly host/plugin-manager work outside this repo, but this repo can make the activation contract and generated artifacts precise enough for the host to consume.
+- Tinfoil pass verified the referenced activation manifests, validator, adapter, tests, and story/criteria doc exist in this checkout. The smallest implementation path is to model activation ids as a graph, validate overlay inheritance through that graph, and let the Codex adapter render a selected activation target.
 
 # Progress Log
 
 - 2026-06-16 14:52 Created planning doc for zero-setup Desk overlay activation.
+- 2026-06-16 14:56 Ran tinfoil pass and identified activation graph plus selected-target rendering as the narrow implementation path.
