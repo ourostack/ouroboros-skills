@@ -54,6 +54,10 @@ async function loadTombstonesModule() {
   return import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "tombstones.js")))
 }
 
+async function loadRebuildIndexScriptModule() {
+  return import(pathToFileURL(path.join(mcpRoot, "scripts", "rebuild-index.js")).href)
+}
+
 async function tmpRoot(prefix) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix))
 }
@@ -1280,6 +1284,82 @@ test("manual rebuild-index script honors the committed tombstone ledger", async 
     vectors: 0,
     refs: 0,
   })
+})
+
+test("manual rebuild-index command helpers stay covered and injectable", async () => {
+  const scriptPath = path.join(mcpRoot, "scripts", "rebuild-index.js")
+  const deskRoot = await tmpRoot("desk-redaction-command-rebuild-")
+  const pluginRoot = await tmpRoot("desk-redaction-command-plugin-")
+  const mod = await loadRebuildIndexScriptModule()
+  const writes = []
+  const captured = {}
+  let now = 100
+
+  assert.deepEqual(mod.parseArgs(["--unused", "--root", deskRoot]), {
+    root: deskRoot,
+  })
+  assert.equal(mod.resolvePluginRoot({}, pluginRoot), pluginRoot)
+  assert.equal(mod.isMainModule(`${pathToFileURL(scriptPath).href}?fresh=1`, scriptPath), true)
+  assert.equal(mod.isMainModule(pathToFileURL(scriptPath).href, ""), false)
+
+  const summary = await mod.main({
+    argv: ["--root", deskRoot],
+    env: { DESK_PLUGIN_ROOT: pluginRoot },
+    now: () => {
+      now += 7
+      return now
+    },
+    rebuild: async (root, opts) => {
+      captured.root = root
+      captured.opts = opts
+      return {
+        docs_tombstoned: 1,
+        docs_indexed: 0,
+        docs_removed: 0,
+      }
+    },
+    write: (text) => writes.push(text),
+  })
+
+  assert.equal(captured.root, deskRoot)
+  assert.deepEqual(captured.opts, {
+    tombstones: { pluginRoot },
+  })
+  assert.equal(summary.elapsed_ms, 7)
+  assert.equal(summary.docs_tombstoned, 1)
+  assert.deepEqual(JSON.parse(writes[0]), summary)
+
+  const fatalMessages = []
+  const started = mod.startCli({
+    importMetaUrl: `${pathToFileURL(scriptPath).href}?fresh=2`,
+    argv1: scriptPath,
+    mainFn: async () => {
+      throw new Error("covered failure")
+    },
+    onFatal: (err) => fatalMessages.push(err.message),
+  })
+  await started
+  assert.deepEqual(fatalMessages, ["covered failure"])
+
+  const skipped = mod.startCli({
+    importMetaUrl: pathToFileURL(scriptPath).href,
+    argv1: path.join(mcpRoot, "other-script.js"),
+    mainFn: async () => {
+      throw new Error("should not run")
+    },
+  })
+  assert.equal(skipped, null)
+
+  const logged = []
+  let exitCode = 0
+  mod.handleFatalError(new Error("fatal path"), {
+    logError: (...args) => logged.push(args),
+    exit: (code) => {
+      exitCode = code
+    },
+  })
+  assert.deepEqual(logged, [["[rebuild-index] fatal:", "fatal path"]])
+  assert.equal(exitCode, 1)
 })
 
 test("local index freshness fails closed for corrupt tombstones and schema drift", async () => {
