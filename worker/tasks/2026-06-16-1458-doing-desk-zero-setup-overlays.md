@@ -12,20 +12,20 @@ direct
 
 # Completion Criteria
 
-- [ ] A test fixture can express `desk -> ms-desk -> area-plugin` as a dependency and activation overlay chain.
-- [ ] The activation validator accepts valid overlay chains that inherit from `desk:worker` or another overlay target.
-- [ ] The activation validator rejects overlays with unknown dependencies, unknown inherited targets, cycles, duplicate ids, missing entrypoints or instruction contributions, and ambiguous defaults.
-- [ ] The activation contract defines exactly one effective selected target per activation context.
-- [ ] Dependency and activation ordering is deterministic and covered by tests.
-- [ ] Codex activation materialization can generate owned host config/instructions for a selected overlay target while still enabling Desk, Work Suite, and Desk MCP.
-- [ ] Generated Codex instructions name the active overlay identity and preserve Desk session-start/root behavior.
-- [ ] A selected-overlay health/evidence path proves `desk_status` is callable and reports resolved root plus active activation id/chain.
-- [ ] `manual-only` keeps Desk available as a dependency substrate without installing default worker instructions.
-- [ ] `project-local` can bind a repo-local Desk root and overlay identity without mutating global instructions.
-- [ ] Docs explain Desk substrate, generic base worker, org overlays, and area overlays.
-- [ ] Healthy-path docs contain no `codex mcp add`, `npm install`, or copied-agent-file instructions.
+- [x] A test fixture can express `desk -> ms-desk -> area-plugin` as a dependency and activation overlay chain.
+- [x] The activation validator accepts valid overlay chains that inherit from `desk:worker` or another overlay target.
+- [x] The activation validator rejects overlays with unknown dependencies, unknown inherited targets, cycles, duplicate ids, missing entrypoints or instruction contributions, and ambiguous defaults.
+- [x] The activation contract defines exactly one effective selected target per activation context.
+- [x] Dependency and activation ordering is deterministic and covered by tests.
+- [x] Codex activation materialization can generate owned host config/instructions for a selected overlay target while still enabling Desk, Work Suite, and Desk MCP.
+- [x] Generated Codex instructions name the active overlay identity and preserve Desk session-start/root behavior.
+- [x] A selected-overlay health/evidence path proves `desk_status` is callable and reports resolved root plus active activation id/chain.
+- [x] `manual-only` keeps Desk available as a dependency substrate without installing default worker instructions.
+- [x] `project-local` can bind a repo-local Desk root and overlay identity without mutating global instructions.
+- [x] Docs explain Desk substrate, generic base worker, org overlays, and area overlays.
+- [x] Healthy-path docs contain no `codex mcp add`, `npm install`, or copied-agent-file instructions.
 - [ ] Existing Desk activation, artifact, runtime, MCP, and skill validation tests pass.
-- [ ] `node scripts/validate-skills.cjs`, `node scripts/test-desk-host-manifests.cjs`, and `node scripts/test-desk-generated-artifacts.cjs` pass.
+- [x] `node scripts/validate-skills.cjs`, `node scripts/test-desk-host-manifests.cjs`, and `node scripts/test-desk-generated-artifacts.cjs` pass.
 
 # Units
 
@@ -80,10 +80,12 @@ Acceptance:
 
 ## Unit 4 — Docs and Generated Artifact Freshness
 
-- [ ] Update Desk activation docs with the overlay ladder and dependency guidance.
-- [ ] Update plugin author docs so downstream consumers know when to depend on Desk versus an overlay.
-- [ ] Regenerate or update generated host/activation artifacts if required.
-- [ ] Ensure healthy-path docs do not regress to manual setup.
+- [x] Update Desk activation docs with the overlay ladder and dependency guidance.
+- [x] Update plugin author docs so downstream consumers know when to depend on Desk versus an overlay.
+- [x] Add read-only Codex plugin source/cache audit coverage so stale installed caches are diagnosable without mutating the user profile.
+- [x] Document evidence states for repo source, installed cache, and active session visibility.
+- [x] Regenerate or update generated host/activation artifacts if required.
+- [x] Ensure healthy-path docs do not regress to manual setup.
 
 Output:
 - Updated docs and generated artifacts.
@@ -114,3 +116,4 @@ Acceptance:
 - 2026-06-16 15:02 Unit 1 complete: activation graph validation and ordering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-1-activation-contract-green.log`.
 - 2026-06-16 15:04 Unit 2 complete: Codex selected-overlay rendering green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-2-codex-activation-green.log`.
 - 2026-06-16 15:08 Unit 3 complete: selected-overlay `desk_status` and Codex smoke evidence green in `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-3-status-smoke-green.log`.
+- 2026-06-16 15:20 Unit 4 complete: overlay ladder docs, Codex cache audit coverage, and host/generated freshness evidence captured under `2026-06-16-1458-doing-desk-zero-setup-overlays/unit-4-*.log`.
