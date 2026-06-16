@@ -33,11 +33,13 @@ test("Desk docs validator exports a testable contract", () => {
   for (const exportName of [
     "DOCS",
     "PRIVACY_REQUIRED_DOCS",
+    "TOPIC_REQUIREMENTS",
     "WORKFLOW_REQUIREMENTS",
     "fixtureRecord",
     "run",
     "validateHealthyPathRecord",
     "validatePrivacyNotes",
+    "validateTopicCoverage",
     "validateValidatorFixtures",
     "validateWorkflowWiring",
   ]) {
@@ -161,6 +163,7 @@ test("run and startCli expose success, failure, and no-op CLI paths", () => {
     docsValidator.run({
       docs: ["plugins/desk/README.md"],
       privacyRequiredDocs: ["plugins/desk/README.md"],
+      topicRequirements: [],
       workflowRequirements: [{
         path: ".github/workflows/validate-skills.yml",
         command: "node scripts/test-desk-docs.cjs",
@@ -236,6 +239,56 @@ test("validator fixture self-tests cover artifact privacy and publication policy
   ]) {
     assertPasses(text)
   }
+})
+
+test("validateAll rejects docs stripped of required host and artifact coverage", () => {
+  const privacyOnly = "Embeddings and snapshots are derivative data and may carry privacy risk."
+  const workflowBody = [
+    "run: node scripts/test-desk-docs.cjs",
+    '- "plugins/desk/README.md"',
+    '- "plugins/desk/docs/**"',
+    '- "plugins/desk/mcp/README.md"',
+    '- "plugins/desk/activation/README.md"',
+    '- "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"',
+    '- "scripts/test-desk-docs.cjs"',
+  ].join("\n")
+
+  const errors = docsValidator.validateAll({
+    readFile: (file) => file.endsWith(".yml") ? workflowBody : privacyOnly,
+  })
+
+  for (const label of [
+    "Codex global personal activation",
+    "Claude native dependency activation",
+    "Copilot root flattened bundle",
+    "Ouroboros autonomous-agent bundle",
+    "Generic stdio MCP-only fallback",
+    "Vector pack publication",
+    "Snapshot warm boot restore",
+    "Redaction cleanup",
+    "Publication policy approval",
+  ]) {
+    assert.ok(
+      errors.some((error) => error.includes(label)),
+      `${label} coverage should be required`,
+    )
+  }
+})
+
+test("topic coverage reports missing terms without accepting command-body false positives", () => {
+  const errors = []
+  docsValidator.validateTopicCoverage(errors, {
+    requirements: [{
+      label: "Fixture host coverage",
+      docs: ["fixture.md"],
+      terms: ["codex", "global-personal", "manual-only"],
+    }],
+    readFile: () => "Codex uses global-personal activation.",
+  })
+
+  assert.deepEqual(errors, [
+    "docs must cover Fixture host coverage: missing manual-only in fixture.md",
+  ])
 })
 
 test("actual Desk docs validate through the default file reads", () => {

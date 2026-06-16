@@ -21,6 +21,130 @@ const PRIVACY_REQUIRED_DOCS = Object.freeze([
   "plugins/desk/activation/README.md",
 ]);
 
+const TOPIC_REQUIREMENTS = Object.freeze([
+  Object.freeze({
+    label: "Codex global personal activation",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/docs/agent-files.md",
+    ]),
+    terms: Object.freeze([
+      "codex",
+      "global-personal",
+      "project-local",
+      "manual-only",
+      "plugin-scoped mcp",
+    ]),
+  }),
+  Object.freeze({
+    label: "Claude native dependency activation",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/docs/agent-files.md",
+    ]),
+    terms: Object.freeze([
+      "claude",
+      "dependency",
+      "desk + work suite",
+      "flattened",
+    ]),
+  }),
+  Object.freeze({
+    label: "Copilot root flattened bundle",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/docs/agent-files.md",
+    ]),
+    terms: Object.freeze([
+      "copilot",
+      "flattened work suite metadata",
+      "worker",
+    ]),
+  }),
+  Object.freeze({
+    label: "Ouroboros autonomous-agent bundle",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/activation/README.md",
+    ]),
+    terms: Object.freeze([
+      "ouroboros",
+      "autonomous-agent",
+      "bundle",
+      "$desk",
+    ]),
+  }),
+  Object.freeze({
+    label: "Generic stdio MCP-only fallback",
+    docs: Object.freeze([
+      "plugins/desk/mcp/README.md",
+      "plugins/desk/activation/README.md",
+    ]),
+    terms: Object.freeze([
+      "generic stdio",
+      "mcp-only",
+      "does not activate",
+      "does not resolve plugin dependencies",
+    ]),
+  }),
+  Object.freeze({
+    label: "Vector pack publication",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/mcp/README.md",
+      "plugins/desk/docs/dependency-activation-stories-and-criteria.md",
+      "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md",
+    ]),
+    terms: Object.freeze([
+      "vector pack",
+      "publication",
+      "policy",
+    ]),
+  }),
+  Object.freeze({
+    label: "Snapshot warm boot restore",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/mcp/README.md",
+      "plugins/desk/docs/dependency-activation-stories-and-criteria.md",
+      "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md",
+    ]),
+    terms: Object.freeze([
+      "snapshot",
+      "warm boot",
+      ".state",
+      "restore",
+    ]),
+  }),
+  Object.freeze({
+    label: "Redaction cleanup",
+    docs: Object.freeze([
+      "plugins/desk/docs/dependency-activation-stories-and-criteria.md",
+      "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md",
+    ]),
+    terms: Object.freeze([
+      "redaction",
+      "tombstone",
+      "artifact rotation",
+    ]),
+  }),
+  Object.freeze({
+    label: "Publication policy approval",
+    docs: Object.freeze([
+      "plugins/desk/README.md",
+      "plugins/desk/mcp/README.md",
+      "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md",
+    ]),
+    terms: Object.freeze([
+      "publication",
+      "policy",
+      "public",
+      "sensitive",
+      "approval",
+    ]),
+  }),
+]);
+
 const WORKFLOW_REQUIREMENTS = Object.freeze([
   Object.freeze({
     path: ".github/workflows/validate-skills.yml",
@@ -194,6 +318,21 @@ function validatePrivacyNotes(errors, {
   }
 }
 
+function validateTopicCoverage(errors, {
+  requirements = TOPIC_REQUIREMENTS,
+  readFile,
+  repoRoot = defaultRepoRoot,
+} = {}) {
+  const loadFile = readFile ?? ((file) => readRepoFile(file, { repoRoot }));
+  for (const requirement of requirements) {
+    const body = requirement.docs.map((doc) => loadFile(doc).toLowerCase()).join("\n");
+    const missing = requirement.terms.filter((term) => !body.includes(term.toLowerCase()));
+    if (missing.length > 0) {
+      errors.push(`docs must cover ${requirement.label}: missing ${missing.join(", ")} in ${requirement.docs.join(", ")}`);
+    }
+  }
+}
+
 function validateWorkflowWiring(errors, {
   requirements = WORKFLOW_REQUIREMENTS,
   readFile = (file) => readRepoFile(file),
@@ -306,6 +445,7 @@ function validateValidatorFixtures(errors, {
 function validateAll({
   docs = DOCS,
   privacyRequiredDocs = PRIVACY_REQUIRED_DOCS,
+  topicRequirements = TOPIC_REQUIREMENTS,
   workflowRequirements = WORKFLOW_REQUIREMENTS,
   readFile,
   repoRoot = defaultRepoRoot,
@@ -315,6 +455,7 @@ function validateAll({
   validateWorkflowWiring(errors, { requirements: workflowRequirements, readFile });
   validateHealthyPathLanguage(errors, { docs, readFile, repoRoot });
   validatePrivacyNotes(errors, { docs: privacyRequiredDocs, readFile });
+  validateTopicCoverage(errors, { requirements: topicRequirements, readFile, repoRoot });
   return errors;
 }
 
@@ -350,6 +491,7 @@ function startCli({
 module.exports = {
   DOCS,
   PRIVACY_REQUIRED_DOCS,
+  TOPIC_REQUIREMENTS,
   WORKFLOW_REQUIREMENTS,
   fixtureRecord,
   fixtureErrors,
@@ -360,6 +502,7 @@ module.exports = {
   validateHealthyPathLanguage,
   validateHealthyPathRecord,
   validatePrivacyNotes,
+  validateTopicCoverage,
   validateValidatorFixtures,
   validateWorkflowWiring,
 };
