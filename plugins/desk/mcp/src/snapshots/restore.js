@@ -34,6 +34,7 @@ export async function discoverSnapshotArtifacts({
     for (const snapshotPath of await snapshotFiles(snapshotDir)) {
       try {
         const validation = await validateSnapshotArtifact({
+          pluginRoot: root,
           snapshotPath,
           expectedSpec,
           expectedDbSchema,

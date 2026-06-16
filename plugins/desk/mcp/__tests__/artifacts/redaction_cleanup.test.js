@@ -494,10 +494,12 @@ test("tombstone loader validates required row fields and repeated tombstones", a
     ["redacted_at", "not-a-date", "tombstone row redacted_at must be a date-time string"],
     ["redacted_at", "2026-06-15", "tombstone row redacted_at must be a date-time string"],
     ["redacted_at", "2026-06-15T00:00:00", "tombstone row redacted_at must be a date-time string"],
+    ["redacted_at", "2026-99-99T00:00:00.000Z", "tombstone row redacted_at must be a date-time string"],
     ["redacted_at", 42, "tombstone row redacted_at must be a date-time string"],
     ["effective_from", "not-a-date", "tombstone row effective_from must be a date-time string"],
     ["effective_from", "2026-06-15", "tombstone row effective_from must be a date-time string"],
     ["effective_from", "2026-06-15T00:00:00", "tombstone row effective_from must be a date-time string"],
+    ["effective_from", "2026-99-99T00:00:00.000Z", "tombstone row effective_from must be a date-time string"],
     ["effective_from", 42, "tombstone row effective_from must be a date-time string"],
     ["artifact_rotation_id", "", "tombstone row artifact_rotation_id must be non-empty text"],
     ["artifact_rotation_id", 42, "tombstone row artifact_rotation_id must be non-empty text"],
@@ -510,6 +512,15 @@ test("tombstone loader validates required row fields and repeated tombstones", a
     )
     await assertInvalidLedgerRowRejected({ ...tombstoneRow(), [field]: value }, diagnostic)
   }
+  const wholeSecondRow = {
+    ...tombstoneRow(),
+    redacted_at: "2026-06-15T00:00:00Z",
+    effective_from: "2026-06-15T00:00:00Z",
+  }
+  assert.deepEqual(validateTombstoneRow(wholeSecondRow), [])
+  const wholeSecondPluginRoot = await tmpRoot("desk-redaction-whole-second-ledger-plugin-")
+  await writeTombstoneLedger(wholeSecondPluginRoot, [wholeSecondRow])
+  assert.equal((await loadTombstoneLedger({ pluginRoot: wholeSecondPluginRoot })).valid, true)
 
   await writeTombstoneLedger(pluginRoot, [
     tombstoneRow({ reason: "deleted", artifact_rotation_id: "rotation-old" }),
@@ -1014,6 +1025,131 @@ test("artifact validation rejects packs and snapshots that still reference tombs
       )
     }
   }
+})
+
+test("tombstone helpers handle defensive edge cases without leaking document details", async () => {
+  const {
+    assertArtifactDoesNotRepresentTombstones,
+    assertArtifactInputsDoNotContainTombstones,
+    cleanupRotatedArtifacts,
+    loadTombstoneLedger,
+    tombstoneDecisionForDoc,
+  } = await loadTombstonesModule()
+  const missingRootLedger = await loadTombstoneLedger()
+  assert.deepEqual(missingRootLedger, {
+    valid: true,
+    present: false,
+    rows: [],
+    diagnostics: [],
+    ledger_path: null,
+  })
+  assert.deepEqual(await loadTombstoneLedger({ pluginRoot: "   " }), missingRootLedger)
+  assert.deepEqual(tombstoneDecisionForDoc(), { tombstoned: false })
+  assert.deepEqual(
+    tombstoneDecisionForDoc({ ledger: { valid: true, rows: [] } }),
+    { tombstoned: false },
+  )
+  assert.deepEqual(
+    tombstoneDecisionForDoc({
+      ledger: { valid: false, rows: [] },
+      doc: { path: "safe/note.md", hash: sha256("safe body") },
+    }),
+    { tombstoned: false },
+  )
+  assert.deepEqual(
+    tombstoneDecisionForDoc({
+      ledger: { valid: true, rows: "not rows" },
+      doc: { path: "safe/note.md", hash: sha256("safe body") },
+    }),
+    { tombstoned: false },
+  )
+
+  const pluginRoot = await tmpRoot("desk-redaction-helper-edges-plugin-")
+  await writeTombstoneLedger(pluginRoot, [])
+  for (const [helper, field] of [
+    [assertArtifactDoesNotRepresentTombstones, "represented_documents"],
+    [assertArtifactInputsDoNotContainTombstones, "sourceDocs"],
+  ]) {
+    for (const docs of [
+      [null],
+      [{ path: "../escape.md", hash: sha256("safe body") }],
+      [{ path: "safe/note.md", hash: "not-a-sha" }],
+    ]) {
+      await assert.rejects(
+        () => helper({
+          pluginRoot,
+          artifact_type: "vector-pack",
+          [field]: docs,
+        }),
+        (error) => {
+          assert.equal(error.code, "artifact_represented_documents_invalid")
+          assert.equal(error.artifact_type, "vector-pack")
+          assertPublicErrorDoesNotLeak(error)
+          return true
+        },
+      )
+    }
+  }
+
+  const noArtifactsRoot = await tmpRoot("desk-redaction-no-artifacts-plugin-")
+  assert.deepEqual(await cleanupRotatedArtifacts({ pluginRoot: noArtifactsRoot }), {
+    vector_packs_removed: 0,
+    snapshots_removed: 0,
+    sidecars_removed: 0,
+  })
+
+  const partialSidecarsRoot = await tmpRoot("desk-redaction-partial-sidecars-plugin-")
+  const partialPackDir = path.join(
+    partialSidecarsRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  const partialSnapshotDir = path.join(
+    partialSidecarsRoot,
+    "artifacts",
+    "snapshots",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(partialPackDir, { recursive: true })
+  await fs.mkdir(partialSnapshotDir, { recursive: true })
+  await fs.writeFile(path.join(partialPackDir, "old-pack.jsonl"), "old vector bytes", "utf8")
+  await fs.writeFile(path.join(partialPackDir, "old-pack.manifest.json"), "{}", "utf8")
+  await fs.writeFile(
+    path.join(partialSnapshotDir, "old-snapshot.sqlite.zst"),
+    "old snapshot bytes",
+    "utf8",
+  )
+  assert.deepEqual(await cleanupRotatedArtifacts({ pluginRoot: partialSidecarsRoot }), {
+    vector_packs_removed: 1,
+    snapshots_removed: 1,
+    sidecars_removed: 1,
+  })
+
+  const brokenVectorDirRoot = await tmpRoot("desk-redaction-broken-vector-dir-plugin-")
+  const vectorRoot = path.join(brokenVectorDirRoot, "artifacts", "vector-packs")
+  await fs.mkdir(vectorRoot, { recursive: true })
+  await fs.writeFile(path.join(vectorRoot, ACTIVE_EMBEDDING_SPEC.id), "not a directory", "utf8")
+  await assert.rejects(
+    () => cleanupRotatedArtifacts({ pluginRoot: brokenVectorDirRoot }),
+    (error) => error.code === "ENOTDIR",
+  )
+
+  const brokenSidecarRoot = await tmpRoot("desk-redaction-broken-sidecar-plugin-")
+  const brokenSidecarPackDir = path.join(
+    brokenSidecarRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(path.join(brokenSidecarPackDir, "old-pack.manifest.json"), {
+    recursive: true,
+  })
+  await fs.writeFile(path.join(brokenSidecarPackDir, "old-pack.jsonl"), "old vector bytes", "utf8")
+  await assert.rejects(
+    () => cleanupRotatedArtifacts({ pluginRoot: brokenSidecarRoot }),
+    (error) => error.code === "ERR_FS_EISDIR" || error.code === "EISDIR",
+  )
 })
 
 test("artifact rotation cleanup removes obsolete sidecars and keeps active artifacts", async () => {

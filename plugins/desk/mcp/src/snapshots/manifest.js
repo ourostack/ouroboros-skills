@@ -5,6 +5,10 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
+import {
+  assertArtifactDoesNotRepresentTombstones,
+  assertArtifactInputsDoNotContainTombstones,
+} from "../artifacts/tombstones.js"
 import { assertArtifactInputsAllowed } from "../indexer/exclusions.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 
@@ -63,6 +67,11 @@ export async function writeSnapshotArtifact({
     artifact_type: "snapshot",
     docs: sourceDocs,
   })
+  await assertArtifactInputsDoNotContainTombstones({
+    pluginRoot,
+    artifact_type: "snapshot",
+    sourceDocs,
+  })
   const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
   await assertArtifactPublicationAllowed({
     policy: publicationPolicy,
@@ -78,6 +87,7 @@ export async function writeSnapshotArtifact({
 }
 
 export async function validateSnapshotArtifact({
+  pluginRoot,
   snapshotPath,
   manifestPath,
   checksumPath,
@@ -118,6 +128,11 @@ export async function validateSnapshotArtifact({
     expectedRuntime,
     expectedArtifactSourceScopeHash,
     expectedDocumentTreeHash,
+  })
+  await assertArtifactDoesNotRepresentTombstones({
+    pluginRoot,
+    artifact_type: "snapshot",
+    represented_documents: manifest.represented_documents,
   })
   if (manifest.artifact.file !== path.basename(snapshotPath)) {
     throw new Error(`${label}: manifest artifact file must match snapshot file`)

@@ -7,6 +7,10 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
+import {
+  assertArtifactDoesNotRepresentTombstones,
+  assertArtifactInputsDoNotContainTombstones,
+} from "../artifacts/tombstones.js"
 import { assertArtifactInputsAllowed } from "./exclusions.js"
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
@@ -63,6 +67,11 @@ export async function writeVectorPackArtifact({
     artifact_type: "vector-pack",
     docs: sourceDocs,
   })
+  await assertArtifactInputsDoNotContainTombstones({
+    pluginRoot,
+    artifact_type: "vector-pack",
+    sourceDocs,
+  })
   const publicationPolicy = await policyForArtifactWrite({ pluginRoot, policy })
   await assertArtifactPublicationAllowed({
     policy: publicationPolicy,
@@ -78,6 +87,7 @@ export async function writeVectorPackArtifact({
 }
 
 export async function validateVectorPackFile({
+  pluginRoot,
   packPath,
   manifestPath,
   checksumPath,
@@ -93,6 +103,11 @@ export async function validateVectorPackFile({
   const resolvedChecksumPath = checksumPath ?? sidecarPath(packPath, ".sha256")
   const manifest = await readRequiredJson(resolvedManifestPath, `${label} manifest`, signal)
   validateManifestShape({ manifest, expectedSpec, label })
+  await assertArtifactDoesNotRepresentTombstones({
+    pluginRoot,
+    artifact_type: "vector-pack",
+    represented_documents: manifest.represented_documents,
+  })
   const checksum = await readRequiredChecksum(resolvedChecksumPath, `${label} checksum`, signal)
   const { packSha, rows } = await readPackRowsAndSha({
     packPath,
@@ -165,6 +180,7 @@ export async function importVectorPacks({
     throwIfAborted(signal)
     summary.packs_considered += 1
     const pack = await validateVectorPackFile({
+      pluginRoot,
       packPath,
       manifestPath: sidecarPath(packPath, ".manifest.json"),
       checksumPath: sidecarPath(packPath, ".sha256"),
