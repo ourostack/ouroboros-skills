@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: vector pack paths are canonical, plugin-root relative, and spec-scoped
+ok 1 - vector pack paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.399125
+  type: 'test'
+  ...
+# Subtest: valid vector packs require adjacent manifest and checksum sidecars
+ok 2 - valid vector packs require adjacent manifest and checksum sidecars
+  ---
+  duration_ms: 14.618958
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+ok 3 - vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+  ---
+  duration_ms: 12.982417
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects malformed manifests before import
+ok 4 - vector pack validation rejects malformed manifests before import
+  ---
+  duration_ms: 10.711458
+  type: 'test'
+  ...
+# Subtest: vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+ok 5 - vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+  ---
+  duration_ms: 43.317083
+  type: 'test'
+  ...
+# Subtest: vector pack import handles missing pack directories and missing local chunks safely
+ok 6 - vector pack import handles missing pack directories and missing local chunks safely
+  ---
+  duration_ms: 8.456
+  type: 'test'
+  ...
+# Subtest: vector pack import surfaces unexpected artifact directory failures
+ok 7 - vector pack import surfaces unexpected artifact directory failures
+  ---
+  duration_ms: 6.159
+  type: 'test'
+  ...
+# Subtest: vector pack import verifies chunk text hashes against the local DB before inserting
+ok 8 - vector pack import verifies chunk text hashes against the local DB before inserting
+  ---
+  duration_ms: 7.043584
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 213.119584

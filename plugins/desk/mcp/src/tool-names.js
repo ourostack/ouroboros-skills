@@ -1,4 +1,4 @@
-// Single source of truth for the 13 MCP tools desk-mcp exposes.
+// Single source of truth for the 14 MCP tools desk-mcp exposes.
 //
 // Imported by both server.js (registers them) and the tests (asserts the
 // list is canonical). Kept in a no-deps file so tests can import without
@@ -21,6 +21,8 @@ export const TOOL_NAMES = [
   "desk_thread",
   // Index management
   "desk_reindex",
+  // Health/status
+  "desk_status",
 ]
 
 export const TOOL_DESCRIPTIONS = {
@@ -50,4 +52,6 @@ export const TOOL_DESCRIPTIONS = {
     "Provenance walk via refs_graph: BFS along planning/doing/feedback/iteration edges from a starting doc. Returns an ordered chain {path, kind, ref_kind, hop_distance, why_connected, updated_at}. Inputs: start_path (required), depth (optional, default 4), direction (optional: forward|backward|both, default both). Always walks across active + archive — refs don't respect archive boundaries. Errors with not_indexed when start_path isn't in the index.",
   desk_reindex:
     "Rebuild the desk-index sqlite db. Without args, behaves like ensureIndex (mtime-based incremental). With force:true, drops the db and rebuilds from scratch. Returns counts + timing.",
+  desk_status:
+    "Fast session-start health/status report for the resolved desk root, runtime cache, plugin version, local DB, lexical index, document-vector coverage, snapshots, and vector packs. Does not run expensive repair work or probe live embedding endpoints.",
 }

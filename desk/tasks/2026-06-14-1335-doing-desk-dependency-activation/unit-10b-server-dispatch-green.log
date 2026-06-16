@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: server.callTool routes task_create to the real implementation
+ok 1 - server.callTool routes task_create to the real implementation
+  ---
+  duration_ms: 6.473708
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with structured body
+ok 2 - server.callTool surfaces tool errors as isError with structured body
+  ---
+  duration_ms: 0.555041
+  type: 'test'
+  ...
+# Subtest: server.callTool routes desk_thread to the real implementation
+ok 3 - server.callTool routes desk_thread to the real implementation
+  ---
+  duration_ms: 9.424334
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names
+ok 4 - server.callTool rejects unknown tool names
+  ---
+  duration_ms: 0.464416
+  type: 'test'
+  ...
+# Subtest: server.callTool rejects unknown tool names even with person set
+ok 5 - server.callTool rejects unknown tool names even with person set
+  ---
+  duration_ms: 0.232042
+  type: 'test'
+  ...
+# Subtest: server.callTool reports registered tools missing from the implementation table
+ok 6 - server.callTool reports registered tools missing from the implementation table
+  ---
+  duration_ms: 0.406833
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces tool errors as isError with person set
+ok 7 - server.callTool surfaces tool errors as isError with person set
+  ---
+  duration_ms: 0.492291
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces non-Error throws as string messages
+ok 8 - server.callTool surfaces non-Error throws as string messages
+  ---
+  duration_ms: 0.485708
+  type: 'test'
+  ...
+# Subtest: server.callTool defaults omitted input to an empty object
+ok 9 - server.callTool defaults omitted input to an empty object
+  ---
+  duration_ms: 1.331167
+  type: 'test'
+  ...
+# Subtest: server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+ok 10 - server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)
+  ---
+  duration_ms: 1.343917
+  type: 'test'
+  ...
+# Subtest: server.callTool surfaces an invalid-alias throw as isError
+ok 11 - server.callTool surfaces an invalid-alias throw as isError
+  ---
+  duration_ms: 0.557125
+  type: 'test'
+  ...
+# Subtest: server.startServer registers list/call handlers and forwards status context
+ok 12 - server.startServer registers list/call handlers and forwards status context
+  ---
+  duration_ms: 0.846
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct its default transport
+ok 13 - server.startServer can construct its default transport
+  ---
+  duration_ms: 0.392
+  type: 'test'
+  ...
+# Subtest: server.startServer can construct server and transport through injected factories
+ok 14 - server.startServer can construct server and transport through injected factories
+  ---
+  duration_ms: 0.371208
+  type: 'test'
+  ...
+# Subtest: server MCP factory helpers construct default SDK instances
+ok 15 - server MCP factory helpers construct default SDK instances
+  ---
+  duration_ms: 2.45425
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 187.552583

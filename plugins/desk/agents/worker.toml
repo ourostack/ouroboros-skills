@@ -1,8 +1,8 @@
 # Codex subagent template for the desk:worker engineering agent.
 #
-# To register this agent on a machine: copy to ~/.codex/agents/worker.toml
-# (or .codex/agents/worker.toml in a project root for project-scoped use).
-# Invoke via `/agent worker` once registered.
+# Codex loads this worker through the desk plugin's host-native activation
+# metadata. Healthy setup does not copy this file into a user agent directory
+# or require manual MCP registration.
 #
 # Pairs with the desk plugin's skill set + MCP server, both of which Codex
 # loads from the installed plugin automatically.

@@ -134,3 +134,31 @@ test("desk_similar — dedupes by doc_id (one entry per similar doc)", async () 
   const unique = new Set(paths)
   assert.equal(paths.length, unique.size, "no duplicate doc paths in results")
 })
+
+test("desk_similar — scope can restrict archived neighbours", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/seed/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha seed body\n",
+  )
+  await writeFile(
+    root,
+    "trackB/active/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha active neighbour\n",
+  )
+  await writeFile(
+    root,
+    "trackB/_archive/old/task.md",
+    "---\nstatus: done\nschema_version: 1\n---\nalpha archived neighbour\n",
+  )
+  await buildFixtureIndex(root)
+
+  const archived = await desk_similar({
+    deskRoot: root,
+    input: { path: "trackA/seed/task.md", scope: "archived" },
+  })
+
+  assert.ok(archived.results.length >= 1)
+  assert.ok(archived.results.every((result) => result.path.includes("_archive")))
+})

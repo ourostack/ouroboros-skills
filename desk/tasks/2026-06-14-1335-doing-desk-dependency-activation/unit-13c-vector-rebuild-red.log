@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 1 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 52.678375
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 2 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 34.120125
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 3 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 33.348959
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+not ok 4 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 12.081667
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:222:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    2 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:245:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+not ok 5 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 13.110041
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:258:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    false !== true
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:285:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+not ok 6 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 38.856375
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:300:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    2 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_rebuild.test.js:327:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 7 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 36.263542
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 4
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 373.813542

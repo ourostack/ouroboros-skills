@@ -1,0 +1,136 @@
+TAP version 13
+# Subtest: snapshot paths are canonical, plugin-root relative, and spec-scoped
+not ok 1 - snapshot paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 1.326792
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:99:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: valid snapshot artifacts require manifest fields and checksum sidecars
+not ok 2 - valid snapshot artifacts require manifest fields and checksum sidecars
+  ---
+  duration_ms: 0.254625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:136:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: manifest source/document hash mismatch is freshness, not compatibility failure
+not ok 3 - manifest source/document hash mismatch is freshness, not compatibility failure
+  ---
+  duration_ms: 0.169958
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:163:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: snapshot manifest rejects compatibility and provenance drift
+not ok 4 - snapshot manifest rejects compatibility and provenance drift
+  ---
+  duration_ms: 0.188083
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:185:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: snapshot manifests reject absolute, traversal, and unexpected source paths
+not ok 5 - snapshot manifests reject absolute, traversal, and unexpected source paths
+  ---
+  duration_ms: 0.351667
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:244:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: snapshot artifact validation rejects checksum mismatch
+not ok 6 - snapshot artifact validation rejects checksum mismatch
+  ---
+  duration_ms: 0.191667
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js:263:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/manifest.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/manifest.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 95.267292

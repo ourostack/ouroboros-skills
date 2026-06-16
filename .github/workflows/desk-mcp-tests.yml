@@ -1,21 +1,89 @@
 name: desk MCP tests
 
-# Runs the desk MCP server test suite (plugins/desk/mcp `npm test`).
+# Runs the desk MCP server test suite through the coverage gate
+# (plugins/desk/mcp `npm run test:coverage`).
 # Skill-manifest validation lives in validate-skills.yml and does NOT exercise
 # the MCP code, so without this job desk-core changes can merge untested.
-# Path-filtered to the MCP package (and this workflow file) to keep unrelated
-# skill/docs edits from triggering a Node build they don't need.
+# Path-filtered to the MCP package, root validation scripts, and this workflow
+# file to keep unrelated skill/docs edits from triggering a Node build they
+# don't need.
 
 on:
   pull_request:
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/activation/**"
+      - "plugins/desk/.claude-plugin/plugin.json"
+      - "plugins/desk/.codex-plugin/plugin.json"
+      - "plugins/desk/.mcp.json"
+      - "plugins/desk/agents/**"
+      - "plugins/desk/hooks/**"
+      - "plugins/desk/output-styles/**"
+      - "plugins/desk/plugin.json"
+      - "plugins/desk/skills/**"
+      - "plugins/work-suite/.claude-plugin/plugin.json"
+      - "plugins/work-suite/.codex-plugin/plugin.json"
+      - "plugins/work-suite/plugin.json"
+      - "plugins/work-suite/skills/**"
+      - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/artifacts/vector-packs/**"
+      - "plugins/desk/artifacts/snapshots/**"
+      - "plugins/desk/artifacts/tombstones/**"
+      - "plugins/desk/artifacts/publication-policy.json"
+      - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/README.md"
+      - "plugins/desk/docs/**"
+      - "plugins/desk/mcp/README.md"
+      - "plugins/desk/activation/README.md"
+      - "plugins/desk/mcp/config/performance-budgets.json"
+      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/build-vector-pack.js"
+      - "plugins/desk/mcp/scripts/build-snapshot.js"
+      - "plugins/desk/mcp/scripts/verify-snapshot.js"
+      - "plugins/desk/mcp/scripts/validate-artifacts.js"
+      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
+      - "scripts/*.cjs"
+      - "scripts/test-desk-docs.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
   push:
     branches:
       - main
     paths:
       - "plugins/desk/mcp/**"
+      - "plugins/desk/activation/**"
+      - "plugins/desk/.claude-plugin/plugin.json"
+      - "plugins/desk/.codex-plugin/plugin.json"
+      - "plugins/desk/.mcp.json"
+      - "plugins/desk/agents/**"
+      - "plugins/desk/hooks/**"
+      - "plugins/desk/output-styles/**"
+      - "plugins/desk/plugin.json"
+      - "plugins/desk/skills/**"
+      - "plugins/work-suite/.claude-plugin/plugin.json"
+      - "plugins/work-suite/.codex-plugin/plugin.json"
+      - "plugins/work-suite/plugin.json"
+      - "plugins/work-suite/skills/**"
+      - "plugins/desk/mcp/artifacts/runtime-deps/**"
+      - "plugins/desk/artifacts/vector-packs/**"
+      - "plugins/desk/artifacts/snapshots/**"
+      - "plugins/desk/artifacts/tombstones/**"
+      - "plugins/desk/artifacts/publication-policy.json"
+      - "plugins/desk/artifacts/publication-policy.schema.json"
+      - "plugins/desk/README.md"
+      - "plugins/desk/docs/**"
+      - "plugins/desk/mcp/README.md"
+      - "plugins/desk/activation/README.md"
+      - "plugins/desk/mcp/config/performance-budgets.json"
+      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
+      - "plugins/desk/mcp/scripts/build-vector-pack.js"
+      - "plugins/desk/mcp/scripts/build-snapshot.js"
+      - "plugins/desk/mcp/scripts/verify-snapshot.js"
+      - "plugins/desk/mcp/scripts/validate-artifacts.js"
+      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
+      - "scripts/*.cjs"
+      - "scripts/test-desk-docs.cjs"
       - ".github/workflows/desk-mcp-tests.yml"
 
 jobs:
@@ -25,6 +93,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -40,6 +110,31 @@ jobs:
         working-directory: plugins/desk/mcp
         run: npm ci
 
-      - name: Run desk MCP test suite
+      - name: Run desk MCP coverage gate
         working-directory: plugins/desk/mcp
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Verify committed generated artifacts
+        run: node scripts/test-desk-generated-artifacts.cjs
+
+      - name: Verify Desk host manifests
+        run: node scripts/test-desk-host-manifests.cjs
+
+      - name: Validate Desk healthy-path docs
+        run: node scripts/test-desk-docs.cjs
+
+      - name: Build runtime dependency pack
+        working-directory: plugins/desk/mcp
+        run: npm run runtime:deps-pack:build
+
+      - name: Verify runtime dependency pack
+        working-directory: plugins/desk/mcp
+        run: npm run runtime:deps-pack:verify
+
+      - name: Verify Desk snapshot artifacts
+        working-directory: plugins/desk/mcp
+        run: npm run artifact:snapshot:verify -- --plugin-root ..
+
+      - name: Validate Desk shared artifacts
+        working-directory: plugins/desk/mcp
+        run: npm run artifact:validate -- --desk-root ../../.. --plugin-root ..

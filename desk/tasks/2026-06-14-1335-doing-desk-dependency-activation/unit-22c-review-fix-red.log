@@ -1,0 +1,123 @@
+TAP version 13
+# Subtest: Desk docs validator exports a testable contract
+not ok 1 - Desk docs validator exports a testable contract
+  ---
+  duration_ms: 1.326791
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    TOPIC_REQUIREMENTS must be exported
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:46:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: markdown parsing preserves headings and fenced command context
+ok 2 - markdown parsing preserves headings and fenced command context
+  ---
+  duration_ms: 0.260416
+  type: 'test'
+  ...
+# Subtest: healthy-path command validation covers Codex and Claude manual setup escapes
+ok 3 - healthy-path command validation covers Codex and Claude manual setup escapes
+  ---
+  duration_ms: 1.737083
+  type: 'test'
+  ...
+# Subtest: healthy-path validation allows host-native activation language for all supported host families
+ok 4 - healthy-path validation allows host-native activation language for all supported host families
+  ---
+  duration_ms: 0.144709
+  type: 'test'
+  ...
+# Subtest: privacy validation requires embeddings, snapshots, derivative data, and privacy risk
+ok 5 - privacy validation requires embeddings, snapshots, derivative data, and privacy risk
+  ---
+  duration_ms: 0.166625
+  type: 'test'
+  ...
+# Subtest: workflow validation requires docs command and host/artifact path filters
+ok 6 - workflow validation requires docs command and host/artifact path filters
+  ---
+  duration_ms: 0.418209
+  type: 'test'
+  ...
+# Subtest: run and startCli expose success, failure, and no-op CLI paths
+ok 7 - run and startCli expose success, failure, and no-op CLI paths
+  ---
+  duration_ms: 0.648708
+  type: 'test'
+  ...
+# Subtest: validator fixture self-tests cover artifact privacy and publication policy language
+ok 8 - validator fixture self-tests cover artifact privacy and publication policy language
+  ---
+  duration_ms: 0.150042
+  type: 'test'
+  ...
+# Subtest: validateAll rejects docs stripped of required host and artifact coverage
+not ok 9 - validateAll rejects docs stripped of required host and artifact coverage
+  ---
+  duration_ms: 0.510417
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:243:1'
+  failureType: 'testCodeFailure'
+  error: 'Codex global personal activation coverage should be required'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:270:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: topic coverage reports missing terms without accepting command-body false positives
+not ok 10 - topic coverage reports missing terms without accepting command-body false positives
+  ---
+  duration_ms: 0.275375
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:277:1'
+  failureType: 'testCodeFailure'
+  error: 'docsValidator.validateTopicCoverage is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/docs/desk_docs_validation.test.js:279:17)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: actual Desk docs validate through the default file reads
+ok 11 - actual Desk docs validate through the default file reads
+  ---
+  duration_ms: 6.390833
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 8
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 103.486916

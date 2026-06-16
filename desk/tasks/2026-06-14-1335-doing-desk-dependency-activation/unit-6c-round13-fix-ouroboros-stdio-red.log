@@ -1,0 +1,143 @@
+TAP version 13
+# Subtest: Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+ok 1 - Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+  ---
+  duration_ms: 3.38175
+  type: 'test'
+  ...
+# Subtest: Ouroboros activation docs define the evidence anchor and disposition
+ok 2 - Ouroboros activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.353875
+  type: 'test'
+  ...
+# Subtest: Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+ok 3 - Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+  ---
+  duration_ms: 0.319166
+  type: 'test'
+  ...
+# Subtest: generic stdio support matrix records an MCP-only degraded disposition
+ok 4 - generic stdio support matrix records an MCP-only degraded disposition
+  ---
+  duration_ms: 0.358917
+  type: 'test'
+  ...
+# Subtest: generic stdio activation docs define the evidence anchor and disposition
+ok 5 - generic stdio activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.186917
+  type: 'test'
+  ...
+# Subtest: generic stdio docs show explicit root binding and no default worker claim
+ok 6 - generic stdio docs show explicit root binding and no default worker claim
+  ---
+  duration_ms: 0.321584
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation accepts current artifacts
+ok 7 - Ouroboros/generic stdio packaging validation accepts current artifacts
+  ---
+  duration_ms: 3.00075
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+ok 8 - Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+  ---
+  duration_ms: 6.308458
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects host-support drift and manual installs
+ok 9 - Ouroboros packaging validation rejects host-support drift and manual installs
+  ---
+  duration_ms: 0.698625
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects unsafe or under-specified launches
+not ok 10 - generic stdio packaging validation rejects unsafe or under-specified launches
+  ---
+  duration_ms: 4.566333
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:468:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+    + []
+    - [
+    -   'Generic stdio docs must not claim plugin dependency resolution'
+    - ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'Generic stdio docs must not claim plugin dependency resolution'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:536:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: generic stdio packaging validation rejects identifier and support-verb claim variants
+ok 11 - generic stdio packaging validation rejects identifier and support-verb claim variants
+  ---
+  duration_ms: 8.993833
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation permits neither/nor negative support wording
+ok 12 - generic stdio packaging validation permits neither/nor negative support wording
+  ---
+  duration_ms: 4.02375
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects host dependency support claims
+ok 13 - generic stdio packaging validation rejects host dependency support claims
+  ---
+  duration_ms: 0.42925
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects fallback dependency support drift
+ok 14 - generic stdio packaging validation rejects fallback dependency support drift
+  ---
+  duration_ms: 0.437
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects evidence row support drift
+ok 15 - generic stdio packaging validation rejects evidence row support drift
+  ---
+  duration_ms: 0.707666
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects missing agent-defaults fallback marker
+ok 16 - generic stdio packaging validation rejects missing agent-defaults fallback marker
+  ---
+  duration_ms: 1.168208
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects malformed host support lists
+ok 17 - generic stdio packaging validation rejects malformed host support lists
+  ---
+  duration_ms: 1.072084
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation reports missing rows without crashing
+ok 18 - Ouroboros/generic stdio packaging validation reports missing rows without crashing
+  ---
+  duration_ms: 0.613917
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 17
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 129.554584

@@ -17,6 +17,44 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "activation": {
+    "codex": {
+      "defaultMode": "global-personal",
+      "artifactOwner": "desk-activation",
+      "optOutModes": [
+        "project-local",
+        "manual-only"
+      ],
+      "targets": {
+        "desk:worker": {
+          "default": true,
+          "source": "agents/worker.toml",
+          "activationSurface": "global-or-project-agents-md"
+        }
+      },
+      "nativeSurfaces": [
+        "plugins.<plugin>.enabled",
+        "plugins.<plugin>.mcp_servers.<server>",
+        "mcp_servers.<server>",
+        "AGENTS.md"
+      ],
+      "mcpServers": {
+        "desk": {
+          "launch": "plugin-bundled",
+          "manualRegistration": false
+        }
+      },
+      "dependencies": {
+        "work-suite": {
+          "path": "../work-suite",
+          "version": "1.4.9",
+          "resolution": "flattened"
+        }
+      },
+      "manualSetupSteps": []
+    }
+  },
   "interface": {
     "displayName": "Desk",
     "shortDescription": "Durable tracks, tasks, friction, and lessons for long-running agents.",

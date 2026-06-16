@@ -57,11 +57,13 @@ async function readFeaturedTrack(deskRoot) {
       path.join(deskRoot, "_meta", "featured.md"),
       "utf8",
     )
-    const first = raw
-      .split("\n")
-      .map((l) => l.trim())
-      .find((l) => l.length > 0 && !l.startsWith("#"))
-    return first ?? null
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim()
+      if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+        return trimmed
+      }
+    }
+    return null
   } catch (err) {
     if (err.code === "ENOENT") return null
     throw err
@@ -78,7 +80,9 @@ async function readFeaturedTrack(deskRoot) {
  * starts with one of these strings gets the +0.30 pin bonus.
  */
 function computePinPrefixes(db, featuredTrack) {
-  if (!featuredTrack) return new Set()
+  if (!featuredTrack) {
+    return new Set()
+  }
 
   // Pull all task.md docs in the featured track that have iteration history.
   const taskRows = db
@@ -90,8 +94,12 @@ function computePinPrefixes(db, featuredTrack) {
   const prefixes = new Set()
   for (const row of taskRows) {
     let fm
+    const frontmatter =
+      typeof row.frontmatter === "string" && row.frontmatter.length
+        ? row.frontmatter
+        : "{}"
     try {
-      fm = JSON.parse(row.frontmatter ?? "{}")
+      fm = JSON.parse(frontmatter)
     } catch {
       continue
     }
@@ -102,7 +110,8 @@ function computePinPrefixes(db, featuredTrack) {
     for (let i = history.length - 1; i >= 0; i--) {
       const entry = history[i]
       if (!entry || typeof entry !== "object") continue
-      const outcome = String(entry.outcome ?? "").toLowerCase()
+      const outcome =
+        typeof entry.outcome === "string" ? entry.outcome.toLowerCase() : ""
       if (outcome !== "in-progress") continue
       if (typeof entry.path !== "string" || !entry.path.length) continue
       // entry.path is relative to the task dir (e.g. "./OrderService/...").
@@ -119,9 +128,15 @@ function computePinPrefixes(db, featuredTrack) {
 
 /** True if `docPath` falls under any of the pin prefixes. */
 function isPinned(docPath, pinPrefixes) {
-  if (!pinPrefixes.size) return false
+  if (!pinPrefixes.size) {
+    return false
+  }
   for (const p of pinPrefixes) {
-    if (docPath === p || docPath.startsWith(p + path.sep) || docPath.startsWith(p + "/")) {
+    if (
+      docPath === p ||
+      docPath.startsWith(p + path.sep) ||
+      docPath.startsWith(p + "/")
+    ) {
       return true
     }
   }
@@ -135,9 +150,10 @@ function makeSnippet(text, queryTerms) {
   if (flat.length <= SNIPPET_MAX_CHARS) return flat
 
   // Try to center the snippet around the first match of any query term.
-  if (queryTerms && queryTerms.length) {
+  const terms = Array.isArray(queryTerms) ? queryTerms : []
+  if (terms.length) {
     const lower = flat.toLowerCase()
-    for (const term of queryTerms) {
+    for (const term of terms) {
       const t = term.toLowerCase().trim()
       if (!t) continue
       const idx = lower.indexOf(t)
@@ -384,6 +400,18 @@ function passesScope(row, scope, toolDefault) {
   return !archived
 }
 
+function shouldReplaceBest(existing, score) {
+  return !existing || score > existing.score
+}
+
+function comparableUpdatedAt(row) {
+  return typeof row.updated_at === "string" ? row.updated_at : ""
+}
+
+function firstChunkText(row) {
+  return typeof row.text === "string" ? row.text : ""
+}
+
 // ---------------------------------------------------------------------------
 // Tool: desk_search
 // ---------------------------------------------------------------------------
@@ -460,10 +488,8 @@ export async function desk_search({ deskRoot, input, opts }) {
 
     // Compute true cosine for each candidate that has an embedding.
     const cosByChunk = new Map()
-    if (semanticAvailable && queryVec) {
-      for (const id of chunkIds) {
-        const row = hydrated.get(id)
-        if (!row || !row.embedding) continue
+    if (semanticAvailable) {
+      for (const [id, row] of hydrated) {
         cosByChunk.set(id, clipCosine(cosine(queryVec, row.embedding)))
       }
     }
@@ -476,9 +502,7 @@ export async function desk_search({ deskRoot, input, opts }) {
     // doc with many matching chunks doesn't crowd out the result list — keep
     // the best chunk per doc.
     const bestByDoc = new Map()
-    for (const id of chunkIds) {
-      const row = hydrated.get(id)
-      if (!row) continue
+    for (const [id, row] of hydrated) {
       if (!passesFilter(row, filters)) continue
       if (!passesScope(row, scope, "active")) continue
       const parts = {
@@ -491,7 +515,7 @@ export async function desk_search({ deskRoot, input, opts }) {
       }
       const { score, breakdown } = combineScore(parts)
       const existing = bestByDoc.get(row.doc_id)
-      if (!existing || score > existing.score) {
+      if (shouldReplaceBest(existing, score)) {
         bestByDoc.set(row.doc_id, {
           path: row.doc_path,
           kind: row.kind,
@@ -513,6 +537,7 @@ export async function desk_search({ deskRoot, input, opts }) {
     return {
       query,
       results,
+      search_mode: semanticAvailable ? "hybrid" : "lexical",
       semantic_unavailable: !semanticAvailable,
       latency_ms: Date.now() - t0,
       ...(!semanticAvailable ? semanticUnavailableFields(semanticDiagnostic) : {}),
@@ -574,13 +599,11 @@ export async function desk_recall({ deskRoot, input, opts }) {
     const hydrated = hydrateChunks(db, chunkIds)
 
     const bestByDoc = new Map()
-    for (const r of vecRows) {
-      const row = hydrated.get(r.chunk_id)
-      if (!row || !row.embedding) continue
+    for (const row of hydrated.values()) {
       if (!passesScope(row, scope, "all")) continue
       const score = clipCosine(cosine(queryVec, row.embedding))
       const existing = bestByDoc.get(row.doc_id)
-      if (!existing || score > existing.score) {
+      if (shouldReplaceBest(existing, score)) {
         bestByDoc.set(row.doc_id, {
           path: row.doc_path,
           kind: row.kind,
@@ -688,17 +711,13 @@ export async function desk_similar({ deskRoot, input, opts }) {
     const hydrated = hydrateChunks(db, chunkIds)
 
     const bestByDoc = new Map()
-    for (const id of chunkIds) {
-      const row = hydrated.get(id)
-      if (!row) continue
-      if (row.doc_id === seedDoc.id) continue
-      if (!row.embedding) continue
+    for (const row of hydrated.values()) {
       // desk_similar default: "all" — similarity has no time/status semantic;
       // when asking "what's like this doc" we want the full corpus.
       if (!passesScope(row, scope, "all")) continue
       const score = clipCosine(cosine(centroid, row.embedding))
       const existing = bestByDoc.get(row.doc_id)
-      if (!existing || score > existing.score) {
+      if (shouldReplaceBest(existing, score)) {
         bestByDoc.set(row.doc_id, {
           path: row.doc_path,
           kind: row.kind,
@@ -808,18 +827,14 @@ export async function desk_timeline({ deskRoot, input, opts }) {
       ftsRows.forEach((r, i) => bm25ByChunk.set(r.chunk_id, bm25Norm[i]))
 
       const cosByChunk = new Map()
-      if (semanticAvailable && queryVec) {
-        for (const id of chunkIds) {
-          const row = hydrated.get(id)
-          if (!row || !row.embedding) continue
+      if (semanticAvailable) {
+        for (const [id, row] of hydrated) {
           cosByChunk.set(id, clipCosine(cosine(queryVec, row.embedding)))
         }
       }
 
       const bestByDoc = new Map()
-      for (const id of chunkIds) {
-        const row = hydrated.get(id)
-        if (!row) continue
+      for (const [id, row] of hydrated) {
         // Re-apply window + scope checks (vec candidates aren't filtered upstream).
         if (from && row.updated_at && row.updated_at < from) continue
         if (to && row.updated_at && row.updated_at > to) continue
@@ -834,7 +849,7 @@ export async function desk_timeline({ deskRoot, input, opts }) {
         }
         const { score, breakdown } = combineScore(parts)
         const existing = bestByDoc.get(row.doc_id)
-        if (!existing || score > existing.score) {
+        if (shouldReplaceBest(existing, score)) {
           bestByDoc.set(row.doc_id, {
             path: row.doc_path,
             kind: row.kind,
@@ -852,7 +867,7 @@ export async function desk_timeline({ deskRoot, input, opts }) {
         // Within timeline, sort by updated_at DESC per spec (recency
         // dominates inside an explicit window — score-driven ordering
         // makes more sense for desk_search where the window is implicit).
-        .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))
+        .sort((a, b) => comparableUpdatedAt(b).localeCompare(comparableUpdatedAt(a)))
         .slice(0, limit)
     } else {
       // No query — straight chronological listing within the window.
@@ -874,7 +889,7 @@ export async function desk_timeline({ deskRoot, input, opts }) {
         task_slug: r.task_slug,
         status: r.status,
         updated_at: r.updated_at,
-        snippet: makeSnippet(r.text ?? "", []),
+        snippet: makeSnippet(firstChunkText(r), []),
       }))
     }
 
@@ -883,6 +898,7 @@ export async function desk_timeline({ deskRoot, input, opts }) {
       to,
       query: query || null,
       results: candidateChunks,
+      search_mode: query ? (semanticAvailable ? "hybrid" : "lexical") : "temporal",
       semantic_unavailable: query ? !semanticAvailable : false,
       latency_ms: Date.now() - t0,
       ...(query && !semanticAvailable
@@ -892,4 +908,25 @@ export async function desk_timeline({ deskRoot, input, opts }) {
   } finally {
     closeDb(db)
   }
+}
+
+export const __searchInternalsForTests = {
+  buildDocsFilter,
+  buildFtsQuery,
+  clampLimit,
+  computePinPrefixes,
+  decodeEmbedding,
+  gatherFtsCandidates,
+  gatherVecCandidates,
+  hydrateChunks,
+  isPinned,
+  makeSnippet,
+  passesFilter,
+  passesScope,
+  readFeaturedTrack,
+  resolveScopeFilter,
+  semanticUnavailableFields,
+  shouldReplaceBest,
+  comparableUpdatedAt,
+  firstChunkText,
 }

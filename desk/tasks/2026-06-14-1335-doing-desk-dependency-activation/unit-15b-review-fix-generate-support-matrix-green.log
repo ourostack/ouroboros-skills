@@ -1,0 +1,5 @@
+
+> @ourostack/desk-mcp@1.3.1 activation:support-matrix:generate
+> node scripts/generate-support-matrix.js
+
+wrote plugins/desk/activation/support-matrix.json

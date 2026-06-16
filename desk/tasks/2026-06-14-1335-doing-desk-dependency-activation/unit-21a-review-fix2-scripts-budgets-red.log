@@ -1,0 +1,282 @@
+TAP version 13
+# Subtest: package declares artifact maintenance scripts without adding a user Desk CLI
+not ok 1 - package declares artifact maintenance scripts without adding a user Desk CLI
+  ---
+  duration_ms: 3.142667
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+      {
+    +   'artifact:snapshot:build': undefined,
+    +   'artifact:snapshot:verify': undefined,
+    +   'artifact:validate': undefined,
+    +   'artifact:vector-pack:build': undefined
+    -   'artifact:snapshot:build': 'node scripts/build-snapshot.js',
+    -   'artifact:snapshot:verify': 'node scripts/verify-snapshot.js',
+    -   'artifact:validate': 'node scripts/validate-artifacts.js',
+    -   'artifact:vector-pack:build': 'node scripts/build-vector-pack.js'
+      }
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    artifact:vector-pack:build: 'node scripts/build-vector-pack.js'
+    artifact:snapshot:build: 'node scripts/build-snapshot.js'
+    artifact:snapshot:verify: 'node scripts/verify-snapshot.js'
+    artifact:validate: 'node scripts/validate-artifacts.js'
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: artifact build scripts publish allowed artifacts only under canonical dirs
+not ok 2 - artifact build scripts publish allowed artifacts only under canonical dirs
+  ---
+  duration_ms: 192.830958
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    npm error Missing script: "artifact:vector-pack:build"
+    npm error
+    npm error To see a list of scripts, run:
+    npm error   npm run
+    npm error A complete log of this run can be found in: <redacted-local-path>
+
+
+    1 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    assertScriptSucceeded (file://<redacted-local-path>)
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact build scripts reject publication-policy denial before writing bytes
+not ok 3 - artifact build scripts reject publication-policy denial before writing bytes
+  ---
+  duration_ms: 155.261666
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\bartifact_publication_not_approved\b/u. Input:
+
+    '\n' +
+      'npm error Missing script: "artifact:vector-pack:build"\n' +
+      'npm error\n' +
+      'npm error To see a list of scripts, run:\n' +
+      'npm error   npm run\n' +
+      'npm error A complete log of this run can be found in: <redacted-local-path>'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    npm error Missing script: "artifact:vector-pack:build"
+    npm error
+    npm error To see a list of scripts, run:
+    npm error   npm run
+    npm error A complete log of this run can be found in: <redacted-local-path>
+
+  operator: 'match'
+  stack: |-
+    assertScriptFailedWithCode (file://<redacted-local-path>)
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact build scripts reject excluded local DB docs before writing bytes
+not ok 4 - artifact build scripts reject excluded local DB docs before writing bytes
+  ---
+  duration_ms: 152.877
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\bartifact_input_excluded\b/u. Input:
+
+    '\n' +
+      'npm error Missing script: "artifact:vector-pack:build"\n' +
+      'npm error\n' +
+      'npm error To see a list of scripts, run:\n' +
+      'npm error   npm run\n' +
+      'npm error A complete log of this run can be found in: <redacted-local-path>'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    npm error Missing script: "artifact:vector-pack:build"
+    npm error
+    npm error To see a list of scripts, run:
+    npm error   npm run
+    npm error A complete log of this run can be found in: <redacted-local-path>
+
+  operator: 'match'
+  stack: |-
+    assertScriptFailedWithCode (file://<redacted-local-path>)
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact build scripts reject tombstoned local DB docs before writing bytes
+not ok 5 - artifact build scripts reject tombstoned local DB docs before writing bytes
+  ---
+  duration_ms: 165.162542
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\bartifact_input_redacted\b/u. Input:
+
+    '\n' +
+      'npm error Missing script: "artifact:vector-pack:build"\n' +
+      'npm error\n' +
+      'npm error To see a list of scripts, run:\n' +
+      'npm error   npm run\n' +
+      'npm error A complete log of this run can be found in: <redacted-local-path>'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    npm error Missing script: "artifact:vector-pack:build"
+    npm error
+    npm error To see a list of scripts, run:
+    npm error   npm run
+    npm error A complete log of this run can be found in: <redacted-local-path>
+
+  operator: 'match'
+  stack: |-
+    assertScriptFailedWithCode (file://<redacted-local-path>)
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: performance budget config declares startup, rebuild, and artifact thresholds
+not ok 6 - performance budget config declares startup, rebuild, and artifact thresholds
+  ---
+  duration_ms: 0.202958
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    false !== true
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: MCP startup reads ensure-index budget from plugin performance config
+not ok 7 - MCP startup reads ensure-index budget from plugin performance config
+  ---
+  duration_ms: 2.660125
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    250 !== 37
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 37
+  actual: 250
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: artifact scripts fail when configured rebuild or validation budgets are exceeded
+not ok 8 - artifact scripts fail when configured rebuild or validation budgets are exceeded
+  ---
+  duration_ms: 172.534666
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: |-
+    npm error Missing script: "artifact:vector-pack:build"
+    npm error
+    npm error To see a list of scripts, run:
+    npm error   npm run
+    npm error A complete log of this run can be found in: <redacted-local-path>
+
+
+    1 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    assertScriptSucceeded (file://<redacted-local-path>)
+    withSeededArtifactFixture (file://<redacted-local-path>)
+    async TestContext.<anonymous> (file://<redacted-local-path>)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CI invokes artifact validation and watches artifact script inputs
+not ok 9 - CI invokes artifact validation and watches artifact script inputs
+  ---
+  duration_ms: 1.477042
+  type: 'test'
+  location: '<redacted-local-path>'
+  failureType: 'testCodeFailure'
+  error: 'workflow job desk-mcp-tests must run artifact:validate from plugins/desk/mcp or via npm --prefix plugins/desk/mcp'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    assertWorkflowJobRunsMcpScript (file://<redacted-local-path>)
+    TestContext.<anonymous> (file://<redacted-local-path>)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 0
+# fail 9
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 998.432792
+red failure captured with status 1

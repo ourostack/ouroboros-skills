@@ -1,0 +1,198 @@
+TAP version 13
+# Subtest: rebuildIndex imports fully covered vector packs without live embedding calls
+ok 1 - rebuildIndex imports fully covered vector packs without live embedding calls
+  ---
+  duration_ms: 105.968666
+  type: 'test'
+  ...
+# Subtest: rebuildIndex live-generates only chunks missing from vector packs
+ok 2 - rebuildIndex live-generates only chunks missing from vector packs
+  ---
+  duration_ms: 170.868875
+  type: 'test'
+  ...
+# Subtest: rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+ok 3 - rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks
+  ---
+  duration_ms: 85.783417
+  type: 'test'
+  ...
+# Subtest: ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+ok 4 - ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings
+  ---
+  duration_ms: 275.469875
+  type: 'test'
+  ...
+# Subtest: ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+ok 5 - ensureIndex leaves a fresh semantic DB untouched without probing embeddings
+  ---
+  duration_ms: 132.089375
+  type: 'test'
+  ...
+# Subtest: ensureIndex honors skipEmbed when a fresh DB is missing vectors
+ok 6 - ensureIndex honors skipEmbed when a fresh DB is missing vectors
+  ---
+  duration_ms: 38.840792
+  type: 'test'
+  ...
+# Subtest: ensureIndex probes with default embed options when none are provided
+ok 7 - ensureIndex probes with default embed options when none are provided
+  ---
+  duration_ms: 298.685
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+ok 8 - ensureIndex calls embeddings only after vector-pack import leaves missing chunks
+  ---
+  duration_ms: 147.527125
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+ok 9 - ensureIndex reports failure diagnostics when probe succeeds but rebuild embedding fails
+  ---
+  duration_ms: 27.930834
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves successful probe diagnostics after live embedding repair
+ok 10 - ensureIndex preserves successful probe diagnostics after live embedding repair
+  ---
+  duration_ms: 92.340666
+  type: 'test'
+  ...
+# Subtest: ensureIndex preserves failed probe diagnostics when stale content is skipped
+ok 11 - ensureIndex preserves failed probe diagnostics when stale content is skipped
+  ---
+  duration_ms: 166.305792
+  type: 'test'
+  ...
+# Subtest: ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+ok 12 - ensureIndex clears failed probe diagnostics when stale rebuild embeds successfully
+  ---
+  duration_ms: 186.939542
+  type: 'test'
+  ...
+# Subtest: ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+ok 13 - ensureIndex refreshes a stale lexical-only DB from vector packs without embedding calls
+  ---
+  duration_ms: 266.517959
+  type: 'test'
+  ...
+# Subtest: desk_reindex force rebuild restores vector packs with live embeddings disabled
+ok 14 - desk_reindex force rebuild restores vector packs with live embeddings disabled
+  ---
+  duration_ms: 323.285209
+  type: 'test'
+  ...
+# Subtest: runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+ok 15 - runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+  ---
+  duration_ms: 10.814375
+  type: 'test'
+  ...
+# Subtest: prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+ok 16 - prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+  ---
+  duration_ms: 52.449333
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+ok 17 - restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+  ---
+  duration_ms: 62.687708
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+ok 18 - restoreRuntimeDependencies fails before extraction when the cache path is not writable as a directory
+  ---
+  duration_ms: 8.813375
+  type: 'test'
+  ...
+# Subtest: source hashing ignores nested node_modules and mirrors clean up staging directories
+ok 19 - source hashing ignores nested node_modules and mirrors clean up staging directories
+  ---
+  duration_ms: 17.51525
+  type: 'test'
+  ...
+# Subtest: bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+ok 20 - bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+  ---
+  duration_ms: 55.392833
+  type: 'test'
+  ...
+# Subtest: extractRuntimeArchive handles tar name variants and rejects unsafe paths
+ok 21 - extractRuntimeArchive handles tar name variants and rejects unsafe paths
+  ---
+  duration_ms: 12.208916
+  type: 'test'
+  ...
+# Subtest: runtime pack diagnostics list expected paths, available targets, and remediation
+ok 22 - runtime pack diagnostics list expected paths, available targets, and remediation
+  ---
+  duration_ms: 3.599208
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions preserves explicit artifact opt-outs
+ok 23 - resolveEnsureIndexOptions preserves explicit artifact opt-outs
+  ---
+  duration_ms: 0.938041
+  type: 'test'
+  ...
+# Subtest: resolveEnsureIndexOptions uses the configured runtime artifact root
+ok 24 - resolveEnsureIndexOptions uses the configured runtime artifact root
+  ---
+  duration_ms: 20.312666
+  type: 'test'
+  ...
+# Subtest: ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+ok 25 - ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+  ---
+  duration_ms: 181.302792
+  type: 'test'
+  ...
+# Subtest: ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+ok 26 - ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+  ---
+  duration_ms: 235.089583
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+ok 27 - ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+  ---
+  duration_ms: 165.036375
+  type: 'test'
+  ...
+# Subtest: ensureIndex auto-discovers snapshots from the runtime plugin root
+ok 28 - ensureIndex auto-discovers snapshots from the runtime plugin root
+  ---
+  duration_ms: 115.837458
+  type: 'test'
+  ...
+# Subtest: desk_reindex uses runtime artifacts without artifact opts
+ok 29 - desk_reindex uses runtime artifacts without artifact opts
+  ---
+  duration_ms: 103.666458
+  type: 'test'
+  ...
+# Subtest: ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+ok 30 - ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+  ---
+  duration_ms: 181.535417
+  type: 'test'
+  ...
+# Subtest: ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+ok 31 - ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+  ---
+  duration_ms: 299.2325
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2579.60625

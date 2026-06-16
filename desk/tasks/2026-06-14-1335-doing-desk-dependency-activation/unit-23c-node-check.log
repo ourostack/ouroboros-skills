@@ -1,0 +1,7 @@
+$ node --check scripts/test-desk-generated-artifacts.cjs
+$ node --check scripts/test-desk-host-manifests.cjs
+$ node --check plugins/desk/mcp/__tests__/artifacts/ci_generated_freshness.test.js
+$ node --check plugins/desk/mcp/__tests__/artifacts/production_artifacts.test.js
+$ node --check plugins/desk/mcp/__tests__/scripts/validate_skills.test.js
+
+exit_status=0

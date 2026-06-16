@@ -1,6 +1,13 @@
 ---
 name: start-task
-description: Start a new task in the workspace from either an operator description or an agent-initiated proposal. Produces a task card in the appropriate track directory. Use when the operator says "start a new task: <description>", "work on X", "I need to do Y", "track this", "this is worth tracking", or when an agent recognizes mid-conversation that it's working on something task-worthy ("I'm investigating Z; let me track this") and proposes creating a task.
+description: >-
+  Start a new task in the workspace from either an operator description or an
+  agent-initiated proposal. Produces a task card in the appropriate track
+  directory. Use when the operator says "start a new task: <description>",
+  "work on X", "I need to do Y", "track this", "this is worth tracking", or
+  when an agent recognizes mid-conversation that it's working on something
+  task-worthy ("I'm investigating Z; let me track this") and proposes creating
+  a task.
 ---
 
 # Start a task

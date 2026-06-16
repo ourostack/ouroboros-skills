@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: committed publication policy and schema declare conservative privacy defaults
+ok 1 - committed publication policy and schema declare conservative privacy defaults
+  ---
+  duration_ms: 7.562709
+  type: 'test'
+  ...
+# Subtest: loadPublicationPolicy validates policy JSON against the committed schema
+ok 2 - loadPublicationPolicy validates policy JSON against the committed schema
+  ---
+  duration_ms: 10.224209
+  type: 'test'
+  ...
+# Subtest: publication policy loading fails closed for missing and malformed policy files
+ok 3 - publication policy loading fails closed for missing and malformed policy files
+  ---
+  duration_ms: 7.392458
+  type: 'test'
+  ...
+# Subtest: publication policy schema-version drift fails closed before artifact writes
+ok 4 - publication policy schema-version drift fails closed before artifact writes
+  ---
+  duration_ms: 11.217917
+  type: 'test'
+  ...
+# Subtest: publication policy schema requires approval and repository-sensitivity fields
+ok 5 - publication policy schema requires approval and repository-sensitivity fields
+  ---
+  duration_ms: 0.533584
+  type: 'test'
+  ...
+# Subtest: publication policy denies public and sensitive repo artifact publication without approval
+ok 6 - publication policy denies public and sensitive repo artifact publication without approval
+  ---
+  duration_ms: 0.414083
+  type: 'test'
+  ...
+# Subtest: publication policy default allow is limited to private or internal nonsensitive repos
+ok 7 - publication policy default allow is limited to private or internal nonsensitive repos
+  ---
+  duration_ms: 3.573208
+  type: 'test'
+  ...
+# Subtest: publication policy explicit deny and uncertain repository state fail closed
+ok 8 - publication policy explicit deny and uncertain repository state fail closed
+  ---
+  duration_ms: 0.247292
+  type: 'test'
+  ...
+# Subtest: publication policy accepts explicit repo and organization approvals for allowed artifact types
+ok 9 - publication policy accepts explicit repo and organization approvals for allowed artifact types
+  ---
+  duration_ms: 6.162458
+  type: 'test'
+  ...
+# Subtest: organization policy approvals override repo-scoped approvals for the same artifact type
+ok 10 - organization policy approvals override repo-scoped approvals for the same artifact type
+  ---
+  duration_ms: 0.628875
+  type: 'test'
+  ...
+# Subtest: artifact write guard blocks vector-pack and snapshot writes without approval
+ok 11 - artifact write guard blocks vector-pack and snapshot writes without approval
+  ---
+  duration_ms: 7.16375
+  type: 'test'
+  ...
+# Subtest: artifact write paths fail closed when the publication policy is invalid
+ok 12 - artifact write paths fail closed when the publication policy is invalid
+  ---
+  duration_ms: 3.887625
+  type: 'test'
+  ...
+# Subtest: ordinary startup does not write committed artifact files
+ok 13 - ordinary startup does not write committed artifact files
+  ---
+  duration_ms: 26.822334
+  type: 'test'
+  ...
+# Subtest: discover excludes gitignored markdown before indexing
+ok 14 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 9.383792
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 15 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 5.572125
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 16 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 2.064625
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 17 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 0.960083
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 18 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 12.929625
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 19 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 1.9775
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 20 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 48.946167
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 21 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 1.870917
+  type: 'test'
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 22 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 2.679625
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 23 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.285875
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 24 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.213958
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 246.338041

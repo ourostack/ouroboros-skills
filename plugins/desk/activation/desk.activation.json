@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "id": "desk",
+  "version": "1.7.3",
+  "dependencies": [
+    {
+      "id": "desk",
+      "kind": "substrate",
+      "version": "1.7.3",
+      "provenance": {
+        "source": "plugins/desk/.codex-plugin/plugin.json",
+        "package": "ourostack/desk"
+      },
+      "lock": {
+        "version": "1.7.3",
+        "integrity": "sha256-desk-activation-manifest-v1"
+      }
+    },
+    {
+      "id": "work-suite",
+      "kind": "plugin",
+      "version_range": "^1.4.0",
+      "provenance": {
+        "source": "plugins/work-suite/.codex-plugin/plugin.json",
+        "package": "ourostack/work-suite"
+      },
+      "lock": {
+        "version": "1.4.9",
+        "integrity": "sha256-work-suite-activation-manifest-v1"
+      }
+    }
+  ],
+  "provides": {
+    "activation_targets": [
+      {
+        "id": "desk:worker",
+        "kind": "agent",
+        "default": true,
+        "depends_on": [
+          "desk",
+          "work-suite"
+        ],
+        "entrypoints": {
+          "claude": "agents/worker.md",
+          "codex": "agents/worker.toml",
+          "copilot": "agents/worker.agent.md"
+        }
+      }
+    ],
+    "overlay_agents": []
+  },
+  "mcp_servers": [
+    {
+      "id": "desk",
+      "required": true,
+      "command": "node",
+      "args": [
+        "mcp/index.js"
+      ],
+      "launch": "host-native"
+    }
+  ],
+  "desk_root": {
+    "policy": "global-default",
+    "precedence": [
+      "activation",
+      "DESK",
+      "safe-default"
+    ],
+    "opt_out_modes": [
+      "project-local",
+      "manual-only"
+    ]
+  },
+  "artifacts": {
+    "embeddings": {
+      "shared": true,
+      "spec_id": "nomic-embed-text-v1-768",
+      "vector_packs": "read-and-import"
+    },
+    "snapshots": {
+      "restore": "newest-compatible",
+      "stale_reconcile": "incremental"
+    }
+  },
+  "host_support": [
+    {
+      "host": "codex",
+      "status": "supported",
+      "dependency_resolution": "flattened",
+      "fallback_behavior": "Codex Desktop lacks a stable scriptable activation-smoke primitive; use temp-profile Codex CLI `codex exec --json` smoke plus owned global/project activation artifacts, with experimental app-server protocol evidence as the fallback when Desktop automation is needed",
+      "capabilities": [
+        "skills",
+        "mcp",
+        "global-default-agent"
+      ],
+      "unsupported_primitives": [
+        "codex-desktop-scriptable-activation-smoke"
+      ]
+    },
+    {
+      "host": "claude",
+      "status": "supported",
+      "dependency_resolution": "native-or-flattened",
+      "fallback_behavior": "launch foreground with `claude --agent desk:worker`; ship flattened bundle when transitive dependencies are unavailable",
+      "capabilities": [
+        "skills",
+        "mcp",
+        "agents",
+        "hooks"
+      ],
+      "unsupported_primitives": [
+        "agent-view-dispatch",
+        "background-session-inheritance"
+      ]
+    },
+    {
+      "host": "ouroboros-autonomous-agent",
+      "status": "supported",
+      "dependency_resolution": "flattened",
+      "fallback_behavior": "bundle Desk + Work Suite into the agent bundle and bind $DESK to ~/AgentBundles/<agent>.ouro/desk/",
+      "capabilities": [
+        "agents",
+        "skills",
+        "mcp"
+      ],
+      "unsupported_primitives": [
+        "host-native-plugin-install"
+      ]
+    },
+    {
+      "host": "generic-stdio",
+      "status": "degraded",
+      "dependency_resolution": "manual-host",
+      "fallback_behavior": "start MCP with explicit --root or DESK and no worker activation",
+      "capabilities": [
+        "mcp"
+      ],
+      "unsupported_primitives": [
+        "agent-defaults",
+        "plugin-dependency-resolution"
+      ]
+    }
+  ],
+  "host_activation": {
+    "claude": {
+      "defaultMode": "plugin-agent",
+      "targets": {
+        "desk:worker": {
+          "default": true,
+          "source": "agents/worker.md",
+          "activationSurface": "plugin-agent"
+        }
+      },
+      "nativeSurfaces": [
+        "skills",
+        "agents",
+        "hooks",
+        "mcpServers",
+        "outputStyles",
+        "dependencies"
+      ],
+      "mcpServers": {
+        "desk": {
+          "launch": "plugin-bundled",
+          "manualRegistration": false,
+          "configPath": ".mcp.json"
+        }
+      },
+      "dependencies": {
+        "work-suite": {
+          "path": "../work-suite",
+          "version": "1.4.9",
+          "resolution": "native"
+        }
+      },
+      "agentView": {
+        "status": "degraded",
+        "minimumClaudeCodeVersion": "2.1.139",
+        "foregroundLaunch": "claude --agent desk:worker",
+        "agentViewLaunch": "claude agents --agent desk:worker",
+        "inheritsPluginContext": false,
+        "evidence": "Claude Code 2.1.161 help exposes `claude agents --agent` and `--plugin-dir`, but Unit 4b did not capture a dispatched-session smoke proving `desk:worker` loads with Desk plugin context.",
+        "reason": "Help text proves CLI flags exist; it does not prove Agent View dispatched sessions inherit the installed plugin agent, skills, hooks, MCP server, and Work Suite dependency.",
+        "fallback": "Launch foreground with `claude --agent desk:worker`; for Agent View experiments, pass explicit `--plugin-dir` and `--mcp-config` until a dispatched-session smoke proves inheritance."
+      },
+      "backgroundSessionInheritance": {
+        "status": "unsupported",
+        "minimumClaudeCodeVersion": "2.1.139",
+        "agentViewLaunch": "claude agents --agent desk:worker",
+        "inheritsPluginContext": false,
+        "evidence": "Claude Code 2.1.161 `claude agents --help` exposes background-agent flags, but no Unit 4b dispatched-session smoke validates plugin-context inheritance; the worker agent frontmatter also declares `background: false`.",
+        "reason": "Background inheritance is not proven by help text and should not be treated as supported until a real background session loads `desk:worker` with Desk MCP and Work Suite skills.",
+        "fallback": "Launch foreground with `claude --agent desk:worker` when plugin-context inheritance is required."
+      },
+      "permissionBoundary": {
+        "requestedCapabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "generatedArtifacts": [],
+        "neverDelete": [
+          "desk-root-data"
+        ],
+        "unsupportedAgentScopedFields": [
+          "hooks",
+          "mcpServers",
+          "permissionMode"
+        ]
+      }
+    }
+  },
+  "permissions": {
+    "requested_capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "generated_artifacts": [
+      "owned-host-config",
+      "activation-ledger"
+    ],
+    "never_delete": [
+      "desk-root-data"
+    ]
+  }
+}

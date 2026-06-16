@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: discover excludes gitignored markdown before indexing
+ok 1 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 8.333083
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 2 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.127083
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 3 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 0.871833
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 4 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 1.678292
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 5 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 12.589292
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 6 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 1.61475
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 7 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 30.2605
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 8 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 1.686833
+  type: 'test'
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 9 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 2.112834
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 10 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.567292
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 11 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.556583
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 196.649708

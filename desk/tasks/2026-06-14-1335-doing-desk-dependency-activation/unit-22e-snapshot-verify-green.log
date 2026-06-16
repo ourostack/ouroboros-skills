@@ -1,0 +1,14 @@
+
+> @ourostack/desk-mcp@1.3.1 artifact:snapshot:verify
+> node scripts/verify-snapshot.js --snapshot-id repo-public-bootstrap-2026-06-15
+
+{
+  "ok": true,
+  "artifact_type": "snapshot",
+  "snapshot_id": "repo-public-bootstrap-2026-06-15",
+  "elapsed_ms": 4,
+  "freshness": {
+    "artifact_source_scope": "fresh",
+    "document_tree": "fresh"
+  }
+}

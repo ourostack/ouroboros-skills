@@ -1,0 +1,50 @@
+## claude --version
+2.1.161 (Claude Code)
+
+## claude --help agent flags
+12:  --agent <agent>                       Agent for the current session. Overrides
+14:  --agents <json>                       JSON object defining custom agents (e.g.
+29:                                        background prefetches, keychain reads,
+41:                                        --settings, --agents, --plugin-dir.
+186:  agents [options]                      Manage background agents
+
+## claude agents --help
+Usage: claude agents [options]
+
+Manage background agents
+
+Options:
+  --add-dir <directory>                 Additional directory to allow tool
+                                        access to in dispatched sessions
+                                        (repeatable)
+  --agent <agent>                       Default agent for sessions dispatched
+                                        from agent view. Overrides the 'agent'
+                                        setting.
+  --allow-dangerously-skip-permissions  Make bypass-permissions mode available
+                                        to dispatched sessions without
+                                        defaulting to it
+  --cwd <path>                          Show only background sessions started
+                                        under <path>
+  --dangerously-skip-permissions        Alias for --permission-mode
+                                        bypassPermissions
+  --effort <level>                      Default effort level for sessions
+                                        dispatched from agent view
+  -h, --help                            Display help for command
+  --json                                Print live sessions as a JSON array and
+                                        exit (for scripting; does not require a
+                                        TTY)
+  --mcp-config <config>                 MCP server configuration to apply to
+                                        dispatched sessions (repeatable)
+  --model <model>                       Default model for sessions dispatched
+                                        from agent view
+  --permission-mode <mode>              Default permission mode for sessions
+                                        dispatched from agent view
+  --plugin-dir <path>                   Load plugins from specified directory
+                                        for the agent view and dispatched
+                                        sessions (repeatable)
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Settings file or JSON string to apply to
+                                        the agent view and dispatched sessions
+  --strict-mcp-config                   Only use MCP servers from --mcp-config
+                                        in dispatched sessions

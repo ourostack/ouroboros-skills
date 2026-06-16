@@ -1,0 +1,183 @@
+TAP version 13
+# Subtest: parseArgs captures activation config path without losing root or person
+not ok 1 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 2.691333
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:73:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    -   activationConfig: '/tmp/desk.activation-config.json',
+        person: 'ari',
+        root: '/tmp/desk'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    activationConfig: '/tmp/desk.activation-config.json'
+    person: 'ari'
+    root: '/tmp/desk'
+  actual:
+    root: '/tmp/desk'
+    person: 'ari'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:74:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+not ok 2 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 0.287667
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:91:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    resolveDeskRootWithSource must be exported
+    + actual - expected
+    
+    + 'undefined'
+    - 'function'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'function'
+  actual: 'undefined'
+  operator: 'strictEqual'
+  stack: |-
+    requireFunction (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:65:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:92:37)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+not ok 3 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 0.120416
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:151:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    loadActivationConfig must be exported
+    + actual - expected
+    
+    + 'undefined'
+    - 'function'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'function'
+  actual: 'undefined'
+  operator: 'strictEqual'
+  stack: |-
+    requireFunction (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:65:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:152:32)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+not ok 4 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 0.084208
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:190:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    resolveDeskRootWithSource must be exported
+    + actual - expected
+    
+    + 'undefined'
+    - 'function'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'function'
+  actual: 'undefined'
+  operator: 'strictEqual'
+  stack: |-
+    requireFunction (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:65:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:191:37)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+not ok 5 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 0.172958
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:211:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    resolveStartupDeskRoot must be exported
+    + actual - expected
+    
+    + 'undefined'
+    - 'function'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'function'
+  actual: 'undefined'
+  operator: 'strictEqual'
+  stack: |-
+    requireFunction (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:65:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:212:34)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+not ok 6 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 520.470625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:232:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    real MCP startup must write through the activation-config root
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/activation_config.test.js:241:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 622.18575

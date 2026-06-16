@@ -1,0 +1,140 @@
+TAP version 13
+# Subtest: validateVectorPackCompaction accepts semantically equivalent duplicate merge
+not ok 1 - validateVectorPackCompaction accepts semantically equivalent duplicate merge
+  ---
+  duration_ms: 1.234
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:65:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/vector-compaction.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: validateVectorPackCompaction rejects missing rows and mutated vectors
+not ok 2 - validateVectorPackCompaction rejects missing rows and mutated vectors
+  ---
+  duration_ms: 0.193416
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:89:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/vector-compaction.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: validateVectorPackCompaction rejects conflicting source duplicates
+not ok 3 - validateVectorPackCompaction rejects conflicting source duplicates
+  ---
+  duration_ms: 0.188958
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:127:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/vector-compaction.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: validateCompactionPreservation compares search scopes and refs graph snapshots
+not ok 4 - validateCompactionPreservation compares search scopes and refs graph snapshots
+  ---
+  duration_ms: 0.154792
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:161:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/vector-compaction.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+not ok 5 - desk_search exposes hybrid vs lexical search_mode while preserving archive scopes
+  ---
+  duration_ms: 68.819833
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:225:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'hybrid'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'hybrid'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:233:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+not ok 6 - desk_timeline exposes temporal, hybrid, and lexical search_mode variants
+  ---
+  duration_ms: 32.707208
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:249:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'temporal'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'temporal'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/vector_compaction.test.js:256:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 249.985625

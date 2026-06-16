@@ -1,0 +1,47 @@
+TAP version 13
+# wrote plugins/desk/activation/support-matrix.json
+# Subtest: host capability evidence declares required columns and host rows
+ok 1 - host capability evidence declares required columns and host rows
+  ---
+  duration_ms: 2.500792
+  type: 'test'
+  ...
+# Subtest: support matrix builder validates manifest host support against evidence
+ok 2 - support matrix builder validates manifest host support against evidence
+  ---
+  duration_ms: 1.933209
+  type: 'test'
+  ...
+# Subtest: support matrix validation reports evidence and freshness mismatches
+ok 3 - support matrix validation reports evidence and freshness mismatches
+  ---
+  duration_ms: 0.746167
+  type: 'test'
+  ...
+# Subtest: support matrix validation rejects host and primitive contract drift
+ok 4 - support matrix validation rejects host and primitive contract drift
+  ---
+  duration_ms: 0.273625
+  type: 'test'
+  ...
+# Subtest: generated support matrix artifact is fresh
+ok 5 - generated support matrix artifact is fresh
+  ---
+  duration_ms: 0.313
+  type: 'test'
+  ...
+# Subtest: support matrix package script is wired to regenerate the artifact
+ok 6 - support matrix package script is wired to regenerate the artifact
+  ---
+  duration_ms: 1.351541
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 86.676584

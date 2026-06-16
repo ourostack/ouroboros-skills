@@ -71,6 +71,62 @@ test("desk_recall — empty topic returns empty results", async () => {
     opts: { embed: { fetch: makeEmbedFetch() } },
   })
   assert.deepEqual(res.results, [])
+
+  const missing = await desk_recall({
+    deskRoot: root,
+    input: null,
+  })
+  assert.deepEqual(missing.results, [])
+})
+
+test("desk_recall — default embed options use global fetch", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha content\n",
+  )
+  await buildFixtureIndex(root)
+
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = makeEmbedFetch()
+  try {
+    const res = await desk_recall({
+      deskRoot: root,
+      input: { topic: "alpha" },
+    })
+    assert.ok(res.results.length >= 1)
+    assert.equal(res.cluster_count, res.results.length)
+  } finally {
+    if (originalFetch === undefined) {
+      delete globalThis.fetch
+    } else {
+      globalThis.fetch = originalFetch
+    }
+  }
+})
+
+test("desk_recall — scope can restrict archived history", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/active/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha active content\n",
+  )
+  await writeFile(
+    root,
+    "trackA/_archive/old/task.md",
+    "---\nstatus: done\nschema_version: 1\n---\nalpha archived content\n",
+  )
+  await buildFixtureIndex(root)
+
+  const archived = await desk_recall({
+    deskRoot: root,
+    input: { topic: "alpha", scope: "archived" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(archived.results.length >= 1)
+  assert.ok(archived.results.every((result) => result.path.includes("_archive")))
 })
 
 test("desk_recall — limit is honoured", async () => {

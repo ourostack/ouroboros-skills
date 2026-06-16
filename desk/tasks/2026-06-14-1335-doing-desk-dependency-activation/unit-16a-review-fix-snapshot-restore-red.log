@@ -1,0 +1,73 @@
+TAP version 13
+# Subtest: selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+not ok 1 - selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+  ---
+  duration_ms: 1.28525
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js:167:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/restore.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+not ok 2 - restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+  ---
+  duration_ms: 0.221833
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js:226:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/restore.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: restoreSnapshotToState is idempotent for repeated compatible restores
+not ok 3 - restoreSnapshotToState is idempotent for repeated compatible restores
+  ---
+  duration_ms: 0.224291
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js:270:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/snapshots/restore.js' imported from /Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/snapshots/restore.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 104.443375

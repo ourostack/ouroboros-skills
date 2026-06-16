@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: desk_status is registered with a session-start-safe description
+ok 1 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 0.852083
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 2 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 2.773084
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 3 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 8.505958
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 4 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 5.136792
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 5 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 2.203667
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 180.920708

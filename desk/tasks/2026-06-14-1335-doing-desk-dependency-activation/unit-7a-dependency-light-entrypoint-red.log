@@ -1,0 +1,226 @@
+TAP version 13
+# Subtest: MCP entrypoint is dependency-light before bootstrap
+not ok 1 - MCP entrypoint is dependency-light before bootstrap
+  ---
+  duration_ms: 2.016042
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:460:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /from\s+["']\.\/src\/server\.js["']/u. Input:
+
+    '#!/usr/bin/env node\n' +
+      '// desk MCP server entry point.\n' +
+      '//\n' +
+      '// Spawned by consumers as a stdio MCP server with `--root <path>` pointing\n' +
+      '// at the desk workspace to operate on. Consumers wire this up via the\n' +
+      '// sibling `.mcp.json` declaration.\n' +
+      '//\n' +
+      '//   node ./mcp/index.js --root ~/AgentBundles/slugger.ouro/desk\n' +
+      '//\n' +
+      '// The same binary serves every consumer (Claude Code worker, Copilot CLI,\n' +
+      '// ouroboros daemon per agent). Each consumer passes a different --root.\n' +
+      '\n' +
+      'import { fileURLToPath } from "node:url"\n' +
+      'import { startServer } from "./src/server.js"\n' +
+      'import { resolveDeskRoot } from "./src/util/paths.js"\n' +
+      '\n' +
+      'export function parseArgs(argv) {\n' +
+      '  const args = { root: null, person: null }\n' +
+      '  for (let i = 0; i < argv.length; i++) {\n' +
+      '    if (argv[i] === "--root" && argv[i + 1]) {\n' +
+      '      args.root = argv[++i]\n' +
+      '    } else if (argv[i] === "--person" && argv[i + 1]) {\n' +
+      '      args.person = argv[++i]\n' +
+      '    }\n' +
+      '  }\n' +
+      '  return args\n' +
+      '}\n' +
+      '\n' +
+      'async function main() {\n' +
+      '  const args = parseArgs(process.argv.slice(2))\n' +
+      '  const deskRoot = resolveDeskRoot(args.root)\n' +
+      '  await startServer({ deskRoot, person: args.person })\n' +
+      '}\n' +
+      '\n' +
+      '// Only launch the server when run as the entry point, not when imported\n' +
+      '// (tests import `parseArgs` without spawning a stdio server).\n' +
+      'if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {\n' +
+      '  main().catch((err) => {\n' +
+      '    console.error("[desk-mcp] fatal:", err.message)\n' +
+      '    process.exit(1)\n' +
+      '  })\n' +
+      '}\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    #!/usr/bin/env node
+    // desk MCP server entry point.
+    //
+    // Spawned by consumers as a stdio MCP server with `--root <path>` pointing
+    // at the desk workspace to operate on. Consumers wire this up via the
+    // sibling `.mcp.json` declaration.
+    //
+    //   node ./mcp/index.js --root ~/AgentBundles/slugger.ouro/desk
+    //
+    // The same binary serves every consumer (Claude Code worker, Copilot CLI,
+    // ouroboros daemon per agent). Each consumer passes a different --root.
+
+    import { fileURLToPath } from "node:url"
+    import { startServer } from "./src/server.js"
+    import { resolveDeskRoot } from "./src/util/paths.js"
+
+    export function parseArgs(argv) {
+      const args = { root: null, person: null }
+      for (let i = 0; i < argv.length; i++) {
+        if (argv[i] === "--root" && argv[i + 1]) {
+          args.root = argv[++i]
+        } else if (argv[i] === "--person" && argv[i + 1]) {
+          args.person = argv[++i]
+        }
+      }
+      return args
+    }
+
+    async function main() {
+      const args = parseArgs(process.argv.slice(2))
+      const deskRoot = resolveDeskRoot(args.root)
+      await startServer({ deskRoot, person: args.person })
+    }
+
+    // Only launch the server when run as the entry point, not when imported
+    // (tests import `parseArgs` without spawning a stdio server).
+    if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+      main().catch((err) => {
+        console.error("[desk-mcp] fatal:", err.message)
+        process.exit(1)
+      })
+    }
+
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:462:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+not ok 2 - MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+  ---
+  duration_ms: 123.915875
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:477:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    process exited before response 1: {"code":1,"signal":null}
+    stdout:
+
+    stderr:
+
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-IhMt0M/mcp/src/server.js
+        at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+        at packageResolve (node:internal/modules/esm/resolve:767:81)
+        at moduleResolve (node:internal/modules/esm/resolve:853:18)
+        at defaultResolve (node:internal/modules/esm/resolve:983:11)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-IhMt0M/forbid-network-loader.mjs:8:10)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+        at handleMessage (node:internal/modules/esm/worker:199:24)
+        at checkForMessages (node:internal/modules/esm/worker:141:28) {
+      code: 'ERR_MODULE_NOT_FOUND'
+    }
+
+    Node.js v22.22.0
+
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    packageResolve (node:internal/modules/esm/resolve:767:81)
+    moduleResolve (node:internal/modules/esm/resolve:853:18)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    nextResolve (node:internal/modules/esm/hooks:748:28)
+    resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-IhMt0M/forbid-network-loader.mjs:8:10)
+    nextResolve (node:internal/modules/esm/hooks:748:28)
+    Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+    handleMessage (node:internal/modules/esm/worker:199:24)
+    checkForMessages (node:internal/modules/esm/worker:141:28) {
+    Timeout.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:335:16)
+    listOnTimeout (node:internal/timers:588:17)
+    process.processTimers (node:internal/timers:523:7)
+  ...
+# Subtest: MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+not ok 3 - MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+  ---
+  duration_ms: 98.258791
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:526:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /runtime dependency pack/i. Input:
+
+    '\n' +
+      'node:internal/modules/run_main:123\n' +
+      '    triggerUncaughtException(\n' +
+      '    ^\n' +
+      "Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-2w7HpF/mcp/src/server.js\n" +
+      '    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)\n' +
+      '    at packageResolve (node:internal/modules/esm/resolve:767:81)\n' +
+      '    at moduleResolve (node:internal/modules/esm/resolve:853:18)\n' +
+      '    at defaultResolve (node:internal/modules/esm/resolve:983:11)\n' +
+      '    at nextResolve (node:internal/modules/esm/hooks:748:28)\n' +
+      '    at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-2w7HpF/forbid-network-loader.mjs:8:10)\n' +
+      '    at nextResolve (node:internal/modules/esm/hooks:748:28)\n' +
+      '    at Hooks.resolve (node:internal/modules/esm/hooks:240:30)\n' +
+      '    at handleMessage (node:internal/modules/esm/worker:199:24)\n' +
+      '    at checkForMessages (node:internal/modules/esm/worker:141:28) {\n' +
+      "  code: 'ERR_MODULE_NOT_FOUND'\n" +
+      '}\n' +
+      '\n' +
+      'Node.js v22.22.0\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@modelcontextprotocol/sdk' imported from /private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-2w7HpF/mcp/src/server.js
+        at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+        at packageResolve (node:internal/modules/esm/resolve:767:81)
+        at moduleResolve (node:internal/modules/esm/resolve:853:18)
+        at defaultResolve (node:internal/modules/esm/resolve:983:11)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at resolve (file:///private/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-entrypoint-2w7HpF/forbid-network-loader.mjs:8:10)
+        at nextResolve (node:internal/modules/esm/hooks:748:28)
+        at Hooks.resolve (node:internal/modules/esm/hooks:240:30)
+        at handleMessage (node:internal/modules/esm/worker:199:24)
+        at checkForMessages (node:internal/modules/esm/worker:141:28) {
+      code: 'ERR_MODULE_NOT_FOUND'
+    }
+
+    Node.js v22.22.0
+
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/dependency_light_entrypoint.test.js:549:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 319.446042

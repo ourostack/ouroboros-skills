@@ -7,7 +7,7 @@ import * as path from "node:path"
 import * as os from "node:os"
 import { promises as fs } from "node:fs"
 
-import { discover, classify, isIndexable } from "../../src/indexer/discover.js"
+import { discover, classify, isIndexable, normalizeDate } from "../../src/indexer/discover.js"
 
 async function buildFixture() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-discover-"))
@@ -36,7 +36,13 @@ async function buildFixture() {
   await w("node_modules/foo/task.md", "ignored")
   await w(".state/leftover.md", "ignored")
   await w("trackA/task-1/notes.md", "ignored — not a recognized shape")
+  await w("trackA/task-1/notes.txt", "ignored — not markdown")
   await w("trackA/task-1/task.md.bak", "ignored bak")
+  try {
+    await fs.symlink("trackA/task-1/task.md", path.join(root, "task-link.md"))
+  } catch {
+    // Some filesystems disallow symlinks; the rest of the fixture remains valid.
+  }
 
   return root
 }
@@ -59,6 +65,79 @@ test("discover picks up only the indexable shapes", async () => {
     "trackA/task-1/task.md",
     "trackB/task-2/task.md",
   ])
+})
+
+test("discover returns an empty list for a missing root", async () => {
+  const root = path.join(os.tmpdir(), "desk-discover-missing-root")
+  assert.deepEqual(await discover(root), [])
+})
+
+test("discover surfaces unexpected directory read errors", async (t) => {
+  const root = await buildFixture()
+  t.mock.method(fs, "readdir", async () => {
+    const err = new Error("blocked")
+    err.code = "EACCES"
+    throw err
+  })
+
+  await assert.rejects(
+    discover(root),
+    (err) => err.code === "EACCES" && err.message === "blocked",
+  )
+})
+
+test("discover rejects immediately when startup abort signal is already tripped", async () => {
+  const root = await buildFixture()
+  const controller = new AbortController()
+  controller.abort()
+
+  await assert.rejects(
+    discover(root, { signal: controller.signal }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
+})
+
+test("discover propagates aborts tripped while describing a document", async (t) => {
+  const root = await buildFixture()
+  const controller = new AbortController()
+  const readFile = fs.readFile.bind(fs)
+  t.mock.method(fs, "readFile", async (...args) => {
+    const bytes = await readFile(...args)
+    controller.abort()
+    return bytes
+  })
+
+  await assert.rejects(
+    discover(root, { signal: controller.signal }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
+})
+
+test("discover skips documents that become unreadable mid-walk", async (t) => {
+  const root = await buildFixture()
+  t.mock.method(fs, "readFile", async () => {
+    const err = new Error("unreadable")
+    err.code = "EACCES"
+    throw err
+  })
+
+  assert.deepEqual(await discover(root), [])
+})
+
+test("discover indexes malformed frontmatter with empty metadata", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-discover-malformed-"))
+  await fs.mkdir(path.join(root, "trackA", "bad-task"), { recursive: true })
+  await fs.writeFile(
+    path.join(root, "trackA", "bad-task", "task.md"),
+    "---\n[\n---\nbody after malformed frontmatter",
+    "utf8",
+  )
+
+  const docs = await discover(root)
+  assert.equal(docs.length, 1)
+  assert.equal(docs[0].status, null)
+  assert.equal(docs[0].schema_version, 0)
+  assert.equal(docs[0].body, "---\n[\n---\nbody after malformed frontmatter")
 })
 
 test("discover flags _archive docs with is_archived=true", async () => {
@@ -111,9 +190,15 @@ test("discover returns hash + mtime for dirty-detection", async () => {
 test("isIndexable matches the intended set", () => {
   assert.equal(isIndexable("trackA/task-1/task.md"), true)
   assert.equal(isIndexable("trackA/task-1/planning.md"), true)
+  assert.equal(isIndexable("trackA/_archive/old-note.md"), true)
+  assert.equal(isIndexable("trackA/_archive/old-note.txt"), false)
   assert.equal(isIndexable("_meta/friction.md"), true)
+  assert.equal(isIndexable("_meta/friction.txt"), false)
   assert.equal(isIndexable("_meta/tips/x.md"), true)
+  assert.equal(isIndexable("tips/x.md"), false)
+  assert.equal(isIndexable("trackA/tips/x.md"), false)
   assert.equal(isIndexable("trackA/_friction/foo.md"), true)
+  assert.equal(isIndexable("trackA/_friction/foo.txt"), false)
   assert.equal(isIndexable("trackA/notes.md"), false)
   assert.equal(isIndexable("trackA/task-1/random.md"), false)
 })
@@ -134,4 +219,60 @@ test("classify is purely path-driven", () => {
     track: null,
     task_slug: null,
   })
+  assert.deepEqual(classify("_meta/friction.md"), {
+    kind: "friction",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("trackA/_friction/local.md"), {
+    kind: "friction",
+    track: "trackA",
+    task_slug: null,
+  })
+  assert.deepEqual(classify("_shared/landscape/glossary.md"), {
+    kind: "shared",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("task.md"), {
+    kind: "task",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("trackA/_archive/2026-01-planning-old.md"), {
+    kind: "planning",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("trackA/_archive/doing-old.md"), {
+    kind: "doing",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("trackA/_archive/feedback-old.md"), {
+    kind: "feedback",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("trackA/_archive/old-note.md"), {
+    kind: "archive",
+    track: null,
+    task_slug: null,
+  })
+  assert.deepEqual(classify("misc/notes.md"), {
+    kind: "other",
+    track: null,
+    task_slug: null,
+  })
+})
+
+test("normalizeDate preserves strings and normalizes Date or scalar values", () => {
+  assert.equal(normalizeDate(null), null)
+  assert.equal(normalizeDate(new Date("2026-06-15T00:00:00.000Z")), "2026-06-15")
+  assert.equal(
+    normalizeDate(new Date("2026-06-15T12:34:56.000Z")),
+    "2026-06-15T12:34:56.000Z",
+  )
+  assert.equal(normalizeDate("already-text"), "already-text")
+  assert.equal(normalizeDate(123), "123")
 })

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "desk": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./index.js"],
+      "cwd": "../../../..",
+      "env": {}
+    }
+  }
+}

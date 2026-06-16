@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+ok 1 - Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+  ---
+  duration_ms: 3.869167
+  type: 'test'
+  ...
+# Subtest: Ouroboros activation docs define the evidence anchor and disposition
+ok 2 - Ouroboros activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.549208
+  type: 'test'
+  ...
+# Subtest: Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+ok 3 - Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+  ---
+  duration_ms: 1.190042
+  type: 'test'
+  ...
+# Subtest: generic stdio support matrix records an MCP-only degraded disposition
+ok 4 - generic stdio support matrix records an MCP-only degraded disposition
+  ---
+  duration_ms: 0.412125
+  type: 'test'
+  ...
+# Subtest: generic stdio activation docs define the evidence anchor and disposition
+ok 5 - generic stdio activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.1235
+  type: 'test'
+  ...
+# Subtest: generic stdio docs show explicit root binding and no default worker claim
+ok 6 - generic stdio docs show explicit root binding and no default worker claim
+  ---
+  duration_ms: 0.539416
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation accepts current artifacts
+ok 7 - Ouroboros/generic stdio packaging validation accepts current artifacts
+  ---
+  duration_ms: 5.160834
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+ok 8 - Ouroboros packaging validation rejects missing bundle metadata and DESK binding
+  ---
+  duration_ms: 6.906667
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects host-support drift and manual installs
+ok 9 - Ouroboros packaging validation rejects host-support drift and manual installs
+  ---
+  duration_ms: 0.780417
+  type: 'test'
+  ...
+# Subtest: Ouroboros packaging validation rejects evidence row drift
+ok 10 - Ouroboros packaging validation rejects evidence row drift
+  ---
+  duration_ms: 1.598333
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects unsafe or under-specified launches
+ok 11 - generic stdio packaging validation rejects unsafe or under-specified launches
+  ---
+  duration_ms: 13.952708
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects identifier and support-verb claim variants
+ok 12 - generic stdio packaging validation rejects identifier and support-verb claim variants
+  ---
+  duration_ms: 15.757208
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation permits neither/nor negative support wording
+ok 13 - generic stdio packaging validation permits neither/nor negative support wording
+  ---
+  duration_ms: 14.179708
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects host dependency support claims
+ok 14 - generic stdio packaging validation rejects host dependency support claims
+  ---
+  duration_ms: 0.464417
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects fallback dependency support drift
+ok 15 - generic stdio packaging validation rejects fallback dependency support drift
+  ---
+  duration_ms: 0.983916
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects fallback worker activation drift
+ok 16 - generic stdio packaging validation rejects fallback worker activation drift
+  ---
+  duration_ms: 1.315708
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects evidence row support drift
+ok 17 - generic stdio packaging validation rejects evidence row support drift
+  ---
+  duration_ms: 0.820625
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects missing agent-defaults fallback marker
+ok 18 - generic stdio packaging validation rejects missing agent-defaults fallback marker
+  ---
+  duration_ms: 0.826667
+  type: 'test'
+  ...
+# Subtest: generic stdio packaging validation rejects malformed host support lists
+ok 19 - generic stdio packaging validation rejects malformed host support lists
+  ---
+  duration_ms: 1.229792
+  type: 'test'
+  ...
+# Subtest: Ouroboros/generic stdio packaging validation reports missing rows without crashing
+ok 20 - Ouroboros/generic stdio packaging validation reports missing rows without crashing
+  ---
+  duration_ms: 0.557625
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 156.409833

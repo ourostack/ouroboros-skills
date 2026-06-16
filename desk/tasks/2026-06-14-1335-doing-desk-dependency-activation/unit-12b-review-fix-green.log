@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: vector pack paths are canonical, plugin-root relative, and spec-scoped
+ok 1 - vector pack paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.658542
+  type: 'test'
+  ...
+# Subtest: valid vector packs require adjacent manifest and checksum sidecars
+ok 2 - valid vector packs require adjacent manifest and checksum sidecars
+  ---
+  duration_ms: 17.206
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+ok 3 - vector pack validation rejects wrong specs, dimensions, hashes, and malformed vectors
+  ---
+  duration_ms: 17.967666
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects unknown row fields before sensitive text can enter packs
+ok 4 - vector pack validation rejects unknown row fields before sensitive text can enter packs
+  ---
+  duration_ms: 2.476375
+  type: 'test'
+  ...
+# Subtest: vector pack validation rejects malformed manifests before import
+ok 5 - vector pack validation rejects malformed manifests before import
+  ---
+  duration_ms: 9.180791
+  type: 'test'
+  ...
+# Subtest: vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+ok 6 - vector pack import is idempotent and deduplicates repeated chunk keys across append-only packs
+  ---
+  duration_ms: 39.228584
+  type: 'test'
+  ...
+# Subtest: vector pack import handles missing pack directories and missing local chunks safely
+ok 7 - vector pack import handles missing pack directories and missing local chunks safely
+  ---
+  duration_ms: 7.610458
+  type: 'test'
+  ...
+# Subtest: vector pack import surfaces unexpected artifact directory failures
+ok 8 - vector pack import surfaces unexpected artifact directory failures
+  ---
+  duration_ms: 5.541958
+  type: 'test'
+  ...
+# Subtest: vector pack import verifies chunk text hashes against the local DB before inserting
+ok 9 - vector pack import verifies chunk text hashes against the local DB before inserting
+  ---
+  duration_ms: 7.917167
+  type: 'test'
+  ...
+# Subtest: vector pack import inserts vectors for every local chunk that shares a covered chunk key
+ok 10 - vector pack import inserts vectors for every local chunk that shares a covered chunk key
+  ---
+  duration_ms: 32.336958
+  type: 'test'
+  ...
+# Subtest: vector pack import rejects contradictory duplicate rows before deduplication
+ok 11 - vector pack import rejects contradictory duplicate rows before deduplication
+  ---
+  duration_ms: 26.904625
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 272.123958

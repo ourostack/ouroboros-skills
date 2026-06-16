@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: package declares artifact maintenance scripts without adding a user Desk CLI
+ok 1 - package declares artifact maintenance scripts without adding a user Desk CLI
+  ---
+  duration_ms: 346.234625
+  type: 'test'
+  ...
+# Subtest: artifact build scripts publish allowed artifacts only under canonical dirs
+ok 2 - artifact build scripts publish allowed artifacts only under canonical dirs
+  ---
+  duration_ms: 629.325375
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject publication-policy denial before writing bytes
+ok 3 - artifact build scripts reject publication-policy denial before writing bytes
+  ---
+  duration_ms: 813.708625
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject excluded local DB docs before writing bytes
+ok 4 - artifact build scripts reject excluded local DB docs before writing bytes
+  ---
+  duration_ms: 559.29925
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject tombstoned local DB docs before writing bytes
+ok 5 - artifact build scripts reject tombstoned local DB docs before writing bytes
+  ---
+  duration_ms: 539.927792
+  type: 'test'
+  ...
+# Subtest: performance budget config declares startup, rebuild, and artifact thresholds
+ok 6 - performance budget config declares startup, rebuild, and artifact thresholds
+  ---
+  duration_ms: 0.331584
+  type: 'test'
+  ...
+# Subtest: MCP startup reads ensure-index budget from plugin performance config
+ok 7 - MCP startup reads ensure-index budget from plugin performance config
+  ---
+  duration_ms: 3.598959
+  type: 'test'
+  ...
+# Subtest: artifact scripts fail when configured rebuild or validation budgets are exceeded
+ok 8 - artifact scripts fail when configured rebuild or validation budgets are exceeded
+  ---
+  duration_ms: 1461.528542
+  type: 'test'
+  ...
+# Subtest: CI invokes artifact validation and watches artifact script inputs
+ok 9 - CI invokes artifact validation and watches artifact script inputs
+  ---
+  duration_ms: 1.849167
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4502.925875

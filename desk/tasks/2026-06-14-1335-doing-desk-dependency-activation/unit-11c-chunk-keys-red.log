@@ -1,0 +1,135 @@
+TAP version 13
+# Subtest: active embedding spec is versioned, path-safe, and tied to chunker identity
+ok 1 - active embedding spec is versioned, path-safe, and tied to chunker identity
+  ---
+  duration_ms: 6.051584
+  type: 'test'
+  ...
+# Subtest: normalized text identity is stable across line endings and insignificant whitespace
+ok 2 - normalized text identity is stable across line endings and insignificant whitespace
+  ---
+  duration_ms: 0.83625
+  type: 'test'
+  ...
+# Subtest: chunk identity handles empty text and custom embedding specs
+ok 3 - chunk identity handles empty text and custom embedding specs
+  ---
+  duration_ms: 0.393167
+  type: 'test'
+  ...
+# Subtest: chunk keys are stable when unchanged text moves within a document
+ok 4 - chunk keys are stable when unchanged text moves within a document
+  ---
+  duration_ms: 0.3695
+  type: 'test'
+  ...
+# Subtest: heading and spec identity changes produce distinct chunk keys
+ok 5 - heading and spec identity changes produce distinct chunk keys
+  ---
+  duration_ms: 0.269833
+  type: 'test'
+  ...
+# Subtest: inactive embedding specs are rejected by spec identity helpers
+ok 6 - inactive embedding specs are rejected by spec identity helpers
+  ---
+  duration_ms: 0.11125
+  type: 'test'
+  ...
+# Subtest: empty desk → empty index
+ok 7 - empty desk → empty index
+  ---
+  duration_ms: 18.642459
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 8 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 22.480042
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 9 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 11.035833
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 10 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 13.684
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+not ok 11 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 9.073833
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:131:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    0 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:186:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 12 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 38.424125
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 13 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 22.080084
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 14 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 6.006
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 15 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 12.34175
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 16 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 13.737791
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 17 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 27.396083
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 18 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 8.81875
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 17
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 346.346958

@@ -4,22 +4,21 @@ a quiet room for a long-running agent's work — the universal substrate underne
 
 the desk is where the agent does its thinking and keeps its things. drawers for tracks, manilla envelopes for tasks, a corkboard for friction notes, a small reference shelf for lessons earned. archive lives at the back of the room — still browsable, still mine. the same desk serves every consumer because the layout and ceremonies don't depend on whose desk it is:
 
-- **corporate worker overlay** — an enterprise engineer overlay (with whatever work-item tracker, code-review system, and identity provider the org uses) installs desk underneath, then layers org-context overlays on top
-- **autonomous agents** (long-lived agents managed by an agent framework) — install desk into the bundle; declare the desk path in the agent's preamble
-- **personal coding agents** — install desk; declare a workspace path in agent preamble
+- **corporate worker overlay** — an enterprise engineer overlay (with whatever work-item tracker, code-review system, and identity provider the org uses) declares desk as substrate dependency, then layers org-context overlays on top
+- **autonomous agents** (long-lived agents managed by an agent framework) — bundle desk as part of the agent package; declare the desk path in the agent's preamble
+- **personal coding agents** — activate desk through the host/plugin profile; declare a workspace path in agent preamble
 
 cross-context portability runs on the `$DESK` placeholder convention: each consumer agent's preamble binds `$DESK` to its own workspace directory, and desk skills reference paths via `$DESK` rather than any specific literal. one substrate, many overlays.
 
-## Install
+## Activation
 
 ### Under Copilot CLI
 
 ```bash
 copilot plugin install ourostack/ouroboros-skills:plugins/desk
-copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
 ```
 
-Copilot CLI doesn't resolve transitive deps; install both explicitly.
+The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so the normal path activates Desk as the worker substrate and launches `worker`.
 
 ### Under Ouroboros
 
@@ -29,43 +28,51 @@ ouro plugin install ourostack/ouroboros-skills:plugins/desk --agent <agent-name>
 
 The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declares `Your desk: ~/AgentBundles/<agent>.ouro/desk/`.
 
+Ouroboros treats Desk as bundled substrate instead of a separate user setup step. The agent bundle carries Desk and Work Suite together:
+
+```json
+{
+  "plugins": [
+    "desk",
+    "work-suite"
+  ]
+}
+```
+
+The agent preamble binds the placeholder to a concrete workspace path:
+
+```text
+$DESK = ~/AgentBundles/<agent>.ouro/desk/
+Your desk: ~/AgentBundles/<agent>.ouro/desk/
+```
+
 ### Under Claude Code
 
-The `ourostack/ouroboros-skills` repo ships a Claude Code marketplace manifest at `.claude-plugin/marketplace.json`, so installation is two slash commands inside a Claude Code session:
+The `ourostack/ouroboros-skills` repo ships Claude plugin metadata for Desk and Work Suite. Desk declares Work Suite as a dependency, so the healthy path is a host-native marketplace activation or flattened bundle that brings both surfaces together.
 
-```
-/plugin marketplace add ourostack/ouroboros-skills
-/plugin install desk@ouroboros-skills
-/plugin install work-suite@ouroboros-skills
-```
+When transitive plugin dependencies are available, the host resolves that dependency from Desk's `.claude-plugin/plugin.json`. When a Claude-compatible host does not resolve dependencies, release packaging should ship a flattened Desk + Work Suite bundle instead of asking the operator to assemble the dependency chain by hand.
 
-Claude Code doesn't auto-resolve plugin deps — install `work-suite` explicitly (it provides the doing-phase skills the desk agent references).
-
-After install, launch the default worker agent:
+Once the host has activated the plugin package, launch the default worker agent:
 
 ```bash
 claude --agent desk:worker
 ```
 
-Or inside an existing Claude session: `@desk:worker say hi`. The agent's preamble auto-loads with the cozy library voice and a placeholder `$DESK` binding (typically `~/desk/`). See [`agents/README.md`](./agents/README.md) for the full agent file reference.
+Or inside an existing Claude session: `@desk:worker say hi`. The agent's preamble auto-loads with the cozy library voice and a placeholder `$DESK` binding (typically `~/desk/`). See [`docs/agent-files.md`](./docs/agent-files.md) for the full agent file reference.
 
 ### Under Codex
 
-The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. For a home-local install, copy both plugin directories into `~/plugins/`, expose them through a local marketplace rooted at `~/.agents/plugins/marketplace.json`, then enable both plugins from `~/.codex/config.toml`.
+The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. The healthy path is host-native activation: enable Desk and Work Suite through Codex's plugin loading surface, then let Desk's activation metadata materialize the owned config/instruction block for the selected mode.
 
-Minimum local setup:
+The default mode is `global-personal`: Desk and Work Suite are enabled together, the bundled Desk MCP is enabled through plugin-scoped MCP metadata, and Codex receives an owned `AGENTS.md` worker-default block. `project-local` and `manual-only` are opt-outs for repos or sessions that should not inherit the global worker default.
 
-```bash
-mkdir -p ~/plugins
-rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
-rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
-cd ~/plugins/desk/mcp && npm install
-codex mcp add desk -- node "$HOME/plugins/desk/mcp/index.js" --root "$HOME/desk"
-```
-
-Then add a local Codex marketplace entry whose source is `$HOME`, enable `desk@<marketplace-name>` and `work-suite@<marketplace-name>`, and restart Codex so newly installed skills and MCP tools are loaded.
+Do not run `codex mcp add` or `npm install` inside the Desk plugin for the healthy path. The MCP entrypoint restores verified production runtime dependencies from the committed runtime pack into a writable cache, then launches from a source mirror. See `desk:codex-onboarding` for repair checks when a local development install or stale host config needs inspection.
 
 For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
+
+### Artifact privacy
+
+Embeddings and snapshots are derivative data and may carry privacy risk even when they are not plain-text documents. Shared vector packs and warm boot snapshots are published only through explicit, policy-controlled artifact paths; public or sensitive repositories should require approval before these artifacts are committed.
 
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 
@@ -81,19 +88,9 @@ claude --agent desk:worker
 copilot --agent worker
 ```
 
-**Codex — two paths**. Codex plugins cannot ship agents or AGENTS.md content directly per the plugin schema, so the agent layer is user-installed. Pick one or both:
+**Codex.** The activation adapter makes `worker` the global personal default by materializing owned Codex config and `AGENTS.md` blocks. Use `manual-only` when Desk should stay available as a plugin/MCP substrate without default worker behavior, or `project-local` when a specific repo should own its Desk binding.
 
-```bash
-# Path A — default behavior (recommended): make Codex itself behave like worker
-# every session by appending the canonical body to ~/.codex/AGENTS.md.
-awk '/^---$/{c++; next} c>=2' ~/plugins/desk/agents/worker.md >> ~/.codex/AGENTS.md
-
-# Path B — explicit subagent: invoke /agent worker on demand
-cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
-# then in a Codex session: /agent worker
-```
-
-Paths A and B compose. See [`agents/README.md`](./agents/README.md) for the per-harness install reference, and `desk:codex-onboarding` for the full Codex install sequence including the agent layer.
+See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness agent file reference, and `desk:codex-onboarding` for repair verification when a local Codex host does not reflect the activation metadata.
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 

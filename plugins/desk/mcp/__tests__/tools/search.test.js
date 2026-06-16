@@ -2,9 +2,11 @@
 
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { promises as fs } from "node:fs"
 import * as path from "node:path"
 
-import { desk_search } from "../../src/tools/search.js"
+import { __searchInternalsForTests, desk_search } from "../../src/tools/search.js"
+import { openDb, closeDb } from "../../src/db/init.js"
 import {
   buildFixtureIndex,
   makeEmbedFetch,
@@ -46,6 +48,177 @@ async function buildBaseDesk() {
   return root
 }
 
+test("search internals cover defensive helper branches", async () => {
+  const helpers = __searchInternalsForTests
+
+  const featureRoot = await mkTempDeskRoot()
+  assert.equal(await helpers.readFeaturedTrack(featureRoot), null)
+  await writeFile(featureRoot, "_meta/featured.md", "# comment\n\ntrackA\n")
+  assert.equal(await helpers.readFeaturedTrack(featureRoot), "trackA")
+  await writeFile(featureRoot, "_meta/blank.md", "")
+  const blankFeatureRoot = await mkTempDeskRoot()
+  await writeFile(blankFeatureRoot, "_meta/featured.md", "# comment only\n")
+  assert.equal(await helpers.readFeaturedTrack(blankFeatureRoot), null)
+
+  assert.match(
+    helpers.semanticUnavailableFields(undefined).semantic_note,
+    /embedding service did not return/u,
+  )
+  assert.equal(helpers.semanticUnavailableFields(undefined).semantic_diagnostic, null)
+
+  assert.deepEqual(helpers.buildFtsQuery(null), { matchExpr: null, terms: [] })
+  assert.deepEqual(helpers.buildFtsQuery("a"), { matchExpr: null, terms: [] })
+  assert.equal(helpers.clampLimit(Number.NaN), 10)
+  assert.equal(helpers.clampLimit(999), 50)
+  assert.equal(helpers.decodeEmbedding(null), null)
+  assert.deepEqual(helpers.decodeEmbedding(Buffer.from([0, 0, 128, 63])), [1])
+
+  assert.deepEqual(helpers.resolveScopeFilter("all", "active"), { sql: "", params: [] })
+  assert.deepEqual(helpers.resolveScopeFilter("archived", "active"), {
+    sql: " AND d.is_archived = 1",
+    params: [],
+  })
+  assert.deepEqual(helpers.resolveScopeFilter("bogus", "active"), {
+    sql: " AND d.is_archived = 0",
+    params: [],
+  })
+  assert.deepEqual(helpers.resolveScopeFilter(undefined, "archived", "doc"), {
+    sql: " AND doc.is_archived = 1",
+    params: [],
+  })
+
+  assert.deepEqual(helpers.buildDocsFilter(null), { sql: "", params: [] })
+  assert.deepEqual(helpers.buildDocsFilter("bad"), { sql: "", params: [] })
+  assert.equal(
+    helpers.buildDocsFilter({
+      track: ["trackA", "trackB"],
+      status: ["processing"],
+      kind: ["task"],
+      since: "2025-01-01",
+      until: "2026-01-01",
+    }).params.length,
+    6,
+  )
+  assert.deepEqual(helpers.buildDocsFilter({ status: [""], kind: [""] }), {
+    sql: "",
+    params: [],
+  })
+  assert.deepEqual(helpers.buildDocsFilter({ track: [], since: 123, until: false }), {
+    sql: "",
+    params: [],
+  })
+  assert.deepEqual(
+    helpers.buildDocsFilter({ track: "trackA", status: "processing", kind: "task" }).params,
+    ["trackA", "processing", "task"],
+  )
+
+  assert.deepEqual(helpers.gatherFtsCandidates({}, null, "", [], 10), [])
+  assert.deepEqual(helpers.gatherVecCandidates({}, null, 10), [])
+  assert.equal(helpers.hydrateChunks({}, []).size, 0)
+
+  assert.equal(helpers.makeSnippet("", ["alpha"]), "")
+  const long = `${Array.from({ length: 90 }, (_, i) => `before${i}`).join(" ")} alpha ${Array.from({ length: 90 }, (_, i) => `after${i}`).join(" ")}`
+  assert.match(helpers.makeSnippet(long, [""]), /\.\.\.$/u)
+  assert.match(helpers.makeSnippet(long, null), /\.\.\.$/u)
+  assert.match(helpers.makeSnippet(long, ["missing"]), /\.\.\.$/u)
+  assert.match(helpers.makeSnippet(long, ["alpha"]), /alpha/u)
+
+  const row = {
+    track: "trackA",
+    status: "processing",
+    kind: "task",
+    updated_at: "2025-06-01",
+    is_archived: 0,
+  }
+  assert.equal(helpers.passesFilter(row, null), true)
+  assert.equal(helpers.passesFilter(row, { track: ["trackB"] }), false)
+  assert.equal(helpers.passesFilter(row, { track: ["trackA"] }), true)
+  assert.equal(helpers.passesFilter(row, { track: "trackB" }), false)
+  assert.equal(helpers.passesFilter(row, { track: "trackA" }), true)
+  assert.equal(helpers.passesFilter(row, { status: ["done"] }), false)
+  assert.equal(helpers.passesFilter(row, { status: "processing" }), true)
+  assert.equal(helpers.passesFilter(row, { kind: ["planning"] }), false)
+  assert.equal(helpers.passesFilter(row, { kind: "task" }), true)
+  assert.equal(helpers.passesFilter(row, { since: "2026-01-01" }), false)
+  assert.equal(helpers.passesFilter(row, { until: "2025-01-01" }), false)
+  assert.equal(helpers.passesFilter(row, { until: "2026-01-01" }), true)
+  assert.equal(helpers.passesFilter({ ...row, updated_at: null }, { since: "2026-01-01" }), true)
+  assert.equal(helpers.passesFilter({ ...row, updated_at: null }, { until: "2025-01-01" }), true)
+
+  assert.equal(helpers.passesScope({ is_archived: 1 }, "all", "active"), true)
+  assert.equal(helpers.passesScope({ is_archived: 1 }, "archived", "active"), true)
+  assert.equal(helpers.passesScope({ is_archived: 0 }, "archived", "active"), false)
+  assert.equal(helpers.passesScope({ is_archived: 0 }, "active", "all"), true)
+  assert.equal(helpers.passesScope({ is_archived: 1 }, "active", "all"), false)
+  assert.equal(helpers.passesScope({ is_archived: 1 }, undefined, "archived"), true)
+  assert.equal(helpers.shouldReplaceBest(undefined, 1), true)
+  assert.equal(helpers.shouldReplaceBest({ score: 0.5 }, 0.6), true)
+  assert.equal(helpers.shouldReplaceBest({ score: 0.5 }, 0.4), false)
+  assert.equal(helpers.comparableUpdatedAt({ updated_at: "2026-01-01" }), "2026-01-01")
+  assert.equal(helpers.comparableUpdatedAt({ updated_at: null }), "")
+  assert.equal(helpers.firstChunkText({ text: "body" }), "body")
+  assert.equal(helpers.firstChunkText({ text: null }), "")
+
+  const fakeDb = {
+    prepare() {
+      return {
+        all() {
+          return [
+            { path: "trackA/bad-json/task.md", frontmatter: "{bad" },
+            { path: "trackA/default-frontmatter/task.md" },
+            { path: "trackA/no-history/task.md", frontmatter: "{}" },
+            {
+              path: "trackA/not-array/task.md",
+              frontmatter: JSON.stringify({ iterations: { history: "nope" } }),
+            },
+            {
+              path: "trackA/null-entry/task.md",
+              frontmatter: JSON.stringify({ iterations: { history: [null] } }),
+            },
+            {
+              path: "trackA/missing-outcome/task.md",
+              frontmatter: JSON.stringify({
+                iterations: { history: [{ path: "./repo" }] },
+              }),
+            },
+            {
+              path: "trackA/done/task.md",
+              frontmatter: JSON.stringify({
+                iterations: { history: [{ outcome: "done", path: "./repo" }] },
+              }),
+            },
+            {
+              path: "trackA/no-path/task.md",
+              frontmatter: JSON.stringify({
+                iterations: { history: [{ outcome: "in-progress", path: "" }] },
+              }),
+            },
+            {
+              path: "trackA/pinned/task.md",
+              frontmatter: JSON.stringify({
+                iterations: { history: [{ outcome: "in-progress", path: "./repo/iter" }] },
+              }),
+            },
+          ]
+        },
+      }
+    },
+  }
+  const prefixes = helpers.computePinPrefixes(fakeDb, "trackA")
+  assert.equal(prefixes.has(path.join("trackA", "pinned", "repo", "iter")), true)
+  assert.equal(helpers.computePinPrefixes(fakeDb, null).size, 0)
+  assert.equal(helpers.isPinned("anything.md", new Set()), false)
+  assert.equal(
+    helpers.isPinned(
+      path.join("trackA", "pinned", "repo", "iter", "doing.md"),
+      prefixes,
+    ),
+    true,
+  )
+  assert.equal(helpers.isPinned(path.join("trackA", "pinned", "repo", "iter"), prefixes), true)
+  assert.equal(helpers.isPinned("trackA/other/doing.md", prefixes), false)
+})
+
 test("desk_search — happy path returns ranked results with score_breakdown", async () => {
   const root = await buildBaseDesk()
   await buildFixtureIndex(root)
@@ -86,6 +259,45 @@ test("desk_search — Ollama-down soft-fails to FTS-only with semantic_unavailab
   assert.equal(res.results[0].score_breakdown.semantic, 0)
 })
 
+test("desk_search — empty or missing query returns before indexing", async () => {
+  const root = await mkTempDeskRoot()
+  const empty = await desk_search({ deskRoot: root, input: null })
+  assert.deepEqual(empty.results, [])
+  assert.equal(empty.query, "")
+  assert.equal(empty.semantic_unavailable, false)
+})
+
+test("desk_search — lexical no-match returns empty results with unavailable semantic note", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "zzzz-no-match" },
+    opts: { embed: { fetch: makeFailingFetch() } },
+  })
+
+  assert.equal(res.search_mode, "lexical")
+  assert.equal(res.semantic_unavailable, true)
+  assert.deepEqual(res.results, [])
+  assert.match(res.semantic_note, /Semantic search unavailable/u)
+})
+
+test("desk_search — single-character query uses semantic candidates without FTS", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "a" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+
+  assert.equal(res.search_mode, "hybrid")
+  assert.equal(res.semantic_unavailable, false)
+  assert.ok(res.results.length >= 1)
+})
+
 test("desk_search — repairs a fresh lexical-only index when embeddings are available", async () => {
   const root = await mkTempDeskRoot()
   await writeFile(
@@ -110,6 +322,57 @@ test("desk_search — repairs a fresh lexical-only index when embeddings are ava
   )
 })
 
+test("desk_search — default embed options use global fetch", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = makeEmbedFetch()
+  try {
+    const res = await desk_search({
+      deskRoot: root,
+      input: { query: "alpha" },
+    })
+    assert.equal(res.search_mode, "hybrid")
+    assert.equal(res.semantic_unavailable, false)
+  } finally {
+    if (originalFetch === undefined) {
+      delete globalThis.fetch
+    } else {
+      globalThis.fetch = originalFetch
+    }
+  }
+})
+
+test("desk_search — default active scope skips archived semantic candidates", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/active/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha active content\n",
+  )
+  await writeFile(
+    root,
+    "trackA/_archive/old/task.md",
+    "---\nstatus: done\nschema_version: 1\n---\nalpha archived content\n",
+  )
+  await buildFixtureIndex(root)
+
+  const active = await desk_search({
+    deskRoot: root,
+    input: { query: "a" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(active.results.length >= 1)
+  assert.ok(active.results.every((result) => !result.path.includes("_archive")))
+
+  const all = await desk_search({
+    deskRoot: root,
+    input: { query: "a", scope: "all" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(all.results.some((result) => result.path.includes("_archive")))
+})
+
 test("desk_search — track filter narrows to one track", async () => {
   const root = await buildBaseDesk()
   await buildFixtureIndex(root)
@@ -124,6 +387,45 @@ test("desk_search — track filter narrows to one track", async () => {
   for (const r of res.results) {
     assert.equal(r.track, "trackA")
   }
+})
+
+test("desk_search — invalid and empty filters behave as no-ops", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+
+  const invalid = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha", filters: "not-an-object" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(invalid.results.length >= 1)
+
+  const emptyArrays = await desk_search({
+    deskRoot: root,
+    input: {
+      query: "alpha",
+      filters: { track: [] },
+    },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(emptyArrays.results.length >= 1)
+})
+
+test("desk_search — track array filter excludes semantic candidates outside the set", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha", filters: { track: ["trackA", "trackC"] } },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+
+  assert.ok(res.results.length >= 1)
+  for (const r of res.results) {
+    assert.ok(["trackA", "trackC"].includes(r.track))
+  }
+  assert.ok(!res.results.some((r) => r.track === "trackB"))
 })
 
 test("desk_search — status filter (single value)", async () => {
@@ -169,6 +471,21 @@ test("desk_search — kind filter narrows by doc kind", async () => {
   assert.ok(res.results.length >= 1, "at least one planning doc")
 })
 
+test("desk_search — kind array filter narrows by doc kind", async () => {
+  const root = await buildBaseDesk()
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha", filters: { kind: ["planning"] } },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(res.results.length >= 1)
+  for (const r of res.results) {
+    assert.equal(r.kind, "planning")
+  }
+})
+
 test("desk_search — since filter excludes older docs", async () => {
   const root = await mkTempDeskRoot()
   await writeFile(
@@ -192,6 +509,34 @@ test("desk_search — since filter excludes older docs", async () => {
     assert.ok(
       r.updated_at >= "2025-01-01",
       `expected updated_at >= 2025-01-01, got ${r.updated_at}`,
+    )
+  }
+})
+
+test("desk_search — until filter excludes newer docs", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\nupdated: 2024-01-01\n---\nalpha old content\n",
+  )
+  await writeFile(
+    root,
+    "trackA/task-2/task.md",
+    "---\nstatus: processing\nschema_version: 1\nupdated: 2026-05-01\n---\nalpha new content\n",
+  )
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha", filters: { until: "2025-01-01" } },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(res.results.length >= 1)
+  for (const r of res.results) {
+    assert.ok(
+      r.updated_at <= "2025-01-01",
+      `expected updated_at <= 2025-01-01, got ${r.updated_at}`,
     )
   }
 })
@@ -266,6 +611,85 @@ test("desk_search — empty query returns empty results", async () => {
   assert.deepEqual(res.results, [])
 })
 
+test("desk_search — long snippets center around query terms", async () => {
+  const root = await mkTempDeskRoot()
+  const prefix = Array.from({ length: 90 }, (_, index) => `prefix${index}`).join(" ")
+  const suffix = Array.from({ length: 90 }, (_, index) => `suffix${index}`).join(" ")
+  await writeFile(
+    root,
+    "trackA/task-long/task.md",
+    `---\nstatus: processing\nschema_version: 1\n---\n${prefix} alpha-centered ${suffix}\n`,
+  )
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha-centered" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(res.results.length >= 1)
+  assert.match(res.results[0].snippet, /alpha-centered/u)
+  assert.match(res.results[0].snippet, /^\.\.\./u)
+  assert.match(res.results[0].snippet, /\.\.\.$/u)
+})
+
+test("desk_search — long semantic-only snippets fall back when query term is absent", async () => {
+  const root = await mkTempDeskRoot()
+  const longBody = Array.from({ length: 120 }, (_, index) => `aardvark${index}`).join(" ")
+  await writeFile(
+    root,
+    "trackA/task-semantic/task.md",
+    `---\nstatus: processing\nschema_version: 1\n---\n${longBody}\n`,
+  )
+  await buildFixtureIndex(root)
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(res.results.length >= 1)
+  assert.match(res.results[0].snippet, /\.\.\.$/u)
+  assert.doesNotMatch(res.results[0].snippet, /alpha/u)
+})
+
+test("desk_search — long snippets handle start and end query-term boundaries", async () => {
+  const root = await mkTempDeskRoot()
+  const tail = Array.from({ length: 90 }, (_, index) => `tail${index}`).join(" ")
+  const head = Array.from({ length: 90 }, (_, index) => `head${index}`).join(" ")
+  await writeFile(
+    root,
+    "trackA/task-start/task.md",
+    `---\nstatus: processing\nschema_version: 1\nupdated: 2026-05-02\n---\nalpha-start ${tail}\n`,
+  )
+  await writeFile(
+    root,
+    "trackA/task-end/task.md",
+    `---\nstatus: processing\nschema_version: 1\nupdated: 2026-05-01\n---\n${head} alpha-end\n`,
+  )
+  await buildFixtureIndex(root)
+
+  const start = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha-start" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.doesNotMatch(start.results[0].snippet, /^\.\.\./u)
+  assert.match(start.results[0].snippet, /\.\.\.$/u)
+
+  const end = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha-end" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  const endResult = end.results.find((result) =>
+    result.path.includes("task-end/task.md"),
+  )
+  assert.ok(endResult, "end-boundary result surfaced")
+  assert.match(endResult.snippet, /^\.\.\./u)
+  assert.doesNotMatch(endResult.snippet, /\.\.\.$/u)
+})
+
 test("desk_search — active-iteration pin adds the +0.30 bonus", async () => {
   const root = await mkTempDeskRoot()
   // Featured track + a task with an in-progress iteration whose path points
@@ -328,5 +752,106 @@ alpha pinned body summary
   assert.ok(
     pinned.score > control.score,
     `pin bumps pinned (${pinned.score}) above control (${control.score})`,
+  )
+})
+
+test("desk_search — ignores malformed featured task frontmatter when pinning", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(root, "_meta/featured.md", "trackP\n")
+  await writeFile(
+    root,
+    "trackP/task-pinned/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha malformed pin body\n",
+  )
+  await buildFixtureIndex(root)
+
+  const db = openDb(root)
+  try {
+    db.prepare("UPDATE docs SET frontmatter = ? WHERE path = ?").run(
+      "{malformed-json",
+      "trackP/task-pinned/task.md",
+    )
+  } finally {
+    closeDb(db)
+  }
+
+  const res = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(res.results.length >= 1)
+  assert.equal(res.results[0].score_breakdown.pin, 0)
+})
+
+test("desk_search — ignores blank featured track and no-op iteration histories", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(root, "_meta/featured.md", "# comment only\n\n")
+  await writeFile(
+    root,
+    "trackP/no-history/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha no history\n",
+  )
+  await buildFixtureIndex(root)
+
+  const blankFeatured = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(blankFeatured.results.length >= 1)
+  assert.equal(blankFeatured.results[0].score_breakdown.pin, 0)
+
+  await writeFile(root, "_meta/featured.md", "trackP\n")
+  const rows = [
+    ["trackP/no-history/task.md", { status: "processing" }],
+    ["trackP/string-history/task.md", { iterations: { history: "nope" } }],
+    ["trackP/null-entry/task.md", { iterations: { history: [null] } }],
+    ["trackP/done-entry/task.md", { iterations: { history: [{ outcome: "done", path: "./repo" }] } }],
+    ["trackP/bad-path/task.md", { iterations: { history: [{ outcome: "in-progress", path: "" }] } }],
+  ]
+  for (const [docPath] of rows.slice(1)) {
+    await writeFile(root, docPath, "---\nstatus: processing\nschema_version: 1\n---\nalpha pin edge\n")
+  }
+  await buildFixtureIndex(root)
+
+  const db = openDb(root)
+  try {
+    for (const [docPath, frontmatter] of rows) {
+      db.prepare("UPDATE docs SET frontmatter = ? WHERE path = ?").run(
+        JSON.stringify(frontmatter),
+        docPath,
+      )
+    }
+  } finally {
+    closeDb(db)
+  }
+
+  const noPins = await desk_search({
+    deskRoot: root,
+    input: { query: "alpha" },
+    opts: { embed: { fetch: makeEmbedFetch() } },
+  })
+  assert.ok(noPins.results.length >= 1)
+  assert.ok(noPins.results.every((result) => result.score_breakdown.pin === 0))
+})
+
+test("desk_search — propagates unexpected featured-track read errors", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nalpha body\n",
+  )
+  await buildFixtureIndex(root)
+  await fs.mkdir(path.join(root, "_meta", "featured.md"), { recursive: true })
+
+  await assert.rejects(
+    () => desk_search({
+      deskRoot: root,
+      input: { query: "alpha" },
+      opts: { embed: { fetch: makeEmbedFetch() } },
+    }),
+    /EISDIR|illegal operation/u,
   )
 })

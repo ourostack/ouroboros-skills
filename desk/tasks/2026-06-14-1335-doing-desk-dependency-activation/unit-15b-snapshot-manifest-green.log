@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: snapshot paths are canonical, plugin-root relative, and spec-scoped
+ok 1 - snapshot paths are canonical, plugin-root relative, and spec-scoped
+  ---
+  duration_ms: 2.074542
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts require manifest fields and checksum sidecars
+ok 2 - valid snapshot artifacts require manifest fields and checksum sidecars
+  ---
+  duration_ms: 6.743333
+  type: 'test'
+  ...
+# Subtest: valid snapshot artifacts infer sidecars and compare nested manifest metadata
+ok 3 - valid snapshot artifacts infer sidecars and compare nested manifest metadata
+  ---
+  duration_ms: 3.002583
+  type: 'test'
+  ...
+# Subtest: manifest source/document hash mismatch is freshness, not compatibility failure
+ok 4 - manifest source/document hash mismatch is freshness, not compatibility failure
+  ---
+  duration_ms: 0.29525
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects compatibility and provenance drift
+ok 5 - snapshot manifest rejects compatibility and provenance drift
+  ---
+  duration_ms: 0.604167
+  type: 'test'
+  ...
+# Subtest: snapshot manifests reject absolute, traversal, and unexpected source paths
+ok 6 - snapshot manifests reject absolute, traversal, and unexpected source paths
+  ---
+  duration_ms: 0.260459
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects checksum mismatch
+ok 7 - snapshot artifact validation rejects checksum mismatch
+  ---
+  duration_ms: 5.106167
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects manifest and snapshot filename drift
+ok 8 - snapshot artifact validation rejects manifest and snapshot filename drift
+  ---
+  duration_ms: 2.318541
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation preserves non-missing filesystem errors
+ok 9 - snapshot artifact validation preserves non-missing filesystem errors
+  ---
+  duration_ms: 3.714333
+  type: 'test'
+  ...
+# Subtest: snapshot artifact validation rejects missing and malformed sidecars
+ok 10 - snapshot artifact validation rejects missing and malformed sidecars
+  ---
+  duration_ms: 6.284125
+  type: 'test'
+  ...
+# Subtest: snapshot manifest rejects missing expected compatibility context and defensive shapes
+ok 11 - snapshot manifest rejects missing expected compatibility context and defensive shapes
+  ---
+  duration_ms: 0.922792
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 132.305458

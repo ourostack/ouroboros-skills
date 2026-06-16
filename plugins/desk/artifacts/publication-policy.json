@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "default_publication": "deny",
+  "repo_visibility": "public",
+  "sensitive_repo": true,
+  "approved_artifact_types": [
+    "vector-pack",
+    "snapshot"
+  ],
+  "approval_required": true,
+  "approvals": [
+    {
+      "scope": "repo",
+      "artifact_type": "vector-pack",
+      "approved_by": "human-directed-codex",
+      "approved_at": "2026-06-16T06:09:03.000Z",
+      "reason": "Unit 22e publishes only repo-local public Desk documents for shared dependency activation artifacts."
+    },
+    {
+      "scope": "repo",
+      "artifact_type": "snapshot",
+      "approved_by": "human-directed-codex",
+      "approved_at": "2026-06-16T06:09:03.000Z",
+      "reason": "Unit 22e publishes only repo-local public Desk documents for shared dependency activation artifacts."
+    }
+  ],
+  "updated_at": "2026-06-16T06:09:03.000Z"
+}

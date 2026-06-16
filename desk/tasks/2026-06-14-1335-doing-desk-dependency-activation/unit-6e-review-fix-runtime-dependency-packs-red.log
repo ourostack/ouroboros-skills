@@ -1,0 +1,1563 @@
+TAP version 13
+# Subtest: runtime dependency pack artifact paths are deterministic and repo-relative
+ok 1 - runtime dependency pack artifact paths are deterministic and repo-relative
+  ---
+  duration_ms: 37.449041
+  type: 'test'
+  ...
+# Subtest: production dependency closure includes native packages and non-native transitive packages
+ok 2 - production dependency closure includes native packages and non-native transitive packages
+  ---
+  duration_ms: 4.626916
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack manifest validates lock provenance and dependency-only shape
+ok 3 - runtime dependency pack manifest validates lock provenance and dependency-only shape
+  ---
+  duration_ms: 9.019958
+  type: 'test'
+  ...
+# Subtest: runtime dependency archive shape rejects server source and missing dependencies
+not ok 4 - runtime dependency archive shape rejects server source and missing dependencies
+  ---
+  duration_ms: 213.847458
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:913:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+      [
+        'runtime dependency archive must not include unexpected root file README.md',
+        'runtime dependency archive must not include unexpected root file release-notes.txt',
+    -   'runtime dependency archive must not include unexpected root path lib/evil.js',
+    -   'runtime dependency archive must not include unexpected root path plugins/desk/mcp/src/server.js',
+    -   'runtime dependency archive must not include unexpected root path scripts/evil.js'
+      ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'runtime dependency archive must not include unexpected root file README.md'
+    1: 'runtime dependency archive must not include unexpected root file release-notes.txt'
+    2: 'runtime dependency archive must not include unexpected root path lib/evil.js'
+    3: 'runtime dependency archive must not include unexpected root path plugins/desk/mcp/src/server.js'
+    4: 'runtime dependency archive must not include unexpected root path scripts/evil.js'
+  actual:
+    0: 'runtime dependency archive must not include unexpected root file README.md'
+    1: 'runtime dependency archive must not include unexpected root file release-notes.txt'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:967:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: runtime dependency pack verification checks checksums and unsupported platforms
+not ok 5 - runtime dependency pack verification checks checksums and unsupported platforms
+  ---
+  duration_ms: 760.411042
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:1047:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+
+      {
+    +   errors: [],
+    -   errors: [
+    -     'runtime dependency archive must include root package.json'
+    -   ],
+        manifest: {
+          archive: {
+            contains_server_source: false,
+            file: 'runtime-deps.tgz',
+            root_entries: [
+    ...
+        },
+    +   ok: true
+    -   ok: false
+      }
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    ok: false
+    errors:
+      0: 'runtime dependency archive must include root package.json'
+    manifest:
+      schema_version: 1
+      created_at: '2026-06-14T00:00:00.000Z'
+      plugin:
+        name: '@ourostack/desk-mcp'
+        version: '1.3.1'
+      platform:
+        os: 'darwin'
+        arch: 'arm64'
+        node_abi: '127'
+      package_lock:
+        path: 'plugins/desk/mcp/package-lock.json'
+        sha256: '9d427577ed4ebf81b02d100b3e48ea3f39f3392b62ba6e83134344147acce0c0'
+        prod_dependency_lock_hash: 'e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be'
+      archive:
+        file: 'runtime-deps.tgz'
+        sha256: 'd1a9e97bdfa04f471d4a586ebf88b178dbfe3db964146a999ce90e8bcdb4fd16'
+        root_entries:
+          0: 'node_modules/'
+          1: 'package.json'
+          2: 'package-lock.json'
+          3: 'runtime-deps.manifest.json'
+        contains_server_source: false
+      production_dependencies:
+        0:
+          name: '@hono/node-server'
+          version: '1.19.14'
+          lock_path: 'node_modules/@hono/node-server'
+          native: false
+        1:
+          name: '@modelcontextprotocol/sdk'
+          version: '1.29.0'
+          lock_path: 'node_modules/@modelcontextprotocol/sdk'
+          native: false
+        2:
+          name: 'accepts'
+          version: '2.0.0'
+          lock_path: 'node_modules/accepts'
+          native: false
+        3:
+          name: 'ajv'
+          version: '8.20.0'
+          lock_path: 'node_modules/ajv'
+          native: false
+        4:
+          name: 'ajv-formats'
+          version: '3.0.1'
+          lock_path: 'node_modules/ajv-formats'
+          native: false
+        5:
+          name: 'argparse'
+          version: '1.0.10'
+          lock_path: 'node_modules/argparse'
+          native: false
+        6:
+          name: 'base64-js'
+          version: '1.5.1'
+          lock_path: 'node_modules/base64-js'
+          native: false
+        7:
+          name: 'better-sqlite3'
+          version: '11.10.0'
+          lock_path: 'node_modules/better-sqlite3'
+          native: true
+        8:
+          name: 'bindings'
+          version: '1.5.0'
+          lock_path: 'node_modules/bindings'
+          native: false
+        9:
+          name: 'bl'
+          version: '4.1.0'
+          lock_path: 'node_modules/bl'
+          native: false
+        10:
+          name: 'body-parser'
+          version: '2.2.2'
+          lock_path: 'node_modules/body-parser'
+          native: false
+        11:
+          name: 'buffer'
+          version: '5.7.1'
+          lock_path: 'node_modules/buffer'
+          native: false
+        12:
+          name: 'bytes'
+          version: '3.1.2'
+          lock_path: 'node_modules/bytes'
+          native: false
+        13:
+          name: 'call-bind-apply-helpers'
+          version: '1.0.2'
+          lock_path: 'node_modules/call-bind-apply-helpers'
+          native: false
+        14:
+          name: 'call-bound'
+          version: '1.0.4'
+          lock_path: 'node_modules/call-bound'
+          native: false
+        15:
+          name: 'chownr'
+          version: '1.1.4'
+          lock_path: 'node_modules/chownr'
+          native: false
+        16:
+          name: 'content-disposition'
+          version: '1.1.0'
+          lock_path: 'node_modules/content-disposition'
+          native: false
+        17:
+          name: 'content-type'
+          version: '1.0.5'
+          lock_path: 'node_modules/content-type'
+          native: false
+        18:
+          name: 'cookie'
+          version: '0.7.2'
+          lock_path: 'node_modules/cookie'
+          native: false
+        19:
+          name: 'cookie-signature'
+          version: '1.2.2'
+          lock_path: 'node_modules/cookie-signature'
+          native: false
+        20:
+          name: 'cors'
+          version: '2.8.6'
+          lock_path: 'node_modules/cors'
+          native: false
+        21:
+          name: 'cross-spawn'
+          version: '7.0.6'
+          lock_path: 'node_modules/cross-spawn'
+          native: false
+        22:
+          name: 'debug'
+          version: '4.4.3'
+          lock_path: 'node_modules/debug'
+          native: false
+        23:
+          name: 'decompress-response'
+          version: '6.0.0'
+          lock_path: 'node_modules/decompress-response'
+          native: false
+        24:
+          name: 'deep-extend'
+          version: '0.6.0'
+          lock_path: 'node_modules/deep-extend'
+          native: false
+        25:
+          name: 'depd'
+          version: '2.0.0'
+          lock_path: 'node_modules/depd'
+          native: false
+        26:
+          name: 'detect-libc'
+          version: '2.1.2'
+          lock_path: 'node_modules/detect-libc'
+          native: false
+        27:
+          name: 'dunder-proto'
+          version: '1.0.1'
+          lock_path: 'node_modules/dunder-proto'
+          native: false
+        28:
+          name: 'ee-first'
+          version: '1.1.1'
+          lock_path: 'node_modules/ee-first'
+          native: false
+        29:
+          name: 'encodeurl'
+          version: '2.0.0'
+          lock_path: 'node_modules/encodeurl'
+          native: false
+        30:
+          name: 'end-of-stream'
+          version: '1.4.5'
+          lock_path: 'node_modules/end-of-stream'
+          native: false
+        31:
+          name: 'es-define-property'
+          version: '1.0.1'
+          lock_path: 'node_modules/es-define-property'
+          native: false
+        32:
+          name: 'es-errors'
+          version: '1.3.0'
+          lock_path: 'node_modules/es-errors'
+          native: false
+        33:
+          name: 'es-object-atoms'
+          version: '1.1.2'
+          lock_path: 'node_modules/es-object-atoms'
+          native: false
+        34:
+          name: 'escape-html'
+          version: '1.0.3'
+          lock_path: 'node_modules/escape-html'
+          native: false
+        35:
+          name: 'esprima'
+          version: '4.0.1'
+          lock_path: 'node_modules/esprima'
+          native: false
+        36:
+          name: 'etag'
+          version: '1.8.1'
+          lock_path: 'node_modules/etag'
+          native: false
+        37:
+          name: 'eventsource'
+          version: '3.0.7'
+          lock_path: 'node_modules/eventsource'
+          native: false
+        38:
+          name: 'eventsource-parser'
+          version: '3.0.8'
+          lock_path: 'node_modules/eventsource-parser'
+          native: false
+        39:
+          name: 'expand-template'
+          version: '2.0.3'
+          lock_path: 'node_modules/expand-template'
+          native: false
+        40:
+          name: 'express'
+          version: '5.2.1'
+          lock_path: 'node_modules/express'
+          native: false
+        41:
+          name: 'express-rate-limit'
+          version: '8.5.2'
+          lock_path: 'node_modules/express-rate-limit'
+          native: false
+        42:
+          name: 'extend-shallow'
+          version: '2.0.1'
+          lock_path: 'node_modules/extend-shallow'
+          native: false
+        43:
+          name: 'fast-deep-equal'
+          version: '3.1.3'
+          lock_path: 'node_modules/fast-deep-equal'
+          native: false
+        44:
+          name: 'fast-uri'
+          version: '3.1.2'
+          lock_path: 'node_modules/fast-uri'
+          native: false
+        45:
+          name: 'file-uri-to-path'
+          version: '1.0.0'
+          lock_path: 'node_modules/file-uri-to-path'
+          native: false
+        46:
+          name: 'finalhandler'
+          version: '2.1.1'
+          lock_path: 'node_modules/finalhandler'
+          native: false
+        47:
+          name: 'forwarded'
+          version: '0.2.0'
+          lock_path: 'node_modules/forwarded'
+          native: false
+        48:
+          name: 'fresh'
+          version: '2.0.0'
+          lock_path: 'node_modules/fresh'
+          native: false
+        49:
+          name: 'fs-constants'
+          version: '1.0.0'
+          lock_path: 'node_modules/fs-constants'
+          native: false
+        50:
+          name: 'function-bind'
+          version: '1.1.2'
+          lock_path: 'node_modules/function-bind'
+          native: false
+        51:
+          name: 'get-intrinsic'
+          version: '1.3.0'
+          lock_path: 'node_modules/get-intrinsic'
+          native: false
+        52:
+          name: 'get-proto'
+          version: '1.0.1'
+          lock_path: 'node_modules/get-proto'
+          native: false
+        53:
+          name: 'github-from-package'
+          version: '0.0.0'
+          lock_path: 'node_modules/github-from-package'
+          native: false
+        54:
+          name: 'gopd'
+          version: '1.2.0'
+          lock_path: 'node_modules/gopd'
+          native: false
+        55:
+          name: 'gray-matter'
+          version: '4.0.3'
+          lock_path: 'node_modules/gray-matter'
+          native: false
+        56:
+          name: 'has-symbols'
+          version: '1.1.0'
+          lock_path: 'node_modules/has-symbols'
+          native: false
+        57:
+          name: 'hasown'
+          version: '2.0.3'
+          lock_path: 'node_modules/hasown'
+          native: false
+        58:
+          name: 'hono'
+          version: '4.12.22'
+          lock_path: 'node_modules/hono'
+          native: false
+        59:
+          name: 'http-errors'
+          version: '2.0.1'
+          lock_path: 'node_modules/http-errors'
+          native: false
+        60:
+          name: 'iconv-lite'
+          version: '0.7.2'
+          lock_path: 'node_modules/iconv-lite'
+          native: false
+        61:
+          name: 'ieee754'
+          version: '1.2.1'
+          lock_path: 'node_modules/ieee754'
+          native: false
+        62:
+          name: 'inherits'
+          version: '2.0.4'
+          lock_path: 'node_modules/inherits'
+          native: false
+        63:
+          name: 'ini'
+          version: '1.3.8'
+          lock_path: 'node_modules/ini'
+          native: false
+        64:
+          name: 'ip-address'
+          version: '10.2.0'
+          lock_path: 'node_modules/ip-address'
+          native: false
+        65:
+          name: 'ipaddr.js'
+          version: '1.9.1'
+          lock_path: 'node_modules/ipaddr.js'
+          native: false
+        66:
+          name: 'is-extendable'
+          version: '0.1.1'
+          lock_path: 'node_modules/is-extendable'
+          native: false
+        67:
+          name: 'is-promise'
+          version: '4.0.0'
+          lock_path: 'node_modules/is-promise'
+          native: false
+        68:
+          name: 'isexe'
+          version: '2.0.0'
+          lock_path: 'node_modules/isexe'
+          native: false
+        69:
+          name: 'jose'
+          version: '6.2.3'
+          lock_path: 'node_modules/jose'
+          native: false
+        70:
+          name: 'js-yaml'
+          version: '3.14.2'
+          lock_path: 'node_modules/js-yaml'
+          native: false
+        71:
+          name: 'json-schema-traverse'
+          version: '1.0.0'
+          lock_path: 'node_modules/json-schema-traverse'
+          native: false
+        72:
+          name: 'json-schema-typed'
+          version: '8.0.2'
+          lock_path: 'node_modules/json-schema-typed'
+          native: false
+        73:
+          name: 'kind-of'
+          version: '6.0.3'
+          lock_path: 'node_modules/kind-of'
+          native: false
+        74:
+          name: 'math-intrinsics'
+          version: '1.1.0'
+          lock_path: 'node_modules/math-intrinsics'
+          native: false
+        75:
+          name: 'media-typer'
+          version: '1.1.0'
+          lock_path: 'node_modules/media-typer'
+          native: false
+        76:
+          name: 'merge-descriptors'
+          version: '2.0.0'
+          lock_path: 'node_modules/merge-descriptors'
+          native: false
+        77:
+          name: 'mime-db'
+          version: '1.54.0'
+          lock_path: 'node_modules/mime-db'
+          native: false
+        78:
+          name: 'mime-types'
+          version: '3.0.2'
+          lock_path: 'node_modules/mime-types'
+          native: false
+        79:
+          name: 'mimic-response'
+          version: '3.1.0'
+          lock_path: 'node_modules/mimic-response'
+          native: false
+        80:
+          name: 'minimist'
+          version: '1.2.8'
+          lock_path: 'node_modules/minimist'
+          native: false
+        81:
+          name: 'mkdirp-classic'
+          version: '0.5.3'
+          lock_path: 'node_modules/mkdirp-classic'
+          native: false
+        82:
+          name: 'ms'
+          version: '2.1.3'
+          lock_path: 'node_modules/ms'
+          native: false
+        83:
+          name: 'napi-build-utils'
+          version: '2.0.0'
+          lock_path: 'node_modules/napi-build-utils'
+          native: false
+        84:
+          name: 'negotiator'
+          version: '1.0.0'
+          lock_path: 'node_modules/negotiator'
+          native: false
+        85:
+          name: 'node-abi'
+          version: '3.92.0'
+          lock_path: 'node_modules/node-abi'
+          native: false
+        86:
+          name: 'object-assign'
+          version: '4.1.1'
+          lock_path: 'node_modules/object-assign'
+          native: false
+        87:
+          name: 'object-inspect'
+          version: '1.13.4'
+          lock_path: 'node_modules/object-inspect'
+          native: false
+        88:
+          name: 'on-finished'
+          version: '2.4.1'
+          lock_path: 'node_modules/on-finished'
+          native: false
+        89:
+          name: 'once'
+          version: '1.4.0'
+          lock_path: 'node_modules/once'
+          native: false
+        90:
+          name: 'parseurl'
+          version: '1.3.3'
+          lock_path: 'node_modules/parseurl'
+          native: false
+        91:
+          name: 'path-key'
+          version: '3.1.1'
+          lock_path: 'node_modules/path-key'
+          native: false
+        92:
+          name: 'path-to-regexp'
+          version: '8.4.2'
+          lock_path: 'node_modules/path-to-regexp'
+          native: false
+        93:
+          name: 'pkce-challenge'
+          version: '5.0.1'
+          lock_path: 'node_modules/pkce-challenge'
+          native: false
+        94:
+          name: 'prebuild-install'
+          version: '7.1.3'
+          lock_path: 'node_modules/prebuild-install'
+          native: false
+        95:
+          name: 'proxy-addr'
+          version: '2.0.7'
+          lock_path: 'node_modules/proxy-addr'
+          native: false
+        96:
+          name: 'pump'
+          version: '3.0.4'
+          lock_path: 'node_modules/pump'
+          native: false
+        97:
+          name: 'qs'
+          version: '6.15.2'
+          lock_path: 'node_modules/qs'
+          native: false
+        98:
+          name: 'range-parser'
+          version: '1.2.1'
+          lock_path: 'node_modules/range-parser'
+          native: false
+        99:
+          name: 'raw-body'
+          version: '3.0.2'
+          lock_path: 'node_modules/raw-body'
+          native: false
+        100:
+          name: 'rc'
+          version: '1.2.8'
+          lock_path: 'node_modules/rc'
+          native: false
+        101:
+          name: 'readable-stream'
+          version: '3.6.2'
+          lock_path: 'node_modules/readable-stream'
+          native: false
+        102:
+          name: 'require-from-string'
+          version: '2.0.2'
+          lock_path: 'node_modules/require-from-string'
+          native: false
+        103:
+          name: 'router'
+          version: '2.2.0'
+          lock_path: 'node_modules/router'
+          native: false
+        104:
+          name: 'safe-buffer'
+          version: '5.2.1'
+          lock_path: 'node_modules/safe-buffer'
+          native: false
+        105:
+          name: 'safer-buffer'
+          version: '2.1.2'
+          lock_path: 'node_modules/safer-buffer'
+          native: false
+        106:
+          name: 'section-matter'
+          version: '1.0.0'
+          lock_path: 'node_modules/section-matter'
+          native: false
+        107:
+          name: 'semver'
+          version: '7.8.1'
+          lock_path: 'node_modules/semver'
+          native: false
+        108:
+          name: 'send'
+          version: '1.2.1'
+          lock_path: 'node_modules/send'
+          native: false
+        109:
+          name: 'serve-static'
+          version: '2.2.1'
+          lock_path: 'node_modules/serve-static'
+          native: false
+        110:
+          name: 'setprototypeof'
+          version: '1.2.0'
+          lock_path: 'node_modules/setprototypeof'
+          native: false
+        111:
+          name: 'shebang-command'
+          version: '2.0.0'
+          lock_path: 'node_modules/shebang-command'
+          native: false
+        112:
+          name: 'shebang-regex'
+          version: '3.0.0'
+          lock_path: 'node_modules/shebang-regex'
+          native: false
+        113:
+          name: 'side-channel'
+          version: '1.1.0'
+          lock_path: 'node_modules/side-channel'
+          native: false
+        114:
+          name: 'side-channel-list'
+          version: '1.0.1'
+          lock_path: 'node_modules/side-channel-list'
+          native: false
+        115:
+          name: 'side-channel-map'
+          version: '1.0.1'
+          lock_path: 'node_modules/side-channel-map'
+          native: false
+        116:
+          name: 'side-channel-weakmap'
+          version: '1.0.2'
+          lock_path: 'node_modules/side-channel-weakmap'
+          native: false
+        117:
+          name: 'simple-concat'
+          version: '1.0.1'
+          lock_path: 'node_modules/simple-concat'
+          native: false
+        118:
+          name: 'simple-get'
+          version: '4.0.1'
+          lock_path: 'node_modules/simple-get'
+          native: false
+        119:
+          name: 'sprintf-js'
+          version: '1.0.3'
+          lock_path: 'node_modules/sprintf-js'
+          native: false
+        120:
+          name: 'sqlite-vec'
+          version: '0.1.9'
+          lock_path: 'node_modules/sqlite-vec'
+          native: true
+        121:
+          name: 'sqlite-vec-darwin-arm64'
+          version: '0.1.9'
+          lock_path: 'node_modules/sqlite-vec-darwin-arm64'
+          native: true
+        122:
+          name: 'statuses'
+          version: '2.0.2'
+          lock_path: 'node_modules/statuses'
+          native: false
+        123:
+          name: 'string_decoder'
+          version: '1.3.0'
+          lock_path: 'node_modules/string_decoder'
+          native: false
+        124:
+          name: 'strip-bom-string'
+          version: '1.0.0'
+          lock_path: 'node_modules/strip-bom-string'
+          native: false
+        125:
+          name: 'strip-json-comments'
+          version: '2.0.1'
+          lock_path: 'node_modules/strip-json-comments'
+          native: false
+        126:
+          name: 'tar-fs'
+          version: '2.1.4'
+          lock_path: 'node_modules/tar-fs'
+          native: false
+        127:
+          name: 'tar-stream'
+          version: '2.2.0'
+          lock_path: 'node_modules/tar-stream'
+          native: false
+        128:
+          name: 'toidentifier'
+          version: '1.0.1'
+          lock_path: 'node_modules/toidentifier'
+          native: false
+        129:
+          name: 'tunnel-agent'
+          version: '0.6.0'
+          lock_path: 'node_modules/tunnel-agent'
+          native: false
+        130:
+          name: 'type-is'
+          version: '2.1.0'
+          lock_path: 'node_modules/type-is'
+          native: false
+        131:
+          name: 'content-type'
+          version: '2.0.0'
+          lock_path: 'node_modules/type-is/node_modules/content-type'
+          native: false
+        132:
+          name: 'unpipe'
+          version: '1.0.0'
+          lock_path: 'node_modules/unpipe'
+          native: false
+        133:
+          name: 'util-deprecate'
+          version: '1.0.2'
+          lock_path: 'node_modules/util-deprecate'
+          native: false
+        134:
+          name: 'vary'
+          version: '1.1.2'
+          lock_path: 'node_modules/vary'
+          native: false
+        135:
+          name: 'which'
+          version: '2.0.2'
+          lock_path: 'node_modules/which'
+          native: false
+        136:
+          name: 'wrappy'
+          version: '1.0.2'
+          lock_path: 'node_modules/wrappy'
+          native: false
+        137:
+          name: 'zod'
+          version: '3.25.76'
+          lock_path: 'node_modules/zod'
+          native: false
+        138:
+          name: 'zod-to-json-schema'
+          version: '3.25.2'
+          lock_path: 'node_modules/zod-to-json-schema'
+          native: false
+      provenance:
+        builder: 'runtime:deps-pack:build'
+        source: 'unit-6d fixture'
+  actual:
+    ok: true
+    errors:
+    manifest:
+      schema_version: 1
+      created_at: '2026-06-14T00:00:00.000Z'
+      plugin:
+        name: '@ourostack/desk-mcp'
+        version: '1.3.1'
+      platform:
+        os: 'darwin'
+        arch: 'arm64'
+        node_abi: '127'
+      package_lock:
+        path: 'plugins/desk/mcp/package-lock.json'
+        sha256: '9d427577ed4ebf81b02d100b3e48ea3f39f3392b62ba6e83134344147acce0c0'
+        prod_dependency_lock_hash: 'e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be'
+      archive:
+        file: 'runtime-deps.tgz'
+        sha256: 'd1a9e97bdfa04f471d4a586ebf88b178dbfe3db964146a999ce90e8bcdb4fd16'
+        root_entries:
+          0: 'node_modules/'
+          1: 'package.json'
+          2: 'package-lock.json'
+          3: 'runtime-deps.manifest.json'
+        contains_server_source: false
+      production_dependencies:
+        0:
+          name: '@hono/node-server'
+          version: '1.19.14'
+          lock_path: 'node_modules/@hono/node-server'
+          native: false
+        1:
+          name: '@modelcontextprotocol/sdk'
+          version: '1.29.0'
+          lock_path: 'node_modules/@modelcontextprotocol/sdk'
+          native: false
+        2:
+          name: 'accepts'
+          version: '2.0.0'
+          lock_path: 'node_modules/accepts'
+          native: false
+        3:
+          name: 'ajv'
+          version: '8.20.0'
+          lock_path: 'node_modules/ajv'
+          native: false
+        4:
+          name: 'ajv-formats'
+          version: '3.0.1'
+          lock_path: 'node_modules/ajv-formats'
+          native: false
+        5:
+          name: 'argparse'
+          version: '1.0.10'
+          lock_path: 'node_modules/argparse'
+          native: false
+        6:
+          name: 'base64-js'
+          version: '1.5.1'
+          lock_path: 'node_modules/base64-js'
+          native: false
+        7:
+          name: 'better-sqlite3'
+          version: '11.10.0'
+          lock_path: 'node_modules/better-sqlite3'
+          native: true
+        8:
+          name: 'bindings'
+          version: '1.5.0'
+          lock_path: 'node_modules/bindings'
+          native: false
+        9:
+          name: 'bl'
+          version: '4.1.0'
+          lock_path: 'node_modules/bl'
+          native: false
+        10:
+          name: 'body-parser'
+          version: '2.2.2'
+          lock_path: 'node_modules/body-parser'
+          native: false
+        11:
+          name: 'buffer'
+          version: '5.7.1'
+          lock_path: 'node_modules/buffer'
+          native: false
+        12:
+          name: 'bytes'
+          version: '3.1.2'
+          lock_path: 'node_modules/bytes'
+          native: false
+        13:
+          name: 'call-bind-apply-helpers'
+          version: '1.0.2'
+          lock_path: 'node_modules/call-bind-apply-helpers'
+          native: false
+        14:
+          name: 'call-bound'
+          version: '1.0.4'
+          lock_path: 'node_modules/call-bound'
+          native: false
+        15:
+          name: 'chownr'
+          version: '1.1.4'
+          lock_path: 'node_modules/chownr'
+          native: false
+        16:
+          name: 'content-disposition'
+          version: '1.1.0'
+          lock_path: 'node_modules/content-disposition'
+          native: false
+        17:
+          name: 'content-type'
+          version: '1.0.5'
+          lock_path: 'node_modules/content-type'
+          native: false
+        18:
+          name: 'cookie'
+          version: '0.7.2'
+          lock_path: 'node_modules/cookie'
+          native: false
+        19:
+          name: 'cookie-signature'
+          version: '1.2.2'
+          lock_path: 'node_modules/cookie-signature'
+          native: false
+        20:
+          name: 'cors'
+          version: '2.8.6'
+          lock_path: 'node_modules/cors'
+          native: false
+        21:
+          name: 'cross-spawn'
+          version: '7.0.6'
+          lock_path: 'node_modules/cross-spawn'
+          native: false
+        22:
+          name: 'debug'
+          version: '4.4.3'
+          lock_path: 'node_modules/debug'
+          native: false
+        23:
+          name: 'decompress-response'
+          version: '6.0.0'
+          lock_path: 'node_modules/decompress-response'
+          native: false
+        24:
+          name: 'deep-extend'
+          version: '0.6.0'
+          lock_path: 'node_modules/deep-extend'
+          native: false
+        25:
+          name: 'depd'
+          version: '2.0.0'
+          lock_path: 'node_modules/depd'
+          native: false
+        26:
+          name: 'detect-libc'
+          version: '2.1.2'
+          lock_path: 'node_modules/detect-libc'
+          native: false
+        27:
+          name: 'dunder-proto'
+          version: '1.0.1'
+          lock_path: 'node_modules/dunder-proto'
+          native: false
+        28:
+          name: 'ee-first'
+          version: '1.1.1'
+          lock_path: 'node_modules/ee-first'
+          native: false
+        29:
+          name: 'encodeurl'
+          version: '2.0.0'
+          lock_path: 'node_modules/encodeurl'
+          native: false
+        30:
+          name: 'end-of-stream'
+          version: '1.4.5'
+          lock_path: 'node_modules/end-of-stream'
+          native: false
+        31:
+          name: 'es-define-property'
+          version: '1.0.1'
+          lock_path: 'node_modules/es-define-property'
+          native: false
+        32:
+          name: 'es-errors'
+          version: '1.3.0'
+          lock_path: 'node_modules/es-errors'
+          native: false
+        33:
+          name: 'es-object-atoms'
+          version: '1.1.2'
+          lock_path: 'node_modules/es-object-atoms'
+          native: false
+        34:
+          name: 'escape-html'
+          version: '1.0.3'
+          lock_path: 'node_modules/escape-html'
+          native: false
+        35:
+          name: 'esprima'
+          version: '4.0.1'
+          lock_path: 'node_modules/esprima'
+          native: false
+        36:
+          name: 'etag'
+          version: '1.8.1'
+          lock_path: 'node_modules/etag'
+          native: false
+        37:
+          name: 'eventsource'
+          version: '3.0.7'
+          lock_path: 'node_modules/eventsource'
+          native: false
+        38:
+          name: 'eventsource-parser'
+          version: '3.0.8'
+          lock_path: 'node_modules/eventsource-parser'
+          native: false
+        39:
+          name: 'expand-template'
+          version: '2.0.3'
+          lock_path: 'node_modules/expand-template'
+          native: false
+        40:
+          name: 'express'
+          version: '5.2.1'
+          lock_path: 'node_modules/express'
+          native: false
+        41:
+          name: 'express-rate-limit'
+          version: '8.5.2'
+          lock_path: 'node_modules/express-rate-limit'
+          native: false
+        42:
+          name: 'extend-shallow'
+          version: '2.0.1'
+          lock_path: 'node_modules/extend-shallow'
+          native: false
+        43:
+          name: 'fast-deep-equal'
+          version: '3.1.3'
+          lock_path: 'node_modules/fast-deep-equal'
+          native: false
+        44:
+          name: 'fast-uri'
+          version: '3.1.2'
+          lock_path: 'node_modules/fast-uri'
+          native: false
+        45:
+          name: 'file-uri-to-path'
+          version: '1.0.0'
+          lock_path: 'node_modules/file-uri-to-path'
+          native: false
+        46:
+          name: 'finalhandler'
+          version: '2.1.1'
+          lock_path: 'node_modules/finalhandler'
+          native: false
+        47:
+          name: 'forwarded'
+          version: '0.2.0'
+          lock_path: 'node_modules/forwarded'
+          native: false
+        48:
+          name: 'fresh'
+          version: '2.0.0'
+          lock_path: 'node_modules/fresh'
+          native: false
+        49:
+          name: 'fs-constants'
+          version: '1.0.0'
+          lock_path: 'node_modules/fs-constants'
+          native: false
+        50:
+          name: 'function-bind'
+          version: '1.1.2'
+          lock_path: 'node_modules/function-bind'
+          native: false
+        51:
+          name: 'get-intrinsic'
+          version: '1.3.0'
+          lock_path: 'node_modules/get-intrinsic'
+          native: false
+        52:
+          name: 'get-proto'
+          version: '1.0.1'
+          lock_path: 'node_modules/get-proto'
+          native: false
+        53:
+          name: 'github-from-package'
+          version: '0.0.0'
+          lock_path: 'node_modules/github-from-package'
+          native: false
+        54:
+          name: 'gopd'
+          version: '1.2.0'
+          lock_path: 'node_modules/gopd'
+          native: false
+        55:
+          name: 'gray-matter'
+          version: '4.0.3'
+          lock_path: 'node_modules/gray-matter'
+          native: false
+        56:
+          name: 'has-symbols'
+          version: '1.1.0'
+          lock_path: 'node_modules/has-symbols'
+          native: false
+        57:
+          name: 'hasown'
+          version: '2.0.3'
+          lock_path: 'node_modules/hasown'
+          native: false
+        58:
+          name: 'hono'
+          version: '4.12.22'
+          lock_path: 'node_modules/hono'
+          native: false
+        59:
+          name: 'http-errors'
+          version: '2.0.1'
+          lock_path: 'node_modules/http-errors'
+          native: false
+        60:
+          name: 'iconv-lite'
+          version: '0.7.2'
+          lock_path: 'node_modules/iconv-lite'
+          native: false
+        61:
+          name: 'ieee754'
+          version: '1.2.1'
+          lock_path: 'node_modules/ieee754'
+          native: false
+        62:
+          name: 'inherits'
+          version: '2.0.4'
+          lock_path: 'node_modules/inherits'
+          native: false
+        63:
+          name: 'ini'
+          version: '1.3.8'
+          lock_path: 'node_modules/ini'
+          native: false
+        64:
+          name: 'ip-address'
+          version: '10.2.0'
+          lock_path: 'node_modules/ip-address'
+          native: false
+        65:
+          name: 'ipaddr.js'
+          version: '1.9.1'
+          lock_path: 'node_modules/ipaddr.js'
+          native: false
+        66:
+          name: 'is-extendable'
+          version: '0.1.1'
+          lock_path: 'node_modules/is-extendable'
+          native: false
+        67:
+          name: 'is-promise'
+          version: '4.0.0'
+          lock_path: 'node_modules/is-promise'
+          native: false
+        68:
+          name: 'isexe'
+          version: '2.0.0'
+          lock_path: 'node_modules/isexe'
+          native: false
+        69:
+          name: 'jose'
+          version: '6.2.3'
+          lock_path: 'node_modules/jose'
+          native: false
+        70:
+          name: 'js-yaml'
+          version: '3.14.2'
+          lock_path: 'node_modules/js-yaml'
+          native: false
+        71:
+          name: 'json-schema-traverse'
+          version: '1.0.0'
+          lock_path: 'node_modules/json-schema-traverse'
+          native: false
+        72:
+          name: 'json-schema-typed'
+          version: '8.0.2'
+          lock_path: 'node_modules/json-schema-typed'
+          native: false
+        73:
+          name: 'kind-of'
+          version: '6.0.3'
+          lock_path: 'node_modules/kind-of'
+          native: false
+        74:
+          name: 'math-intrinsics'
+          version: '1.1.0'
+          lock_path: 'node_modules/math-intrinsics'
+          native: false
+        75:
+          name: 'media-typer'
+          version: '1.1.0'
+          lock_path: 'node_modules/media-typer'
+          native: false
+        76:
+          name: 'merge-descriptors'
+          version: '2.0.0'
+          lock_path: 'node_modules/merge-descriptors'
+          native: false
+        77:
+          name: 'mime-db'
+          version: '1.54.0'
+          lock_path: 'node_modules/mime-db'
+          native: false
+        78:
+          name: 'mime-types'
+          version: '3.0.2'
+          lock_path: 'node_modules/mime-types'
+          native: false
+        79:
+          name: 'mimic-response'
+          version: '3.1.0'
+          lock_path: 'node_modules/mimic-response'
+          native: false
+        80:
+          name: 'minimist'
+          version: '1.2.8'
+          lock_path: 'node_modules/minimist'
+          native: false
+        81:
+          name: 'mkdirp-classic'
+          version: '0.5.3'
+          lock_path: 'node_modules/mkdirp-classic'
+          native: false
+        82:
+          name: 'ms'
+          version: '2.1.3'
+          lock_path: 'node_modules/ms'
+          native: false
+        83:
+          name: 'napi-build-utils'
+          version: '2.0.0'
+          lock_path: 'node_modules/napi-build-utils'
+          native: false
+        84:
+          name: 'negotiator'
+          version: '1.0.0'
+          lock_path: 'node_modules/negotiator'
+          native: false
+        85:
+          name: 'node-abi'
+          version: '3.92.0'
+          lock_path: 'node_modules/node-abi'
+          native: false
+        86:
+          name: 'object-assign'
+          version: '4.1.1'
+          lock_path: 'node_modules/object-assign'
+          native: false
+        87:
+          name: 'object-inspect'
+          version: '1.13.4'
+          lock_path: 'node_modules/object-inspect'
+          native: false
+        88:
+          name: 'on-finished'
+          version: '2.4.1'
+          lock_path: 'node_modules/on-finished'
+          native: false
+        89:
+          name: 'once'
+          version: '1.4.0'
+          lock_path: 'node_modules/once'
+          native: false
+        90:
+          name: 'parseurl'
+          version: '1.3.3'
+          lock_path: 'node_modules/parseurl'
+          native: false
+        91:
+          name: 'path-key'
+          version: '3.1.1'
+          lock_path: 'node_modules/path-key'
+          native: false
+        92:
+          name: 'path-to-regexp'
+          version: '8.4.2'
+          lock_path: 'node_modules/path-to-regexp'
+          native: false
+        93:
+          name: 'pkce-challenge'
+          version: '5.0.1'
+          lock_path: 'node_modules/pkce-challenge'
+          native: false
+        94:
+          name: 'prebuild-install'
+          version: '7.1.3'
+          lock_path: 'node_modules/prebuild-install'
+          native: false
+        95:
+          name: 'proxy-addr'
+          version: '2.0.7'
+          lock_path: 'node_modules/proxy-addr'
+          native: false
+        96:
+          name: 'pump'
+          version: '3.0.4'
+          lock_path: 'node_modules/pump'
+          native: false
+        97:
+          name: 'qs'
+          version: '6.15.2'
+          lock_path: 'node_modules/qs'
+          native: false
+        98:
+          name: 'range-parser'
+          version: '1.2.1'
+          lock_path: 'node_modules/range-parser'
+          native: false
+        99:
+          name: 'raw-body'
+          version: '3.0.2'
+          lock_path: 'node_modules/raw-body'
+          native: false
+        100:
+          name: 'rc'
+          version: '1.2.8'
+          lock_path: 'node_modules/rc'
+          native: false
+        101:
+          name: 'readable-stream'
+          version: '3.6.2'
+          lock_path: 'node_modules/readable-stream'
+          native: false
+        102:
+          name: 'require-from-string'
+          version: '2.0.2'
+          lock_path: 'node_modules/require-from-string'
+          native: false
+        103:
+          name: 'router'
+          version: '2.2.0'
+          lock_path: 'node_modules/router'
+          native: false
+        104:
+          name: 'safe-buffer'
+          version: '5.2.1'
+          lock_path: 'node_modules/safe-buffer'
+          native: false
+        105:
+          name: 'safer-buffer'
+          version: '2.1.2'
+          lock_path: 'node_modules/safer-buffer'
+          native: false
+        106:
+          name: 'section-matter'
+          version: '1.0.0'
+          lock_path: 'node_modules/section-matter'
+          native: false
+        107:
+          name: 'semver'
+          version: '7.8.1'
+          lock_path: 'node_modules/semver'
+          native: false
+        108:
+          name: 'send'
+          version: '1.2.1'
+          lock_path: 'node_modules/send'
+          native: false
+        109:
+          name: 'serve-static'
+          version: '2.2.1'
+          lock_path: 'node_modules/serve-static'
+          native: false
+        110:
+          name: 'setprototypeof'
+          version: '1.2.0'
+          lock_path: 'node_modules/setprototypeof'
+          native: false
+        111:
+          name: 'shebang-command'
+          version: '2.0.0'
+          lock_path: 'node_modules/shebang-command'
+          native: false
+        112:
+          name: 'shebang-regex'
+          version: '3.0.0'
+          lock_path: 'node_modules/shebang-regex'
+          native: false
+        113:
+          name: 'side-channel'
+          version: '1.1.0'
+          lock_path: 'node_modules/side-channel'
+          native: false
+        114:
+          name: 'side-channel-list'
+          version: '1.0.1'
+          lock_path: 'node_modules/side-channel-list'
+          native: false
+        115:
+          name: 'side-channel-map'
+          version: '1.0.1'
+          lock_path: 'node_modules/side-channel-map'
+          native: false
+        116:
+          name: 'side-channel-weakmap'
+          version: '1.0.2'
+          lock_path: 'node_modules/side-channel-weakmap'
+          native: false
+        117:
+          name: 'simple-concat'
+          version: '1.0.1'
+          lock_path: 'node_modules/simple-concat'
+          native: false
+        118:
+          name: 'simple-get'
+          version: '4.0.1'
+          lock_path: 'node_modules/simple-get'
+          native: false
+        119:
+          name: 'sprintf-js'
+          version: '1.0.3'
+          lock_path: 'node_modules/sprintf-js'
+          native: false
+        120:
+          name: 'sqlite-vec'
+          version: '0.1.9'
+          lock_path: 'node_modules/sqlite-vec'
+          native: true
+        121:
+          name: 'sqlite-vec-darwin-arm64'
+          version: '0.1.9'
+          lock_path: 'node_modules/sqlite-vec-darwin-arm64'
+          native: true
+        122:
+          name: 'statuses'
+          version: '2.0.2'
+          lock_path: 'node_modules/statuses'
+          native: false
+        123:
+          name: 'string_decoder'
+          version: '1.3.0'
+          lock_path: 'node_modules/string_decoder'
+          native: false
+        124:
+          name: 'strip-bom-string'
+          version: '1.0.0'
+          lock_path: 'node_modules/strip-bom-string'
+          native: false
+        125:
+          name: 'strip-json-comments'
+          version: '2.0.1'
+          lock_path: 'node_modules/strip-json-comments'
+          native: false
+        126:
+          name: 'tar-fs'
+          version: '2.1.4'
+          lock_path: 'node_modules/tar-fs'
+          native: false
+        127:
+          name: 'tar-stream'
+          version: '2.2.0'
+          lock_path: 'node_modules/tar-stream'
+          native: false
+        128:
+          name: 'toidentifier'
+          version: '1.0.1'
+          lock_path: 'node_modules/toidentifier'
+          native: false
+        129:
+          name: 'tunnel-agent'
+          version: '0.6.0'
+          lock_path: 'node_modules/tunnel-agent'
+          native: false
+        130:
+          name: 'type-is'
+          version: '2.1.0'
+          lock_path: 'node_modules/type-is'
+          native: false
+        131:
+          name: 'content-type'
+          version: '2.0.0'
+          lock_path: 'node_modules/type-is/node_modules/content-type'
+          native: false
+        132:
+          name: 'unpipe'
+          version: '1.0.0'
+          lock_path: 'node_modules/unpipe'
+          native: false
+        133:
+          name: 'util-deprecate'
+          version: '1.0.2'
+          lock_path: 'node_modules/util-deprecate'
+          native: false
+        134:
+          name: 'vary'
+          version: '1.1.2'
+          lock_path: 'node_modules/vary'
+          native: false
+        135:
+          name: 'which'
+          version: '2.0.2'
+          lock_path: 'node_modules/which'
+          native: false
+        136:
+          name: 'wrappy'
+          version: '1.0.2'
+          lock_path: 'node_modules/wrappy'
+          native: false
+        137:
+          name: 'zod'
+          version: '3.25.76'
+          lock_path: 'node_modules/zod'
+          native: false
+        138:
+          name: 'zod-to-json-schema'
+          version: '3.25.2'
+          lock_path: 'node_modules/zod-to-json-schema'
+          native: false
+      provenance:
+        builder: 'runtime:deps-pack:build'
+        source: 'unit-6d fixture'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/runtime_dependency_packs.test.js:1220:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: package declares CI/release scripts for runtime dependency packs
+ok 6 - package declares CI/release scripts for runtime dependency packs
+  ---
+  duration_ms: 1634.185917
+  type: 'test'
+  ...
+# Subtest: CI workflow verifies runtime dependency packs for release-maintained artifacts
+ok 7 - CI workflow verifies runtime dependency packs for release-maintained artifacts
+  ---
+  duration_ms: 1.986
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 5
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2749.83875

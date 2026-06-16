@@ -1,0 +1,5 @@
+$ git diff --check 177a10d..574eb9a
+exit 0
+
+$ git diff --check
+exit 0

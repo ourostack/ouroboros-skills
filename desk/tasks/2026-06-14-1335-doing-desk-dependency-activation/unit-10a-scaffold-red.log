@@ -1,0 +1,72 @@
+TAP version 13
+# Subtest: server scaffolds all 14 expected tool names
+not ok 1 - server scaffolds all 14 expected tool names
+  ---
+  duration_ms: 1.141666
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/scaffold.test.js:38:1'
+  failureType: 'testCodeFailure'
+  error: "expected tool 'desk_status' to be registered; got: task_create, task_update, task_archive, track_create, track_update, friction_add, lesson_add, desk_search, desk_recall, desk_similar, desk_timeline, desk_thread, desk_reindex"
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/scaffold.test.js:40:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: path resolver expands ~ and rejects nonexistent roots
+ok 2 - path resolver expands ~ and rejects nonexistent roots
+  ---
+  duration_ms: 0.9405
+  type: 'test'
+  ...
+# Subtest: path resolver — explicit --root wins over env + fallbacks
+ok 3 - path resolver — explicit --root wins over env + fallbacks
+  ---
+  duration_ms: 1.465333
+  type: 'test'
+  ...
+# Subtest: path resolver — $DESK env var used when --root absent
+ok 4 - path resolver — $DESK env var used when --root absent
+  ---
+  duration_ms: 0.800084
+  type: 'test'
+  ...
+# Subtest: path resolver — falls through $HOME canonical locations when env unset
+ok 5 - path resolver — falls through $HOME canonical locations when env unset
+  ---
+  duration_ms: 0.612958
+  type: 'test'
+  ...
+# Subtest: path resolver — prefers ms-desk over desk over worker-workspace
+ok 6 - path resolver — prefers ms-desk over desk over worker-workspace
+  ---
+  duration_ms: 1.307208
+  type: 'test'
+  ...
+# Subtest: path resolver — falls back to worker-workspace as last resort
+ok 7 - path resolver — falls back to worker-workspace as last resort
+  ---
+  duration_ms: 0.540584
+  type: 'test'
+  ...
+# Subtest: path resolver — fatal error lists every path tried
+ok 8 - path resolver — fatal error lists every path tried
+  ---
+  duration_ms: 0.645
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 93.896792

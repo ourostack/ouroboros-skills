@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: runtime dependency pack artifact paths are deterministic and repo-relative
+ok 1 - runtime dependency pack artifact paths are deterministic and repo-relative
+  ---
+  duration_ms: 39.414459
+  type: 'test'
+  ...
+# Subtest: production dependency closure includes native packages and non-native transitive packages
+ok 2 - production dependency closure includes native packages and non-native transitive packages
+  ---
+  duration_ms: 4.69
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack manifest validates lock provenance and dependency-only shape
+ok 3 - runtime dependency pack manifest validates lock provenance and dependency-only shape
+  ---
+  duration_ms: 8.957709
+  type: 'test'
+  ...
+# Subtest: runtime dependency archive shape rejects server source and missing dependencies
+ok 4 - runtime dependency archive shape rejects server source and missing dependencies
+  ---
+  duration_ms: 1089.825125
+  type: 'test'
+  ...
+# Subtest: runtime dependency pack verification checks checksums and unsupported platforms
+ok 5 - runtime dependency pack verification checks checksums and unsupported platforms
+  ---
+  duration_ms: 739.830542
+  type: 'test'
+  ...
+# Subtest: package declares CI/release scripts for runtime dependency packs
+ok 6 - package declares CI/release scripts for runtime dependency packs
+  ---
+  duration_ms: 1901.995417
+  type: 'test'
+  ...
+# Subtest: CI workflow verifies runtime dependency packs for release-maintained artifacts
+ok 7 - CI workflow verifies runtime dependency packs for release-maintained artifacts
+  ---
+  duration_ms: 2.202333
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3882.633958

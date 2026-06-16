@@ -10,10 +10,12 @@ import * as path from "node:path"
 import { desk_reindex } from "../../src/tools/reindex.js"
 import { closeDb, indexDbPath, openDb } from "../../src/db/init.js"
 import { rebuildIndex } from "../../src/indexer/index.js"
+import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { mkTempDeskRoot } from "./_helpers.js"
 
 // All tests use skipEmbed to keep them hermetic (no Ollama dependency).
-const reindexOpts = { embed: undefined, skipEmbed: true }
+const noReleaseArtifacts = { snapshots: false, vectorPacks: false }
+const reindexOpts = { ...noReleaseArtifacts, embed: undefined, skipEmbed: true }
 
 function okEmbedFetch() {
   const vec = Array.from({ length: 768 }, (_, i) => (i % 11) / 768)
@@ -126,7 +128,7 @@ test("desk_reindex — no-force repairs a fresh lexical-only index when embeddin
   const res = await desk_reindex({
     deskRoot: root,
     input: {},
-    opts: { embed: { fetch: okEmbedFetch() } },
+    opts: { ...noReleaseArtifacts, embed: { fetch: okEmbedFetch() } },
   })
   assert.equal(res.status, "ok")
   assert.equal(res.built, true)
@@ -135,6 +137,112 @@ test("desk_reindex — no-force repairs a fresh lexical-only index when embeddin
   assert.equal(res.vectors_indexed, chunks)
   assert.equal(res.missing_vectors, 0)
   assert.equal(res.semantic_available, true)
+})
+
+test("desk_reindex — no-force repairs fresh vectors from an inactive embedding spec", async () => {
+  const root = await mkTempDeskRoot()
+  await writeFile(
+    root,
+    "trackA/task-1/task.md",
+    "---\nstatus: processing\nschema_version: 1\n---\nsemantic spec body\n",
+  )
+  await rebuildIndex(root, { embed: { fetch: okEmbedFetch() } })
+
+  let chunks = 0
+  {
+    const db = openDb(root)
+    try {
+      chunks = db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n
+      const vectors = db.prepare("SELECT COUNT(*) AS n FROM chunk_vecs").get().n
+      assert.ok(chunks >= 1, "fixture should have chunks")
+      assert.equal(vectors, chunks, "fixture should start with full vector rows")
+      db.prepare(
+        `UPDATE chunks
+         SET embedding_spec_id = 'old-spec',
+             chunker_id = 'old-chunker',
+             normalization_id = 'old-normalizer'`,
+      ).run()
+    } finally {
+      closeDb(db)
+    }
+  }
+
+  const res = await desk_reindex({
+    deskRoot: root,
+    input: {},
+    opts: { ...noReleaseArtifacts, embed: { fetch: okEmbedFetch() } },
+  })
+  assert.equal(res.status, "ok")
+  assert.equal(res.built, true)
+  assert.equal(res.reason, "semantic_missing")
+  assert.equal(res.chunks_total, chunks)
+  assert.equal(res.vectors_indexed, chunks)
+  assert.equal(res.missing_vectors, 0)
+  assert.equal(res.semantic_available, true)
+
+  const db = openDb(root)
+  try {
+    const stale = db.prepare(
+      `SELECT COUNT(*) AS n
+       FROM chunks
+       WHERE embedding_spec_id != ?
+          OR chunker_id != ?
+          OR normalization_id != ?`,
+    ).get(
+      ACTIVE_EMBEDDING_SPEC.id,
+      ACTIVE_EMBEDDING_SPEC.chunker_id,
+      ACTIVE_EMBEDDING_SPEC.normalization_id,
+    ).n
+    assert.equal(stale, 0, "repair should rewrite chunks to the active embedding spec")
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("desk_reindex — stale lexical-only indexes repair through default embedding options", async () => {
+  const root = await mkTempDeskRoot()
+  const originalFetch = globalThis.fetch
+  try {
+    const docPath = path.join("trackA", "task-1", "task.md")
+    await writeFile(
+      root,
+      docPath,
+      "---\nstatus: processing\nschema_version: 1\n---\nstale semantic repair body\n",
+    )
+    await rebuildIndex(root, { skipEmbed: true })
+    await writeFile(
+      root,
+      docPath,
+      "---\nstatus: processing\nschema_version: 1\n---\nstale semantic repair body changed\n",
+    )
+
+    const vec = Array.from({ length: ACTIVE_EMBEDDING_SPEC.dimension }, (_, i) => (i % 13) / 768)
+    let fetchCalls = 0
+    globalThis.fetch = async () => {
+      fetchCalls += 1
+      return { ok: true, json: async () => ({ embedding: vec }) }
+    }
+
+    const res = await desk_reindex({
+      deskRoot: root,
+      input: {},
+      opts: noReleaseArtifacts,
+    })
+
+    assert.equal(res.status, "ok")
+    assert.equal(res.built, true)
+    assert.equal(res.reason, "stale")
+    assert.ok(res.docs_indexed >= 1)
+    assert.equal(res.missing_vectors, 0)
+    assert.equal(res.semantic_available, true)
+    assert.ok(fetchCalls >= 2, "probe and rebuild should use default global fetch options")
+  } finally {
+    if (originalFetch === undefined) {
+      delete globalThis.fetch
+    } else {
+      globalThis.fetch = originalFetch
+    }
+  }
 })
 
 test("desk_reindex — force:true drops the DB and rebuilds from scratch", async () => {

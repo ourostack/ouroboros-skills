@@ -1,0 +1,29 @@
+
+> @ourostack/desk-mcp@1.3.1 artifact:validate
+> node scripts/validate-artifacts.js --desk-root <repo>/desk --plugin-root <repo>/plugins/desk
+
+{
+  "ok": true,
+  "vector_packs": {
+    "count": 1,
+    "artifacts": [
+      {
+        "pack_id": "repo-public-bootstrap-2026-06-15",
+        "rows": 2
+      }
+    ]
+  },
+  "snapshots": {
+    "count": 1,
+    "artifacts": [
+      {
+        "snapshot_id": "repo-public-bootstrap-2026-06-15",
+        "freshness": {
+          "artifact_source_scope": "fresh",
+          "document_tree": "fresh"
+        }
+      }
+    ]
+  },
+  "elapsed_ms": 13
+}

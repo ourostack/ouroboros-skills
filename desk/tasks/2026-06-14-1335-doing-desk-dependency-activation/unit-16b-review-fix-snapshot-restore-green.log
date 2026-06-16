@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+ok 1 - selectNewestCompatibleSnapshot chooses newest active-spec snapshot and ignores inactive specs
+  ---
+  duration_ms: 17.868917
+  type: 'test'
+  ...
+# Subtest: selectNewestCompatibleSnapshot returns null for no compatible snapshots and ties by snapshot id
+ok 2 - selectNewestCompatibleSnapshot returns null for no compatible snapshots and ties by snapshot id
+  ---
+  duration_ms: 15.050875
+  type: 'test'
+  ...
+# Subtest: discoverSnapshotArtifacts ignores non-directory entries and rejects invalid snapshot roots
+ok 3 - discoverSnapshotArtifacts ignores non-directory entries and rejects invalid snapshot roots
+  ---
+  duration_ms: 5.823833
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+ok 4 - restoreSnapshotToState copies decompressed bytes into desk state without mutating repo artifacts
+  ---
+  duration_ms: 11.47575
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState repairs corrupt metadata and missing state DB markers
+ok 5 - restoreSnapshotToState repairs corrupt metadata and missing state DB markers
+  ---
+  duration_ms: 9.178917
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState reports cache miss when no compatible snapshot exists
+ok 6 - restoreSnapshotToState reports cache miss when no compatible snapshot exists
+  ---
+  duration_ms: 1.916458
+  type: 'test'
+  ...
+# Subtest: restoreSnapshotToState is idempotent for repeated compatible restores
+ok 7 - restoreSnapshotToState is idempotent for repeated compatible restores
+  ---
+  duration_ms: 5.471458
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 199.265083

@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+ok 1 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+  ---
+  duration_ms: 2.187875
+  type: 'test'
+  ...
+# Subtest: Work Suite Claude manifest stays a strict-loadable skill provider
+ok 2 - Work Suite Claude manifest stays a strict-loadable skill provider
+  ---
+  duration_ms: 0.17925
+  type: 'test'
+  ...
+# Subtest: Claude worker agent is exposed without unsupported scoped permission fields
+ok 3 - Claude worker agent is exposed without unsupported scoped permission fields
+  ---
+  duration_ms: 0.598625
+  type: 'test'
+  ...
+# Subtest: Claude activation metadata records Agent View and background-session disposition
+ok 4 - Claude activation metadata records Agent View and background-session disposition
+  ---
+  duration_ms: 0.908792
+  type: 'test'
+  ...
+# Subtest: Claude packaging metadata is backed by fresh evidence and support matrix rows
+ok 5 - Claude packaging metadata is backed by fresh evidence and support matrix rows
+  ---
+  duration_ms: 0.929542
+  type: 'test'
+  ...
+# Subtest: Claude packaging documents its permission and capability boundary
+ok 6 - Claude packaging documents its permission and capability boundary
+  ---
+  duration_ms: 0.135375
+  type: 'test'
+  ...
+# Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 7 - Claude hook and MCP configuration stay plugin-relative and non-manual
+  ---
+  duration_ms: 0.614834
+  type: 'test'
+  ...
+# Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 8 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+  ---
+  duration_ms: 1.056
+  type: 'test'
+  ...
+# wrote plugins/desk/activation/support-matrix.json
+# Subtest: host capability evidence declares required columns and host rows
+ok 9 - host capability evidence declares required columns and host rows
+  ---
+  duration_ms: 2.238208
+  type: 'test'
+  ...
+# Subtest: support matrix builder validates manifest host support against evidence
+ok 10 - support matrix builder validates manifest host support against evidence
+  ---
+  duration_ms: 2.534917
+  type: 'test'
+  ...
+# Subtest: support matrix validation reports evidence and freshness mismatches
+ok 11 - support matrix validation reports evidence and freshness mismatches
+  ---
+  duration_ms: 0.808708
+  type: 'test'
+  ...
+# Subtest: support matrix validation rejects host and primitive contract drift
+ok 12 - support matrix validation rejects host and primitive contract drift
+  ---
+  duration_ms: 0.284459
+  type: 'test'
+  ...
+# Subtest: generated support matrix artifact is fresh
+ok 13 - generated support matrix artifact is fresh
+  ---
+  duration_ms: 0.307834
+  type: 'test'
+  ...
+# Subtest: support matrix package script is wired to regenerate the artifact
+ok 14 - support matrix package script is wired to regenerate the artifact
+  ---
+  duration_ms: 1.669209
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 102.813375

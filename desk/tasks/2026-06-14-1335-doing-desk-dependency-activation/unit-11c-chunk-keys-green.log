@@ -1,0 +1,125 @@
+TAP version 13
+# Subtest: active embedding spec is versioned, path-safe, and tied to chunker identity
+ok 1 - active embedding spec is versioned, path-safe, and tied to chunker identity
+  ---
+  duration_ms: 5.460792
+  type: 'test'
+  ...
+# Subtest: normalized text identity is stable across line endings and insignificant whitespace
+ok 2 - normalized text identity is stable across line endings and insignificant whitespace
+  ---
+  duration_ms: 0.623458
+  type: 'test'
+  ...
+# Subtest: chunk identity handles empty text and custom embedding specs
+ok 3 - chunk identity handles empty text and custom embedding specs
+  ---
+  duration_ms: 0.756542
+  type: 'test'
+  ...
+# Subtest: chunk keys are stable when unchanged text moves within a document
+ok 4 - chunk keys are stable when unchanged text moves within a document
+  ---
+  duration_ms: 0.450042
+  type: 'test'
+  ...
+# Subtest: heading and spec identity changes produce distinct chunk keys
+ok 5 - heading and spec identity changes produce distinct chunk keys
+  ---
+  duration_ms: 0.276916
+  type: 'test'
+  ...
+# Subtest: inactive embedding specs are rejected by spec identity helpers
+ok 6 - inactive embedding specs are rejected by spec identity helpers
+  ---
+  duration_ms: 0.11625
+  type: 'test'
+  ...
+# Subtest: empty desk → empty index
+ok 7 - empty desk → empty index
+  ---
+  duration_ms: 18.907666
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 8 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 23.694458
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 9 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 11.892083
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 10 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 15.33575
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+ok 11 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 11.371125
+  type: 'test'
+  ...
+# Subtest: unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+ok 12 - unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+  ---
+  duration_ms: 14.270209
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 13 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 40.713
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 14 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 21.664333
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 15 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 6.44725
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 16 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 15.496792
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 17 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 13.043333
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 18 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 23.560792
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 19 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 11.610917
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 366.393917

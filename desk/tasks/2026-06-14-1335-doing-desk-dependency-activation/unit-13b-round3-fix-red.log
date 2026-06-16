@@ -1,0 +1,119 @@
+TAP version 13
+# Subtest: empty desk → empty index
+ok 1 - empty desk → empty index
+  ---
+  duration_ms: 25.143917
+  type: 'test'
+  ...
+# Subtest: small fixture desk → expected doc + chunk counts
+ok 2 - small fixture desk → expected doc + chunk counts
+  ---
+  duration_ms: 27.022791
+  type: 'test'
+  ...
+# Subtest: re-running on an unchanged desk is a no-op (hash unchanged)
+ok 3 - re-running on an unchanged desk is a no-op (hash unchanged)
+  ---
+  duration_ms: 12.434709
+  type: 'test'
+  ...
+# Subtest: indexer records active embedding spec metadata and stable chunk keys
+ok 4 - indexer records active embedding spec metadata and stable chunk keys
+  ---
+  duration_ms: 19.280459
+  type: 'test'
+  ...
+# Subtest: unchanged legacy indexes are reindexed to backfill chunk identity metadata
+ok 5 - unchanged legacy indexes are reindexed to backfill chunk identity metadata
+  ---
+  duration_ms: 15.57425
+  type: 'test'
+  ...
+# Subtest: unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+ok 6 - unchanged docs with missing chunk rows are rebuilt only when chunks are expected
+  ---
+  duration_ms: 53.969875
+  type: 'test'
+  ...
+# Subtest: reembedMissing treats vectors from inactive embedding specs as missing
+ok 7 - reembedMissing treats vectors from inactive embedding specs as missing
+  ---
+  duration_ms: 49.243042
+  type: 'test'
+  ...
+# Subtest: default embedding options use global fetch and archive docs keep archive metadata
+ok 8 - default embedding options use global fetch and archive docs keep archive metadata
+  ---
+  duration_ms: 27.48025
+  type: 'test'
+  ...
+# Subtest: isIndexFresh covers missing, invalid, stale, and fresh metadata states
+ok 9 - isIndexFresh covers missing, invalid, stale, and fresh metadata states
+  ---
+  duration_ms: 6.317041
+  type: 'test'
+  ...
+# Subtest: modifying one doc → that doc reindexed, others skipped
+ok 10 - modifying one doc → that doc reindexed, others skipped
+  ---
+  duration_ms: 13.70925
+  type: 'test'
+  ...
+# Subtest: deleting a doc removes it from the index on next pass
+ok 11 - deleting a doc removes it from the index on next pass
+  ---
+  duration_ms: 25.133375
+  type: 'test'
+  ...
+# Subtest: happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+ok 12 - happy-path embedding writes chunk_vecs rows (BigInt PK binding)
+  ---
+  duration_ms: 30.833875
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: ollama-down soft-fail still populates FTS chunks
+ok 13 - ollama-down soft-fail still populates FTS chunks
+  ---
+  duration_ms: 9.416583
+  type: 'test'
+  ...
+# [desk-mcp] semantic_unavailable: Ollama embeddings endpoint did not respond; index built with FTS5 only
+# Subtest: unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+ok 14 - unchanged lexical-only docs do not live-embed unless reembedMissing is enabled
+  ---
+  duration_ms: 13.33
+  type: 'test'
+  ...
+# Subtest: large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+ok 15 - large rebuilds do not exceed SQLite variable limits when no chunks need embedding
+  ---
+  duration_ms: 10899.281125
+  type: 'test'
+  ...
+# Subtest: large missing-vector batches append rows without spread argument overflow
+not ok 16 - large missing-vector batches append rows without spread argument overflow
+  ---
+  duration_ms: 5806.082709
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:557:1'
+  failureType: 'testCodeFailure'
+  error: 'Maximum call stack size exceeded'
+  code: 'ERR_TEST_FAILURE'
+  name: 'RangeError'
+  stack: |-
+    embedMissingVectors (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/index.js:309:13)
+    rebuildIndex (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/indexer/index.js:123:13)
+    async TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/indexer/index.test.js:569:19)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 15
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17190.239375

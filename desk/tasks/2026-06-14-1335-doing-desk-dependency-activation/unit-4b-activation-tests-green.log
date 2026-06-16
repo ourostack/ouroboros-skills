@@ -1,0 +1,173 @@
+TAP version 13
+# Subtest: activation schema exports the supported version and required top-level fields
+ok 1 - activation schema exports the supported version and required top-level fields
+  ---
+  duration_ms: 3.110708
+  type: 'test'
+  ...
+# Subtest: valid activation manifests distinguish substrate dependencies from agent activations
+ok 2 - valid activation manifests distinguish substrate dependencies from agent activations
+  ---
+  duration_ms: 1.276583
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for unknown schema versions with actionable diagnostics
+ok 3 - activation validation fails closed for unknown schema versions with actionable diagnostics
+  ---
+  duration_ms: 0.347958
+  type: 'test'
+  ...
+# Subtest: activation dependencies require version intent, provenance, and lock data
+ok 4 - activation dependencies require version intent, provenance, and lock data
+  ---
+  duration_ms: 0.483833
+  type: 'test'
+  ...
+# Subtest: activation dependencies reject bad identity, semver, pins, and incompatible locks
+ok 5 - activation dependencies reject bad identity, semver, pins, and incompatible locks
+  ---
+  duration_ms: 1.140375
+  type: 'test'
+  ...
+# Subtest: activation validation fails closed for contract type and enum fields
+ok 6 - activation validation fails closed for contract type and enum fields
+  ---
+  duration_ms: 1.639917
+  type: 'test'
+  ...
+# Subtest: activation validation requires MCP, root, artifact, host, and permission policy fields
+ok 7 - activation validation requires MCP, root, artifact, host, and permission policy fields
+  ---
+  duration_ms: 1.037917
+  type: 'test'
+  ...
+# Subtest: dependency and activation ordering is deterministic
+ok 8 - dependency and activation ordering is deterministic
+  ---
+  duration_ms: 9.834667
+  type: 'test'
+  ...
+# Subtest: activation validation enforces desk:worker and overlay relationship integrity
+ok 9 - activation validation enforces desk:worker and overlay relationship integrity
+  ---
+  duration_ms: 0.864125
+  type: 'test'
+  ...
+# Subtest: activation validation reports defensive structural errors
+ok 10 - activation validation reports defensive structural errors
+  ---
+  duration_ms: 1.217833
+  type: 'test'
+  ...
+# Subtest: activation dependency ranges support caret, tilde, and exact pins deterministically
+ok 11 - activation dependency ranges support caret, tilde, and exact pins deterministically
+  ---
+  duration_ms: 0.487417
+  type: 'test'
+  ...
+# Subtest: unsupported hosts produce host-native fallback diagnostics
+ok 12 - unsupported hosts produce host-native fallback diagnostics
+  ---
+  duration_ms: 0.283375
+  type: 'test'
+  ...
+# Subtest: canonical Desk activation manifest exists and validates
+ok 13 - canonical Desk activation manifest exists and validates
+  ---
+  duration_ms: 0.230958
+  type: 'test'
+  ...
+# Subtest: Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+ok 14 - Claude plugin metadata declares native Desk surfaces and Work Suite dependency
+  ---
+  duration_ms: 1.8715
+  type: 'test'
+  ...
+# Subtest: Work Suite Claude metadata declares itself as a native dependency provider
+ok 15 - Work Suite Claude metadata declares itself as a native dependency provider
+  ---
+  duration_ms: 0.19025
+  type: 'test'
+  ...
+# Subtest: Claude worker agent is exposed without unsupported scoped permission fields
+ok 16 - Claude worker agent is exposed without unsupported scoped permission fields
+  ---
+  duration_ms: 0.534708
+  type: 'test'
+  ...
+# Subtest: Claude activation metadata records Agent View and background-session disposition
+ok 17 - Claude activation metadata records Agent View and background-session disposition
+  ---
+  duration_ms: 0.439292
+  type: 'test'
+  ...
+# Subtest: Claude packaging metadata is backed by fresh evidence and support matrix rows
+ok 18 - Claude packaging metadata is backed by fresh evidence and support matrix rows
+  ---
+  duration_ms: 0.681542
+  type: 'test'
+  ...
+# Subtest: Claude packaging documents its permission and capability boundary
+ok 19 - Claude packaging documents its permission and capability boundary
+  ---
+  duration_ms: 0.138542
+  type: 'test'
+  ...
+# Subtest: Claude hook and MCP configuration stay plugin-relative and non-manual
+ok 20 - Claude hook and MCP configuration stay plugin-relative and non-manual
+  ---
+  duration_ms: 0.564583
+  type: 'test'
+  ...
+# Subtest: Claude-facing manifests stay version-aligned with activation and marketplace metadata
+ok 21 - Claude-facing manifests stay version-aligned with activation and marketplace metadata
+  ---
+  duration_ms: 0.652583
+  type: 'test'
+  ...
+# wrote plugins/desk/activation/support-matrix.json
+# Subtest: host capability evidence declares required columns and host rows
+ok 22 - host capability evidence declares required columns and host rows
+  ---
+  duration_ms: 2.075
+  type: 'test'
+  ...
+# Subtest: support matrix builder validates manifest host support against evidence
+ok 23 - support matrix builder validates manifest host support against evidence
+  ---
+  duration_ms: 2.113958
+  type: 'test'
+  ...
+# Subtest: support matrix validation reports evidence and freshness mismatches
+ok 24 - support matrix validation reports evidence and freshness mismatches
+  ---
+  duration_ms: 0.76925
+  type: 'test'
+  ...
+# Subtest: support matrix validation rejects host and primitive contract drift
+ok 25 - support matrix validation rejects host and primitive contract drift
+  ---
+  duration_ms: 0.277583
+  type: 'test'
+  ...
+# Subtest: generated support matrix artifact is fresh
+ok 26 - generated support matrix artifact is fresh
+  ---
+  duration_ms: 0.285791
+  type: 'test'
+  ...
+# Subtest: support matrix package script is wired to regenerate the artifact
+ok 27 - support matrix package script is wired to regenerate the artifact
+  ---
+  duration_ms: 1.547958
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112.472834

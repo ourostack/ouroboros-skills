@@ -24,6 +24,11 @@ import { promises as fs } from "node:fs"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
 import matter from "gray-matter"
+import {
+  exclusionForPath,
+  hasGitignoreNegation,
+  loadExclusionRules,
+} from "./exclusions.js"
 
 /** Filenames we always pick up regardless of where they sit in the tree. */
 const TASK_DOC_BASENAMES = new Set([
@@ -69,15 +74,19 @@ export function stripPersonPrefix(relPath) {
  *                    status, schema_version, created_at, updated_at,
  *                    hash, mtime, frontmatter, body }
  */
-export async function discover(deskRoot) {
+export async function discover(deskRoot, { signal } = {}) {
+  throwIfAborted(signal)
   const results = []
-  await walk(deskRoot, deskRoot, results)
+  const exclusionRules = await loadExclusionRules({ deskRoot })
+  await walk(deskRoot, deskRoot, results, signal, exclusionRules)
+  throwIfAborted(signal)
   // Stable ordering — easier to reason about in tests and in CLI output.
   results.sort((a, b) => a.path.localeCompare(b.path))
   return results
 }
 
-async function walk(deskRoot, dir, out) {
+async function walk(deskRoot, dir, out, signal, exclusionRules) {
+  throwIfAborted(signal)
   let entries
   try {
     entries = await fs.readdir(dir, { withFileTypes: true })
@@ -85,7 +94,9 @@ async function walk(deskRoot, dir, out) {
     if (err.code === "ENOENT") return
     throw err
   }
+  throwIfAborted(signal)
   for (const ent of entries) {
+    throwIfAborted(signal)
     const name = ent.name
     if (ent.isDirectory()) {
       if (SKIP_DIRS.has(name)) continue
@@ -93,7 +104,9 @@ async function walk(deskRoot, dir, out) {
       // is_archived=true in describeDoc and per-tool search defaults
       // decide whether to include them.
       const sub = path.join(dir, name)
-      await walk(deskRoot, sub, out)
+      const relDir = path.relative(deskRoot, sub)
+      if (shouldSkipDirectory(relDir, exclusionRules)) continue
+      await walk(deskRoot, sub, out, signal, exclusionRules)
       continue
     }
     if (!ent.isFile()) continue
@@ -102,11 +115,23 @@ async function walk(deskRoot, dir, out) {
 
     const abs = path.join(dir, name)
     const rel = path.relative(deskRoot, abs)
+    if (isExcluded(rel, exclusionRules)) continue
     if (!isIndexable(rel)) continue
 
-    const desc = await describeDoc(deskRoot, abs, rel)
+    const desc = await describeDoc(deskRoot, abs, rel, signal)
     if (desc) out.push(desc)
   }
+}
+
+function isExcluded(relPath, rules) {
+  return exclusionForPath(relPath, rules).excluded
+}
+
+function shouldSkipDirectory(relPath, rules) {
+  const decision = exclusionForPath(relPath, rules)
+  if (!decision.excluded) return false
+  if (decision.reason !== "gitignore") return true
+  return !hasGitignoreNegation(rules)
 }
 
 /**
@@ -238,16 +263,20 @@ export function classify(relPath) {
   return { kind: "other", track: null, task_slug: null }
 }
 
-async function describeDoc(deskRoot, abs, rel) {
+async function describeDoc(deskRoot, abs, rel, signal) {
+  throwIfAborted(signal)
   let raw
   let stat
   try {
     raw = await fs.readFile(abs, "utf8")
+    throwIfAborted(signal)
     stat = await fs.stat(abs)
   } catch (err) {
+    if (err.name === "AbortError") throw err
     // File vanished or unreadable mid-walk; skip silently.
     return null
   }
+  throwIfAborted(signal)
   let parsed
   try {
     parsed = matter(raw)
@@ -255,8 +284,8 @@ async function describeDoc(deskRoot, abs, rel) {
     // Malformed frontmatter — index anyway, just with empty metadata.
     parsed = { data: {}, content: raw }
   }
-  const fm = parsed.data ?? {}
-  const body = parsed.content ?? ""
+  const fm = parsed.data
+  const body = parsed.content
   const hash = createHash("sha256").update(raw).digest("hex")
   const { kind, track, task_slug } = classify(rel)
   // is_archived: any ancestor directory in the path is named `_archive`
@@ -285,6 +314,13 @@ async function describeDoc(deskRoot, abs, rel) {
     body,
     raw,
   }
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  const err = new Error("operation aborted")
+  err.name = "AbortError"
+  throw err
 }
 
 /**

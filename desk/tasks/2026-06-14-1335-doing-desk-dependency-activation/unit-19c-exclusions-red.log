@@ -1,0 +1,184 @@
+TAP version 13
+# Subtest: discover excludes gitignored markdown before indexing
+ok 1 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 8.439584
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 2 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.328667
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 3 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 1.59325
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 4 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 0.681708
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 5 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 12.343167
+  type: 'test'
+  ...
+# Subtest: discover applies nested gitignore files and negated rules
+not ok 6 - discover applies nested gitignore files and negated rules
+  ---
+  duration_ms: 3.77375
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:267:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    false !== true
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:290:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: discover excludes symlink and hidden docs while preserving person and shared docs
+not ok 7 - discover excludes symlink and hidden docs while preserving person and shared docs
+  ---
+  duration_ms: 5.857959
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:294:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + {
+    +   absPath: '<tmp-path>',
+    +   body: '# Hidden dir\n\n<redacted-fixture>',
+    +   created_at: null,
+    +   frontmatter: {},
+    +   hash: 'dd774911cd9bc286e3382f44ec9c7d9222488b30d6f2560c75ea6e698464731a',
+    +   is_archived: false,
+    +   kind: 'task',
+    +   mtime: 1781574176441,
+    +   path: '.hidden/task.md',
+    +   raw: '# Hidden dir\n\n<redacted-fixture>',
+    +   schema_version: 0,
+    +   status: null,
+    +   task_slug: null,
+    +   track: null,
+    +   updated_at: null
+    + }
+    - undefined
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    path: '.hidden/task.md'
+    absPath: '<tmp-path>'
+    kind: 'task'
+    track: ~
+    task_slug: ~
+    status: ~
+    schema_version: 0
+    created_at: ~
+    updated_at: ~
+    hash: 'dd774911cd9bc286e3382f44ec9c7d9222488b30d6f2560c75ea6e698464731a'
+    mtime: 1781574176441
+    is_archived: false
+    frontmatter:
+    body: |-
+      # Hidden dir
+
+      <redacted-fixture>
+    raw: |-
+      # Hidden dir
+
+      <redacted-fixture>
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:319:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 8 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 1.489541
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 9 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 36.828584
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 10 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 1.540834
+  type: 'test'
+  ...
+# Subtest: artifact publication guard honors nested gitignore files and negated rules
+not ok 11 - artifact publication guard honors nested gitignore files and negated rules
+  ---
+  duration_ms: 1.550416
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:428:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    1 !== 2
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    Object.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:458:14)
+    expectedException (node:assert:576:17)
+    expectsError (node:assert:701:21)
+    Function.rejects (node:assert:767:3)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/indexer/exclusions.test.js:446:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 12 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 3.992375
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 13 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 4.353458
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 14 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.397
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 11
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 225.717833

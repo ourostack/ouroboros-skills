@@ -1,12 +1,13 @@
 // desk MCP server registration.
 //
-// Registers all 13 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
+// Registers all 14 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
 // tool to a real implementation:
 //   - Unit 3: task_create, task_update, task_archive, track_create,
 //             track_update, friction_add, lesson_add
 //   - Unit 5: desk_search, desk_recall, desk_similar, desk_timeline
 //   - Unit 6: desk_thread (refs_graph provenance walk)
 //   - Index mgmt: desk_reindex (wraps ensureIndex + force-rebuild)
+//   - Health/status: desk_status (session-start-safe, non-mutating)
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
@@ -32,10 +33,14 @@ import {
 } from "./tools/search.js"
 import { desk_thread } from "./tools/thread.js"
 import { desk_reindex } from "./tools/reindex.js"
-import { ensureIndex } from "./server-helpers.js"
+import { desk_status } from "./tools/status.js"
+import {
+  configureRuntimeArtifacts,
+  ensureIndex,
+} from "./server-helpers.js"
 
 export { TOOL_NAMES, TOOL_DESCRIPTIONS }
-export { ensureIndex }
+export { configureRuntimeArtifacts, ensureIndex }
 
 // Map tool name → implementation. Every tool now has a real body.
 // Exported so tests can register a probe impl to assert dispatch threading.
@@ -53,13 +58,14 @@ export const TOOL_IMPLS = {
   desk_timeline,
   desk_thread,
   desk_reindex,
+  desk_status,
 }
 
 /**
  * Dispatch a single MCP call. Pulled out from startServer so tests can
  * exercise the dispatch table directly (no stdio transport needed).
  */
-export async function callTool({ deskRoot, name, input, person = null }) {
+export async function callTool({ deskRoot, name, input, person = null, statusContext = {} }) {
   if (!TOOL_NAMES.includes(name)) {
     return {
       content: [{ type: "text", text: `unknown tool: ${name}` }],
@@ -68,7 +74,7 @@ export async function callTool({ deskRoot, name, input, person = null }) {
   }
   const impl = TOOL_IMPLS[name]
   if (!impl) {
-    // All 13 tools wired; this branch only fires if a name exists in
+    // All 14 tools wired; this branch only fires if a name exists in
     // TOOL_NAMES but is missing from TOOL_IMPLS — i.e. a wiring bug.
     // Return a structured payload that points at the cause.
     return {
@@ -85,7 +91,7 @@ export async function callTool({ deskRoot, name, input, person = null }) {
     }
   }
   try {
-    const result = await impl({ deskRoot, input: input ?? {}, person })
+    const result = await impl({ deskRoot, input: input ?? {}, person, statusContext })
     return {
       content: [{ type: "text", text: JSON.stringify(result) }],
     }
@@ -106,16 +112,8 @@ export async function callTool({ deskRoot, name, input, person = null }) {
   }
 }
 
-export async function startServer({ deskRoot, person = null }) {
-  // Build (or refresh) the index synchronously before accepting traffic, so
-  // the search tools (now wired in Unit 5) see a consistent view.
-  try {
-    await ensureIndex(deskRoot)
-  } catch (err) {
-    console.error("[desk-mcp] ensureIndex failed:", err.message)
-  }
-
-  const server = new Server(
+export function createMcpServer() {
+  return new Server(
     {
       name: "desk-mcp",
       version: "1.3.1",
@@ -124,8 +122,24 @@ export async function startServer({ deskRoot, person = null }) {
       capabilities: { tools: {} },
     },
   )
+}
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+export function createMcpTransport() {
+  return new StdioServerTransport()
+}
+
+export async function startServer({
+  deskRoot,
+  person = null,
+  statusContext = {},
+  server,
+  transport,
+  createServer = createMcpServer,
+  createTransport = createMcpTransport,
+}) {
+  const activeServer = server ?? createServer()
+  const activeTransport = transport ?? createTransport()
+  activeServer.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOL_NAMES.map((name) => ({
       name,
       description: TOOL_DESCRIPTIONS[name],
@@ -133,12 +147,11 @@ export async function startServer({ deskRoot, person = null }) {
     })),
   }))
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  activeServer.setRequestHandler(CallToolRequestSchema, async (request) => {
     const name = request.params?.name
     const input = request.params?.arguments ?? {}
-    return callTool({ deskRoot, name, input, person })
+    return callTool({ deskRoot, name, input, person, statusContext })
   })
 
-  const transport = new StdioServerTransport()
-  await server.connect(transport)
+  await activeServer.connect(activeTransport)
 }

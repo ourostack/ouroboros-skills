@@ -5,5 +5,28 @@
   "author": {
     "name": "ourostack",
     "url": "https://github.com/ourostack/ouroboros-skills"
-  }
+  },
+  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/desk",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-workspace",
+    "tasks",
+    "engineering",
+    "mcp",
+    "long-running-agent"
+  ],
+  "skills": "./skills/",
+  "agents": [
+    "./agents/worker.md"
+  ],
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "outputStyles": "./output-styles/",
+  "dependencies": [
+    {
+      "name": "work-suite",
+      "version": "^1.4.0"
+    }
+  ]
 }

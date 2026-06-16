@@ -1,0 +1,4 @@
+$ node scripts/test-desk-host-manifests.cjs
+Desk host manifests verified for support-matrix, copilot-bundle, copilot-plugin-metadata, codex-plugin, claude-plugin, worker-sources, codex-fixtures
+
+exit_status=0

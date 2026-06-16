@@ -1,0 +1,117 @@
+TAP version 13
+# Subtest: committed publication policy and schema declare conservative privacy defaults
+not ok 1 - committed publication policy and schema declare conservative privacy defaults
+  ---
+  duration_ms: 1.09325
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:88:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/policy.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: publication policy schema requires approval and repository-sensitivity fields
+not ok 2 - publication policy schema requires approval and repository-sensitivity fields
+  ---
+  duration_ms: 3.4045
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:113:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '<repo>/plugins/desk/artifacts/publication-policy.schema.json'"
+  code: 'ENOENT'
+  stack: |-
+    async open (node:internal/fs/promises:636:25)
+    async Object.readFile (node:internal/fs/promises:1235:14)
+    async readJson (file://<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:33:21)
+    async TestContext.<anonymous> (file://<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:114:18)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: publication policy denies public and sensitive repo artifact publication without approval
+not ok 3 - publication policy denies public and sensitive repo artifact publication without approval
+  ---
+  duration_ms: 0.420542
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:136:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/policy.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: publication policy accepts explicit repo and organization approvals for allowed artifact types
+not ok 4 - publication policy accepts explicit repo and organization approvals for allowed artifact types
+  ---
+  duration_ms: 0.1545
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:162:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/policy.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: artifact write guard blocks vector-pack and snapshot writes without approval
+not ok 5 - artifact write guard blocks vector-pack and snapshot writes without approval
+  ---
+  duration_ms: 0.219958
+  type: 'test'
+  location: '<repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js:202:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '<repo>/plugins/desk/mcp/src/artifacts/policy.js' imported from <repo>/plugins/desk/mcp/__tests__/artifacts/publication_policy.test.js"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# Subtest: ordinary startup does not write committed artifact files
+ok 6 - ordinary startup does not write committed artifact files
+  ---
+  duration_ms: 26.582291
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 1
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 182.941875

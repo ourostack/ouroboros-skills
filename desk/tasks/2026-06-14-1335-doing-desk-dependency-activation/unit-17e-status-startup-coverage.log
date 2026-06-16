@@ -1,0 +1,259 @@
+TAP version 13
+# Subtest: parseArgs captures activation config path without losing root or person
+ok 1 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 2.709083
+  type: 'test'
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+ok 2 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 3.523334
+  type: 'test'
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+ok 3 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 4.151042
+  type: 'test'
+  ...
+# Subtest: activation config roots support tilde and relative paths with injectable cwd
+ok 4 - activation config roots support tilde and relative paths with injectable cwd
+  ---
+  duration_ms: 2.61975
+  type: 'test'
+  ...
+# Subtest: root resolver reports nonexistent explicit, host-session, and activation roots
+ok 5 - root resolver reports nonexistent explicit, host-session, and activation roots
+  ---
+  duration_ms: 1.772959
+  type: 'test'
+  ...
+# Subtest: root resolver final diagnostic lists every fallback source attempted in order
+ok 6 - root resolver final diagnostic lists every fallback source attempted in order
+  ---
+  duration_ms: 1.014584
+  type: 'test'
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+ok 7 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 2.326125
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+ok 8 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 1.745958
+  type: 'test'
+  ...
+# Subtest: entrypoint startup runtime cache resolution uses activation config only
+ok 9 - entrypoint startup runtime cache resolution uses activation config only
+  ---
+  duration_ms: 3.469625
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution lets host/session root override activation config
+ok 10 - entrypoint startup root resolution lets host/session root override activation config
+  ---
+  duration_ms: 5.026583
+  type: 'test'
+  ...
+# Subtest: entrypoint main resolves startup root before launching injected runtime server
+ok 11 - entrypoint main resolves startup root before launching injected runtime server
+  ---
+  duration_ms: 2.727125
+  type: 'test'
+  ...
+# Subtest: entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+ok 12 - entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+  ---
+  duration_ms: 1.059167
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+ok 13 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 768.667084
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup lets host/session root override activation config root
+ok 14 - entrypoint stdio startup lets host/session root override activation config root
+  ---
+  duration_ms: 696.605208
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+ok 15 - entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+  ---
+  duration_ms: 1077.038459
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint is dependency-light before bootstrap
+ok 16 - MCP entrypoint is dependency-light before bootstrap
+  ---
+  duration_ms: 214.481875
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+ok 17 - MCP entrypoint restores runtime dependencies offline and serves list-tools from the source mirror
+  ---
+  duration_ms: 1245.666625
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint serves desk_status from the source mirror after bounded lexical startup fallback
+ok 18 - MCP entrypoint serves desk_status from the source mirror after bounded lexical startup fallback
+  ---
+  duration_ms: 847.314125
+  type: 'test'
+  ...
+# Subtest: MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+ok 19 - MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces
+  ---
+  duration_ms: 156.3825
+  type: 'test'
+  ...
+# Subtest: startup runs bounded ensureIndex before registering the server and forwards artifact status
+ok 20 - startup runs bounded ensureIndex before registering the server and forwards artifact status
+  ---
+  duration_ms: 3.859916
+  type: 'test'
+  ...
+# Subtest: startup reports lexical fallback when snapshots and vector packs cannot cover offline startup
+ok 21 - startup reports lexical fallback when snapshots and vector packs cannot cover offline startup
+  ---
+  duration_ms: 1.257792
+  type: 'test'
+  ...
+# Subtest: startup reports snapshot plus vector-pack fallback and startup errors
+ok 22 - startup reports snapshot plus vector-pack fallback and startup errors
+  ---
+  duration_ms: 1.30275
+  type: 'test'
+  ...
+# Subtest: startup classifies every bounded fallback mode
+ok 23 - startup classifies every bounded fallback mode
+  ---
+  duration_ms: 3.998208
+  type: 'test'
+  ...
+# Subtest: desk_status is registered with a session-start-safe description
+ok 24 - desk_status is registered with a session-start-safe description
+  ---
+  duration_ms: 1.23675
+  type: 'test'
+  ...
+# Subtest: desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+ok 25 - desk_status reports root, runtime, missing DB, and deferred repair state without creating .state
+  ---
+  duration_ms: 4.8605
+  type: 'test'
+  ...
+# Subtest: desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+ok 26 - desk_status reports stale DB by comparing last_indexed_at to markdown mtimes without reindexing
+  ---
+  duration_ms: 15.90025
+  type: 'test'
+  ...
+# Subtest: desk_status reports fresh and unknown freshness states without repair work
+ok 27 - desk_status reports fresh and unknown freshness states without repair work
+  ---
+  duration_ms: 32.4905
+  type: 'test'
+  ...
+# Subtest: desk_status reports no desk root without trying to inspect a local DB
+ok 28 - desk_status reports no desk root without trying to inspect a local DB
+  ---
+  duration_ms: 0.343542
+  type: 'test'
+  ...
+# Subtest: desk_status sanitizes malformed root context and reports nonexistent roots
+ok 29 - desk_status sanitizes malformed root context and reports nonexistent roots
+  ---
+  duration_ms: 0.741584
+  type: 'test'
+  ...
+# Subtest: desk_status reports existing DB coverage without probing query embeddings
+ok 30 - desk_status reports existing DB coverage without probing query embeddings
+  ---
+  duration_ms: 9.3575
+  type: 'test'
+  ...
+# Subtest: desk_status leaves query embedding unprobed even when the endpoint is unavailable
+ok 31 - desk_status leaves query embedding unprobed even when the endpoint is unavailable
+  ---
+  duration_ms: 0.815875
+  type: 'test'
+  ...
+# Subtest: desk_status defaults unknown startup context and reports partial vector coverage
+ok 32 - desk_status defaults unknown startup context and reports partial vector coverage
+  ---
+  duration_ms: 10.504209
+  type: 'test'
+  ...
+# Subtest: desk_status reports vector coverage against the active embedding spec
+ok 33 - desk_status reports vector coverage against the active embedding spec
+  ---
+  duration_ms: 46.510833
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical index absence without mutating an existing DB
+ok 34 - desk_status reports lexical index absence without mutating an existing DB
+  ---
+  duration_ms: 3.180375
+  type: 'test'
+  ...
+# Subtest: desk_status tolerates an existing DB with missing index tables
+ok 35 - desk_status tolerates an existing DB with missing index tables
+  ---
+  duration_ms: 2.055709
+  type: 'test'
+  ...
+# Subtest: desk_status reports snapshot/vector-pack startup fallback and degraded query embeddings
+ok 36 - desk_status reports snapshot/vector-pack startup fallback and degraded query embeddings
+  ---
+  duration_ms: 56.864083
+  type: 'test'
+  ...
+# Subtest: desk_status reports lexical-only startup fallback when artifacts and embeddings are unavailable
+ok 37 - desk_status reports lexical-only startup fallback when artifacts and embeddings are unavailable
+  ---
+  duration_ms: 9.852709
+  type: 'test'
+  ...
+# Subtest: desk_status preserves explicit vector-pack import state from startup context
+ok 38 - desk_status preserves explicit vector-pack import state from startup context
+  ---
+  duration_ms: 9.603125
+  type: 'test'
+  ...
+# Subtest: desk_status classifies additional artifact startup modes
+ok 39 - desk_status classifies additional artifact startup modes
+  ---
+  duration_ms: 55.781125
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2748.338084
+# start of coverage report
+# ---------------------------------------------------------------
+# file           | line % | branch % | funcs % | uncovered lines
+# ---------------------------------------------------------------
+# plugins        |        |          |         |
+#  desk          |        |          |         |
+#   mcp          |        |          |         |
+#    index.js    | 100.00 |   100.00 |  100.00 |
+#    src         |        |          |         |
+#     tools      |        |          |         |
+#      status.js | 100.00 |   100.00 |  100.00 |
+# ---------------------------------------------------------------
+# all files      | 100.00 |   100.00 |  100.00 |
+# ---------------------------------------------------------------
+# end of coverage report

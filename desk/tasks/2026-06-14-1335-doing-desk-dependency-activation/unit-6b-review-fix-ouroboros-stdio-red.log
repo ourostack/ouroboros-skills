@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+ok 1 - Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+  ---
+  duration_ms: 3.164708
+  type: 'test'
+  ...
+# Subtest: Ouroboros activation docs define the evidence anchor and disposition
+ok 2 - Ouroboros activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.397167
+  type: 'test'
+  ...
+# Subtest: Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+ok 3 - Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+  ---
+  duration_ms: 0.63775
+  type: 'test'
+  ...
+# Subtest: generic stdio support matrix records an MCP-only degraded disposition
+ok 4 - generic stdio support matrix records an MCP-only degraded disposition
+  ---
+  duration_ms: 0.423541
+  type: 'test'
+  ...
+# Subtest: generic stdio activation docs define the evidence anchor and disposition
+ok 5 - generic stdio activation docs define the evidence anchor and disposition
+  ---
+  duration_ms: 0.1175
+  type: 'test'
+  ...
+# Subtest: generic stdio docs show explicit root binding and no default worker claim
+not ok 6 - generic stdio docs show explicit root binding and no default worker claim
+  ---
+  duration_ms: 1.470625
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:224:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /DESK=[^\n]+--root "\$DESK"/u. Input:
+
+    '\n' +
+      'Generic stdio hosts can launch Desk as an MCP-only server, but generic stdio does not activate `worker` and does not resolve plugin dependencies for Work Suite.\n' +
+      '\n' +
+      'Bind the root explicitly:\n' +
+      '\n' +
+      '```sh\n' +
+      'DESK=~/desk node /path/to/plugins/desk/mcp/index.js --root "$DESK"\n' +
+      '```\n' +
+      '\n' +
+      'If the host cannot pass environment variables, pass the same concrete path directly:\n' +
+      '\n' +
+      '```sh\n' +
+      'node /path/to/plugins/desk/mcp/index.js --root ~/desk\n' +
+      '```\n' +
+      '\n' +
+      'This path provides MCP tools only; there is no worker activation, default agent preamble, or plugin dependency closure.\n' +
+      '\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    Generic stdio hosts can launch Desk as an MCP-only server, but generic stdio does not activate `worker` and does not resolve plugin dependencies for Work Suite.
+
+    Bind the root explicitly:
+
+    ```sh
+    DESK=~/desk node /path/to/plugins/desk/mcp/index.js --root "$DESK"
+    ```
+
+    If the host cannot pass environment variables, pass the same concrete path directly:
+
+    ```sh
+    node /path/to/plugins/desk/mcp/index.js --root ~/desk
+    ```
+
+    This path provides MCP tools only; there is no worker activation, default agent preamble, or plugin dependency closure.
+
+
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:231:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.761875

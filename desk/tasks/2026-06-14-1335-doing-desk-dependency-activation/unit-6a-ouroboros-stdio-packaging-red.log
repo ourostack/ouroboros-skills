@@ -1,0 +1,122 @@
+TAP version 13
+# Subtest: Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+not ok 1 - Ouroboros/autonomous-agent packaging has a flattened bundle disposition
+  ---
+  duration_ms: 2.772417
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:78:1'
+  failureType: 'testCodeFailure'
+  error: 'plugins/desk/activation/desk.activation.json must include host=ouroboros-autonomous-agent'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    findByField (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:58:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:91:23)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+not ok 2 - Ouroboros docs specify bundle.json plugin closure and $DESK preamble binding
+  ---
+  duration_ms: 1.283958
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:120:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /"plugins"\s*:\s*\[/u. Input:
+
+    '\n' +
+      '```bash\n' +
+      'ouro plugin install ourostack/ouroboros-skills:plugins/desk --agent <agent-name>\n' +
+      '```\n' +
+      '\n' +
+      "The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declares `Your desk: ~/AgentBundles/<agent>.ouro/desk/`.\n" +
+      '\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+
+    ```bash
+    ouro plugin install ourostack/ouroboros-skills:plugins/desk --agent <agent-name>
+    ```
+
+    The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declares `Your desk: ~/AgentBundles/<agent>.ouro/desk/`.
+
+
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:125:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: generic stdio support matrix records an MCP-only degraded disposition
+not ok 3 - generic stdio support matrix records an MCP-only degraded disposition
+  ---
+  duration_ms: 0.515917
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:133:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'degraded-manual-host'
+    - 'degraded-mcp-only'
+                 ^
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'degraded-mcp-only'
+  actual: 'degraded-manual-host'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:153:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: generic stdio docs show explicit root binding and no default worker claim
+not ok 4 - generic stdio docs show explicit root binding and no default worker claim
+  ---
+  duration_ms: 0.402292
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:176:1'
+  failureType: 'testCodeFailure'
+  error: 'missing section ## Generic stdio MCP launch'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: ~
+  operator: '=='
+  stack: |-
+    sectionBetween (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:74:10)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js:178:19)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 91.458833

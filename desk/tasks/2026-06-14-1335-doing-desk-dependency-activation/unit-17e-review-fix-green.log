@@ -1,0 +1,178 @@
+TAP version 13
+# Subtest: parseArgs captures activation config path without losing root or person
+ok 1 - parseArgs captures activation config path without losing root or person
+  ---
+  duration_ms: 1.602792
+  type: 'test'
+  ...
+# Subtest: resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+ok 2 - resolveDeskRootWithSource applies explicit, host-session, activation, DESK, then home fallback precedence
+  ---
+  duration_ms: 3.50375
+  type: 'test'
+  ...
+# Subtest: activation config loader validates schema and redacts malformed JSON content
+ok 3 - activation config loader validates schema and redacts malformed JSON content
+  ---
+  duration_ms: 3.173542
+  type: 'test'
+  ...
+# Subtest: activation config roots support tilde and relative paths with injectable cwd
+ok 4 - activation config roots support tilde and relative paths with injectable cwd
+  ---
+  duration_ms: 2.195208
+  type: 'test'
+  ...
+# Subtest: root resolver reports nonexistent explicit, host-session, and activation roots
+ok 5 - root resolver reports nonexistent explicit, host-session, and activation roots
+  ---
+  duration_ms: 1.791292
+  type: 'test'
+  ...
+# Subtest: root resolver final diagnostic lists every fallback source attempted in order
+ok 6 - root resolver final diagnostic lists every fallback source attempted in order
+  ---
+  duration_ms: 0.911166
+  type: 'test'
+  ...
+# Subtest: legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+ok 7 - legacy resolveDeskRoot delegates to the same root resolver with injectable env and home
+  ---
+  duration_ms: 1.665125
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution uses parsed activation config and canonical path resolver
+ok 8 - entrypoint startup root resolution uses parsed activation config and canonical path resolver
+  ---
+  duration_ms: 1.706834
+  type: 'test'
+  ...
+# Subtest: entrypoint startup runtime cache resolution uses activation config only
+ok 9 - entrypoint startup runtime cache resolution uses activation config only
+  ---
+  duration_ms: 2.447209
+  type: 'test'
+  ...
+# Subtest: entrypoint startup root resolution lets host/session root override activation config
+ok 10 - entrypoint startup root resolution lets host/session root override activation config
+  ---
+  duration_ms: 2.03925
+  type: 'test'
+  ...
+# Subtest: entrypoint main resolves startup root before launching injected runtime server
+ok 11 - entrypoint main resolves startup root before launching injected runtime server
+  ---
+  duration_ms: 2.0365
+  type: 'test'
+  ...
+# Subtest: entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+ok 12 - entrypoint guard handles direct launch, import, realpath fallback, and fatal launch errors
+  ---
+  duration_ms: 0.881292
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses activation config root for real MCP tool calls
+ok 13 - entrypoint stdio startup uses activation config root for real MCP tool calls
+  ---
+  duration_ms: 587.430667
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup lets host/session root override activation config root
+ok 14 - entrypoint stdio startup lets host/session root override activation config root
+  ---
+  duration_ms: 556.574958
+  type: 'test'
+  ...
+# Subtest: entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+ok 15 - entrypoint stdio startup uses relative activation runtime cache and reuses it on repeated startup
+  ---
+  duration_ms: 856.326417
+  type: 'test'
+  ...
+# Subtest: startup runs bounded ensureIndex before registering the server and forwards artifact status
+ok 16 - startup runs bounded ensureIndex before registering the server and forwards artifact status
+  ---
+  duration_ms: 3.435583
+  type: 'test'
+  ...
+# Subtest: startup reports lexical fallback when snapshots and vector packs cannot cover offline startup
+ok 17 - startup reports lexical fallback when snapshots and vector packs cannot cover offline startup
+  ---
+  duration_ms: 0.965041
+  type: 'test'
+  ...
+# Subtest: startup reports snapshot plus vector-pack fallback and startup errors
+ok 18 - startup reports snapshot plus vector-pack fallback and startup errors
+  ---
+  duration_ms: 0.937792
+  type: 'test'
+  ...
+# Subtest: startup classifies every bounded fallback mode
+ok 19 - startup classifies every bounded fallback mode
+  ---
+  duration_ms: 1.542959
+  type: 'test'
+  ...
+# Subtest: startup stops waiting and aborts when bounded ensureIndex exceeds budget
+ok 20 - startup stops waiting and aborts when bounded ensureIndex exceeds budget
+  ---
+  duration_ms: 252.474625
+  type: 'test'
+  ...
+# Subtest: startup skips bounded ensureIndex when the runtime server has no ensureIndex hook
+ok 21 - startup skips bounded ensureIndex when the runtime server has no ensureIndex hook
+  ---
+  duration_ms: 0.361125
+  type: 'test'
+  ...
+# Subtest: parseArgs reads --person <alias> into args.person
+ok 22 - parseArgs reads --person <alias> into args.person
+  ---
+  duration_ms: 0.74
+  type: 'test'
+  ...
+# Subtest: parseArgs defaults person to null when --person absent
+ok 23 - parseArgs defaults person to null when --person absent
+  ---
+  duration_ms: 0.101958
+  type: 'test'
+  ...
+# Subtest: parseArgs ignores --person with no value (trailing flag)
+ok 24 - parseArgs ignores --person with no value (trailing flag)
+  ---
+  duration_ms: 0.053334
+  type: 'test'
+  ...
+# Subtest: parseArgs accepts --person before --root (order-independent)
+ok 25 - parseArgs accepts --person before --root (order-independent)
+  ---
+  duration_ms: 0.045042
+  type: 'test'
+  ...
+# Subtest: parseArgs and runtime cache resolution handle activation-config edge cases
+ok 26 - parseArgs and runtime cache resolution handle activation-config edge cases
+  ---
+  duration_ms: 2.809292
+  type: 'test'
+  ...
+# Subtest: callTool forwards `person` to the tool impl alongside deskRoot+input
+ok 27 - callTool forwards `person` to the tool impl alongside deskRoot+input
+  ---
+  duration_ms: 3.1955
+  type: 'test'
+  ...
+# Subtest: callTool forwards person:null when no person passed (default-OFF transport)
+ok 28 - callTool forwards person:null when no person passed (default-OFF transport)
+  ---
+  duration_ms: 0.725875
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2142.363167

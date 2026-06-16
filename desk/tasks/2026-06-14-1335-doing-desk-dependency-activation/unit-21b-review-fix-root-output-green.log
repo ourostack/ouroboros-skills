@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: package declares artifact maintenance scripts without adding a user Desk CLI
+ok 1 - package declares artifact maintenance scripts without adding a user Desk CLI
+  ---
+  duration_ms: 866.267709
+  type: 'test'
+  ...
+# Subtest: artifact build scripts publish allowed artifacts only under canonical dirs
+ok 2 - artifact build scripts publish allowed artifacts only under canonical dirs
+  ---
+  duration_ms: 885.470084
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject publication-policy denial before writing bytes
+ok 3 - artifact build scripts reject publication-policy denial before writing bytes
+  ---
+  duration_ms: 1134.268792
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject excluded local DB docs before writing bytes
+ok 4 - artifact build scripts reject excluded local DB docs before writing bytes
+  ---
+  duration_ms: 1218.353583
+  type: 'test'
+  ...
+# Subtest: artifact build scripts reject tombstoned local DB docs before writing bytes
+ok 5 - artifact build scripts reject tombstoned local DB docs before writing bytes
+  ---
+  duration_ms: 920.8285
+  type: 'test'
+  ...
+# Subtest: performance budget config declares startup, rebuild, and artifact thresholds
+ok 6 - performance budget config declares startup, rebuild, and artifact thresholds
+  ---
+  duration_ms: 0.355916
+  type: 'test'
+  ...
+# Subtest: MCP startup reads ensure-index budget from plugin performance config
+ok 7 - MCP startup reads ensure-index budget from plugin performance config
+  ---
+  duration_ms: 4.8245
+  type: 'test'
+  ...
+# Subtest: artifact validation output does not leak resolved local roots
+ok 8 - artifact validation output does not leak resolved local roots
+  ---
+  duration_ms: 1482.828083
+  type: 'test'
+  ...
+# Subtest: artifact scripts fail when configured rebuild or validation budgets are exceeded
+ok 9 - artifact scripts fail when configured rebuild or validation budgets are exceeded
+  ---
+  duration_ms: 2503.951708
+  type: 'test'
+  ...
+# Subtest: CI invokes artifact validation and watches artifact script inputs
+ok 10 - CI invokes artifact validation and watches artifact script inputs
+  ---
+  duration_ms: 2.431584
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9204.707792

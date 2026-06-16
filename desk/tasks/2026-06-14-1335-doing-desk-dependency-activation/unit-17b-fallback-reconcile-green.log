@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+ok 1 - ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls
+  ---
+  duration_ms: 61.851042
+  type: 'test'
+  ...
+# Subtest: ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+ok 2 - ensureIndex treats incompatible snapshots as cache misses before vector-pack fallback
+  ---
+  duration_ms: 63.36225
+  type: 'test'
+  ...
+# Subtest: ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+ok 3 - ensureIndex reports corrupt snapshots without a fallback when vector packs are absent
+  ---
+  duration_ms: 11.754625
+  type: 'test'
+  ...
+# Subtest: ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+ok 4 - ensureIndex returns snapshot_restored when a restored snapshot is already fresh
+  ---
+  duration_ms: 66.42775
+  type: 'test'
+  ...
+# Subtest: ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+ok 5 - ensureIndex restores stale compatible snapshots then reconciles docs, refs, and search text
+  ---
+  duration_ms: 95.500542
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 439.590416

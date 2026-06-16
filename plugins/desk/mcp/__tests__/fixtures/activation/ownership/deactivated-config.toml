@@ -1,0 +1,3 @@
+# user-authored Codex config
+model = "gpt-5.4"
+approval_policy = "on-request"

@@ -1,0 +1,79 @@
+TAP version 13
+# Subtest: runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+ok 1 - runtime cache resolution honors configured, environment, XDG, and HOME fallbacks
+  ---
+  duration_ms: 4.663167
+  type: 'test'
+  ...
+# Subtest: prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+ok 2 - prepareRuntime restores dependencies, reuses current cache, and imports updated source mirrors
+  ---
+  duration_ms: 16.463
+  type: 'test'
+  ...
+# Subtest: restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+ok 3 - restoreRuntimeDependencies repairs corrupt or incomplete cache markers
+  ---
+  duration_ms: 5.455541
+  type: 'test'
+  ...
+# Subtest: source hashing ignores nested node_modules and mirrors clean up staging directories
+not ok 4 - source hashing ignores nested node_modules and mirrors clean up staging directories
+  ---
+  duration_ms: 3.167709
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/bootstrap.test.js:412:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, lstat '/var/folders/md/_fkq3wc92_z55cgtlrfrcfh40000gn/T/desk-bootstrap-0FOlGA/mcp/package-lock.json'"
+  code: 'ENOENT'
+  stack: |-
+    cpSyncFn (node:internal/fs/cp/cp-sync:56:13)
+    cpSync (node:fs:3139:3)
+    syncSourceMirror (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/runtime/bootstrap.js:244:5)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/bootstrap.test.js:431:25)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+not ok 5 - bootstrap pack verifier rejects missing metadata, drift, corrupt archives, and bundled source
+  ---
+  duration_ms: 9.9865
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/bootstrap.test.js:443:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    corrupt gzip archive with matching checksum
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/runtime/bootstrap.test.js:566:14)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: extractRuntimeArchive handles tar name variants and rejects unsafe paths
+ok 6 - extractRuntimeArchive handles tar name variants and rejects unsafe paths
+  ---
+  duration_ms: 2.418834
+  type: 'test'
+  ...
+# Subtest: runtime pack diagnostics list expected paths, available targets, and remediation
+ok 7 - runtime pack diagnostics list expected paths, available targets, and remediation
+  ---
+  duration_ms: 0.938542
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 5
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 126.693875

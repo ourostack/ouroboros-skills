@@ -1,0 +1,8 @@
+$ npm --prefix plugins/desk/mcp run build
+npm error Missing script: "build"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: <redacted npm debug log path>
+
+exit_status=1

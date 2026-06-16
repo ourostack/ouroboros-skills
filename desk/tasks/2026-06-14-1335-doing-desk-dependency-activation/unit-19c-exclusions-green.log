@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: discover excludes gitignored markdown before indexing
+ok 1 - discover excludes gitignored markdown before indexing
+  ---
+  duration_ms: 11.14875
+  type: 'test'
+  ...
+# Subtest: discover fails closed when root gitignore cannot be read
+ok 2 - discover fails closed when root gitignore cannot be read
+  ---
+  duration_ms: 1.278834
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed on unexpected gitignore filesystem errors
+ok 3 - loadExclusionRules fails closed on unexpected gitignore filesystem errors
+  ---
+  duration_ms: 1.095417
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules fails closed when gitignore bytes become unreadable
+ok 4 - loadExclusionRules fails closed when gitignore bytes become unreadable
+  ---
+  duration_ms: 0.715042
+  type: 'test'
+  ...
+# Subtest: loadExclusionRules surfaces unexpected directory scan errors
+ok 5 - loadExclusionRules surfaces unexpected directory scan errors
+  ---
+  duration_ms: 0.739667
+  type: 'test'
+  ...
+# Subtest: discover excludes sensitive active and archived paths
+ok 6 - discover excludes sensitive active and archived paths
+  ---
+  duration_ms: 12.765375
+  type: 'test'
+  ...
+# Subtest: discover applies nested gitignore files and negated rules
+ok 7 - discover applies nested gitignore files and negated rules
+  ---
+  duration_ms: 5.584417
+  type: 'test'
+  ...
+# Subtest: discover excludes symlink and hidden docs while preserving person and shared docs
+ok 8 - discover excludes symlink and hidden docs while preserving person and shared docs
+  ---
+  duration_ms: 4.945791
+  type: 'test'
+  ...
+# Subtest: discover keeps ordinary archive recall while excluding archived sensitive paths
+ok 9 - discover keeps ordinary archive recall while excluding archived sensitive paths
+  ---
+  duration_ms: 3.427833
+  type: 'test'
+  ...
+# Subtest: rebuildIndex never stores or embeds excluded document text
+ok 10 - rebuildIndex never stores or embeds excluded document text
+  ---
+  duration_ms: 40.514791
+  type: 'test'
+  ...
+# Subtest: artifact publication guard rejects excluded inputs without leaking content
+ok 11 - artifact publication guard rejects excluded inputs without leaking content
+  ---
+  duration_ms: 4.10325
+  type: 'test'
+  ...
+# Subtest: artifact publication guard honors nested gitignore files and negated rules
+ok 12 - artifact publication guard honors nested gitignore files and negated rules
+  ---
+  duration_ms: 1.61825
+  type: 'test'
+  ...
+# Subtest: exclusion helpers cover path globs and benign artifact inputs
+ok 13 - exclusion helpers cover path globs and benign artifact inputs
+  ---
+  duration_ms: 1.832459
+  type: 'test'
+  ...
+# Subtest: vector-pack writer rejects excluded source docs before writing bytes
+ok 14 - vector-pack writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.575459
+  type: 'test'
+  ...
+# Subtest: snapshot writer rejects excluded source docs before writing bytes
+ok 15 - snapshot writer rejects excluded source docs before writing bytes
+  ---
+  duration_ms: 3.100792
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 236.879125

@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: activation artifact ownership writes generated files and a ledger
+ok 1 - activation artifact ownership writes generated files and a ledger
+  ---
+  duration_ms: 4.861333
+  type: 'test'
+  ...
+# Subtest: activation artifact ownership replaces generated artifacts during upgrades
+ok 2 - activation artifact ownership replaces generated artifacts during upgrades
+  ---
+  duration_ms: 1.880083
+  type: 'test'
+  ...
+# Subtest: deactivation removes owned activation blocks while preserving user-authored config
+ok 3 - deactivation removes owned activation blocks while preserving user-authored config
+  ---
+  duration_ms: 1.515375
+  type: 'test'
+  ...
+# Subtest: deactivation uses ledger never-delete boundaries for desk data
+not ok 4 - deactivation uses ledger never-delete boundaries for desk data
+  ---
+  duration_ms: 1.883833
+  type: 'test'
+  location: '/Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:202:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'includes')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    deactivateActivationArtifacts (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/src/activation/artifact-ledger.js:53:21)
+    file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:228:22
+    withTempHost (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:34:12)
+    TestContext.<anonymous> (file:///Users/arimendelow/Projects/ouroboros-skills/plugins/desk/mcp/__tests__/activation/artifact_ownership.test.js:210:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 95.079417
