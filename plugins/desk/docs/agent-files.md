@@ -33,6 +33,8 @@ The root package carries generated flattened Work Suite metadata for Copilot-com
 
 Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, enables the bundled plugin-scoped MCP, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.
 
+The generated worker block includes a Desk MCP health guard. Before treating session start as healthy, the agent checks whether the active host exposes Desk MCP tools, especially `desk_status`. Missing tools route to `desk:codex-onboarding` or the Codex repair checklist; callable `desk_status` means the MCP is present and any degraded index/vector/snapshot state should be repaired through Desk runtime tooling.
+
 Use `manual-only` when Desk should remain available as a plugin/MCP substrate without changing default behavior. Use `project-local` when a repo should own its own Desk binding. If a Codex host exposes an explicit subagent surface, `agents/worker.toml` is the source format for that optional layer, but copied agent files are not part of the healthy path.
 
 No bespoke Desk CLI is required for the default worker path; the host plugin profile, activation adapter, and bundled MCP metadata carry the setup.
@@ -55,9 +57,9 @@ The first-class dependency ladder is:
 desk substrate -> desk:worker -> ms-desk:worker -> area overlay
 ```
 
-`desk:worker` remains the standalone default. A downstream plugin such as `ms-desk` should not copy Desk skills, Desk MCP config, or the worker body; it should declare an overlay agent that inherits `desk:worker`, adds its own identity/instructions, and becomes the selected activation in the user's global or project profile. A narrower area overlay should depend on `ms-desk` and inherit `ms-desk:worker` so the chain stays explicit.
+`desk:worker` remains the standalone default. A downstream plugin such as `ms-desk` should not copy Desk skills, Desk MCP config, or the worker body; it should declare an overlay agent that inherits `desk:worker`, adds its own identity/instructions, and becomes the selected activation in the user's global or project profile. A narrower area overlay should depend on `ms-desk` and inherit `ms-desk:worker` so the chain stays explicit. Codex activation enables the selected overlay's plugin dependencies together with Desk and Work Suite while preserving a single Desk MCP server.
 
-`desk_status` reports the active selected activation and chain when the host passes activation context. For Codex cache/debugging, distinguish `repo-source-current`, `installed-cache-current`, and `active-session-visible`: the first two can be checked by the read-only cache audit, while active session visibility requires a host/session reload proof.
+`desk_status` reports the active selected activation and chain when the host passes activation context. For Codex cache/debugging, distinguish `repo-source-current`, `installed-cache-current`, and `active-session-visible`: the first two can be checked by the read-only cache audit, while active session visibility requires a host/session reload proof or an active tool-list snapshot supplied to the cache audit.
 
 ## `$DESK` binding
 
