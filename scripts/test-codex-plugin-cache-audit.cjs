@@ -90,8 +90,108 @@ function testCurrentFixture() {
     }
     assert.match(
       report.evidence_states.active_session_visible,
-      /requires host\/session reload/u,
+      /optional active MCP tool snapshot/u,
     );
+    assert.equal(report.active_session.status, "not_checked");
+    assert.equal(report.active_session.provided, false);
+    assert.ok(report.active_session.required.includes("desk_status"));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+function testActiveToolSnapshot() {
+  const fixture = makeFixture();
+  try {
+    const required = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    }).active_session.required;
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required,
+    });
+    assert.equal(report.status, "current");
+    assert.equal(report.active_session.status, "pass");
+    assert.deepEqual(report.active_session.missing, []);
+    assert.ok(report.active_session.present.includes("desk_status"));
+    assert.equal(report.plugins.find((plugin) => plugin.name === "desk").active_session_visible, true);
+    assert.equal(report.plugins.find((plugin) => plugin.name === "work-suite").active_session_visible, "not_checked");
+
+    const prefixed = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required.map((name) => `mcp__desk__${name}`),
+    });
+    assert.equal(prefixed.active_session.status, "pass");
+
+    const missingStatus = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required.filter((name) => name !== "desk_status"),
+    });
+    assert.equal(missingStatus.status, "current");
+    assert.equal(missingStatus.active_session.status, "fail");
+    assert.deepEqual(missingStatus.active_session.missing, ["desk_status"]);
+    assert.equal(missingStatus.plugins.find((plugin) => plugin.name === "desk").active_session_visible, false);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+function testActiveToolSnapshotFileAndStrictMode() {
+  const fixture = makeFixture();
+  const activeToolsFile = path.join(fixture.root, "active-tools.json");
+  try {
+    const required = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    }).active_session.required;
+    writeJson(activeToolsFile, {
+      tools: required.map((name) => ({ name: `mcp__desk.${name}` })),
+    });
+
+    const stdout = [];
+    const stderr = [];
+    const exitCode = run({
+      argv: [
+        "--repo-root", fixture.repoRoot,
+        "--codex-home", fixture.codexHome,
+        "--active-tools-file", activeToolsFile,
+        "--strict-active",
+      ],
+      stdout: { write: (text) => stdout.push(text) },
+      stderr: { write: (text) => stderr.push(text) },
+    });
+    assert.equal(exitCode, 0);
+    assert.equal(JSON.parse(stdout.join("")).active_session.status, "pass");
+    assert.equal(stderr.join(""), "");
+
+    const missingSnapshotExit = run({
+      argv: ["--repo-root", fixture.repoRoot, "--codex-home", fixture.codexHome, "--strict-active"],
+      stdout: { write: () => {} },
+      stderr: { write: () => {} },
+    });
+    assert.equal(missingSnapshotExit, 1);
+
+    const missingValueStderr = [];
+    const missingValueExit = run({
+      argv: ["--repo-root"],
+      stdout: { write: () => {} },
+      stderr: { write: (text) => missingValueStderr.push(text) },
+    });
+    assert.equal(missingValueExit, 1);
+    assert.match(missingValueStderr.join(""), /--repo-root requires a value/u);
+
+    const unknownStderr = [];
+    const unknownExit = run({
+      argv: ["--what"],
+      stdout: { write: () => {} },
+      stderr: { write: (text) => unknownStderr.push(text) },
+    });
+    assert.equal(unknownExit, 1);
+    assert.match(unknownStderr.join(""), /unknown argument/u);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -238,6 +338,8 @@ function testCliStrictMode() {
 }
 
 testCurrentFixture();
+testActiveToolSnapshot();
+testActiveToolSnapshotFileAndStrictMode();
 testStaleSourceAndCache();
 testAlternateMarketplaceNamespace();
 testMissingMarketplaceSource();

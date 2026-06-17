@@ -6,6 +6,28 @@ const os = require("node:os");
 const path = require("node:path");
 
 const defaultPlugins = Object.freeze(["desk", "work-suite"]);
+const fallbackDeskMcpTools = Object.freeze([
+  "task_create",
+  "task_update",
+  "task_archive",
+  "track_create",
+  "track_update",
+  "friction_add",
+  "lesson_add",
+  "desk_search",
+  "desk_recall",
+  "desk_similar",
+  "desk_timeline",
+  "desk_thread",
+  "desk_reindex",
+  "desk_status",
+]);
+
+function expandHome(inputPath) {
+  if (inputPath === "~") return os.homedir();
+  if (inputPath.startsWith("~/")) return path.join(os.homedir(), inputPath.slice(2));
+  return inputPath;
+}
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -14,6 +36,36 @@ function readJson(filePath) {
 function readJsonIfPresent(filePath) {
   if (!fs.existsSync(filePath)) return null;
   return readJson(filePath);
+}
+
+function normalizeToolName(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  const prefixes = [
+    "mcp__desk.",
+    "mcp__desk__",
+    "mcp__desk/",
+    "mcp__desk:",
+    "desk.",
+    "desk/",
+    "desk:",
+  ];
+  for (const prefix of prefixes) {
+    if (trimmed.startsWith(prefix)) return [trimmed.slice(prefix.length)];
+  }
+  return [trimmed];
+}
+
+function normalizeActiveToolNames(value) {
+  if (Array.isArray(value)) return value.flatMap(normalizeActiveToolNames);
+  if (typeof value === "string") return normalizeToolName(value);
+  if (value && typeof value === "object") {
+    if (typeof value.name === "string") return normalizeToolName(value.name);
+    for (const key of ["tools", "availableTools", "activeTools", "mcpTools"]) {
+      if (Array.isArray(value[key])) return normalizeActiveToolNames(value[key]);
+    }
+  }
+  return [];
 }
 
 function sameJson(left, right) {
@@ -71,6 +123,53 @@ function compareManifest(actual, expected) {
   return { current: true, reason: "current" };
 }
 
+function requiredDeskMcpTools(repoRoot) {
+  const toolNamesPath = path.join(repoRoot, "plugins", "desk", "mcp", "src", "tool-names.js");
+  const source = fs.existsSync(toolNamesPath) ? fs.readFileSync(toolNamesPath, "utf8") : "";
+  const match = source.match(/export\s+const\s+TOOL_NAMES\s*=\s*\[([\s\S]*?)\]/u);
+  if (!match) return [...fallbackDeskMcpTools];
+  const names = [...match[1].matchAll(/"([^"]+)"/gu)].map((entry) => entry[1]);
+  return names.length > 0 ? names : [...fallbackDeskMcpTools];
+}
+
+function collectActiveTools({ repoRoot, activeTools = null, activeToolsFiles = [] }) {
+  let active = activeTools ? new Set(normalizeActiveToolNames(activeTools)) : null;
+  for (const file of activeToolsFiles) {
+    const absolute = path.resolve(repoRoot, expandHome(file));
+    active = active ?? new Set();
+    for (const name of normalizeActiveToolNames(readJson(absolute))) {
+      active.add(name);
+    }
+  }
+  return active;
+}
+
+function auditActiveTools(activeTools, requiredTools = [...fallbackDeskMcpTools]) {
+  if (!activeTools) {
+    return {
+      provided: false,
+      status: "not_checked",
+      required: [...requiredTools],
+      present: [],
+      missing: [],
+      guidance: "No active host MCP tool snapshot was provided. Repo and cache state can be current while the running Codex session still needs a reload.",
+    };
+  }
+
+  const missing = requiredTools.filter((name) => !activeTools.has(name));
+  const present = requiredTools.filter((name) => activeTools.has(name));
+  return {
+    provided: true,
+    status: missing.length === 0 ? "pass" : "fail",
+    required: [...requiredTools],
+    present,
+    missing,
+    guidance: missing.length === 0
+      ? "All required Desk MCP tools were visible in the active host tool snapshot."
+      : "Desk MCP is not fully visible in the active host session. Run desk:codex-onboarding or the Codex repair checklist, then restart/open a fresh Codex session before treating Desk as healthy.",
+  };
+}
+
 function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, namespace, pluginName }) {
   const repoManifestPath = pluginManifestPath(repoRoot, pluginName);
   const repoManifest = readJson(repoManifestPath);
@@ -114,12 +213,20 @@ function auditCodexPluginCache({
   cacheRoot = path.join(codexHome, "plugins", "cache"),
   marketplacePath = path.join(repoRoot, ".agents", "plugins", "marketplace.json"),
   plugins = defaultPlugins,
+  activeTools = null,
+  activeToolsFiles = [],
 } = {}) {
   const resolvedMarketplacePath = path.isAbsolute(marketplacePath)
     ? marketplacePath
     : path.join(repoRoot, marketplacePath);
   const marketplace = readJson(resolvedMarketplacePath);
   const namespace = marketplaceNamespace(marketplace);
+  const requiredTools = requiredDeskMcpTools(repoRoot);
+  const activeSession = auditActiveTools(collectActiveTools({
+    repoRoot,
+    activeTools,
+    activeToolsFiles,
+  }), requiredTools);
   const pluginReports = plugins.map((pluginName) => auditPlugin({
     repoRoot,
     cacheRoot,
@@ -128,6 +235,14 @@ function auditCodexPluginCache({
     namespace,
     pluginName,
   }));
+  if (activeSession.provided) {
+    for (const plugin of pluginReports) {
+      if (plugin.name === "desk") {
+        plugin.active_session_visible = activeSession.status === "pass";
+        plugin.active_session_reason = activeSession.guidance;
+      }
+    }
+  }
   return {
     status: pluginReports.every((plugin) => (
       plugin.repo_source_current && plugin.installed_cache_current
@@ -140,31 +255,54 @@ function auditCodexPluginCache({
     evidence_states: {
       repo_source_current: "compares .agents marketplace source manifests with repo manifests",
       installed_cache_current: "compares ~/.codex/plugins/cache manifests with repo manifests",
-      active_session_visible: "not_checked by this read-only audit; requires host/session reload or host API proof",
+      active_session_visible: "checks an optional active MCP tool snapshot when --active-tools or --active-tools-file is supplied",
     },
+    active_session: activeSession,
     plugins: pluginReports,
   };
 }
 
 function parseArgs(argv) {
-  const options = { plugins: [...defaultPlugins], strict: false };
+  const options = {
+    plugins: [...defaultPlugins],
+    strict: false,
+    strictActive: false,
+    activeTools: null,
+    activeToolsFiles: [],
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--repo-root" && argv[index + 1]) {
-      options.repoRoot = path.resolve(argv[++index]);
-    } else if (arg === "--codex-home" && argv[index + 1]) {
-      options.codexHome = path.resolve(argv[++index]);
-    } else if (arg === "--cache-root" && argv[index + 1]) {
-      options.cacheRoot = path.resolve(argv[++index]);
-    } else if (arg === "--marketplace" && argv[index + 1]) {
-      options.marketplacePath = argv[++index];
-    } else if (arg === "--plugins" && argv[index + 1]) {
-      options.plugins = argv[++index].split(",").map((name) => name.trim()).filter(Boolean);
+    if (arg === "--repo-root") {
+      options.repoRoot = path.resolve(requireValue(argv, ++index, arg));
+    } else if (arg === "--codex-home") {
+      options.codexHome = path.resolve(requireValue(argv, ++index, arg));
+    } else if (arg === "--cache-root") {
+      options.cacheRoot = path.resolve(requireValue(argv, ++index, arg));
+    } else if (arg === "--marketplace") {
+      options.marketplacePath = requireValue(argv, ++index, arg);
+    } else if (arg === "--plugins") {
+      options.plugins = requireValue(argv, ++index, arg).split(",").map((name) => name.trim()).filter(Boolean);
+    } else if (arg === "--active-tools") {
+      options.activeTools = requireValue(argv, ++index, arg).split(",").map((name) => name.trim()).filter(Boolean);
+    } else if (arg === "--active-tools-file") {
+      options.activeToolsFiles.push(requireValue(argv, ++index, arg));
     } else if (arg === "--strict") {
       options.strict = true;
+    } else if (arg === "--strict-active") {
+      options.strictActive = true;
+    } else {
+      throw new Error(`unknown argument: ${arg}`);
     }
   }
   return options;
+}
+
+function requireValue(argv, index, flag) {
+  const value = argv[index];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
 }
 
 function run({
@@ -177,7 +315,9 @@ function run({
     const options = parseArgs(argv);
     const report = auditFn(options);
     stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-    return options.strict && report.status !== "current" ? 1 : 0;
+    if (options.strict && report.status !== "current") return 1;
+    if (options.strictActive && report.active_session?.status !== "pass") return 1;
+    return 0;
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     return 1;
@@ -198,7 +338,9 @@ function startCli({
 }
 
 module.exports = {
+  auditActiveTools,
   auditCodexPluginCache,
+  requiredDeskMcpTools,
   run,
   startCli,
 };
