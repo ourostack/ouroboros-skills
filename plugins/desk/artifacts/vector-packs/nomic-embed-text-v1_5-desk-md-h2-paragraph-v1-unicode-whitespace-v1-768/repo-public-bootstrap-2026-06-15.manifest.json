@@ -14,11 +14,11 @@
       "hash": "sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59"
     }
   ],
-  "created_at": "2026-06-17T04:49:22.481Z",
+  "created_at": "2026-06-17T05:18:15.026Z",
   "provenance": {
     "builder": "plugins/desk/mcp/scripts/build-vector-pack.js",
     "source": "local-db",
-    "commit": "f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2"
+    "commit": "78de0eb181d54a18d999ffcfdb61f0a5d4f3041b"
   },
   "source_paths": [
     "plugins/desk/mcp/src/indexer/index.js",

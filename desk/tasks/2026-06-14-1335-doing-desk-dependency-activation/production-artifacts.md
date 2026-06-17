@@ -17,8 +17,8 @@ Required release-maintenance commands:
 Commands run:
 
 - `node plugins/desk/mcp/scripts/rebuild-index.js --root <repo>/desk`
-- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <repo>/desk --pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
-- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <repo>/desk --snapshot-id repo-public-bootstrap-2026-06-15 --included-pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <repo>/desk --pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
+- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <repo>/desk --snapshot-id repo-public-bootstrap-2026-06-15 --included-pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 - `npm --prefix plugins/desk/mcp run artifact:validate -- --desk-root <repo>/desk`
 - `npm --prefix plugins/desk/mcp run artifact:snapshot:verify -- --snapshot-id repo-public-bootstrap-2026-06-15`
 - `node scripts/test-desk-generated-artifacts.cjs`
@@ -40,7 +40,7 @@ Published vector pack:
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- Provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 
 Published snapshot:
 
@@ -55,7 +55,7 @@ Published snapshot:
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
 - Artifact sha256: `sha256:0f795d85aa9c2c7f802607cb5ef597610230d8423ffc5232b5514b0b0702916b`
 - Runtime: `portable-portable-portable`
-- Provenance commit: `f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- Provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 
 Approval state:
 
@@ -70,15 +70,15 @@ Privacy and redaction checks:
 
 ## Personal Desk Artifacts
 
-Status: published to the private `$DESK` workspace repo at commit `303ecce`.
+Status: published to the private `$DESK` workspace repo at commit `7f0f37b`.
 
 These artifacts are private workspace artifacts, not public plugin release artifacts. They live under `$DESK/artifacts/` so cloned private Desk workspaces can warm-start without regenerating embeddings on each machine.
 
 Commands run:
 
 - Updated-source reindex of `$DESK` with `reembedMissing: true`.
-- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root $DESK --plugin-root $DESK --pack-id ari-desk-2026-06-17 --from-local-db --provenance-commit f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
-- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root $DESK --plugin-root $DESK --snapshot-id ari-desk-2026-06-17 --included-pack-id ari-desk-2026-06-17 --from-local-db --provenance-commit f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root $DESK --plugin-root $DESK --pack-id ari-desk-2026-06-17 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
+- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root $DESK --plugin-root $DESK --snapshot-id ari-desk-2026-06-17 --included-pack-id ari-desk-2026-06-17 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 - `npm --prefix plugins/desk/mcp run artifact:validate -- --desk-root $DESK --plugin-root $DESK`
 - `npm --prefix plugins/desk/mcp run artifact:snapshot:verify -- --desk-root $DESK --plugin-root $DESK --snapshot-id ari-desk-2026-06-17`
 
@@ -90,7 +90,7 @@ Published private vector pack:
 - `artifact_source_scope_hash`: `sha256:248add5bba8eb662ac8654ac8d6fb3fe024f4278e2d8d01408600f9047a4368e`
 - `document_tree_hash`: `sha256:3268b445c09b1e1515650af09d7580d89418bc2ef2fafc41831adacdb9ff3dd2`
 - `represented_document_count`: 38
-- Source provenance commit: `f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- Source provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 
 Published private snapshot:
 
@@ -101,7 +101,7 @@ Published private snapshot:
 - `document_tree_hash`: `sha256:3268b445c09b1e1515650af09d7580d89418bc2ef2fafc41831adacdb9ff3dd2`
 - `represented_document_count`: 38
 - Artifact sha256: `sha256:a963bced8dd83fa5944df3f76ea1ef0af25a1800e667cad23d38d95452e5e7a9`
-- Source provenance commit: `f1d535170f0a2a99afcabb63dbcd73eb6bab4ba2`
+- Source provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
 
 Private cold-start checks:
 
