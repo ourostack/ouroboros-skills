@@ -51,6 +51,7 @@ Before converting a web/product surface into native work units, audit the curren
 - Mark each surface as native UI, secure web handoff, custom URL-scheme-only native action, or intentionally out of scope because it is not a current product surface.
 - Do not add comments, feeds, likes, meal planning, media libraries, or other future product surfaces while doing parity work unless the operator explicitly expands scope.
 - Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
+- When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
 - For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
 
 ## Offline And Security Boundaries
@@ -62,6 +63,7 @@ Offline is native product behavior, not a cache implementation detail. Define it
 - Siri and Shortcuts must use the same queueability policy as in-app UI and must clearly say when an online-only action was not queued.
 - Offline indicators may be dismissible for informational stale/offline states only. Queued work, sync failures, conflicts, blockers, and destructive confirmations must remain visible until resolved.
 - Media staging needs explicit size/count limits and a no-silent-eviction rule for unsynced user-selected media.
+- Spotlight, App Intents, App Shortcuts, and donated entities for private cached data need account/environment-scoped identifiers, purge hooks for logout/account switch/cache deletion/tombstones, stale-index deletion, and private-field filtering. Do not index raw media paths, secrets, provider blockers, hidden conflict/debug metadata, or source text that is not deliberately user-visible.
 
 ## Architecture
 
