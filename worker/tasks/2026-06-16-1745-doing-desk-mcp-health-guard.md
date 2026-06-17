@@ -8,7 +8,7 @@ direct
 
 ## Units
 
-### [ ] Unit 1: Add active Desk MCP tool evidence to Codex cache audit
+### [x] Unit 1: Add active Desk MCP tool evidence to Codex cache audit
 
 What:
 - Extend `scripts/audit-codex-plugin-cache.cjs` with required Desk tool names.
@@ -23,12 +23,14 @@ Acceptance:
 - Tests fail before implementation for missing active tools.
 - Tests pass for full, prefixed, and file-provided active tool snapshots.
 
-### [ ] Unit 2: Add worker startup health guard
+### [x] Unit 2: Add worker startup health guard
 
 What:
 - Update Codex generated instructions in `plugins/desk/mcp/src/activation/adapters/codex.js`.
 - Update generated instruction fixtures.
 - Update static `plugins/desk/agents/worker.md` and `plugins/desk/agents/worker.toml`.
+- Make Codex activation namespace-aware (`desk@ourostack-local` when the marketplace is local).
+- Enable selected overlay plugin dependencies (`ms-desk`, area overlays) while keeping one Desk MCP.
 
 Output:
 - Worker instructions explicitly say expected Desk MCP tools, especially `desk_status`, must be visible before treating session start as healthy.
@@ -37,8 +39,9 @@ Output:
 Acceptance:
 - Codex activation tests assert the guard in generated instructions.
 - No manual copy/MCP registration language is introduced.
+- Activation tests prove non-default marketplace namespaces and downstream overlay dependency enablement.
 
-### [ ] Unit 3: Document absent-vs-degraded repair behavior
+### [x] Unit 3: Document absent-vs-degraded repair behavior
 
 What:
 - Update `plugins/desk/skills/codex-onboarding/SKILL.md`.
@@ -71,3 +74,7 @@ Acceptance:
 ## Progress Log
 
 - 2026-06-16 17:45 Created doing doc from planning doc.
+- 2026-06-16 17:58 Harsh reviewers found BLOCKER gaps: missing MCP self-repair path, hard-coded Codex namespace, and unproven overlay dependency enablement.
+- 2026-06-16 18:06 Implemented active Desk MCP tool snapshot audit with `--active-tools`, `--active-tools-file`, `--strict-active`, canonical tool-name derivation, and strict CLI parsing.
+- 2026-06-16 18:10 Implemented namespace-aware Codex activation, selected overlay plugin dependency enablement, and worker startup MCP health guard across generated/static worker surfaces.
+- 2026-06-16 18:13 Documented absent-vs-degraded repair behavior, active-session evidence, namespace handling, and downstream overlay inheritance.

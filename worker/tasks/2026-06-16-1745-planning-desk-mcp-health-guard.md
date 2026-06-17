@@ -35,6 +35,8 @@ Host context: `ouroboros-host` / user: `arimendelow` / cwd: `/Users/arimendelow/
 - `scripts/audit-codex-plugin-cache.cjs` still checks repo-source and installed-cache states read-only by default.
 - The audit accepts `--active-tools` and `--active-tools-file` snapshots and reports pass/fail for active-session visibility.
 - `--strict-active` exits non-zero when required Desk tools are missing from a provided active-tool snapshot.
+- Codex activation renders plugin ids with the selected marketplace namespace, including local development namespaces such as `ourostack-local`.
+- Selecting a downstream overlay enables that overlay's plugin dependencies in generated Codex config while preserving a single Desk MCP server.
 - Tests cover unprefixed and MCP-prefixed tool names, JSON active-tool files, stale/missing active tools, and unchanged default `not_checked` behavior.
 - Existing Desk MCP activation tests and skill validation still pass.
 - Harsh reviewer gates converge with no BLOCKER/MAJOR findings.
@@ -57,6 +59,7 @@ Host context: `ouroboros-host` / user: `arimendelow` / cwd: `/Users/arimendelow/
 - Keep the solution host-native: no bespoke CLI and no manual `codex mcp add` path on the happy path.
 - Use an optional active-tool snapshot in the read-only audit, matching the existing Work Suite active-skill audit pattern.
 - Make the generated instruction guard concrete enough that a future agent can act even when `desk_status` itself is unavailable.
+- Treat marketplace namespace and overlay plugin enablement as first-class activation behavior rather than documentation-only promises.
 
 ## Context / References
 
@@ -80,3 +83,4 @@ Host context: `ouroboros-host` / user: `arimendelow` / cwd: `/Users/arimendelow/
 ## Progress Log
 
 - 2026-06-16 17:45 Created planning doc and initial gap inventory.
+- 2026-06-16 17:58 Expanded scope after harsh reviewer blockers on namespace handling and downstream overlay dependency enablement.
