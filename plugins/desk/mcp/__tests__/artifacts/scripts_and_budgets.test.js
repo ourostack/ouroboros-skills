@@ -583,6 +583,77 @@ test("artifact build scripts publish allowed artifacts only under canonical dirs
   }
 })
 
+test("artifact build scripts can stamp a source provenance commit", async () => {
+  const deskRoot = makeTempDir("desk-artifact-scripts-provenance-desk-")
+  const pluginRoot = makeTempDir("desk-artifact-scripts-provenance-plugin-")
+  const provenanceCommit = "1".repeat(40)
+  try {
+    writeApprovedPolicy(pluginRoot)
+    await seedIndexedDesk({ deskRoot })
+
+    const packId = "source-provenance-pack"
+    assert.equal(
+      await runVectorPackBuildCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+          "--pack-id",
+          packId,
+          "--from-local-db",
+          "--provenance-commit",
+          provenanceCommit,
+        ],
+        io: captureIo().io,
+      }),
+      0,
+    )
+
+    const snapshotId = "source-provenance-snapshot"
+    assert.equal(
+      await runSnapshotBuildCli({
+        argv: [
+          "--desk-root",
+          deskRoot,
+          "--plugin-root",
+          pluginRoot,
+          "--snapshot-id",
+          snapshotId,
+          "--included-pack-id",
+          packId,
+          "--from-local-db",
+          "--provenance-commit",
+          provenanceCommit,
+        ],
+        io: captureIo().io,
+      }),
+      0,
+    )
+
+    const packManifest = loadJson(path.join(
+      pluginRoot,
+      "artifacts",
+      "vector-packs",
+      ACTIVE_EMBEDDING_SPEC.id,
+      `${packId}.manifest.json`,
+    ))
+    const snapshotManifest = loadJson(path.join(
+      pluginRoot,
+      "artifacts",
+      "snapshots",
+      ACTIVE_EMBEDDING_SPEC.id,
+      `${snapshotId}.manifest.json`,
+    ))
+
+    assert.equal(packManifest.provenance.commit, provenanceCommit)
+    assert.equal(snapshotManifest.provenance.commit, provenanceCommit)
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+    rmSync(pluginRoot, { recursive: true, force: true })
+  }
+})
+
 test("artifact build scripts reject publication-policy denial before writing bytes", async () => {
   const deskRoot = makeTempDir("desk-artifact-scripts-denied-desk-")
   const pluginRoot = makeTempDir("desk-artifact-scripts-denied-plugin-")
@@ -1117,6 +1188,15 @@ test("artifact script defensive helpers cover filesystem and fallback branches",
     assert.equal(__artifactScriptInternalsForTests.optionalString(" value "), " value ")
     assert.equal(__artifactScriptInternalsForTests.optionalString(""), undefined)
     assert.equal(__artifactScriptInternalsForTests.optionalString(true), undefined)
+    assert.equal(
+      __artifactScriptInternalsForTests.optionalProvenanceCommit("2".repeat(40)),
+      "2".repeat(40),
+    )
+    assert.equal(__artifactScriptInternalsForTests.optionalProvenanceCommit(""), undefined)
+    assert.throws(
+      () => __artifactScriptInternalsForTests.optionalProvenanceCommit("not-a-sha"),
+      /--provenance-commit/u,
+    )
     assert.equal(
       __artifactScriptInternalsForTests.gitCommit({
         spawn: () => ({ stdout: "not-a-sha\n" }),
