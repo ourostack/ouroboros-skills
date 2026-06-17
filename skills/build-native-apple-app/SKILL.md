@@ -53,6 +53,7 @@ Before converting a web/product surface into native work units, audit the curren
 - When planning, audit, parity matrix, and doing docs all act as source material, keep them aligned. If a later reviewer narrows or corrects scope, update the supporting artifacts too and add a stale-language check for the old requirement.
 - Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
 - When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
+- Keep parity matrices and route plans explicit about this split: AASA/universal links cover real web route modules, while native-only actions such as sheet entry points, local drafts, and command shortcuts stay custom-scheme-only until a tested web route exists.
 - For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
 
 ## Offline And Security Boundaries
