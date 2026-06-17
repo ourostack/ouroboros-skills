@@ -146,6 +146,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - Warning scans must exclude their own prior warning-scan output and remove stale output before reruns.
 - Screenshot/design review success and blocker artifacts must be mutually exclusive; runtime screenshot blockers need a companion design-review-blocked artifact so design validation can distinguish blocked capture from design success.
 - Keep blocker paths canonical by capability instead of forcing every blocker into one directory. Native runtime and App Intents blockers can live under the native artifact directory, while cross-repo/provider/human/production blockers may need root or web artifact paths.
+- For every blocker capability, name its producer and consumer phases. Do not let a later release/production blocker satisfy an earlier local validation gate unless that earlier gate explicitly owns the capability.
 - Final validation should rerun current App Intents/App Entity contract checks for every shipped domain; stale unit-level App Intents logs do not prove final readiness.
 
 ## Xcode Health And Blockers
