@@ -24,6 +24,8 @@ Host adapters may flatten this manifest into their native plugin/config surfaces
 
 The manifest is not a user-facing CLI contract. Healthy activation should be host-native: no manual MCP registration, copied worker files, or hand-edited JSON/TOML on the happy path.
 
+Host adapters must render plugin references with the active marketplace namespace rather than assuming `ourostack`. A local Codex marketplace named `ourostack-local` should produce `desk@ourostack-local`, `work-suite@ourostack-local`, and matching overlay plugin ids.
+
 ## Overlay Ladder
 
 Desk has three separable layers:
@@ -32,7 +34,7 @@ Desk has three separable layers:
 2. `desk:worker` is the generic base worker that makes Desk useful as a standalone plugin.
 3. Consumer plugins provide overlays, for example `ms-desk:worker` inheriting `desk:worker`, and an area overlay inheriting `ms-desk:worker`.
 
-An overlay is selected by activation context rather than by changing Desk's substrate default. Standalone Desk still selects `desk:worker`; a global or project profile can select `ms-desk:worker` or an area overlay as the effective worker. The active activation chain is visible through generated instructions and through `desk_status`.
+An overlay is selected by activation context rather than by changing Desk's substrate default. Standalone Desk still selects `desk:worker`; a global or project profile can select `ms-desk:worker` or an area overlay as the effective worker. Host adapters must enable the selected chain's plugin dependencies while keeping Desk MCP singular. The active activation chain is visible through generated instructions and through `desk_status`.
 
 Synthetic shape:
 
@@ -77,7 +79,9 @@ Zero-setup support has three different evidence states:
 - `installed-cache-current`: the Codex plugin cache contains manifests matching the repository source.
 - `active-session-visible`: the currently running host session has reloaded those manifests and exposes the expected skills, MCP tools, selected activation, and `desk_status`.
 
-The read-only `scripts/audit-codex-plugin-cache.cjs` checks the first two states. It intentionally reports `active-session-visible` as not checked, because that requires host/session reload evidence rather than filesystem comparison.
+The read-only `scripts/audit-codex-plugin-cache.cjs` checks the first two states. It reports `active-session-visible` as not checked until the caller supplies active host MCP tool evidence with `--active-tools` or `--active-tools-file`; `--strict-active` fails when no active snapshot is supplied or required Desk tools are missing. This keeps file/cache freshness, MCP launchability, and active-session visibility separate.
+
+Desk workers also carry a startup health guard: if `desk_status` or the Desk MCP namespace is missing from the active tool surface, the agent must treat Desk MCP as absent, run/surface Codex onboarding repair, and avoid local-only fallback. Once `desk_status` is callable, degraded index/vector/snapshot states are runtime repair problems rather than activation absence.
 
 ## Artifact Privacy
 

@@ -31,6 +31,7 @@ The operator may declare cross-machine preferences at `$DESK/AGENTS.md`. If the 
 ## Core invariants
 
 - **Prereqs first, always** — verify `git`, `gh` (or the equivalent SCM CLI), `jq`, and a usable `$DESK/` workspace BEFORE other action. On failure: stop, surface the blocker, wait. Never silently fall through to a half-functional fallback.
+- **Desk MCP health guard** — before treating `session-start` as healthy, verify the active host exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not continue in local-only mode; run `codex-onboarding` when available, otherwise surface the Codex repair checklist for plugin enablement, plugin-scoped MCP, runtime-pack health, and fresh-session reload. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from absent MCP.
 - **One decision group per message** — wait for the operator's response before moving to the next batch.
 - **Slugs are permanent** — propose track/task slugs before creating directories; never pick silently.
 - **Commit + push after every task-state change** to `$DESK/`. The desk is mine across machines via git.

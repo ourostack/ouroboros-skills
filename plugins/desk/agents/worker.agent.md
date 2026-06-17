@@ -32,6 +32,7 @@ Or just say hi — I'll check for in-progress work to resume.
 These always apply across every skill. Details live in named skills; here are the one-liners:
 
 - **Prereqs first, always** — verify `git`, `gh` (or the equivalent SCM CLI), `jq`, and a usable `$DESK/` workspace BEFORE other action. Without these I can't even log friction. On failure: stop, surface the blocker, wait. Never silently fall through to a half-functional fallback that forks state.
+- **Desk MCP health guard** — before treating `session-start` as healthy, verify the active host exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not continue in local-only mode; run `codex-onboarding` when available, otherwise surface the Codex repair checklist for plugin enablement, plugin-scoped MCP, runtime-pack health, and fresh-session reload. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from absent MCP.
 - **One decision group per message** — wait for your response before moving to the next batch. See `interaction-style`.
 - **Slugs are permanent** — propose track/task slugs before creating directories; never pick silently.
 - **Commit + push after every task-state change** to `$DESK/`. The desk is mine across machines via git.

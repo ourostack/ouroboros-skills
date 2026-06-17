@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url"
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const require = createRequire(import.meta.url)
 const {
+  auditActiveTools,
   auditCodexPluginCache,
+  requiredDeskMcpTools,
   run,
   startCli,
 } = require(path.join(repoRoot, "scripts", "audit-codex-plugin-cache.cjs"))
@@ -91,10 +93,122 @@ test("Codex plugin cache audit derives cache namespace from marketplace name", (
     })
     assert.equal(report.status, "current")
     assert.equal(report.marketplace_namespace, "contoso")
+    assert.equal(report.active_session.status, "not_checked")
+    assert.equal(report.active_session.provided, false)
+    assert.ok(report.active_session.required.includes("desk_status"))
     assert.ok(report.plugins.every((plugin) => (
       plugin.marketplace_namespace === "contoso" &&
       plugin.installed_cache_path.includes(path.join("plugins", "cache", "contoso"))
     )))
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("Codex plugin cache audit checks optional active Desk MCP tool snapshots", () => {
+  const fixture = makeFixture()
+  try {
+    const required = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    }).active_session.required
+
+    const full = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required,
+    })
+    assert.equal(full.status, "current")
+    assert.equal(full.active_session.status, "pass")
+    assert.deepEqual(full.active_session.missing, [])
+    assert.ok(full.active_session.present.includes("desk_status"))
+    assert.equal(full.plugins.find((plugin) => plugin.name === "desk").active_session_visible, true)
+    assert.equal(full.plugins.find((plugin) => plugin.name === "work-suite").active_session_visible, "not_checked")
+
+    const prefixed = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required.map((name) => `mcp__desk.${name}`),
+    })
+    assert.equal(prefixed.active_session.status, "pass")
+
+    const activeToolsFile = path.join(fixture.root, "active-tools.json")
+    writeJson(activeToolsFile, {
+      activeTools: required.map((name) => ({ name: `mcp__desk__${name}` })),
+    })
+    const fromFile = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeToolsFiles: [activeToolsFile],
+    })
+    assert.equal(fromFile.active_session.status, "pass")
+
+    const mixedActiveToolsFile = path.join(fixture.root, "mixed-active-tools.json")
+    writeJson(mixedActiveToolsFile, {
+      tools: required.slice(1).map((name) => ({ name })),
+    })
+    const mixedActive = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: [required[0]],
+      activeToolsFiles: [mixedActiveToolsFile],
+    })
+    assert.equal(mixedActive.active_session.status, "pass")
+
+    const missingStatus = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: required.filter((name) => name !== "desk_status"),
+    })
+    assert.equal(missingStatus.status, "current")
+    assert.equal(missingStatus.active_session.status, "fail")
+    assert.deepEqual(missingStatus.active_session.missing, ["desk_status"])
+    assert.equal(missingStatus.plugins.find((plugin) => plugin.name === "desk").active_session_visible, false)
+
+    const malformedActive = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: [{ unexpected: true }, "", { mcpTools: ["desk:desk_status"] }],
+    })
+    assert.equal(malformedActive.active_session.status, "fail")
+    assert.deepEqual(malformedActive.active_session.present, ["desk_status"])
+
+    assert.deepEqual(auditActiveTools(null, ["desk_status"]).required, ["desk_status"])
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("Codex plugin cache audit derives required active tools from canonical tool-names source when present", () => {
+  const fixture = makeFixture()
+  try {
+    const toolNamesPath = path.join(fixture.repoRoot, "plugins", "desk", "mcp", "src", "tool-names.js")
+    mkdirp(path.dirname(toolNamesPath))
+    writeFileSync(toolNamesPath, 'export const TOOL_NAMES = ["desk_status", "desk_search"]\n', "utf8")
+
+    assert.deepEqual(requiredDeskMcpTools(fixture.repoRoot), ["desk_status", "desk_search"])
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      activeTools: ["desk_status", "desk_search"],
+    })
+    assert.equal(report.active_session.status, "pass")
+    assert.deepEqual(report.active_session.required, ["desk_status", "desk_search"])
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("Codex plugin cache audit falls back when canonical tool-names source has no names", () => {
+  const fixture = makeFixture()
+  try {
+    const toolNamesPath = path.join(fixture.repoRoot, "plugins", "desk", "mcp", "src", "tool-names.js")
+    mkdirp(path.dirname(toolNamesPath))
+    writeFileSync(toolNamesPath, "export const TOOL_NAMES = []\n", "utf8")
+
+    const required = requiredDeskMcpTools(fixture.repoRoot)
+    assert.ok(required.includes("desk_status"))
+    assert.ok(required.length > 2)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }
@@ -128,6 +242,7 @@ test("Codex plugin cache audit reports source, cache, entry, and namespace evide
     assert.equal(report.plugins[1].repo_source_reason, "missing-marketplace-entry")
     assert.equal(report.plugins[1].installed_cache_reason, "missing")
     assert.equal(report.plugins[0].active_session_visible, "not_checked")
+    assert.equal(report.active_session.status, "not_checked")
 
     writeJson(path.join(fixture.repoRoot, ".agents", "plugins", "marketplace.json"), {
       name: "ourostack",
@@ -277,6 +392,107 @@ test("Codex plugin cache audit CLI covers strict and error paths", () => {
       1,
     )
     assert.match(errorStderr.join(""), /no such file|ENOENT/u)
+
+    const missingActiveSnapshotStdout = []
+    assert.equal(
+      run({
+        argv: ["--repo-root", fixture.repoRoot, "--codex-home", fixture.codexHome, "--strict-active"],
+        stdout: { write: (text) => missingActiveSnapshotStdout.push(text) },
+        stderr: { write: () => {} },
+      }),
+      1,
+    )
+    assert.equal(JSON.parse(missingActiveSnapshotStdout.join("")).active_session.status, "not_checked")
+
+    const activeTools = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    }).active_session.required
+    const strictActiveStdout = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--active-tools", activeTools.map((name) => `desk:${name}`).join(","),
+          "--strict-active",
+        ],
+        stdout: { write: (text) => strictActiveStdout.push(text) },
+        stderr: { write: () => {} },
+      }),
+      0,
+    )
+    assert.equal(JSON.parse(strictActiveStdout.join("")).active_session.status, "pass")
+
+    const activeToolsFile = path.join(fixture.root, "active-tools-cli.json")
+    writeJson(activeToolsFile, { tools: activeTools.map((name) => ({ name })) })
+    const strictActiveFileStdout = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--active-tools-file", activeToolsFile,
+          "--strict-active",
+        ],
+        stdout: { write: (text) => strictActiveFileStdout.push(text) },
+        stderr: { write: () => {} },
+      }),
+      0,
+    )
+    assert.equal(JSON.parse(strictActiveFileStdout.join("")).active_session.status, "pass")
+
+    const missingValueStderr = []
+    assert.equal(
+      run({
+        argv: ["--repo-root"],
+        stdout: { write: () => {} },
+        stderr: { write: (text) => missingValueStderr.push(text) },
+      }),
+      1,
+    )
+    assert.match(missingValueStderr.join(""), /--repo-root requires a value/u)
+
+    const unknownArgStderr = []
+    assert.equal(
+      run({
+        argv: ["--unknown"],
+        stdout: { write: () => {} },
+        stderr: { write: (text) => unknownArgStderr.push(text) },
+      }),
+      1,
+    )
+    assert.match(unknownArgStderr.join(""), /unknown argument/u)
+
+    const tildeFileStderr = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--active-tools-file", "~",
+        ],
+        stdout: { write: () => {} },
+        stderr: { write: (text) => tildeFileStderr.push(text) },
+      }),
+      1,
+    )
+    assert.match(tildeFileStderr.join(""), /EISDIR|illegal operation|directory/u)
+
+    const homeRelativeFileStderr = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--active-tools-file", "~/definitely-missing-desk-active-tools.json",
+        ],
+        stdout: { write: () => {} },
+        stderr: { write: (text) => homeRelativeFileStderr.push(text) },
+      }),
+      1,
+    )
+    assert.match(homeRelativeFileStderr.join(""), /ENOENT|no such file/u)
 
     assert.equal(startCli({ isMain: false }), null)
     const previousExitCode = process.exitCode
