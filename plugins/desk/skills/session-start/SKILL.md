@@ -45,6 +45,33 @@ why here, not later: most later steps assume `$DESK/` already points at the righ
 
 on a machine with no pending migrations (the common case) this step is a few cheap Detect bash exits and returns immediately.
 
+## Step 0.75 — Desk MCP availability checkpoint
+
+before treating session-start as healthy, check whether the active host session exposes the Desk MCP tool surface. this applies to every agent built on `desk:worker`, including downstream overlays like `ms-desk` and area-specific workers. overlays may add their own MCP checks, but they inherit this substrate check rather than re-implementing it.
+
+the minimum sentinel is `desk_status`. if the host exposes an active tool list, look for `desk_status` or the Desk MCP namespace. if the host does not expose a tool-list API, infer from the callable tools available in the current session. this is an active-session check: repo source and plugin cache can both be current while this running agent still lacks the MCP because the host has not reloaded or the MCP failed to launch.
+
+when `desk_status` is callable:
+- call it once.
+- if it reports healthy/fresh state, include `Desk MCP: available` in the session-start status block.
+- if it reports degraded state (missing/stale DB, lexical index, vector coverage, runtime pack, snapshot, or embedding endpoint), include a concise `Desk MCP: degraded` line with the `desk_status` guidance. degraded is not the same as absent: the agent can still use MCP-backed CRUD/status and can repair via `desk_reindex`, runtime-pack verification, snapshot/vector-pack import, or embedding/Ollama checks.
+
+when `desk_status` or the Desk MCP namespace is absent:
+- do **not** silently continue in local-only mode.
+- explain the impact in plain language: Desk MCP is the structured access path for task/track CRUD, durable status, friction/lesson writes, search/recall/timeline/thread queries, reindexing, snapshots, and vector-pack health. without it, a desk-based agent can still use shell/file/git tools, but durable task lifecycle updates, historical recall, cross-session resumption, and shared-worker continuity are weaker and easier to fork.
+- present exactly one decision group:
+
+```text
+Desk MCP is not available in this session. Want me to fix/reload it now, or continue without Desk MCP and stop reminding you?
+
+- Fix Desk MCP now: I will run the host repair path (`codex-onboarding` when available, otherwise the host checklist) and may ask you to restart/open a fresh session if the host needs to reload tools.
+- Continue without reminders: I will mute generic Desk MCP absence reminders. I will still mention the limitation if you ask for something that specifically needs MCP-backed desk search, task CRUD, reindexing, or durable friction/lesson writes.
+```
+
+if the operator chooses **Fix Desk MCP now**, route to `codex-onboarding` when available. otherwise surface the host repair checklist for plugin enablement, plugin-scoped MCP, runtime-pack health, and fresh-session reload. if repair requires a restart, stop after explaining the exact restart/reopen step; do not keep working as if the MCP is healthy.
+
+if the operator chooses **Continue without reminders**, honor the mute for the rest of the session. if they explicitly ask for a durable no-reminder preference, record it in `$DESK/AGENTS.md` as an operator preference so future worker-based agents inherit it across machines. do not silently switch the activation to `manual-only`: explain that durable manual-only mode disables default worker/MCP autostart, while a reminder mute only suppresses the generic warning.
+
 ## Step 1 — Prerequisite probe
 
 five checks. any failure surfaces the specific remediation to the operator and **waits** — don't proceed to step 2, and don't fall back to a local-only mode. a session with broken auth isn't "offline mode"; it's "not-yet-ready."

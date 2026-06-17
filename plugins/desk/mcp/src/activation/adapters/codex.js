@@ -8,7 +8,7 @@ const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
 const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
 const OWNED_BLOCK_END_PATTERN = /^# END desk activation\r?$/gm
-const DESK_MCP_HEALTH_GUARD = "Desk MCP health guard: before treating session start as healthy, verify the active host tool list exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not continue in local-only mode; run `desk:codex-onboarding` when that skill is available, otherwise follow the Codex repair checklist for plugin enablement, plugin-scoped MCP, runtime pack health, and fresh-session reload. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from an absent MCP."
+const DESK_MCP_HEALTH_GUARD = "Desk MCP health guard: before treating session start as healthy, run the `desk:session-start` MCP availability checkpoint: verify the active host tool list exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not silently continue in local-only mode; explain what Desk MCP provides, ask whether to fix/reload now or continue without reminders, and route repairs to `desk:codex-onboarding` when that skill is available or the Codex repair checklist. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from an absent MCP."
 
 const MODE_CONFIG = {
   "global-personal": {

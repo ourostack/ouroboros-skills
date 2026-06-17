@@ -148,7 +148,8 @@ function assertNoManualSetup(content) {
 function assertDeskMcpHealthGuard(content) {
   assert.match(content, /Desk MCP health guard/u)
   assert.match(content, /desk_status/u)
-  assert.match(content, /do not continue in local-only mode/u)
+  assert.match(content, /do not silently continue in local-only mode/u)
+  assert.match(content, /fix\/reload now or continue without reminders/u)
   assert.match(content, /codex-onboarding/u)
 }
 
@@ -193,6 +194,19 @@ test("Codex worker source no longer documents healthy-path copy registration", (
   for (const workerSource of [workerToml, workerMarkdown, workerAgent, workerOutputStyle]) {
     assertDeskMcpHealthGuard(workerSource)
   }
+})
+
+test("session-start owns the Desk MCP absence prompt inherited by worker overlays", () => {
+  const sessionStart = readFileSync(path.join(repoRoot, "plugins", "desk", "skills", "session-start", "SKILL.md"), "utf8")
+
+  assert.match(sessionStart, /Desk MCP availability checkpoint/u)
+  assert.match(sessionStart, /every agent built on `desk:worker`/u)
+  assert.match(sessionStart, /including downstream overlays like `ms-desk`/u)
+  assert.match(sessionStart, /Desk MCP is not available in this session/u)
+  assert.match(sessionStart, /Fix Desk MCP now/u)
+  assert.match(sessionStart, /Continue without reminders/u)
+  assert.match(sessionStart, /\$DESK\/AGENTS\.md/u)
+  assert.match(sessionStart, /durable task lifecycle updates, historical recall, cross-session resumption/u)
 })
 
 test("global personal activation materializes worker and Desk as the default", async () => {

@@ -22,12 +22,12 @@ The desk is *yours* — the human's general work-state shared across your non-ou
 
 At the **start of every session, before other work**, invoke the **`session-start`** skill. It probes prerequisites (`git`/`gh`/`jq`/auth), runs any pending migrations, syncs the desk, and scans for non-terminal tasks so you can offer to resume. A `SessionStart` hook injects a quick orientation, but `session-start` is the authoritative ceremony — run it. If `$DESK` doesn't exist yet, it hands off to `first-run-bootstrap`. If prereqs fail, **stop and surface the blocker** — never fall through to a half-functional local-only mode that forks state.
 
-Before treating that ceremony as healthy, verify the active host exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not continue in local-only mode; run `codex-onboarding` when available, otherwise surface the Codex repair checklist for plugin enablement, plugin-scoped MCP, runtime-pack health, and fresh-session reload. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from absent MCP.
+Before treating that ceremony as healthy, run the `session-start` MCP availability checkpoint: verify the active host exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not silently continue in local-only mode; explain what Desk MCP provides, ask whether to fix/reload now or continue without reminders, and route repairs to `codex-onboarding` when available or the Codex repair checklist. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from absent MCP.
 
 ## Operating invariants
 
 - **Prereqs first, always.** Verify `git`, `gh` (or the SCM CLI), `jq`, and a usable `$DESK/` before acting. On failure: stop, surface, wait.
-- **Desk MCP health guard.** Missing `desk_status` means Desk MCP is absent from the active session, not that durable context is optional.
+- **Desk MCP health guard.** Missing `desk_status` means Desk MCP is absent from the active session, not that durable context is optional; session-start asks whether to repair it now or continue without generic reminders.
 - **The desk is the source of truth.** Anything that should survive across sessions/machines goes under `$DESK/` (operator rules at `$DESK/_meta/operator-rules.md`, track notes at `$DESK/<track>/_planning/`), **never** harness-local memory — that's per-machine and forks state silently.
 - **Slugs are permanent.** Propose track/task slugs before creating dirs; never pick silently.
 - **Commit + push after every task-state change** to `$DESK/` — the desk travels via git.
