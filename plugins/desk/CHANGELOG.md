@@ -1,5 +1,13 @@
 # desk plugin — changelog
 
+## 1.7.3 — 2026-06-17
+
+**Codex activation config is MCP-visible.** Global Codex activation now owns a `~/.codex/desk.activation.json` file alongside the generated `config.toml` and `AGENTS.md` blocks in the default Codex profile, and emits an owned top-level `mcp_servers.desk` bridge that passes that activation config to the bundled Desk MCP entrypoint. `desk_status` can report the selected activation target and overlay chain instead of only proving that a Desk root was found. Project-local Codex activation passes the same config explicitly with `--activation-config .codex/desk.activation.json`. The shared `.mcp.json` remains host-neutral (`["./mcp/index.js"]`) so Claude/Copilot plugin launches are not coupled to Codex paths.
+
+**Workspace artifacts are first-class.** Runtime startup now checks `$DESK/artifacts/` before plugin-bundled release artifacts, so a shared Desk repo can commit document-side vector packs and warm-start snapshots for that repo. A fresh machine restores a compatible snapshot into local `.state/`, falls back to repo-local vector packs, and only generates document embeddings for uncovered chunks. Publication remains policy-gated through `artifacts/publication-policy.json`.
+
+**Runtime source mirrors include artifact scripts.** The dependency-light MCP entrypoint now mirrors `scripts/` along with `src/`, package files, and `index.js`. Fresh Codex/stdio MCP launches can run vector-pack and snapshot import helpers from the source mirror instead of failing after dependencies restore.
+
 ## 1.7.2 — 2026-06-10
 
 **Registry `identity` column — "which desk am I" matches identity, not a re-derived handle.** Fixes a shared-workspace foot-gun in the 1.7.0 `_meta/desks.md` schema: it described the `alias` as "derived from identity," which invites a consumer to *re-derive* a handle from the operator's identity each session (e.g. EMU login minus `_microsoft`). But a chosen short handle need not be a transform of the identity (`arimendelow_microsoft`'s desk is `ari`, not `arimendelow`), so re-deriving silently binds a returning teammate to the **wrong desk** (a new empty `desks/<derived>/` instead of their real `desks/<chosen>/`). The schema now carries an explicit **`identity`** column and the "which desk am I" step matches on it — the registry is the source of truth for the identity→alias binding; a re-derived handle is only a *default* used to seed a brand-new row. Prose-only (the registry is read by session-start prose, not MCP code — no code surface); default-tolerant (single-OFF-mode desk needs no registry).

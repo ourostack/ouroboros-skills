@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-06-17T04:24:46Z",
+  "command": "codex exec --json --ephemeral --strict-config",
+  "called_desk_status": true,
+  "status": "ok",
+  "root_source": "activation-config",
+  "selected_id": "desk:worker",
+  "chunks_total": 363,
+  "vectors_indexed": 363,
+  "missing_vectors": 0,
+  "degraded_modes": []
+}

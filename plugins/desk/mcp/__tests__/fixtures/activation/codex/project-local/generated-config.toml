@@ -14,7 +14,7 @@ enabled = false
 
 [mcp_servers.desk]
 command = "node"
-args = ["plugins/desk/mcp/index.js", "--root", ".desk"]
+args = ["plugins/desk/mcp/index.js", "--activation-config", ".codex/desk.activation.json"]
 cwd = "."
 enabled = true
 default_tools_approval_mode = "prompt"

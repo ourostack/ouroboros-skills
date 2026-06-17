@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "desk": {
+    "root": "~/desk"
+  },
+  "runtimeCacheDir": "~/.cache/ouroboros-skills/desk",
+  "activation": {
+    "selected_id": "desk:worker",
+    "launch_as": "desk:worker",
+    "mode": "global-personal",
+    "chain": [
+      "desk:worker"
+    ]
+  }
+}

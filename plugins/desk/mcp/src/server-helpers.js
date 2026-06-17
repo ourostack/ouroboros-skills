@@ -71,7 +71,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
   let dbExisted = existsSync(dbPath)
   throwIfAborted(effectiveOpts.signal)
   if (!dbExisted && effectiveOpts.snapshots?.pluginRoot) {
-    snapshot = await restoreSnapshotToState({
+    snapshot = await restoreSnapshotWithFallback({
       deskRoot,
       ...effectiveOpts.snapshots,
     })
@@ -153,14 +153,20 @@ export async function ensureIndex(deskRoot, opts = {}) {
 
 export function resolveEnsureIndexOptions(opts = {}, context = {}) {
   const pluginRoot = resolveArtifactPluginRoot(opts)
+  const workspaceArtifactRoot = resolveWorkspaceArtifactRoot(opts, context)
   const effective = { ...opts }
   effective.snapshots = resolveSnapshotOptions({
     opts,
     pluginRoot,
+    workspaceArtifactRoot,
     deskRoot: context.deskRoot,
     signal: opts.signal,
   })
-  effective.vectorPacks = resolveVectorPackOptions({ opts, pluginRoot })
+  effective.vectorPacks = resolveVectorPackOptions({
+    opts,
+    pluginRoot,
+    workspaceArtifactRoot,
+  })
   effective.tombstones = {
     pluginRoot,
     ...(opts.tombstones ?? {}),
@@ -181,7 +187,7 @@ function snapshotNeedsReconcile(snapshot) {
     snapshot.freshness?.document_tree === "stale"
 }
 
-function resolveSnapshotOptions({ opts, pluginRoot, deskRoot, signal }) {
+function resolveSnapshotOptions({ opts, pluginRoot, workspaceArtifactRoot, deskRoot, signal }) {
   if (opts.snapshots === false || opts.snapshots === null) return undefined
   if (opts.snapshots !== undefined) {
     return {
@@ -190,14 +196,20 @@ function resolveSnapshotOptions({ opts, pluginRoot, deskRoot, signal }) {
       ...opts.snapshots,
     }
   }
-  if (!hasSnapshotArtifacts(pluginRoot)) return undefined
+  const artifactRoots = rootsWithArtifacts({
+    roots: [workspaceArtifactRoot, pluginRoot],
+    hasArtifacts: hasSnapshotArtifacts,
+  })
+  if (artifactRoots.length === 0) return undefined
   return {
-    pluginRoot,
+    pluginRoot: artifactRoots[0],
+    fallbackPluginRoots: artifactRoots.slice(1),
+    ignoreInvalidRoots: true,
     ...defaultSnapshotCompatibilityContext({ deskRoot, signal }),
   }
 }
 
-function resolveVectorPackOptions({ opts, pluginRoot }) {
+function resolveVectorPackOptions({ opts, pluginRoot, workspaceArtifactRoot }) {
   if (opts.vectorPacks === false || opts.vectorPacks === null) return undefined
   if (opts.vectorPacks !== undefined) {
     return {
@@ -205,8 +217,16 @@ function resolveVectorPackOptions({ opts, pluginRoot }) {
       ...opts.vectorPacks,
     }
   }
-  if (!hasVectorPackArtifacts(pluginRoot)) return undefined
-  return { pluginRoot }
+  const artifactRoots = rootsWithArtifacts({
+    roots: [workspaceArtifactRoot, pluginRoot],
+    hasArtifacts: hasVectorPackArtifacts,
+  })
+  if (artifactRoots.length === 0) return undefined
+  return {
+    pluginRoot: artifactRoots[0],
+    fallbackPluginRoots: artifactRoots.slice(1),
+    ignoreInvalidRoots: true,
+  }
 }
 
 function resolveArtifactPluginRoot(opts) {
@@ -218,6 +238,39 @@ function resolveArtifactPluginRoot(opts) {
       configuredArtifactPluginRoot ??
       DEFAULT_PLUGIN_ROOT,
   )
+}
+
+function resolveWorkspaceArtifactRoot(opts, context) {
+  const explicit = textOrNull(opts.workspaceArtifactRoot) ??
+    textOrNull(process.env.DESK_WORKSPACE_ARTIFACT_ROOT)
+  if (explicit) return path.resolve(explicit)
+  return textOrNull(context.deskRoot) ? path.resolve(context.deskRoot) : null
+}
+
+function rootsWithArtifacts({ roots, hasArtifacts }) {
+  const out = []
+  for (const root of roots) {
+    if (!textOrNull(root)) continue
+    const resolved = path.resolve(root)
+    if (!out.includes(resolved) && hasArtifacts(resolved)) out.push(resolved)
+  }
+  return out
+}
+
+async function restoreSnapshotWithFallback({
+  pluginRoot,
+  fallbackPluginRoots = [],
+  ignoreInvalidRoots = false,
+  ...context
+}) {
+  const roots = [pluginRoot, ...fallbackPluginRoots].filter((root) => textOrNull(root))
+  let firstMiss = { restored: false, reason: "no_compatible_snapshot" }
+  for (const root of roots) {
+    const result = await restoreSnapshotToState({ pluginRoot: root, ...context })
+    if (result.restored || !ignoreInvalidRoots) return result
+    if (firstMiss.reason === "no_compatible_snapshot") firstMiss = result
+  }
+  return firstMiss
 }
 
 function defaultSnapshotCompatibilityContext({ deskRoot, signal } = {}) {

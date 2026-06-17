@@ -15,7 +15,11 @@ import {
   ACTIVE_EMBEDDING_SPEC,
   chunkIdentity,
 } from "../../src/indexer/spec.js"
-import { ensureIndex } from "../../src/server-helpers.js"
+import {
+  configureRuntimeArtifacts,
+  ensureIndex,
+  resolveEnsureIndexOptions,
+} from "../../src/server-helpers.js"
 import { desk_reindex } from "../../src/tools/reindex.js"
 
 const NO_RELEASE_ARTIFACTS = { snapshots: false, vectorPacks: false }
@@ -89,6 +93,20 @@ async function writePack({ pluginRoot, packId, rows }) {
     "utf8",
   )
   await fs.writeFile(checksumPath, `${packSha}  ${packId}.jsonl\n`, "utf8")
+}
+
+async function corruptPackChecksum({ pluginRoot, packId }) {
+  await fs.writeFile(
+    path.join(
+      pluginRoot,
+      "artifacts",
+      "vector-packs",
+      ACTIVE_EMBEDDING_SPEC.id,
+      `${packId}.sha256`,
+    ),
+    `${"0".repeat(64)}  ${packId}.jsonl\n`,
+    "utf8",
+  )
 }
 
 function storedVector(db, docPath, chunkIndex) {
@@ -309,6 +327,16 @@ test("rebuildIndex forwards startup abort signal into vector-pack import", async
     (err) => err.name === "AbortError" && err.message === "operation aborted",
   )
   assert.ok(reads >= 6, `expected vector-pack import to observe signal; saw ${reads} reads`)
+
+  reads = 0
+  await assert.rejects(
+    rebuildIndex(deskRoot, {
+      vectorPacks: { pluginRoot, ignoreInvalidRoots: true },
+      skipEmbed: true,
+      signal,
+    }),
+    (err) => err.name === "AbortError" && err.message === "operation aborted",
+  )
 })
 
 test("ensureIndex repairs a fresh lexical-only DB from vector packs without probing embeddings", async () => {
@@ -708,6 +736,158 @@ test("ensureIndex reports vector-pack fallback for cold covered rebuilds without
     assertVectorApprox(storedVector(db, docPath, 0), vector(29))
   } finally {
     closeDb(db)
+  }
+})
+
+test("ensureIndex discovers repo-local vector packs from the desk root by default", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const explicitWorkspaceRoot = await tmpRoot("desk-explicit-vector-root-")
+  const envWorkspaceRoot = await tmpRoot("desk-env-vector-root-")
+  const emptyDeskRoot = await tmpRoot("desk-empty-vector-root-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nrepo local vector pack body"
+  await writeFile(deskRoot, docPath, body)
+  await writePack({
+    pluginRoot: deskRoot,
+    packId: "workspace-pack",
+    rows: [rowForDoc({ docPath, body, seed: 31 })],
+  })
+  for (const [root, packId] of [
+    [explicitWorkspaceRoot, "explicit-workspace-pack"],
+    [envWorkspaceRoot, "env-workspace-pack"],
+    [pluginRoot, "plugin-fallback-pack"],
+  ]) {
+    await writePack({
+      pluginRoot: root,
+      packId,
+      rows: [rowForDoc({ docPath, body, seed: 31 })],
+    })
+  }
+
+  const original = process.env.DESK_PLUGIN_ROOT
+  const originalWorkspace = process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    configureRuntimeArtifacts({ pluginRoot })
+    const ensured = await ensureIndex(deskRoot, {
+      snapshots: false,
+      skipEmbed: true,
+      embed: {
+        fetch: async () => {
+          throw new Error("repo-local vector pack should not call embeddings")
+        },
+      },
+    })
+
+    assert.equal(ensured.fallback, "vector_packs")
+    assert.equal(ensured.vector_packs.import_state, "used_as_fallback")
+    assert.equal(ensured.vector_packs.rows_imported, 1)
+    assert.equal(ensured.semantic.missing_vectors, 0)
+
+    const resolved = resolveEnsureIndexOptions({}, { deskRoot })
+    assert.equal(resolved.vectorPacks.pluginRoot, path.resolve(deskRoot))
+
+    const explicit = resolveEnsureIndexOptions({
+      vectorPacks: { pluginRoot },
+    }, { deskRoot })
+    assert.equal(explicit.vectorPacks.pluginRoot, path.resolve(pluginRoot))
+
+    const explicitWorkspace = resolveEnsureIndexOptions({
+      workspaceArtifactRoot: explicitWorkspaceRoot,
+    }, { deskRoot })
+    assert.equal(explicitWorkspace.vectorPacks.pluginRoot, path.resolve(explicitWorkspaceRoot))
+
+    process.env.DESK_WORKSPACE_ARTIFACT_ROOT = envWorkspaceRoot
+    const envWorkspace = resolveEnsureIndexOptions({}, { deskRoot })
+    assert.equal(envWorkspace.vectorPacks.pluginRoot, path.resolve(envWorkspaceRoot))
+    delete process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+
+    const fallback = resolveEnsureIndexOptions({}, { deskRoot: emptyDeskRoot })
+    assert.equal(fallback.vectorPacks.pluginRoot, path.resolve(pluginRoot))
+    assert.deepEqual(fallback.vectorPacks.fallbackPluginRoots, [])
+    assert.equal(fallback.vectorPacks.ignoreInvalidRoots, true)
+
+    const db = openDb(deskRoot)
+    try {
+      assertVectorApprox(storedVector(db, docPath, 0), vector(31))
+    } finally {
+      closeDb(db)
+    }
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
+    if (originalWorkspace === undefined) {
+      delete process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+    } else {
+      process.env.DESK_WORKSPACE_ARTIFACT_ROOT = originalWorkspace
+    }
+  }
+})
+
+test("ensureIndex skips corrupt auto-discovered workspace vector packs and uses plugin fallback", async () => {
+  const deskRoot = await tmpRoot()
+  const strictDeskRoot = await tmpRoot("desk-strict-corrupt-vector-")
+  const pluginRoot = await tmpRoot("desk-plugin-vector-rebuild-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\ncorrupt workspace vector pack body"
+  await writeFile(deskRoot, docPath, body)
+  await writeFile(strictDeskRoot, docPath, body)
+  await writePack({
+    pluginRoot: deskRoot,
+    packId: "corrupt-workspace-pack",
+    rows: [rowForDoc({ docPath, body, seed: 3 })],
+  })
+  await corruptPackChecksum({
+    pluginRoot: deskRoot,
+    packId: "corrupt-workspace-pack",
+  })
+  await writePack({
+    pluginRoot,
+    packId: "plugin-fallback-pack",
+    rows: [rowForDoc({ docPath, body, seed: 37 })],
+  })
+
+  await assert.rejects(
+    rebuildIndex(strictDeskRoot, {
+      vectorPacks: { pluginRoot: deskRoot },
+      skipEmbed: true,
+    }),
+    /checksum mismatch/u,
+  )
+
+  const original = process.env.DESK_PLUGIN_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    configureRuntimeArtifacts({ pluginRoot })
+    const ensured = await ensureIndex(deskRoot, {
+      snapshots: false,
+      skipEmbed: true,
+    })
+
+    assert.equal(ensured.fallback, "vector_packs")
+    assert.equal(ensured.vector_packs.rows_imported, 1)
+    assert.equal(ensured.vector_packs.import_errors.length, 1)
+    assert.match(ensured.vector_packs.import_errors[0].message, /checksum mismatch/u)
+    assert.equal(ensured.semantic.missing_vectors, 0)
+
+    const db = openDb(deskRoot)
+    try {
+      assertVectorApprox(storedVector(db, docPath, 0), vector(37))
+    } finally {
+      closeDb(db)
+    }
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
   }
 })
 

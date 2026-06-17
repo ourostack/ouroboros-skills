@@ -33,7 +33,7 @@ const TOPIC_REQUIREMENTS = Object.freeze([
       "global-personal",
       "project-local",
       "manual-only",
-      "plugin-scoped mcp",
+      "desk mcp bridge",
     ]),
   }),
   Object.freeze({
@@ -177,6 +177,23 @@ const WORKFLOW_REQUIREMENTS = Object.freeze([
       "scripts/test-desk-docs.cjs",
     ],
   }),
+]);
+
+const MCP_TOOL_NAMES = Object.freeze([
+  "desk_status",
+  "task_create",
+  "task_update",
+  "task_archive",
+  "track_create",
+  "track_update",
+  "friction_add",
+  "lesson_add",
+  "desk_search",
+  "desk_recall",
+  "desk_similar",
+  "desk_timeline",
+  "desk_thread",
+  "desk_reindex",
 ]);
 
 function readRepoFile(relativePath, {
@@ -366,6 +383,28 @@ function validateWorkflowWiring(errors, {
   }
 }
 
+function validateMcpReadmeToolSurface(errors, {
+  readFile = (file) => readRepoFile(file),
+  tools = MCP_TOOL_NAMES,
+} = {}) {
+  const body = readFile("plugins/desk/mcp/README.md");
+  const expectedCount = tools.length;
+  if (!body.includes(`## Tools exposed (${expectedCount})`)) {
+    errors.push(`plugins/desk/mcp/README.md must advertise ${expectedCount} exposed tools`);
+  }
+  if (!body.includes(`All ${expectedCount} tools are wired to real implementations.`)) {
+    errors.push(`plugins/desk/mcp/README.md must state all ${expectedCount} tools are wired`);
+  }
+  for (const tool of tools) {
+    if (!body.includes(`\`${tool}\``)) {
+      errors.push(`plugins/desk/mcp/README.md must list ${tool}`);
+    }
+  }
+  if (/\b(?:12|13)\s+tools?\b/u.test(body)) {
+    errors.push("plugins/desk/mcp/README.md must not contain stale 12/13 tool counts");
+  }
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
@@ -469,6 +508,7 @@ function validateAll({
   validateValidatorFixtures(errors);
   validateWorkflowWiring(errors, { requirements: workflowRequirements, readFile });
   validateHealthyPathLanguage(errors, { docs, readFile, repoRoot });
+  validateMcpReadmeToolSurface(errors, { readFile });
   validatePrivacyNotes(errors, { docs: privacyRequiredDocs, readFile });
   validateTopicCoverage(errors, { requirements: topicRequirements, readFile, repoRoot });
   return errors;
@@ -505,6 +545,7 @@ function startCli({
 
 module.exports = {
   DOCS,
+  MCP_TOOL_NAMES,
   PRIVACY_REQUIRED_DOCS,
   TOPIC_REQUIREMENTS,
   WORKFLOW_REQUIREMENTS,
@@ -516,6 +557,7 @@ module.exports = {
   validateAll,
   validateHealthyPathLanguage,
   validateHealthyPathRecord,
+  validateMcpReadmeToolSurface,
   validatePrivacyNotes,
   validateTopicCoverage,
   validateValidatorFixtures,

@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // desk MCP server entry point.
 //
-// Spawned by consumers as a stdio MCP server with `--root <path>` pointing
-// at the desk workspace to operate on. Consumers wire this up via the
-// sibling `.mcp.json` declaration.
+// Spawned by consumers as a stdio MCP server. Hosts may pass `--root <path>`
+// directly, or pass/auto-discover an activation config that carries the root,
+// runtime cache, and active worker/overlay identity. Consumers wire this up via
+// the sibling `.mcp.json` declaration.
 //
 //   node ./mcp/index.js --root ~/AgentBundles/slugger.ouro/desk
 //
-// The same binary serves every consumer (Claude Code worker, Copilot CLI,
-// ouroboros daemon per agent). Each consumer passes a different --root.
+// The same binary serves every consumer (Codex, Claude Code worker, Copilot
+// CLI, ouroboros daemon per agent). Each consumer supplies or discovers its
+// own root/activation context without needing a bespoke Desk CLI.
 
-import { realpathSync } from "node:fs"
+import { existsSync, realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import * as path from "node:path"
 import {
@@ -38,7 +40,7 @@ export function parseArgs(argv) {
 
 export function resolveStartupDeskRoot({ args, env = process.env, homeDir } = {}) {
   return resolveDeskRootWithSource({
-    activationConfigPath: args?.activationConfig,
+    activationConfigPath: resolveStartupActivationConfigPath({ args, env }),
     env,
     explicitRoot: args?.root,
     homeDir,
@@ -46,44 +48,64 @@ export function resolveStartupDeskRoot({ args, env = process.env, homeDir } = {}
   })
 }
 
+export function resolveStartupActivationConfigPath({ args, env = process.env } = {}) {
+  if (hasText(args?.activationConfig)) {
+    return args.activationConfig
+  }
+  if (hasText(env.DESK_ACTIVATION_CONFIG)) {
+    return env.DESK_ACTIVATION_CONFIG
+  }
+  if (hasText(env.CODEX_HOME)) {
+    const candidate = path.join(env.CODEX_HOME, "desk.activation.json")
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
 export function resolveStartupRuntimeCacheDir({
   args,
   cwd = process.cwd(),
+  env = process.env,
   homeDir,
 } = {}) {
-  if (!hasText(args?.activationConfig)) {
+  const activationConfig = resolveStartupActivationConfigPath({ args, env })
+  if (!hasText(activationConfig)) {
     return null
   }
-  const activationConfig = loadActivationConfig({
-    configPath: args.activationConfig,
+  const loadedActivationConfig = loadActivationConfig({
+    configPath: activationConfig,
     cwd,
     homeDir,
   })
-  if (!hasText(activationConfig.runtimeCacheDir)) {
+  if (!hasText(loadedActivationConfig.runtimeCacheDir)) {
     return null
   }
-  const expanded = expandHome(activationConfig.runtimeCacheDir, homeDir)
+  const expanded = expandHome(loadedActivationConfig.runtimeCacheDir, homeDir)
   return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(cwd, expanded))
 }
 
 export function resolveStartupActivationContext({
   args,
   cwd = process.cwd(),
+  env = process.env,
   homeDir,
 } = {}) {
-  if (!hasText(args?.activationConfig)) {
+  const activationConfig = resolveStartupActivationConfigPath({ args, env })
+  if (!hasText(activationConfig)) {
     return null
   }
-  const activationConfig = loadActivationConfig({
-    configPath: args.activationConfig,
+  const loadedActivationConfig = loadActivationConfig({
+    configPath: activationConfig,
     cwd,
     homeDir,
   })
-  if (activationConfig?.activation === null || typeof activationConfig?.activation !== "object") {
+  if (loadedActivationConfig?.activation === null || typeof loadedActivationConfig?.activation !== "object") {
     return null
   }
   return {
-    ...activationConfig.activation,
+    ...loadedActivationConfig.activation,
     source: "activation-config",
   }
 }
@@ -99,8 +121,8 @@ export async function main({
   const args = parseArgs(argv)
   const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
   const { root: deskRoot } = rootResolution
-  const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, homeDir })
-  const activationStatus = resolveStartupActivationContext({ args, cwd, homeDir })
+  const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, env, homeDir })
+  const activationStatus = resolveStartupActivationContext({ args, cwd, env, homeDir })
   const runtimeServer = await runtimeImporter({
     env,
     mcpRoot,

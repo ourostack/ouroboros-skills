@@ -23,6 +23,13 @@ const evidencePath = path.join(
   "2026-06-14-1335-doing-desk-dependency-activation",
   "codex-smoke-evidence.md",
 )
+const installedProfileSmokePath = path.join(
+  repoRoot,
+  "desk",
+  "tasks",
+  "2026-06-14-1335-doing-desk-dependency-activation",
+  "codex-installed-profile-smoke.json",
+)
 const supportMatrixPath = path.join(repoRoot, "plugins", "desk", "activation", "support-matrix.json")
 const codexDesktopUnsupportedPrimitive = "codex-desktop-scriptable-activation-smoke"
 
@@ -204,6 +211,7 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
       codexRunner: async (request) => {
         runnerCalls.push(request)
         const configPath = path.join(request.env.CODEX_HOME, "config.toml")
+        const activationConfigPath = path.join(request.env.CODEX_HOME, "desk.activation.json")
         const instructionsPath = path.join(request.env.CODEX_HOME, "AGENTS.md")
 
         assert.equal(request.command, "codex")
@@ -222,20 +230,31 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
         assertNoHealthyPathManualSetup(JSON.stringify(request))
         assert.equal(existsSync(configPath), true, "smoke must materialize temp Codex config before launch")
         assert.equal(
+          existsSync(activationConfigPath),
+          true,
+          "smoke must materialize temp Desk activation config before launch",
+        )
+        assert.equal(
           existsSync(instructionsPath),
           true,
           "smoke must materialize temp Codex instructions before launch",
         )
 
         const generatedConfig = readFileSync(configPath, "utf8")
+        const generatedActivationConfig = readFileSync(activationConfigPath, "utf8")
         const generatedInstructions = readFileSync(instructionsPath, "utf8")
         assert.match(generatedConfig, /# BEGIN desk activation: desk@1\.7\.3 mode=global-personal owner=desk-activation/u)
         assert.match(generatedConfig, /\[plugins\."desk@ourostack"\]/u)
         assert.match(generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/u)
+        assert.match(generatedConfig, /\[mcp_servers\.desk\]/u)
+        assert.match(generatedConfig, /--activation-config/u)
         assert.match(generatedConfig, /enabled = true/u)
         assert.match(generatedInstructions, /# BEGIN desk activation: desk@1\.7\.3 mode=global-personal owner=desk-activation/u)
         assert.match(generatedInstructions, /You are the desk worker by default\./u)
         assert.match(generatedInstructions, /desk:session-start/u)
+        const activationConfig = JSON.parse(generatedActivationConfig)
+        assert.equal(activationConfig.desk.root, path.join(hostRoot, "desk"))
+        assert.equal(activationConfig.activation.selected_id, "desk:worker")
         assertNoHealthyPathManualSetup(`${generatedConfig}\n${generatedInstructions}`)
 
         return {
@@ -278,6 +297,7 @@ test("Codex CLI activation smoke uses a temp profile and proves worker instructi
     assert.equal(result.desk_status.runtime.loaded_from_source_mirror, true)
     assert.deepEqual(result.activation, {
       config_path: path.join(hostRoot, ".codex", "config.toml"),
+      activation_config_path: path.join(hostRoot, ".codex", "desk.activation.json"),
       instructions_path: path.join(hostRoot, ".codex", "AGENTS.md"),
       mode: "global-personal",
     })
@@ -453,6 +473,7 @@ test("Codex smoke supports project-local activation without mutating global defa
     assert.equal(result.status, "pass")
     assert.deepEqual(result.activation, {
       config_path: path.join(workspaceRoot, ".codex", "config.toml"),
+      activation_config_path: path.join(workspaceRoot, ".codex", "desk.activation.json"),
       instructions_path: path.join(workspaceRoot, "AGENTS.md"),
       mode: "project-local",
     })
@@ -484,6 +505,7 @@ test("Codex smoke treats manual-only as an opt-out and can clean temp profile fi
     assert.equal(result.status, "skipped")
     assert.equal(result.reason, "manual-only opt-out")
     assert.equal(result.activation.config_path, path.join(hostRoot, ".codex", "config.toml"))
+    assert.equal(result.activation.activation_config_path, null)
     assert.equal(result.activation.instructions_path, null)
     assert.equal(existsSync(path.join(hostRoot, ".codex")), false)
     assert.equal(existsSync(workspaceRoot), true)
@@ -771,6 +793,16 @@ test("Codex smoke evidence records CLI proof and an exact Desktop App fallback",
   assert.match(evidence, /You are the desk worker by default\./u)
   assert.match(evidence, /desk:session-start/u)
   assert.match(evidence, /desk_status/u)
+  assert.match(evidence, /Actual installed-profile Codex CLI smoke: PASS/u)
+  assert.match(evidence, /codex-installed-profile-smoke\.json/u)
+  assert.match(evidence, /chunks_total: 363/u)
+  assert.match(evidence, /vectors_indexed: 363/u)
+  assert.match(evidence, /missing_vectors: 0/u)
+  assert.match(evidence, /degraded_modes: \[\]/u)
+  assert.match(evidence, /Cold snapshot restore smoke: PASS/u)
+  assert.match(evidence, /Cold vector-pack-only smoke: PASS/u)
+  assert.match(evidence, /Empty temp profiles may warn that `desk@ourostack` and `work-suite@ourostack` are not installed/u)
+  assert.match(evidence, /activation-owned top-level `mcp_servers\.desk` bridge/u)
   assert.match(evidence, /developers\.openai\.com\/codex\/cli\/reference#codex-exec/u)
   assert.match(evidence, /developers\.openai\.com\/codex\/guides\/agents-md/u)
   assert.match(evidence, /developers\.openai\.com\/codex\/app-server/u)
@@ -780,6 +812,19 @@ test("Codex smoke evidence records CLI proof and an exact Desktop App fallback",
     true,
     "Codex App must have detailed real smoke proof or an exact unsupported primitive plus fallback",
   )
+})
+
+test("installed-profile Codex CLI smoke proof is machine-readable", () => {
+  const proof = loadJson(installedProfileSmokePath)
+  assert.equal(proof.command, "codex exec --json --ephemeral --strict-config")
+  assert.equal(proof.called_desk_status, true)
+  assert.equal(proof.status, "ok")
+  assert.equal(proof.root_source, "activation-config")
+  assert.equal(proof.selected_id, "desk:worker")
+  assert.equal(proof.chunks_total, 363)
+  assert.equal(proof.vectors_indexed, 363)
+  assert.equal(proof.missing_vectors, 0)
+  assert.deepEqual(proof.degraded_modes, [])
 })
 
 test("Codex support matrix points at the smoke contract and evidence artifact", () => {

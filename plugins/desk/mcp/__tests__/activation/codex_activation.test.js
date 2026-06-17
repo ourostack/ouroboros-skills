@@ -217,6 +217,7 @@ test("global personal activation materializes worker and Desk as the default", a
   assert.equal(result.scope, "global")
   assert.equal(result.configPath, "~/.codex/config.toml")
   assert.equal(result.instructionsPath, "~/.codex/AGENTS.md")
+  assert.equal(result.activationConfigPath, "~/.codex/desk.activation.json")
   assert.deepEqual(result.manualSetupSteps, [])
   assert.deepEqual(result.permissions.requestedCapabilities, ["Read", "Write", "Interactive"])
   assert.deepEqual(result.permissions.neverDelete, ["desk-root-data"])
@@ -228,16 +229,23 @@ test("global personal activation materializes worker and Desk as the default", a
     },
     {
       owner: "desk-activation",
+      kind: "owned-host-config",
+      path: "~/.codex/desk.activation.json",
+    },
+    {
+      owner: "desk-activation",
       kind: "owned-codex-instructions",
       path: "~/.codex/AGENTS.md",
     },
   ])
   assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
+  assert.equal(result.generatedActivationConfig, loadFixture("global-personal", "generated-activation-config.json"))
   assert.equal(result.generatedInstructions, loadFixture("global-personal", "generated-instructions.md"))
   assertNoManualSetup(result.generatedConfig)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/)
-  assert.doesNotMatch(result.generatedConfig, /\[mcp_servers\.desk\]/)
+  assert.match(result.generatedConfig, /\[mcp_servers\.desk\]/)
+  assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--activation-config", "~\/\.codex\/desk\.activation\.json"\]/)
   assert.match(result.generatedInstructions, /desk worker by default/)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
   assertDeskMcpHealthGuard(result.generatedInstructions)
@@ -261,12 +269,14 @@ test("global personal activation can select a downstream Desk overlay worker", a
   assert.match(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."ms-area-desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/)
-  assert.equal(result.generatedConfig.match(/mcp_servers\.desk/g).length, 1)
+  assert.equal(result.generatedConfig.match(/mcp_servers\.desk/g).length, 2)
   assert.match(result.generatedInstructions, /You are the Area Desk worker by default\./)
   assert.match(result.generatedInstructions, /Active Desk activation: `desk:worker` -> `ms-desk:worker` -> `ms-area:worker`\./)
   assert.match(result.generatedInstructions, /Microsoft Desk worker: Use Microsoft employee context without copying Desk setup\./)
   assert.match(result.generatedInstructions, /Area Desk worker: Use area-specific context layered on Microsoft Desk\./)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
+  assert.match(result.generatedActivationConfig, /"selected_id": "ms-area:worker"/)
+  assert.match(result.generatedActivationConfig, /"chain": \[\n      "desk:worker",\n      "ms-desk:worker",\n      "ms-area:worker"\n    \]/)
   assertDeskMcpHealthGuard(result.generatedInstructions)
   assertNoManualSetup(result.generatedInstructions)
 })
@@ -305,6 +315,20 @@ enabled = false
   assert.match(snakeCase.generatedConfig, /\[plugins\."desk@ourostack-snake"\]/)
 })
 
+test("Codex activation escapes direct MCP TOML args for host paths", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    pluginRoot: String.raw`C:\Users\Ari "Desk"\plugins\desk`,
+  }))
+
+  assert.ok(result.generatedConfig.includes(String.raw`args = ["C:\\Users\\Ari \"Desk\"\\plugins\\desk/mcp/index.js", "--activation-config", "~/.codex/desk.activation.json"]`))
+
+  const controlPath = materializeCodexActivation(activationInput("global-personal", {
+    pluginRoot: `plugins/desk${String.fromCharCode(1)}`,
+  }))
+  assert.ok(controlPath.generatedConfig.includes(String.raw`args = ["plugins/desk\u0001/mcp/index.js", "--activation-config", "~/.codex/desk.activation.json"]`))
+})
+
 test("Codex activation ignores non-plugin and unknown overlay dependencies in generated plugin config", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
   const manifest = overlayChainManifest()
@@ -341,6 +365,80 @@ test("Codex activation ignores non-plugin and unknown overlay dependencies in ge
   assert.doesNotMatch(missingDepends.generatedConfig, /ms-desk@ourostack/u)
 })
 
+test("Codex activation does not duplicate plugin tables that plugin add already enabled", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const existingInstalledConfig = `${existingConfig}
+this line has no equals
+bad key = true
+plugins."unknown@ourostack".enabled = ["maybe"]
+
+[plugins."work-suite@ourostack"]
+enabled = true
+
+[plugins."desk@ourostack"]
+enabled = true
+
+[plugins]
+"ms-desk@ourostack" = { enabled = true }
+`
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    manifest: overlayChainManifest(),
+    selectedActivationId: "ms-desk:worker",
+    existingConfig: existingInstalledConfig,
+  }))
+
+  assert.equal(result.generatedConfig.match(/\[plugins\."work-suite@ourostack"\]/gu).length, 1)
+  assert.equal(result.generatedConfig.match(/\[plugins\."desk@ourostack"\]/gu).length, 1)
+  assert.doesNotMatch(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/u)
+  assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/u)
+  assert.match(result.generatedConfig, /\[mcp_servers\.desk\]/u)
+})
+
+test("Codex activation replaces stale unowned direct Desk MCP config", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const staleDirectMcpConfig = `${existingConfig}
+mcp_servers.desk.command = "older"
+
+[mcp_servers.desk]
+command = "node"
+args = ["old.js"]
+enabled = true
+
+[mcp_servers.desk.env]
+DESK = "old"
+
+[mcp_servers.other]
+command = "node"
+`
+
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: staleDirectMcpConfig,
+  }))
+
+  assert.equal(result.generatedConfig.match(/^\[mcp_servers\.desk\]$/gmu).length, 1)
+  assert.doesNotMatch(result.generatedConfig, /older/u)
+  assert.doesNotMatch(result.generatedConfig, /old\.js/u)
+  assert.doesNotMatch(result.generatedConfig, /DESK = "old"/u)
+  assert.match(result.generatedConfig, /^\[mcp_servers\.other\]$/mu)
+  assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--activation-config", "~\/\.codex\/desk\.activation\.json"\]/u)
+
+  const inlineDeskOnly = materializeCodexActivation(activationInput("global-personal", {
+    existingConfig: `${existingConfig}
+mcp_servers = { desk = { command = 'node' } }
+`,
+  }))
+  assert.equal(inlineDeskOnly.generatedConfig.match(/^\[mcp_servers\.desk\]$/gmu).length, 1)
+
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      existingConfig: `${existingConfig}
+mcp_servers = { desk = { command = "node" }, other = { command = "node" } }
+`,
+    })),
+    /inline mcp_servers\.desk config/u,
+  )
+})
+
 test("project-local opt-out materializes project config without mutating global defaults", async () => {
   const { materializeCodexActivation } = await loadCodexAdapter()
   const result = materializeCodexActivation(activationInput("project-local"))
@@ -349,14 +447,17 @@ test("project-local opt-out materializes project config without mutating global 
   assert.equal(result.scope, "project")
   assert.equal(result.configPath, ".codex/config.toml")
   assert.equal(result.instructionsPath, "AGENTS.md")
+  assert.equal(result.activationConfigPath, ".codex/desk.activation.json")
   assert.deepEqual(result.manualSetupSteps, [])
   assert.equal(result.generatedArtifacts[0].path, ".codex/config.toml")
-  assert.equal(result.generatedArtifacts[1].path, "AGENTS.md")
+  assert.equal(result.generatedArtifacts[1].path, ".codex/desk.activation.json")
+  assert.equal(result.generatedArtifacts[2].path, "AGENTS.md")
   assert.equal(result.generatedConfig, loadFixture("project-local", "generated-config.toml"))
+  assert.equal(result.generatedActivationConfig, loadFixture("project-local", "generated-activation-config.json"))
   assert.equal(result.generatedInstructions, loadFixture("project-local", "generated-instructions.md"))
   assertNoManualSetup(result.generatedConfig)
   assert.match(result.generatedConfig, /\[mcp_servers\.desk\]/)
-  assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--root", "\.desk"\]/)
+  assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--activation-config", "\.codex\/desk\.activation\.json"\]/)
   assert.match(result.generatedConfig, /cwd = "."/)
   assertDeskMcpHealthGuard(result.generatedInstructions)
 })
@@ -369,8 +470,10 @@ test("manual-only opt-out keeps Desk available without default worker or MCP aut
   assert.equal(result.scope, "global")
   assert.equal(result.configPath, "~/.codex/config.toml")
   assert.equal(result.instructionsPath, null)
+  assert.equal(result.activationConfigPath, null)
   assert.deepEqual(result.manualSetupSteps, [])
   assert.equal(result.generatedArtifacts.length, 1)
+  assert.equal(result.generatedActivationConfig, "")
   assert.equal(result.generatedConfig, loadFixture("manual-only", "generated-config.toml"))
   assert.equal(result.generatedInstructions, "")
   assertNoManualSetup(result.generatedConfig)
@@ -571,6 +674,20 @@ desk = { enabled = false }
 mcp_servers = { desk = { enabled = false } }
 `,
     `${existingConfig}
+mcp_servers.desk.enabled = false
+`,
+    `${existingConfig}
+[mcp_servers.desk]
+enabled = false
+`,
+    `${existingConfig}
+[mcp_servers]
+desk = { enabled = false }
+`,
+    `${existingConfig}
+mcp_servers = { desk = { enabled = false } }
+`,
+    `${existingConfig}
 [[plugins."desk@ourostack".mcp_servers.desk]]
 enabled = false
 `,
@@ -631,6 +748,7 @@ test("Codex activation applies generated artifacts through the ownership ledger"
     }))
 
     assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("project-local", "generated-config.toml"))
+    assert.equal(readHostFile(root, ".codex/desk.activation.json"), loadFixture("project-local", "generated-activation-config.json"))
     assert.equal(readHostFile(root, "AGENTS.md"), loadFixture("project-local", "generated-instructions.md"))
     assert.equal(result.activation.mode, "project-local")
     assert.equal(result.ledger.activation.host, "codex")
@@ -648,6 +766,12 @@ test("Codex activation applies generated artifacts through the ownership ledger"
           owner: "desk-activation",
           kind: "owned-host-config",
           path: ".codex/config.toml",
+          updated_at: "2026-06-14T19:00:00.000Z",
+        },
+        {
+          owner: "desk-activation",
+          kind: "owned-host-config",
+          path: ".codex/desk.activation.json",
           updated_at: "2026-06-14T19:00:00.000Z",
         },
         {
@@ -671,10 +795,11 @@ test("Codex global activation applies tilde artifacts under the host root ledger
     }))
 
     assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("global-personal", "generated-config.toml"))
+    assert.equal(readHostFile(root, ".codex/desk.activation.json"), loadFixture("global-personal", "generated-activation-config.json"))
     assert.equal(readHostFile(root, ".codex/AGENTS.md"), loadFixture("global-personal", "generated-instructions.md"))
     assert.deepEqual(
       result.ledger.artifacts.map((artifact) => artifact.path),
-      [".codex/config.toml", ".codex/AGENTS.md"],
+      [".codex/config.toml", ".codex/desk.activation.json", ".codex/AGENTS.md"],
     )
     assert.match(result.ledger.updated_at, /^\d{4}-\d{2}-\d{2}T/)
     assert.equal(existsSync(path.join(root, ledgerPath)), true)
@@ -684,6 +809,7 @@ test("Codex global activation applies tilde artifacts under the host root ledger
       deactivation.removed.map((artifact) => ({ path: artifact.path, kind: artifact.kind })),
       [
         { path: ".codex/config.toml", kind: "owned-host-config" },
+        { path: ".codex/desk.activation.json", kind: "owned-host-config" },
         { path: ".codex/AGENTS.md", kind: "owned-codex-instructions" },
         { path: ledgerPath, kind: "activation-ledger" },
       ],
@@ -710,6 +836,7 @@ test("Codex activation deactivates generated artifacts through the ownership led
       result.removed.map((artifact) => ({ path: artifact.path, kind: artifact.kind })),
       [
         { path: ".codex/config.toml", kind: "owned-host-config" },
+        { path: ".codex/desk.activation.json", kind: "owned-host-config" },
         { path: "AGENTS.md", kind: "owned-codex-instructions" },
         { path: ledgerPath, kind: "activation-ledger" },
       ],

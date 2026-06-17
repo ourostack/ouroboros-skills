@@ -12,4 +12,11 @@ enabled = true
 [plugins."desk@ourostack".mcp_servers.desk]
 enabled = true
 default_tools_approval_mode = "prompt"
+
+[mcp_servers.desk]
+command = "node"
+args = ["plugins/desk/mcp/index.js", "--activation-config", "~/.codex/desk.activation.json"]
+cwd = "."
+enabled = true
+default_tools_approval_mode = "prompt"
 # END desk activation

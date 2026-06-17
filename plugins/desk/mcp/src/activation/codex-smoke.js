@@ -62,6 +62,7 @@ function activationContext({ hostRoot, workspaceRoot, mode }) {
 function activationSummary(activationHostRoot, activation, { includeSelectedActivation = false } = {}) {
   const summary = {
     config_path: hostPath(activationHostRoot, activation.configPath),
+    activation_config_path: hostPath(activationHostRoot, activation.activationConfigPath),
     instructions_path: hostPath(activationHostRoot, activation.instructionsPath),
     mode: activation.mode,
   }

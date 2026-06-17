@@ -5,6 +5,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync: defaultSpawnSync } = require("node:child_process");
 
+const maxCodexSkillDescriptionLength = 1024;
+const maxCodexDefaultPromptCount = 3;
+const maxCodexDefaultPromptLength = 128;
 const requiredDeskMcpPackageScripts = {
   "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
   "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",
@@ -50,6 +53,40 @@ function hasText(value) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function frontmatterBlock(body) {
+  return body.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? null;
+}
+
+function frontmatterScalar(frontmatter, key) {
+  const lines = frontmatter.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(new RegExp(`^${key}:\\s*(.*)$`, "u"));
+    if (!match) {
+      continue;
+    }
+    const value = match[1].trim();
+    if (["|", "|-", ">", ">-"].includes(value)) {
+      const blockLines = [];
+      for (let blockIndex = index + 1; blockIndex < lines.length; blockIndex += 1) {
+        if (/^\S[^:]*:\s*/u.test(lines[blockIndex])) {
+          break;
+        }
+        blockLines.push(lines[blockIndex].replace(/^\s{2,}/u, ""));
+      }
+      return blockLines.join("\n").trim();
+    }
+    if (!isQuotedYamlScalar(value) && /:\s/u.test(value)) {
+      throw new Error(`${key} inline scalar contains ': '; quote it or use a block scalar`);
+    }
+    return value.replace(/^"|"$/gu, "").replace(/^'|'$/gu, "");
+  }
+  return null;
+}
+
+function isQuotedYamlScalar(value) {
+  return /^(['"]).*\1$/u.test(value);
 }
 
 function validateManifest(options = {}) {
@@ -157,6 +194,46 @@ function validatePluginMetadata(options = {}) {
     }
     if (claude.version !== codex.version) {
       throw new Error(`${name}: Claude plugin version ${claude.version} does not match Codex plugin version ${codex.version}`);
+    }
+    const defaultPrompts = codex.interface?.defaultPrompt ?? [];
+    if (!Array.isArray(defaultPrompts)) {
+      throw new Error(`${name}: Codex interface.defaultPrompt must be an array`);
+    }
+    if (defaultPrompts.length > maxCodexDefaultPromptCount) {
+      throw new Error(`${name}: Codex interface.defaultPrompt must contain at most ${maxCodexDefaultPromptCount} prompts`);
+    }
+    for (const [index, prompt] of defaultPrompts.entries()) {
+      if (typeof prompt !== "string") {
+        throw new Error(`${name}: Codex interface.defaultPrompt[${index}] must be a string`);
+      }
+      if (prompt.length > maxCodexDefaultPromptLength) {
+        throw new Error(`${name}: Codex interface.defaultPrompt[${index}] exceeds ${maxCodexDefaultPromptLength} characters`);
+      }
+    }
+    if (hasText(codex.skills)) {
+      const skillsDir = path.join(pluginsDir, name, codex.skills.replace(/^\.\//u, ""));
+      for (const skillName of readDir(skillsDir, options)) {
+        const skillPath = path.join(skillsDir, skillName, "SKILL.md");
+        if (!exists(skillPath, options)) {
+          continue;
+        }
+        const frontmatter = frontmatterBlock(readText(skillPath, options));
+        if (!frontmatter) {
+          throw new Error(`${name}/${skillName}: missing YAML frontmatter`);
+        }
+        let description;
+        try {
+          description = frontmatterScalar(frontmatter, "description");
+        } catch (error) {
+          throw new Error(`${name}/${skillName}: ${error.message}`);
+        }
+        if (!hasText(description)) {
+          throw new Error(`${name}/${skillName}: frontmatter description is required`);
+        }
+        if (description.length > maxCodexSkillDescriptionLength) {
+          throw new Error(`${name}/${skillName}: frontmatter description exceeds ${maxCodexSkillDescriptionLength} characters`);
+        }
+      }
     }
   }
 

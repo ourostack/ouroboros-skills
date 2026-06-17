@@ -129,9 +129,9 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     }
 
     if (opts.vectorPacks?.pluginRoot) {
-      summary.vector_packs = vectorPackImportStatus(await importVectorPacks({
+      summary.vector_packs = vectorPackImportStatus(await importVectorPackRoots({
         db,
-        pluginRoot: opts.vectorPacks.pluginRoot,
+        vectorPacks: opts.vectorPacks,
         signal: opts.signal,
       }))
     }
@@ -153,6 +153,54 @@ export async function rebuildIndex(deskRoot, opts = {}) {
   }
 
   return summary
+}
+
+async function importVectorPackRoots({ db, vectorPacks, signal }) {
+  const roots = uniquePaths([
+    vectorPacks.pluginRoot,
+    ...(Array.isArray(vectorPacks.fallbackPluginRoots)
+      ? vectorPacks.fallbackPluginRoots
+      : []),
+  ])
+  const combined = emptyVectorPackSummary()
+  for (const pluginRoot of roots) {
+    try {
+      const rootSummary = await importVectorPacks({ db, pluginRoot, signal })
+      mergeVectorPackSummary(combined, rootSummary)
+    } catch (error) {
+      if (!vectorPacks.ignoreInvalidRoots || error?.name === "AbortError") throw error
+      combined.import_errors.push({
+        pluginRoot,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  return combined
+}
+
+function emptyVectorPackSummary() {
+  return {
+    packs_considered: 0,
+    packs_imported: 0,
+    rows_imported: 0,
+    rows_skipped_duplicate: 0,
+    rows_skipped_missing_chunk: 0,
+    import_errors: [],
+  }
+}
+
+function mergeVectorPackSummary(target, source) {
+  target.packs_considered += source.packs_considered
+  target.packs_imported += source.packs_imported
+  target.rows_imported += source.rows_imported
+  target.rows_skipped_duplicate += source.rows_skipped_duplicate
+  target.rows_skipped_missing_chunk += source.rows_skipped_missing_chunk
+}
+
+function uniquePaths(values) {
+  return [...new Set(values.filter((value) =>
+    typeof value === "string" && value.trim().length > 0
+  ))]
 }
 
 function vectorPackImportStatus(summary) {

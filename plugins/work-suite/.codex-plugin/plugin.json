@@ -40,9 +40,8 @@
     "privacyPolicyURL": "https://github.com/ourostack/ouroboros-skills",
     "termsOfServiceURL": "https://github.com/ourostack/ouroboros-skills",
     "defaultPrompt": [
-      "Run this in autopilot: keep building through merge, deploy, smoke, cleanup, and durable continuation until no sensible ready work remains.",
+      "Run in autopilot through merge, deploy, smoke, cleanup, and durable continuation.",
       "Plan and execute this work.",
-      "Run an inch-worm improvement loop.",
       "Merge this finished branch."
     ],
     "brandColor": "#0F766E",

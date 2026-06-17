@@ -345,6 +345,194 @@ test("resolveEnsureIndexOptions treats missing runtime artifact dirs as absent",
   }
 })
 
+test("resolveEnsureIndexOptions discovers repo-local snapshots from the desk root by default", async () => {
+  const deskRoot = await tmpRoot("desk-workspace-snapshot-root-")
+  const pluginRoot = await tmpRoot("desk-plugin-snapshot-root-")
+  const explicitWorkspaceRoot = await tmpRoot("desk-explicit-snapshot-root-")
+  const envWorkspaceRoot = await tmpRoot("desk-env-snapshot-root-")
+  const emptyDeskRoot = await tmpRoot("desk-empty-snapshot-root-")
+  const snapshotDir = path.join(
+    deskRoot,
+    "artifacts",
+    "snapshots",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(snapshotDir, { recursive: true })
+  await fs.writeFile(path.join(snapshotDir, "workspace.sqlite.zst"), "fixture")
+  for (const [root, name] of [
+    [explicitWorkspaceRoot, "explicit.sqlite.zst"],
+    [envWorkspaceRoot, "env.sqlite.zst"],
+    [pluginRoot, "plugin.sqlite.zst"],
+  ]) {
+    const rootSnapshotDir = path.join(
+      root,
+      "artifacts",
+      "snapshots",
+      ACTIVE_EMBEDDING_SPEC.id,
+    )
+    await fs.mkdir(rootSnapshotDir, { recursive: true })
+    await fs.writeFile(path.join(rootSnapshotDir, name), "fixture")
+  }
+
+  const original = process.env.DESK_PLUGIN_ROOT
+  const originalWorkspace = process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    configureRuntimeArtifacts({ pluginRoot })
+    const resolved = resolveEnsureIndexOptions({}, { deskRoot })
+    assert.equal(resolved.snapshots.pluginRoot, path.resolve(deskRoot))
+
+    const explicit = resolveEnsureIndexOptions({
+      snapshots: { pluginRoot },
+    }, { deskRoot })
+    assert.equal(explicit.snapshots.pluginRoot, path.resolve(pluginRoot))
+
+    const explicitWorkspace = resolveEnsureIndexOptions({
+      workspaceArtifactRoot: explicitWorkspaceRoot,
+    }, { deskRoot })
+    assert.equal(explicitWorkspace.snapshots.pluginRoot, path.resolve(explicitWorkspaceRoot))
+
+    process.env.DESK_WORKSPACE_ARTIFACT_ROOT = envWorkspaceRoot
+    const envWorkspace = resolveEnsureIndexOptions({}, { deskRoot })
+    assert.equal(envWorkspace.snapshots.pluginRoot, path.resolve(envWorkspaceRoot))
+    delete process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+
+    const fallback = resolveEnsureIndexOptions({}, { deskRoot: emptyDeskRoot })
+    assert.equal(fallback.snapshots.pluginRoot, path.resolve(pluginRoot))
+    assert.deepEqual(fallback.snapshots.fallbackPluginRoots, [])
+    assert.equal(fallback.snapshots.ignoreInvalidRoots, true)
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
+    if (originalWorkspace === undefined) {
+      delete process.env.DESK_WORKSPACE_ARTIFACT_ROOT
+    } else {
+      process.env.DESK_WORKSPACE_ARTIFACT_ROOT = originalWorkspace
+    }
+  }
+})
+
+test("resolveEnsureIndexOptions dedupes workspace and plugin artifact roots", async () => {
+  const deskRoot = await tmpRoot("desk-dedupe-artifact-root-")
+  await fs.mkdir(path.join(
+    deskRoot,
+    "artifacts",
+    "snapshots",
+    ACTIVE_EMBEDDING_SPEC.id,
+  ), { recursive: true })
+  await fs.writeFile(path.join(
+    deskRoot,
+    "artifacts",
+    "snapshots",
+    ACTIVE_EMBEDDING_SPEC.id,
+    "workspace.sqlite.zst",
+  ), "fixture")
+  await fs.mkdir(path.join(
+    deskRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  ), { recursive: true })
+  await fs.writeFile(path.join(
+    deskRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+    "workspace.jsonl",
+  ), "fixture")
+
+  const original = process.env.DESK_PLUGIN_ROOT
+  delete process.env.DESK_PLUGIN_ROOT
+  try {
+    configureRuntimeArtifacts({ pluginRoot: deskRoot })
+    const resolved = resolveEnsureIndexOptions({}, { deskRoot })
+
+    assert.equal(resolved.snapshots.pluginRoot, path.resolve(deskRoot))
+    assert.deepEqual(resolved.snapshots.fallbackPluginRoots, [])
+    assert.equal(resolved.vectorPacks.pluginRoot, path.resolve(deskRoot))
+    assert.deepEqual(resolved.vectorPacks.fallbackPluginRoots, [])
+  } finally {
+    configureRuntimeArtifacts()
+    if (original === undefined) {
+      delete process.env.DESK_PLUGIN_ROOT
+    } else {
+      process.env.DESK_PLUGIN_ROOT = original
+    }
+  }
+})
+
+test("ensureIndex skips corrupt auto-discovered workspace snapshots and uses plugin fallback", async () => {
+  const deskRoot = await tmpRoot("desk-workspace-corrupt-snapshot-")
+  const pluginRoot = await tmpRoot("desk-plugin-good-snapshot-")
+  const snapshotSourceRoot = await tmpRoot("desk-plugin-snapshot-source-")
+  const docPath = "trackA/task-1/task.md"
+  const body = "---\nstatus: processing\n---\nplugin snapshot fallback body"
+  await writeFile(deskRoot, docPath, body)
+  await writeFile(snapshotSourceRoot, docPath, body)
+  await writeCorruptSnapshot({ pluginRoot: deskRoot, snapshotId: "workspace-corrupt" })
+  await writeSnapshotFromDesk({
+    pluginRoot,
+    snapshotId: "plugin-good",
+    sourceDeskRoot: snapshotSourceRoot,
+  })
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: {
+      ...snapshotContext(deskRoot),
+      fallbackPluginRoots: [pluginRoot],
+      ignoreInvalidRoots: true,
+    },
+    skipEmbed: true,
+  })
+
+  assert.ok(ensured.snapshot, "ensureIndex should report snapshot fallback state")
+  assert.equal(ensured.snapshot.restored, true)
+  assert.equal(ensured.snapshot.snapshot_id, "plugin-good")
+  assert.equal(ensured.reason, "snapshot_restored")
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(
+      db.prepare("SELECT count(*) AS count FROM docs WHERE path = ?").get(docPath).count,
+      1,
+    )
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex reports the first invalid auto-discovered snapshot root when all fallbacks miss", async () => {
+  const deskRoot = await tmpRoot("desk-workspace-corrupt-no-good-snapshot-")
+  const pluginRoot = await tmpRoot("desk-plugin-missing-snapshot-")
+  const docPath = "trackA/task-1/task.md"
+  await writeFile(
+    deskRoot,
+    docPath,
+    "---\nstatus: processing\n---\nlexical rebuild after all snapshots miss",
+  )
+  await writeCorruptSnapshot({ pluginRoot: deskRoot, snapshotId: "workspace-corrupt" })
+
+  const ensured = await ensureIndex(deskRoot, {
+    snapshots: {
+      ...snapshotContext(deskRoot),
+      fallbackPluginRoots: [pluginRoot],
+      ignoreInvalidRoots: true,
+    },
+    skipEmbed: true,
+  })
+
+  assert.ok(ensured.snapshot, "ensureIndex should preserve the first invalid snapshot result")
+  assert.equal(ensured.snapshot.restored, false)
+  assert.equal(ensured.snapshot.reason, "snapshot_corrupt")
+  assert.equal(ensured.snapshot.snapshot_id, "workspace-corrupt")
+  assert.equal(ensured.reason, "missing")
+  assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
 test("ensureIndex falls back from corrupt snapshots to vector packs without live embedding calls", async () => {
   const deskRoot = await tmpRoot("desk-snapshot-fallback-desk-")
   const pluginRoot = await tmpRoot("desk-snapshot-fallback-plugin-")

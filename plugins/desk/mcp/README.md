@@ -14,12 +14,15 @@ Or via environment:
 DESK=~/<your-workspace> node ./index.js
 ```
 
-## Tools exposed (13)
+## Tools exposed (14)
 
 **Runtime CRUD:**
 - `task_create`, `task_update`, `task_archive`
 - `track_create`, `track_update`
 - `friction_add`, `lesson_add`
+
+**Status:**
+- `desk_status` — session-start-safe MCP health, root, activation, index, snapshot, and vector-pack status
 
 **Search:**
 - `desk_search` — hybrid lexical + semantic
@@ -29,7 +32,7 @@ DESK=~/<your-workspace> node ./index.js
 - `desk_thread` — provenance walk via refs_graph
 - `desk_reindex` — rebuild or repair the local search index
 
-All 13 tools are wired to real implementations.
+All 14 tools are wired to real implementations.
 
 ## How consumers wire this up
 
@@ -49,6 +52,8 @@ The plugin's sibling `.mcp.json` (at `plugins/desk/.mcp.json`) declares the spaw
 ```
 
 Plugin-aware hosts load this file from the installed Desk plugin root and launch with plugin-scoped relative paths resolved from that root. Desk does not rely on placeholder substitution inside `.mcp.json`. Claude Code reads this natively. Copilot CLI inherits the same spec. Ouroboros bundles read `.mcp.json` from the bundled Desk plugin.
+
+Codex global activation writes an owned `~/.codex/desk.activation.json` file in the default Codex profile. When that file exists, the MCP entrypoint auto-loads it at startup so `desk_status` can report the selected activation target, overlay chain, desk root, and runtime cache. Project-local Codex activation passes the same config explicitly with `--activation-config .codex/desk.activation.json`.
 
 ## Generic stdio MCP launch
 
@@ -86,6 +91,15 @@ Semantic ranking requires Ollama with `nomic-embed-text` pulled. The MCP resolve
 
 If Ollama is unavailable, search soft-falls-back to FTS5-only with `semantic_unavailable` plus `semantic_diagnostic` and `semantic_repair` fields in the response. If a desk was indexed while Ollama was down, `desk_reindex` without arguments now repairs missing vectors automatically once embeddings are reachable; `force:true` is only needed when you intentionally want to drop and rebuild the whole DB.
 
+## Shared Workspace Artifacts
+
+The local index remains machine-local at `$DESK/.state/desk-index.sqlite`. Shared document embeddings and warm-start snapshots live outside `.state/` under `$DESK/artifacts/`:
+
+- `$DESK/artifacts/vector-packs/<embedding-spec-id>/<pack-id>.jsonl`
+- `$DESK/artifacts/snapshots/<embedding-spec-id>/<snapshot-id>.sqlite.zst`
+
+Runtime startup prefers workspace artifacts over plugin release artifacts. It restores compatible snapshots by copying them into `.state/`, falls back to vector packs when needed, and only generates document embeddings for chunks not covered by committed artifacts.
+
 ## Artifact privacy
 
 Embeddings and snapshots are derivative data and may carry privacy risk. Vector packs store document-side embedding data, and snapshots may preserve searchable index state, so artifact publication is explicit, policy-checked, and separate from ordinary MCP startup.
@@ -96,4 +110,4 @@ Embeddings and snapshots are derivative data and may carry privacy risk. Vector 
 npm test
 ```
 
-Boots the server with a temp root and asserts the 12 tool names register, then exercises every tool's real body via the dispatcher and fixture-desks. 103 tests at v1.0.
+Boots the server with temp roots, asserts the tool surface registers, and exercises the real tool bodies via the dispatcher and fixture desks.

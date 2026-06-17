@@ -98,7 +98,7 @@ function validManifest(overrides = {}) {
     artifacts: {
       embeddings: {
         shared: true,
-        spec_id: "nomic-embed-text-v1-768",
+        spec_id: "nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768",
         vector_packs: "read-and-import",
       },
       snapshots: {

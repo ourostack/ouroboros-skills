@@ -11,6 +11,11 @@ this is the floor plan of the room. the desk lives at `$DESK/` — the same shap
 $DESK/
   .gitignore                            # includes .machine-local.yml
   .machine-local.yml                    # gitignored: per-machine local_path overrides (see repo-handling)
+  artifacts/                            # committed vector packs, snapshots, and publication policy
+    publication-policy.json
+    publication-policy.schema.json
+    vector-packs/<embedding-spec-id>/
+    snapshots/<embedding-spec-id>/
   _meta/
     friction.md                         # append-only friction backlog for this operator
   <track-name>/                         # one directory per track (maps to an external work-tracking Feature (GitHub Project / Jira Epic / enterprise work-item tracker / etc.))
@@ -80,7 +85,7 @@ parse the directory path to know which page it's looking at.
 - **track directory**: kebab-case slug from the originating Feature/Epic title. example: `order-service-hardening`.
 - **task directory**: kebab-case slug describing the work. must match `task.md`'s `title` field exactly. example: `api-validation-layer`.
 - **repo workspace**: matches the upstream repo name exactly. example: `OrderService`, `OrderUI`.
-- **reserved `_` prefix**: `_planning/`, `_archive/`, `_meta/`, `_history/`. these are system directories, not task directories. they sort to the top in `ls` — a clear "not a task" signal.
+- **system directories**: `artifacts/`, `_planning/`, `_archive/`, `_meta/`, `_history/`. these are not task directories. `_`-prefixed dirs sort to the top in `ls`; `artifacts/` is deliberately plain because it is shared repo data, not a hidden local cache.
 
 slugs are permanent — see the `interaction-style` skill for the slug-permanence rule. always propose a slug before creating a directory.
 
@@ -89,7 +94,8 @@ slugs are permanent — see the `interaction-style` skill for the slug-permanenc
 - **track directories** are created when a task references a Feature with no existing track.
 - **task directories** are created when the operator starts a new task.
 - **repo workspaces** are created when worker begins work on a specific repo within a task.
-- **track root stays readable.** only `track.md`, task directories, and reserved `_` directories belong at track root. never dump planning artifacts, design docs, flow diagrams, or binaries directly at track root — use `_planning/`.
+- **track root stays readable.** only `track.md`, task directories, and reserved track-local `_` directories belong at track root. never dump planning artifacts, design docs, flow diagrams, or binaries directly at track root — use `_planning/`. `$DESK/artifacts/` is the workspace-level exception for shared index artifacts.
+- **repo-shared embedding artifacts live at `$DESK/artifacts/`, never `.state/`.** `.state/` is local and ignored; `artifacts/vector-packs/` and `artifacts/snapshots/` are committed only when the repo's publication policy explicitly approves them.
 - **PR-surface artifacts live at `<task>/<repo>/`, not inside an iteration's `artifacts/`.** the PR description, draft top-level PR comments, and other PR-surface artifacts span every iteration of the same PR (initial-impl → review-pass-N → pre-merge-polish → pr-feedback → pr-self-review) and are rewritten in place over time. they belong alongside other task-level surfaces like `integration-smoke.md`. the `<iteration>/artifacts/` directory is for iteration-bounded outputs only (diff snapshots, raw findings, evaluator logs). test: "is this artifact rewritten across multiple iterations of the same PR?" — yes → task-level (`<task>/<repo>/pr-description.md`); no → iteration-level (`<task>/<repo>/<iteration>/artifacts/`).
 - **ad-hoc operator-facing tooling lives in the desk, not the product repo.** smoke scripts, repro harnesses, exploration notebooks, quick-check utilities — these live in `$DESK/<track>/<task>/<RepoName>/...`, NOT in the product repo. the product repo is only for artifacts that go through production review and ship. heuristic: if reviewers on the product PR wouldn't want to see this file, it belongs on the desk. when a brief says "commit to repo," confirm the destination explicitly OR surface the desk as the default and require operator override.
 
