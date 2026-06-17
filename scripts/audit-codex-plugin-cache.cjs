@@ -316,7 +316,7 @@ function run({
     const report = auditFn(options);
     stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     if (options.strict && report.status !== "current") return 1;
-    if (options.strictActive && report.active_session?.status !== "pass") return 1;
+    if (options.strictActive && report.active_session.status !== "pass") return 1;
     return 0;
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

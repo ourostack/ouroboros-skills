@@ -407,7 +407,7 @@ function selectedDependencyIds(selectedActivation) {
 
 function orderedCodexPluginIds(input, selectedActivation) {
   const dependencyIds = selectedDependencyIds(selectedActivation)
-  const dependencyMap = new Map((input.manifest.dependencies ?? []).map((dependency) => [
+  const dependencyMap = new Map(input.manifest.dependencies.map((dependency) => [
     dependency.id,
     dependency,
   ]))

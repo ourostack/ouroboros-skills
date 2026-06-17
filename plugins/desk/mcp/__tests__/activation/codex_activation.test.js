@@ -284,6 +284,47 @@ enabled = false
     })),
     /user-authored.*disabled.*desk/i,
   )
+
+  const snakeCase = materializeCodexActivation(activationInput("global-personal", {
+    marketplace_namespace: "ourostack-snake",
+  }))
+  assert.match(snakeCase.generatedConfig, /\[plugins\."desk@ourostack-snake"\]/)
+})
+
+test("Codex activation ignores non-plugin and unknown overlay dependencies in generated plugin config", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const manifest = overlayChainManifest()
+  manifest.dependencies.push({
+    id: "docs-bundle",
+    kind: "artifact",
+    version: "1.0.0",
+    provenance: {
+      source: "plugins/docs-bundle/plugin.json",
+      package: "ourostack/docs-bundle",
+    },
+    lock: {
+      version: "1.0.0",
+      integrity: "sha256-docs-bundle-fixture",
+    },
+  })
+  manifest.provides.overlay_agents[0].depends_on.push("docs-bundle", "missing-local-plugin")
+
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    manifest,
+    selectedActivationId: "ms-desk:worker",
+  }))
+
+  assert.match(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/)
+  assert.doesNotMatch(result.generatedConfig, /docs-bundle@ourostack/u)
+  assert.doesNotMatch(result.generatedConfig, /missing-local-plugin@ourostack/u)
+
+  const missingDependsManifest = overlayChainManifest()
+  delete missingDependsManifest.provides.overlay_agents[0].depends_on
+  const missingDepends = materializeCodexActivation(activationInput("global-personal", {
+    manifest: missingDependsManifest,
+    selectedActivationId: "ms-desk:worker",
+  }))
+  assert.doesNotMatch(missingDepends.generatedConfig, /ms-desk@ourostack/u)
 })
 
 test("project-local opt-out materializes project config without mutating global defaults", async () => {

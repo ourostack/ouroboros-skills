@@ -55,7 +55,7 @@ Acceptance:
 - Docs tell consumer plugin authors to inherit Desk's guard rather than copy setup.
 - Docs preserve the no-bespoke-CLI/no-manual-MCP healthy path.
 
-### [ ] Unit 4: Reviewer gates and verification
+### [x] Unit 4: Reviewer gates and verification
 
 What:
 - Run harsh sub-agent review on gap coverage and implementation.
@@ -78,3 +78,13 @@ Acceptance:
 - 2026-06-16 18:06 Implemented active Desk MCP tool snapshot audit with `--active-tools`, `--active-tools-file`, `--strict-active`, canonical tool-name derivation, and strict CLI parsing.
 - 2026-06-16 18:10 Implemented namespace-aware Codex activation, selected overlay plugin dependency enablement, and worker startup MCP health guard across generated/static worker surfaces.
 - 2026-06-16 18:13 Documented absent-vs-degraded repair behavior, active-session evidence, namespace handling, and downstream overlay inheritance.
+- 2026-06-16 18:22 Added coverage-hardening tests for overlay dependency filtering, missing `depends_on`, active tool snapshot merge/file/error paths, canonical tool-name fallback, and home-relative active tool files.
+- 2026-06-16 18:24 Verification passed:
+  - `node --test plugins/desk/mcp/__tests__/scripts/codex_plugin_cache_audit.test.js`
+  - `node --test plugins/desk/mcp/__tests__/activation/codex_activation.test.js plugins/desk/mcp/__tests__/activation/codex_smoke.test.js`
+  - `npm run test:coverage` in `plugins/desk/mcp` (653 tests; changed production files at 100% line/branch/function coverage)
+  - `node scripts/test-codex-plugin-cache-audit.cjs`
+  - `node scripts/test-desk-host-manifests.cjs`
+  - `node scripts/validate-skills.cjs`
+- 2026-06-16 18:25 Spawned final harsh reviewer gate `019ed31e-9c67-7200-8bf2-0779bd41201d` to review the diff for unresolved zero-setup/health-guard gaps.
+- 2026-06-16 18:29 Final harsh reviewer gate passed with no BLOCKER, MAJOR, or MINOR findings.
