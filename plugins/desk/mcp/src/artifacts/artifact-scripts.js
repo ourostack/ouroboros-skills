@@ -61,6 +61,7 @@ export async function runVectorPackBuildCli(options = {}) {
       ...commonRoots(args),
       packId: requiredArg(args, "pack-id"),
       budgetConfig: args["budget-config"],
+      provenanceCommit: optionalProvenanceCommit(args["provenance-commit"]),
     }),
   })
 }
@@ -75,6 +76,7 @@ export async function runSnapshotBuildCli(options = {}) {
       snapshotId: requiredArg(args, "snapshot-id"),
       includedPackIds: valuesFor(args, "included-pack-id"),
       budgetConfig: args["budget-config"],
+      provenanceCommit: optionalProvenanceCommit(args["provenance-commit"]),
     }),
   })
 }
@@ -112,6 +114,7 @@ export async function buildVectorPackFromLocalDb({
   packId,
   budgetConfig,
   now = Date.now,
+  provenanceCommit,
 } = {}) {
   const budgets = await loadPerformanceBudgets({ configPath: budgetConfig, mcpRoot })
   const budgetMs = budgetValue(budgets, "rebuild", "vector_pack_rebuild_ms")
@@ -139,7 +142,7 @@ export async function buildVectorPackFromLocalDb({
       provenance: {
         builder: "plugins/desk/mcp/scripts/build-vector-pack.js",
         source: "local-db",
-        commit: gitCommit(),
+        commit: provenanceCommit ?? gitCommit(),
       },
       source_paths: DEFAULT_SOURCE_PATHS,
     }
@@ -180,6 +183,7 @@ export async function buildSnapshotFromLocalDb({
   includedPackIds = [],
   budgetConfig,
   now = Date.now,
+  provenanceCommit,
 } = {}) {
   const budgets = await loadPerformanceBudgets({ configPath: budgetConfig, mcpRoot })
   const budgetMs = budgetValue(budgets, "rebuild", "snapshot_build_ms")
@@ -217,7 +221,7 @@ export async function buildSnapshotFromLocalDb({
       provenance: {
         builder: "plugins/desk/mcp/scripts/build-snapshot.js",
         source: "local-db",
-        commit: gitCommit(),
+        commit: provenanceCommit ?? gitCommit(),
       },
       source_paths: DEFAULT_SOURCE_PATHS,
     }
@@ -537,6 +541,15 @@ function optionalString(value) {
     : undefined
 }
 
+function optionalProvenanceCommit(value) {
+  const commit = optionalString(value)
+  if (commit === undefined) return undefined
+  if (/^[a-f0-9]{40}$/u.test(commit)) return commit
+  const error = new Error("--provenance-commit must be a 40-character lowercase git sha")
+  error.code = "artifact_script_usage"
+  throw error
+}
+
 function requiredArg(args, key) {
   const value = args[key]
   if (typeof value !== "string" || value.trim() === "") {
@@ -644,14 +657,14 @@ function defaultIo() {
 function vectorPackBuildHelp() {
   return `Build a Desk vector-pack artifact for release maintenance.
 
-Usage: npm run artifact:vector-pack:build -- --desk-root <path> --pack-id <id> [--plugin-root <path>] [--from-local-db] [--budget-config <path>]
+Usage: npm run artifact:vector-pack:build -- --desk-root <path> --pack-id <id> [--plugin-root <path>] [--from-local-db] [--budget-config <path>] [--provenance-commit <sha>]
 `
 }
 
 function snapshotBuildHelp() {
   return `Build a Desk snapshot artifact for release maintenance.
 
-Usage: npm run artifact:snapshot:build -- --desk-root <path> --snapshot-id <id> [--plugin-root <path>] [--included-pack-id <id>] [--from-local-db] [--budget-config <path>]
+Usage: npm run artifact:snapshot:build -- --desk-root <path> --snapshot-id <id> [--plugin-root <path>] [--included-pack-id <id>] [--from-local-db] [--budget-config <path>] [--provenance-commit <sha>]
 `
 }
 
@@ -676,6 +689,7 @@ export const __artifactScriptInternalsForTests = {
   defaultIo,
   filesWithSuffix,
   gitCommit,
+  optionalProvenanceCommit,
   optionalString,
   readFileOrEmpty,
   requiredPath,
