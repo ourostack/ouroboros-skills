@@ -50,6 +50,7 @@ Before converting a web/product surface into native work units, audit the curren
 - Inventory every current product surface and route, including quiet operational routes such as account handoffs, approval links, settings subpanels, search scopes, and well-known files.
 - Mark each surface as native UI, secure web handoff, custom URL-scheme-only native action, or intentionally out of scope because it is not a current product surface.
 - Do not add comments, feeds, likes, meal planning, media libraries, or other future product surfaces while doing parity work unless the operator explicitly expands scope.
+- When planning, audit, parity matrix, and doing docs all act as source material, keep them aligned. If a later reviewer narrows or corrects scope, update the supporting artifacts too and add a stale-language check for the old requirement.
 - Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
 - When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
 - For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
