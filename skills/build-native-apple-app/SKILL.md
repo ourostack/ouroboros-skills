@@ -145,6 +145,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - Create artifact subdirectories before any command writes logs.
 - Make every matrix command fail-fast with `set -euo pipefail`; when using `tee`, preserve producer exit status.
 - When a doing doc or validation matrix declares artifact names authoritative, write command output to those exact paths. Extra summary, alias, or focused-suite logs may supplement the matrix, but they never replace required matrix artifacts.
+- When a native API endpoint graduates from placeholder/known-path failure to a real authenticated route, update the surrounding shell/method, auth/telemetry, parser/helper, docs, and generated-client drift coverage in the same coverage/refactor pass. Route-level green tests alone do not prove the old placeholder contract was retired everywhere.
 - Run DB-mutating validation suites serially when they share a local database, or give each command an isolated database path. Do not parallelize focused suites or coverage jobs that call shared cleanup/auth/test-state helpers unless isolation is proven.
 - Warning scans must exclude their own prior warning-scan output and remove stale output before reruns.
 - Warning scans should match diagnostic shapes, not plain domain words. Avoid broad `warning|error|fail` scans that false-positive on test titles, generated asset names, route names, schema enum values, or expected error-code documentation.
