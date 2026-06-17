@@ -43,6 +43,26 @@ Good native reasons include offline-first local data, widgets, Shortcuts/App Int
 
 Weak native reasons include copying the web UI into SwiftUI, adding novelty APIs with no user benefit, or building custom controls where system controls are better.
 
+## Product Parity Audit
+
+Before converting a web/product surface into native work units, audit the current product model from source code, routes, backend helpers, docs, and screenshots. Treat that audit as a source-fidelity gate:
+
+- Inventory every current product surface and route, including quiet operational routes such as account handoffs, approval links, settings subpanels, search scopes, and well-known files.
+- Mark each surface as native UI, secure web handoff, custom URL-scheme-only native action, or intentionally out of scope because it is not a current product surface.
+- Do not add comments, feeds, likes, meal planning, media libraries, or other future product surfaces while doing parity work unless the operator explicitly expands scope.
+- Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
+- For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
+
+## Offline And Security Boundaries
+
+Offline is native product behavior, not a cache implementation detail. Define it as a contract before building surfaces:
+
+- Every cached record should carry account/environment/schema/freshness/source metadata and a server revision marker when available.
+- Separate queueable product writes from online-only security/account actions. Queue domain mutations that can be replayed safely; keep token creation/revocation, OAuth disconnect, logout/session revoke, passkey/password/provider-link flows, permission prompts, and device-token acquisition online-only unless the product has a tested reason otherwise.
+- Siri and Shortcuts must use the same queueability policy as in-app UI and must clearly say when an online-only action was not queued.
+- Offline indicators may be dismissible for informational stale/offline states only. Queued work, sync failures, conflicts, blockers, and destructive confirmations must remain visible until resolved.
+- Media staging needs explicit size/count limits and a no-silent-eviction rule for unsynced user-selected media.
+
 ## Architecture
 
 Prefer SwiftUI for new multi-platform apps. Add UIKit/AppKit only where platform affordances require it. Keep model/network/storage code testable outside UI targets, usually as Swift packages or framework targets.
@@ -99,6 +119,8 @@ Work in small PRs that leave the app runnable after each merge:
 
 Use sub-agents for parallel implementation only with disjoint write scopes. Always use a harsh reviewer sub-agent before merging.
 
+When using strict TDD, require a distinct implementation-green artifact for every implementation unit: the unit must rerun the exact red suite/contract after implementation and before any broader coverage/refactor step. Red logs plus later coverage are not enough to prove the TDD sequence happened.
+
 ## Validation
 
 Do not declare completion from compilation alone. A credible native validation set includes:
@@ -112,6 +134,15 @@ Do not declare completion from compilation alone. A credible native validation s
 - Branch protection with required checks matching workflow job names.
 
 Paid-program distribution is a separate gate. TestFlight/App Store upload requires Apple Developer Program membership and App Store Connect access; until that exists, validate through local simulator, local macOS app, and any free-account device testing available through Xcode.
+
+Validation artifact contracts should be explicit and stale-proof:
+
+- Create artifact subdirectories before any command writes logs.
+- Make every matrix command fail-fast with `set -euo pipefail`; when using `tee`, preserve producer exit status.
+- Warning scans must exclude their own prior warning-scan output and remove stale output before reruns.
+- Screenshot/design review success and blocker artifacts must be mutually exclusive; runtime screenshot blockers need a companion design-review-blocked artifact so design validation can distinguish blocked capture from design success.
+- Keep blocker paths canonical by capability instead of forcing every blocker into one directory. Native runtime and App Intents blockers can live under the native artifact directory, while cross-repo/provider/human/production blockers may need root or web artifact paths.
+- Final validation should rerun current App Intents/App Entity contract checks for every shipped domain; stale unit-level App Intents logs do not prove final readiness.
 
 ## Xcode Health And Blockers
 
