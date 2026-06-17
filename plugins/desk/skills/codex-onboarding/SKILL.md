@@ -27,7 +27,7 @@ Codex plugin and MCP changes generally require a new Codex session before the to
 
 Do this before treating `session-start` as healthy:
 
-- **MCP absent from active session** — the active tool list is missing `desk_status` or the Desk MCP namespace/tools. This is a host activation/reload problem, not a desk-index problem. Do not continue in local-only mode. Repair plugin/cache/config, then restart/open a fresh Codex session.
+- **MCP absent from active session** — the active tool list is missing `desk_status` or the Desk MCP namespace/tools. This is a host activation/reload problem, not a desk-index problem. Do not silently continue in local-only mode. `session-start` should explain the consequence and ask whether to repair/reload now or continue without generic reminders; if the operator chooses repair, repair plugin/cache/config, then restart/open a fresh Codex session.
 - **MCP present but degraded** — `desk_status` is callable and reports missing/stale local DB, lexical index, vectors, snapshots, or runtime cache. This is a Desk runtime/index problem. Use `desk_status` guidance, `desk_reindex`, runtime-pack verification, and embedding/Ollama checks.
 - **Manual-only** — the selected activation intentionally has no default worker instruction block and does not autostart Desk MCP. Do not report it as broken unless the operator expected default worker behavior.
 
