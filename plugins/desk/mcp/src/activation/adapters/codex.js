@@ -8,8 +8,7 @@ const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
 const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
 const OWNED_BLOCK_END_PATTERN = /^# END desk activation\r?$/gm
-const DESK_PLUGIN_PATH = ["plugins", "desk@ourostack"]
-const DESK_PLUGIN_MCP_PATH = ["plugins", "desk@ourostack", "mcp_servers", "desk"]
+const DESK_MCP_HEALTH_GUARD = "Desk MCP health guard: before treating session start as healthy, verify the active host tool list exposes Desk MCP tools, especially `desk_status`. If `desk_status` or the Desk MCP namespace is missing, do not continue in local-only mode; run `desk:codex-onboarding` when that skill is available, otherwise follow the Codex repair checklist for plugin enablement, plugin-scoped MCP, runtime pack health, and fresh-session reload. Once tools are visible, call `desk_status` to distinguish degraded index/vector/snapshot state from an absent MCP."
 
 const MODE_CONFIG = {
   "global-personal": {
@@ -316,27 +315,45 @@ function getObjectPath(object, path) {
   return current
 }
 
-function hasDisabledPluginValue(path, value) {
-  if (pathEquals(path, [...DESK_PLUGIN_PATH, "enabled"])) {
+function pluginRef(pluginId, namespace) {
+  return `${pluginId}@${namespace}`
+}
+
+function deskPluginPath(namespace) {
+  return ["plugins", pluginRef("desk", namespace)]
+}
+
+function deskPluginMcpPath(namespace) {
+  return [...deskPluginPath(namespace), "mcp_servers", "desk"]
+}
+
+function activationNamespace(input) {
+  return input.marketplaceNamespace ?? input.marketplace_namespace ?? "ourostack"
+}
+
+function hasDisabledPluginValue(path, value, namespace) {
+  const deskPath = deskPluginPath(namespace)
+  const deskMcpPath = deskPluginMcpPath(namespace)
+  if (pathEquals(path, [...deskPath, "enabled"])) {
     return value === false
   }
-  if (pathEquals(path, [...DESK_PLUGIN_MCP_PATH, "enabled"])) {
+  if (pathEquals(path, [...deskMcpPath, "enabled"])) {
     return value === false
   }
-  if (pathEquals(path, DESK_PLUGIN_PATH)) {
+  if (pathEquals(path, deskPath)) {
     return getObjectPath(value, ["enabled"]) === false ||
       getObjectPath(value, ["mcp_servers", "desk", "enabled"]) === false
   }
-  if (pathEquals(path, [...DESK_PLUGIN_PATH, "mcp_servers"])) {
+  if (pathEquals(path, [...deskPath, "mcp_servers"])) {
     return getObjectPath(value, ["desk", "enabled"]) === false
   }
-  if (pathEquals(path, DESK_PLUGIN_MCP_PATH)) {
+  if (pathEquals(path, deskMcpPath)) {
     return getObjectPath(value, ["enabled"]) === false
   }
   return false
 }
 
-function hasUserDisabledDeskConfig(content) {
+function hasUserDisabledDeskConfig(content, namespace) {
   let sectionPath = []
   for (const rawLine of content.split(/\r?\n/u)) {
     const line = stripTomlComment(rawLine).trim()
@@ -363,24 +380,58 @@ function hasUserDisabledDeskConfig(content) {
       continue
     }
 
-    if (hasDisabledPluginValue([...sectionPath, ...keyPath], parsedValue)) {
+    if (hasDisabledPluginValue([...sectionPath, ...keyPath], parsedValue, namespace)) {
       return true
     }
   }
   return false
 }
 
-function assertNoUserDisabledDeskConfig(config) {
-  if (hasUserDisabledDeskConfig(config)) {
+function assertNoUserDisabledDeskConfig(config, namespace) {
+  if (hasUserDisabledDeskConfig(config, namespace)) {
     throw new Error(
       "user-authored disabled Desk config must be removed before automatic Desk activation",
     )
   }
 }
 
-function renderConfigBlock(input, modeConfig) {
+function selectedDependencyIds(selectedActivation) {
+  const ids = []
+  for (const entry of selectedActivation.chain) {
+    for (const id of entry.depends_on ?? []) {
+      if (!ids.includes(id)) ids.push(id)
+    }
+  }
+  return ids
+}
+
+function orderedCodexPluginIds(input, selectedActivation) {
+  const dependencyIds = selectedDependencyIds(selectedActivation)
+  const dependencyMap = new Map((input.manifest.dependencies ?? []).map((dependency) => [
+    dependency.id,
+    dependency,
+  ]))
+  const preferred = ["work-suite", input.manifest.id]
+  const pluginIds = []
+  for (const id of [...preferred, ...dependencyIds]) {
+    const dependency = dependencyMap.get(id)
+    if (!dependency) continue
+    if (!["plugin", "substrate"].includes(dependency.kind)) continue
+    if (!pluginIds.includes(id)) pluginIds.push(id)
+  }
+  return pluginIds
+}
+
+function renderPluginEnableBlocks(input, selectedActivation, namespace) {
+  return orderedCodexPluginIds(input, selectedActivation)
+    .map((id) => `[plugins."${pluginRef(id, namespace)}"]\nenabled = true`)
+    .join("\n\n")
+}
+
+function renderConfigBlock(input, modeConfig, selectedActivation) {
   const { manifest } = input
-  const pluginMcpPolicy = `[plugins."${manifest.id}@ourostack".mcp_servers.desk]
+  const namespace = activationNamespace(input)
+  const pluginMcpPolicy = `[plugins."${pluginRef(manifest.id, namespace)}".mcp_servers.desk]
 enabled = ${tomlBool(modeConfig.pluginMcpEnabled)}`
   const approvalPolicy = modeConfig.pluginMcpEnabled
     ? `
@@ -398,22 +449,17 @@ default_tools_approval_mode = "prompt"`
     : ""
 
   return `# BEGIN desk activation: ${manifest.id}@${manifest.version} mode=${input.mode} owner=desk-activation
-[plugins."work-suite@ourostack"]
-enabled = true
-
-[plugins."${manifest.id}@ourostack"]
-enabled = true
+${renderPluginEnableBlocks(input, selectedActivation, namespace)}
 
 ${pluginMcpPolicy}${approvalPolicy}${directMcp}
 # END desk activation
 `
 }
 
-function renderInstructionsBlock(input, modeConfig) {
+function renderInstructionsBlock(input, modeConfig, selectedActivation) {
   if (!modeConfig.instructionsPath) {
     return ""
   }
-  const selectedActivation = selectedActivationFor(input)
   const identity = selectedActivation.identity
   const activationChain = selectedActivation.chain.map((entry) => `\`${entry.id}\``).join(" -> ")
   const overlayAddenda = selectedActivation.chain
@@ -430,7 +476,7 @@ ${overlayAddenda.join("\n")}
   return `# BEGIN desk activation: ${input.manifest.id}@${input.manifest.version} mode=${input.mode} owner=desk-activation
 You are the ${identity} ${modeConfig.workerContext}.
 
-Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work, with harsh sub-agent reviewer gates when the task calls for them.${overlaySection}
+Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. ${DESK_MCP_HEALTH_GUARD} Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work, with harsh sub-agent reviewer gates when the task calls for them.${overlaySection}
 # END desk activation
 `
 }
@@ -452,10 +498,11 @@ export function materializeCodexActivation(input) {
   const modeConfig = MODE_CONFIG[input.mode]
   assertCodexCapabilities(input.manifest)
   const selectedActivation = selectedActivationFor(input)
+  const namespace = activationNamespace(input)
   const configWithoutOwnedBlock = removeOwnedActivationBlock(input.existingConfig)
-  assertNoUserDisabledDeskConfig(configWithoutOwnedBlock)
-  const generatedConfig = mergeOwnedActivationBlock(input.existingConfig, renderConfigBlock(input, modeConfig))
-  const instructionsBlock = renderInstructionsBlock(input, modeConfig)
+  assertNoUserDisabledDeskConfig(configWithoutOwnedBlock, namespace)
+  const generatedConfig = mergeOwnedActivationBlock(input.existingConfig, renderConfigBlock(input, modeConfig, selectedActivation))
+  const instructionsBlock = renderInstructionsBlock(input, modeConfig, selectedActivation)
   const generatedInstructions = instructionsBlock
     ? mergeOwnedActivationBlock(input.existingInstructions, instructionsBlock)
     : ""

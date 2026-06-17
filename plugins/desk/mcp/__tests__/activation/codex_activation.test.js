@@ -145,6 +145,13 @@ function assertNoManualSetup(content) {
   assert.doesNotMatch(content, /mcp_auto_start/i)
 }
 
+function assertDeskMcpHealthGuard(content) {
+  assert.match(content, /Desk MCP health guard/u)
+  assert.match(content, /desk_status/u)
+  assert.match(content, /do not continue in local-only mode/u)
+  assert.match(content, /codex-onboarding/u)
+}
+
 test("Codex plugin metadata declares host-native Desk activation surfaces", () => {
   const deskPlugin = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
   const workSuitePlugin = loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json")
@@ -176,10 +183,16 @@ test("Codex plugin metadata declares host-native Desk activation surfaces", () =
 
 test("Codex worker source no longer documents healthy-path copy registration", () => {
   const workerToml = readFileSync(path.join(repoRoot, "plugins", "desk", "agents", "worker.toml"), "utf8")
+  const workerMarkdown = readFileSync(path.join(repoRoot, "plugins", "desk", "agents", "worker.md"), "utf8")
+  const workerAgent = readFileSync(path.join(repoRoot, "plugins", "desk", "agents", "worker.agent.md"), "utf8")
+  const workerOutputStyle = readFileSync(path.join(repoRoot, "plugins", "desk", "output-styles", "worker.md"), "utf8")
 
   assert.doesNotMatch(workerToml, /copy\s+to\s+~\/\.codex\/agents/i)
   assert.doesNotMatch(workerToml, /Invoke via `\/agent worker` once registered/i)
   assert.match(workerToml, /host-native activation/i)
+  for (const workerSource of [workerToml, workerMarkdown, workerAgent, workerOutputStyle]) {
+    assertDeskMcpHealthGuard(workerSource)
+  }
 })
 
 test("global personal activation materializes worker and Desk as the default", async () => {
@@ -213,6 +226,7 @@ test("global personal activation materializes worker and Desk as the default", a
   assert.doesNotMatch(result.generatedConfig, /\[mcp_servers\.desk\]/)
   assert.match(result.generatedInstructions, /desk worker by default/)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
+  assertDeskMcpHealthGuard(result.generatedInstructions)
 })
 
 test("global personal activation can select a downstream Desk overlay worker", async () => {
@@ -228,13 +242,48 @@ test("global personal activation can select a downstream Desk overlay worker", a
     "ms-desk:worker",
     "ms-area:worker",
   ])
-  assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
+  assert.match(result.generatedConfig, /\[plugins\."work-suite@ourostack"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."ms-area-desk@ourostack"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/)
+  assert.equal(result.generatedConfig.match(/mcp_servers\.desk/g).length, 1)
   assert.match(result.generatedInstructions, /You are the Area Desk worker by default\./)
   assert.match(result.generatedInstructions, /Active Desk activation: `desk:worker` -> `ms-desk:worker` -> `ms-area:worker`\./)
   assert.match(result.generatedInstructions, /Microsoft Desk worker: Use Microsoft employee context without copying Desk setup\./)
   assert.match(result.generatedInstructions, /Area Desk worker: Use area-specific context layered on Microsoft Desk\./)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
+  assertDeskMcpHealthGuard(result.generatedInstructions)
   assertNoManualSetup(result.generatedInstructions)
+})
+
+test("Codex activation respects non-default marketplace namespaces", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+  const result = materializeCodexActivation(activationInput("global-personal", {
+    marketplaceNamespace: "ourostack-local",
+  }))
+
+  assert.match(result.generatedConfig, /\[plugins\."work-suite@ourostack-local"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."desk@ourostack-local"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."desk@ourostack-local"\.mcp_servers\.desk\]/)
+  assert.doesNotMatch(result.generatedConfig, /desk@ourostack"/u)
+  assert.doesNotThrow(() => materializeCodexActivation(activationInput("global-personal", {
+    marketplaceNamespace: "ourostack-local",
+    existingConfig: `${existingConfig}
+[plugins."desk@ourostack"]
+enabled = false
+`,
+  })))
+  assert.throws(
+    () => materializeCodexActivation(activationInput("global-personal", {
+      marketplaceNamespace: "ourostack-local",
+      existingConfig: `${existingConfig}
+[plugins."desk@ourostack-local"]
+enabled = false
+`,
+    })),
+    /user-authored.*disabled.*desk/i,
+  )
 })
 
 test("project-local opt-out materializes project config without mutating global defaults", async () => {
@@ -254,6 +303,7 @@ test("project-local opt-out materializes project config without mutating global 
   assert.match(result.generatedConfig, /\[mcp_servers\.desk\]/)
   assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--root", "\.desk"\]/)
   assert.match(result.generatedConfig, /cwd = "."/)
+  assertDeskMcpHealthGuard(result.generatedInstructions)
 })
 
 test("manual-only opt-out keeps Desk available without default worker or MCP autostart", async () => {
