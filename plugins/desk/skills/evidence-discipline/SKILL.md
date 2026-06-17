@@ -91,6 +91,8 @@ If any check fails, debug at the one-shot level before going infinite.
 
 **Generalizes beyond scripts.** The rule applies to any "I'm about to build orchestration around X" decision: helper functions, config knobs, sub-agent workflows, dashboard widgets. Look for the existing version first. The cost of *checking* is minutes; the cost of *duplicating + then migrating* is hours and a code-debt commit. Reading a NEW plugin's / tool's README BEFORE drafting any install / invocation command is the rule's literal application.
 
+**Generalizes to investigation inputs.** The same instinct applies when validating or diagnosing against a system where the author or reporter has already shared a repro — a query, a dashboard, a recorded command, a specific identifier/tag. Run THAT artifact first and thread it into any investigation prompt verbatim; only build a fresh query if the provided one is absent, insufficient, or needs extension. Spawning a from-scratch investigation when the reporter already handed you the exact repro routinely reinvents a worse version — wrong table, wrong identifier — and can produce a false negative ("couldn't confirm") on something the shared repro would have confirmed immediately. The cheapest correct path is the one the source already walked.
+
 **Cross-link.** Sibling to "messages over models" (read the explicit documentation that's right there) — "discover before invent" extends the same discipline from error-message-content to system-entry-point-content.
 
 ## Sniff before transferring auth state

@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.5 — 2026-06-16
+
+**`evidence-discipline` "Discover before invent" — generalizes to investigation inputs.** Adds a paragraph: when validating or diagnosing against a system where the author/reporter already shared a repro (a query, dashboard, recorded command, or identifier/tag), run THAT artifact first and thread it into the investigation prompt verbatim — only build a fresh query if the provided one is absent/insufficient. Spawning a from-scratch investigation when the exact repro was handed to you reinvents a worse version (wrong table, wrong identifier) and can yield a false "couldn't confirm" on something the shared repro confirms immediately. Prose-only; no MCP/code surface. (Stacks on PR #117's 1.7.4 bump — if merge order differs, rebase the version.)
+
 ## 1.7.2 — 2026-06-10
 
 **Registry `identity` column — "which desk am I" matches identity, not a re-derived handle.** Fixes a shared-workspace foot-gun in the 1.7.0 `_meta/desks.md` schema: it described the `alias` as "derived from identity," which invites a consumer to *re-derive* a handle from the operator's identity each session (e.g. EMU login minus `_microsoft`). But a chosen short handle need not be a transform of the identity (`arimendelow_microsoft`'s desk is `ari`, not `arimendelow`), so re-deriving silently binds a returning teammate to the **wrong desk** (a new empty `desks/<derived>/` instead of their real `desks/<chosen>/`). The schema now carries an explicit **`identity`** column and the "which desk am I" step matches on it — the registry is the source of truth for the identity→alias binding; a re-derived handle is only a *default* used to seed a brand-new row. Prose-only (the registry is read by session-start prose, not MCP code — no code surface); default-tolerant (single-OFF-mode desk needs no registry).
