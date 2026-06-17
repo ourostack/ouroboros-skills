@@ -31,7 +31,7 @@ The root package carries generated flattened Work Suite metadata for Copilot-com
 
 ### Codex CLI / Codex App
 
-Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, enables the bundled plugin-scoped MCP, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.
+Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, writes the Desk activation config, owns the Desk MCP bridge, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.
 
 The generated worker block includes a Desk MCP health guard. Before treating session start as healthy, the agent checks whether the active host exposes Desk MCP tools, especially `desk_status`. Missing tools are not silently treated as local-only mode: `session-start` explains what Desk MCP provides, asks whether to fix/reload now or continue without reminders, and routes repair to `desk:codex-onboarding` or the Codex repair checklist. Callable `desk_status` means the MCP is present and any degraded index/vector/snapshot state should be repaired through Desk runtime tooling.
 
@@ -39,7 +39,7 @@ Use `manual-only` when Desk should remain available as a plugin/MCP substrate wi
 
 No bespoke Desk CLI is required for the default worker path; the host plugin profile, activation adapter, and bundled MCP metadata carry the setup.
 
-For verification and repair of marketplace/plugin exposure, plugin-scoped MCP, runtime-pack health, and owned worker-default blocks, see `desk:codex-onboarding`.
+For verification and repair of marketplace/plugin exposure, the activation-owned Desk MCP bridge, runtime-pack health, and owned worker-default blocks, see `desk:codex-onboarding`.
 
 ## What if I want a context-specific overlay?
 

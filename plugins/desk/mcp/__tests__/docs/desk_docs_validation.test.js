@@ -29,9 +29,18 @@ function assertPasses(text, headingPath = [], options = {}) {
   assert.deepEqual(errorsFor(text, headingPath, options), [])
 }
 
+function mcpReadmeBody(tools = docsValidator.MCP_TOOL_NAMES) {
+  return [
+    `## Tools exposed (${tools.length})`,
+    ...tools.map((tool) => `- \`${tool}\``),
+    `All ${tools.length} tools are wired to real implementations.`,
+  ].join("\n")
+}
+
 test("Desk docs validator exports a testable contract", () => {
   for (const exportName of [
     "DOCS",
+    "MCP_TOOL_NAMES",
     "PRIVACY_REQUIRED_DOCS",
     "TOPIC_REQUIREMENTS",
     "WORKFLOW_REQUIREMENTS",
@@ -39,6 +48,7 @@ test("Desk docs validator exports a testable contract", () => {
     "run",
     "validateHealthyPathRecord",
     "validatePrivacyNotes",
+    "validateMcpReadmeToolSurface",
     "validateTopicCoverage",
     "validateValidatorFixtures",
     "validateWorkflowWiring",
@@ -150,6 +160,26 @@ test("workflow validation requires docs command and host/artifact path filters",
   ])
 })
 
+test("MCP README validation locks the advertised tool surface", () => {
+  const errors = []
+  docsValidator.validateMcpReadmeToolSurface(errors, {
+    tools: ["desk_status", "desk_search"],
+    readFile: () => mcpReadmeBody(["desk_status", "desk_search"]),
+  })
+  assert.deepEqual(errors, [])
+
+  const staleErrors = []
+  docsValidator.validateMcpReadmeToolSurface(staleErrors, {
+    tools: ["desk_status"],
+    readFile: () => "## Tools exposed (13)\n13 tools are wired.",
+  })
+
+  assert.ok(staleErrors.some((error) => error.includes("advertise 1 exposed tools")))
+  assert.ok(staleErrors.some((error) => error.includes("state all 1 tools are wired")))
+  assert.ok(staleErrors.some((error) => error.includes("must list desk_status")))
+  assert.ok(staleErrors.some((error) => error.includes("stale 12/13 tool counts")))
+})
+
 test("run and startCli expose success, failure, and no-op CLI paths", () => {
   const goodBody = "Embeddings and snapshots are derivative data and may carry privacy risk."
   const workflowBody = [
@@ -169,7 +199,10 @@ test("run and startCli expose success, failure, and no-op CLI paths", () => {
         command: "node scripts/test-desk-docs.cjs",
         paths: ["plugins/desk/README.md"],
       }],
-      readFile: (file) => file.endsWith(".yml") ? workflowBody : goodBody,
+      readFile: (file) => {
+        if (file === "plugins/desk/mcp/README.md") return mcpReadmeBody()
+        return file.endsWith(".yml") ? workflowBody : goodBody
+      },
       stdout: { write: (text) => stdout.push(text) },
       stderr: { write: (text) => stderr.push(text) },
     }),

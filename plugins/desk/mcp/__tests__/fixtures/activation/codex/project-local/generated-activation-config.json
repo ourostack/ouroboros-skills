@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "desk": {
+    "root": ".desk"
+  },
+  "runtimeCacheDir": ".codex/desk-runtime-cache",
+  "activation": {
+    "selected_id": "desk:worker",
+    "launch_as": "desk:worker",
+    "mode": "project-local",
+    "chain": [
+      "desk:worker"
+    ]
+  }
+}

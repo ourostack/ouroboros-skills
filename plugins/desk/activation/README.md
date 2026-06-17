@@ -81,7 +81,7 @@ Zero-setup support has three different evidence states:
 
 The read-only `scripts/audit-codex-plugin-cache.cjs` checks the first two states. It reports `active-session-visible` as not checked until the caller supplies active host MCP tool evidence with `--active-tools` or `--active-tools-file`; `--strict-active` fails when no active snapshot is supplied or required Desk tools are missing. This keeps file/cache freshness, MCP launchability, and active-session visibility separate.
 
-Desk workers also carry a startup health guard: if `desk_status` or the Desk MCP namespace is missing from the active tool surface, the agent must treat Desk MCP as absent, run/surface Codex onboarding repair, and avoid local-only fallback. Once `desk_status` is callable, degraded index/vector/snapshot states are runtime repair problems rather than activation absence.
+Desk workers also carry a startup health guard: if `desk_status` or the Desk MCP namespace is missing from the active tool surface, the agent treats Desk MCP as absent, explains what MCP-backed desk access provides, and asks whether to fix/reload now or continue without generic reminders. Choosing repair routes to `desk:codex-onboarding` or the host repair checklist; choosing no reminders is an explicit operator preference, not silent local-only fallback. Once `desk_status` is callable, degraded index/vector/snapshot states are runtime repair problems rather than activation absence.
 
 ## Artifact Privacy
 

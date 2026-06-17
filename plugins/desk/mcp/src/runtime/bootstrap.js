@@ -333,7 +333,7 @@ export function syncSourceMirror({ mcpRoot, runtimeCacheDir }) {
   const stagingPath = `${mirrorPath}.tmp-${process.pid}`
   rmSync(stagingPath, { recursive: true, force: true })
   mkdirSync(stagingPath, { recursive: true })
-  for (const entry of ["index.js", "package.json", "package-lock.json", "src"]) {
+  for (const entry of ["index.js", "package.json", "package-lock.json", "scripts", "src"]) {
     cpSync(path.join(mcpRoot, entry), path.join(stagingPath, entry), {
       recursive: true,
       filter: (source) => !source.split(path.sep).includes("node_modules"),
@@ -358,7 +358,7 @@ export function hashCurrentSource(mcpRoot) {
 }
 
 export function sourceFilesForHash(mcpRoot) {
-  const roots = ["index.js", "package.json", "package-lock.json", "src"]
+  const roots = ["index.js", "package.json", "package-lock.json", "scripts", "src"]
   const files = []
   for (const entry of roots) {
     const absolute = path.join(mcpRoot, entry)

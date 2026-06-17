@@ -72,7 +72,7 @@ Or inside an existing Claude session: `@desk:worker say hi`. The agent's preambl
 
 The plugin ships a `.codex-plugin/plugin.json` manifest and a companion `work-suite` plugin manifest. The healthy path is host-native activation: enable Desk and Work Suite through Codex's plugin loading surface, then let Desk's activation metadata materialize the owned config/instruction block for the selected mode.
 
-The default mode is `global-personal`: Desk and Work Suite are enabled together, the bundled Desk MCP is enabled through plugin-scoped MCP metadata, and Codex receives an owned `AGENTS.md` worker-default block. `project-local` and `manual-only` are opt-outs for repos or sessions that should not inherit the global worker default.
+The default mode is `global-personal`: Desk and Work Suite are enabled together, Codex receives an activation-owned Desk MCP bridge plus an owned `AGENTS.md` worker-default block, and `desk_status` reports the selected worker/overlay activation. `project-local` and `manual-only` are opt-outs for repos or sessions that should not inherit the global worker default.
 
 Codex plugin ids are rendered with the active marketplace namespace, for example `desk@ourostack` or `desk@ourostack-local`. Local development installs should use the marketplace `name` from `.agents/plugins/marketplace.json` consistently for Desk, Work Suite, and downstream overlay plugins.
 
@@ -90,9 +90,11 @@ At worker session start, missing Desk MCP is surfaced as an operator decision ra
 
 For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The MCP honors `OLLAMA_HOST` plus `DESK_EMBED_ENDPOINT` / `DESK_EMBED_MODEL` overrides, and `desk_reindex` without arguments repairs any lexical-only index once embeddings are reachable.
 
+For shared repos, document-side embeddings and warm-start SQLite snapshots live in the workspace repo under `$DESK/artifacts/`. On startup, the MCP checks `$DESK/artifacts` before plugin-bundled release artifacts, restores a compatible snapshot into local `.state/` when available, and falls back to repo-local vector packs before generating missing document vectors.
+
 ### Artifact privacy
 
-Embeddings and snapshots are derivative data and may carry privacy risk even when they are not plain-text documents. Shared vector packs and warm boot snapshots are published only through explicit, policy-controlled artifact paths; public or sensitive repositories should require approval before these artifacts are committed.
+Embeddings and snapshots are derivative data and may carry privacy risk even when they are not plain-text documents. Shared vector packs and warm boot snapshots are published only through explicit, policy-controlled artifact paths such as `$DESK/artifacts/`; public or sensitive repositories should require approval before these artifacts are committed.
 
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 

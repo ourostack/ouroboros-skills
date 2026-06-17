@@ -75,6 +75,8 @@ function makeMcpFixture({ serverMarker = "initial", includePackageLock = true } 
   }
   writeText(path.join(fixtureMcpRoot, "index.js"), "export const entrypoint = true\n")
   writeServer(fixtureMcpRoot, serverMarker)
+  writeText(path.join(fixtureMcpRoot, "scripts", "build-vector-pack.js"), "export const script = true\n")
+  writeText(path.join(fixtureMcpRoot, "scripts", "node_modules", "ignored.js"), "ignored\n")
   writeText(path.join(fixtureMcpRoot, "src", "nested", "visible.js"), "export const visible = true\n")
   writeText(path.join(fixtureMcpRoot, "src", "node_modules", "ignored.js"), "ignored\n")
   return {
@@ -558,6 +560,7 @@ test("source hashing ignores nested node_modules and mirrors clean up staging di
     const files = sourceFilesForHash(fixture.mcpRoot)
     assert.ok(files.includes("index.js"))
     assert.ok(files.includes("package.json"))
+    assert.ok(files.includes("scripts/build-vector-pack.js"))
     assert.ok(files.includes("src/server.js"))
     assert.ok(files.includes("src/nested/visible.js"))
     assert.equal(files.includes("package-lock.json"), false)
@@ -565,14 +568,20 @@ test("source hashing ignores nested node_modules and mirrors clean up staging di
 
     const before = hashCurrentSource(fixture.mcpRoot)
     writeText(path.join(fixture.mcpRoot, "src", "node_modules", "ignored.js"), "changed ignored\n")
+    writeText(path.join(fixture.mcpRoot, "scripts", "node_modules", "ignored.js"), "changed ignored\n")
     assert.equal(hashCurrentSource(fixture.mcpRoot), before)
     writeText(path.join(fixture.mcpRoot, "src", "nested", "visible.js"), "changed visible\n")
     assert.notEqual(hashCurrentSource(fixture.mcpRoot), before)
+    const afterSrcChange = hashCurrentSource(fixture.mcpRoot)
+    writeText(path.join(fixture.mcpRoot, "scripts", "build-vector-pack.js"), "changed script\n")
+    assert.notEqual(hashCurrentSource(fixture.mcpRoot), afterSrcChange)
 
     writeJson(path.join(fixture.mcpRoot, "package-lock.json"), fixture.packageLock)
     const firstMirror = syncSourceMirror({ mcpRoot: fixture.mcpRoot, runtimeCacheDir })
     const secondMirror = syncSourceMirror({ mcpRoot: fixture.mcpRoot, runtimeCacheDir })
     assert.equal(secondMirror, firstMirror)
+    assert.equal(existsSync(path.join(firstMirror, "scripts", "build-vector-pack.js")), true)
+    assert.equal(existsSync(path.join(firstMirror, "scripts", "node_modules", "ignored.js")), false)
     assert.equal(
       readdirSync(path.dirname(firstMirror)).some((entry) => entry.includes(".tmp-")),
       false,

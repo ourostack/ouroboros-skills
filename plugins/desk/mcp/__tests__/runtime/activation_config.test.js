@@ -242,7 +242,7 @@ test("activation config roots support tilde and relative paths with injectable c
   }
 })
 
-test("root resolver reports nonexistent explicit, host-session, and activation roots", () => {
+test("root resolver reports nonexistent explicit and host-session roots", () => {
   const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
   const fixture = makeFixture()
   try {
@@ -263,7 +263,50 @@ test("root resolver reports nonexistent explicit, host-session, and activation r
       }),
       new RegExp(`host/session root path does not exist: ${escapeRegExp(missingHostSession)}`, "u"),
     )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
 
+test("missing activation-config roots fall through to DESK and safe defaults", () => {
+  const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
+  const fixture = makeFixture()
+  try {
+    const missingActivation = path.join(fixture.root, "missing-activation")
+    writeActivationConfig(fixture.configPath, missingActivation)
+    const envFallback = resolveDeskRootWithSource({
+      activationConfigPath: fixture.configPath,
+      env: { DESK: fixture.envRoot },
+      homeDir: fixture.home,
+    })
+    assert.equal(envFallback.root, fixture.envRoot)
+    assert.equal(envFallback.source, "env:DESK")
+    assert.deepEqual(projectTried(envFallback).map(([source]) => source), [
+      "activation-config",
+      "env:DESK",
+    ])
+
+    const homeFallback = resolveDeskRootWithSource({
+      activationConfigPath: fixture.configPath,
+      env: {},
+      homeDir: fixture.home,
+    })
+    assert.equal(homeFallback.root, path.join(fixture.home, "ms-desk"))
+    assert.equal(homeFallback.source, "fallback:ms-desk")
+    assert.deepEqual(projectTried(homeFallback).map(([source]) => source), [
+      "activation-config",
+      "fallback:ms-desk",
+    ])
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("root resolver final diagnostic includes missing activation config root", () => {
+  const resolveDeskRootWithSource = requireFunction(pathsModule, "resolveDeskRootWithSource")
+  const fixture = makeFixture()
+  try {
+    rmSync(path.join(fixture.home, "ms-desk"), { recursive: true, force: true })
     const missingActivation = path.join(fixture.root, "missing-activation")
     writeActivationConfig(fixture.configPath, missingActivation)
     assert.throws(
@@ -272,7 +315,23 @@ test("root resolver reports nonexistent explicit, host-session, and activation r
         env: {},
         homeDir: fixture.home,
       }),
-      new RegExp(`activation config desk\\.root path does not exist: ${escapeRegExp(missingActivation)}`, "u"),
+      (err) => {
+        assert.match(err.message, /no desk workspace found/u)
+        const expected = [
+          missingActivation,
+          path.join(fixture.home, "ms-desk"),
+          path.join(fixture.home, "desk"),
+          path.join(fixture.home, "worker-workspace"),
+        ]
+        let cursor = -1
+        for (const item of expected) {
+          const next = err.message.indexOf(item)
+          assert.notEqual(next, -1, `${item} must appear in diagnostic`)
+          assert.ok(next > cursor, `${item} must appear after the previous attempted source`)
+          cursor = next
+        }
+        return true
+      },
     )
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
@@ -337,10 +396,12 @@ test("legacy resolveDeskRoot delegates to the same root resolver with injectable
 
 test("entrypoint startup root resolution uses parsed activation config and canonical path resolver", () => {
   const resolveStartupDeskRoot = requireFunction(entrypoint, "resolveStartupDeskRoot")
+  const resolveStartupActivationConfigPath = requireFunction(entrypoint, "resolveStartupActivationConfigPath")
   const fixture = makeFixture()
   try {
     writeActivationConfig(fixture.configPath, fixture.activationRoot)
     const args = entrypoint.parseArgs(["--activation-config", fixture.configPath])
+    assert.equal(resolveStartupActivationConfigPath({ args, env: {} }), fixture.configPath)
     const result = resolveStartupDeskRoot({
       args,
       env: {
@@ -351,6 +412,53 @@ test("entrypoint startup root resolution uses parsed activation config and canon
     })
     assert.equal(result.root, fixture.activationRoot)
     assert.equal(result.source, "activation-config")
+
+    const codexHome = path.join(fixture.root, "codex-home")
+    const codexConfigPath = path.join(codexHome, "desk.activation.json")
+    mkdirSync(codexHome, { recursive: true })
+    writeActivationConfig(codexConfigPath, fixture.activationRoot)
+    assert.equal(
+      resolveStartupActivationConfigPath({
+        args: {},
+        env: {
+          CODEX_HOME: codexHome,
+        },
+      }),
+      codexConfigPath,
+    )
+    assert.equal(
+      resolveStartupDeskRoot({
+        args: {},
+        env: {
+          CODEX_HOME: codexHome,
+          DESK: fixture.envRoot,
+        },
+        homeDir: fixture.home,
+      }).source,
+      "activation-config",
+    )
+
+    const overrideConfigPath = path.join(fixture.root, "override.activation.json")
+    writeActivationConfig(overrideConfigPath, fixture.envRoot)
+    assert.equal(
+      resolveStartupActivationConfigPath({
+        args: {},
+        env: {
+          CODEX_HOME: codexHome,
+          DESK_ACTIVATION_CONFIG: overrideConfigPath,
+        },
+      }),
+      overrideConfigPath,
+    )
+    assert.equal(
+      resolveStartupActivationConfigPath({
+        args: {},
+        env: {
+          CODEX_HOME: path.join(fixture.root, "missing-codex-home"),
+        },
+      }),
+      null,
+    )
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }

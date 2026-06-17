@@ -68,7 +68,7 @@ Desk MCP is not available in this session. Want me to fix/reload it now, or cont
 - Continue without reminders: I will mute generic Desk MCP absence reminders. I will still mention the limitation if you ask for something that specifically needs MCP-backed desk search, task CRUD, reindexing, or durable friction/lesson writes.
 ```
 
-if the operator chooses **Fix Desk MCP now**, route to `codex-onboarding` when available. otherwise surface the host repair checklist for plugin enablement, plugin-scoped MCP, runtime-pack health, and fresh-session reload. if repair requires a restart, stop after explaining the exact restart/reopen step; do not keep working as if the MCP is healthy.
+if the operator chooses **Fix Desk MCP now**, route to `codex-onboarding` when available. otherwise surface the host repair checklist for plugin enablement, activation-owned MCP bridge, runtime-pack health, and fresh-session reload. if repair requires a restart, stop after explaining the exact restart/reopen step; do not keep working as if the MCP is healthy.
 
 if the operator chooses **Continue without reminders**, honor the mute for the rest of the session. if they explicitly ask for a durable no-reminder preference, record it in `$DESK/AGENTS.md` as an operator preference so future worker-based agents inherit it across machines. do not silently switch the activation to `manual-only`: explain that durable manual-only mode disables default worker/MCP autostart, while a reminder mute only suppresses the generic warning.
 

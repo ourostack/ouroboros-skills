@@ -293,6 +293,50 @@ test("validatePluginMetadata catches host manifest and marketplace drift", async
     writeJson(fixtureRoot, ".claude-plugin/marketplace.json", {})
     validator.validatePluginMetadata({ repoRoot: fixtureRoot })
   })
+  await withFixtureRepo((fixtureRoot) => {
+    writeJson(fixtureRoot, "plugins/desk/.codex-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      skills: "./skills/",
+      interface: {
+        defaultPrompt: ["short prompt"],
+      },
+    })
+    writeText(
+      fixtureRoot,
+      "plugins/desk/skills/evidence-discipline/SKILL.md",
+      "---\nname: evidence-discipline\ndescription: >-\n  Folded trigger text that stays under the Codex metadata limit.\ntags:\n  - worker\n---\n# Evidence discipline\n",
+    )
+    writeText(fixtureRoot, "plugins/desk/skills/notes/README.md", "not a skill\n")
+    validator.validatePluginMetadata({ repoRoot: fixtureRoot })
+  })
+  await withFixtureRepo((fixtureRoot) => {
+    writeJson(fixtureRoot, "plugins/desk/.codex-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      skills: "./skills/",
+      interface: {},
+    })
+    writeText(
+      fixtureRoot,
+      "plugins/desk/skills/evidence-discipline/SKILL.md",
+      "---\nname: evidence-discipline\ndescription: \"High-risk scenarios: wrappers and warnings\"\n---\n# Evidence discipline\n",
+    )
+    validator.validatePluginMetadata({ repoRoot: fixtureRoot })
+  })
+  await withFixtureRepo((fixtureRoot) => {
+    writeJson(fixtureRoot, "plugins/desk/.codex-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      skills: "./skills/",
+    })
+    writeText(
+      fixtureRoot,
+      "plugins/desk/skills/evidence-discipline/SKILL.md",
+      "---\nname: evidence-discipline\ndescription: 'High-risk scenarios: wrappers and warnings'\n---\n# Evidence discipline\n",
+    )
+    validator.validatePluginMetadata({ repoRoot: fixtureRoot })
+  })
   await assertThrowsWith(
     (root) => writeJson(root, "plugins/desk/.codex-plugin/plugin.json", { name: "desk-other", version: "1.7.3" }),
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
@@ -302,6 +346,106 @@ test("validatePluginMetadata catches host manifest and marketplace drift", async
     (root) => writeJson(root, "plugins/desk/.codex-plugin/plugin.json", { name: "desk", version: "9.9.9" }),
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
     /does not match Codex plugin version/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/work-suite/.codex-plugin/plugin.json", {
+      name: "work-suite",
+      version: "1.4.9",
+      interface: {
+        defaultPrompt: ["x".repeat(129)],
+      },
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /defaultPrompt\[0\] exceeds 128 characters/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/work-suite/.codex-plugin/plugin.json", {
+      name: "work-suite",
+      version: "1.4.9",
+      interface: {
+        defaultPrompt: ["one", "two", "three", "four"],
+      },
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /defaultPrompt must contain at most 3 prompts/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/work-suite/.codex-plugin/plugin.json", {
+      name: "work-suite",
+      version: "1.4.9",
+      interface: {
+        defaultPrompt: "go",
+      },
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /defaultPrompt must be an array/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/work-suite/.codex-plugin/plugin.json", {
+      name: "work-suite",
+      version: "1.4.9",
+      interface: {
+        defaultPrompt: [42],
+      },
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /defaultPrompt\[0\] must be a string/u,
+  )
+  await assertThrowsWith(
+    (root) => {
+      writeJson(root, "plugins/desk/.codex-plugin/plugin.json", {
+        name: "desk",
+        version: "1.7.3",
+        skills: "./skills/",
+      })
+      writeText(root, "plugins/desk/skills/evidence-discipline/SKILL.md", "# missing frontmatter\n")
+    },
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /evidence-discipline: missing YAML frontmatter/u,
+  )
+  await assertThrowsWith(
+    (root) => {
+      writeJson(root, "plugins/desk/.codex-plugin/plugin.json", {
+        name: "desk",
+        version: "1.7.3",
+        skills: "./skills/",
+      })
+      writeText(root, "plugins/desk/skills/evidence-discipline/SKILL.md", "---\nname: evidence-discipline\n---\n# Evidence discipline\n")
+    },
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /evidence-discipline: frontmatter description is required/u,
+  )
+  await assertThrowsWith(
+    (root) => {
+      writeJson(root, "plugins/desk/.codex-plugin/plugin.json", {
+        name: "desk",
+        version: "1.7.3",
+        skills: "./skills/",
+      })
+      writeText(
+        root,
+        "plugins/desk/skills/evidence-discipline/SKILL.md",
+        "---\nname: evidence-discipline\ndescription: High-risk scenarios: wrappers and warnings\n---\n# Evidence discipline\n",
+      )
+    },
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /evidence-discipline: description inline scalar contains ': '/u,
+  )
+  await assertThrowsWith(
+    (root) => {
+      writeJson(root, "plugins/desk/.codex-plugin/plugin.json", {
+        name: "desk",
+        version: "1.7.3",
+        skills: "./skills/",
+      })
+      writeText(
+        root,
+        "plugins/desk/skills/evidence-discipline/SKILL.md",
+        `---\nname: evidence-discipline\ndescription: ${"x".repeat(1025)}\n---\n# Evidence discipline\n`,
+      )
+    },
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /evidence-discipline: frontmatter description exceeds 1024 characters/u,
   )
   await assertThrowsWith(
     (root) => writeJson(root, ".claude-plugin/marketplace.json", {

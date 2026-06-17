@@ -15,14 +15,16 @@ const MODE_CONFIG = {
     scope: "global",
     configPath: "~/.codex/config.toml",
     instructionsPath: "~/.codex/AGENTS.md",
+    activationConfigPath: "~/.codex/desk.activation.json",
     workerContext: "by default",
     pluginMcpEnabled: true,
-    directMcp: false,
+    directMcp: true,
   },
   "project-local": {
     scope: "project",
     configPath: ".codex/config.toml",
     instructionsPath: "AGENTS.md",
+    activationConfigPath: ".codex/desk.activation.json",
     workerContext: "by default in this project",
     pluginMcpEnabled: false,
     directMcp: true,
@@ -31,6 +33,7 @@ const MODE_CONFIG = {
     scope: "global",
     configPath: "~/.codex/config.toml",
     instructionsPath: null,
+    activationConfigPath: null,
     workerContext: "",
     pluginMcpEnabled: false,
     directMcp: false,
@@ -38,7 +41,18 @@ const MODE_CONFIG = {
 }
 
 function tomlString(value) {
-  return `"${value}"`
+  const escaped = String(value)
+    .replace(/\\/gu, "\\\\")
+    .replace(/"/gu, "\\\"")
+    .replace(/\u0008/gu, "\\b")
+    .replace(/\t/gu, "\\t")
+    .replace(/\n/gu, "\\n")
+    .replace(/\f/gu, "\\f")
+    .replace(/\r/gu, "\\r")
+    .replace(/[\u0000-\u0007\u000B\u000E-\u001F\u007F]/gu, (char) => (
+      `\\u${char.codePointAt(0).toString(16).padStart(4, "0")}`
+    ))
+  return `"${escaped}"`
 }
 
 function tomlArray(values) {
@@ -261,6 +275,12 @@ function parseTomlValue(value) {
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
     return parseTomlInlineTable(trimmed)
   }
+  if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+    return parseTomlBasicString(trimmed)
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1)
+  }
   return undefined
 }
 
@@ -304,6 +324,10 @@ function pathEquals(left, right) {
   return left.length === right.length && left.every((segment, index) => segment === right[index])
 }
 
+function pathStartsWith(path, prefix) {
+  return prefix.length <= path.length && prefix.every((segment, index) => segment === path[index])
+}
+
 function getObjectPath(object, path) {
   let current = object
   for (const segment of path) {
@@ -313,6 +337,51 @@ function getObjectPath(object, path) {
     current = current[segment]
   }
   return current
+}
+
+function tomlValueAtPath(content, targetPath) {
+  let sectionPath = []
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = stripTomlComment(rawLine).trim()
+    if (!line) {
+      continue
+    }
+
+    const tablePath = parseTomlTableHeader(line)
+    if (tablePath) {
+      sectionPath = tablePath
+      continue
+    }
+
+    const equalsIndex = findTomlTopLevelEquals(line)
+    if (equalsIndex === -1) {
+      continue
+    }
+    const keyPath = parseTomlDottedKey(line.slice(0, equalsIndex))
+    if (!keyPath) {
+      continue
+    }
+    const parsedValue = parseTomlValue(line.slice(equalsIndex + 1))
+    if (parsedValue === undefined) {
+      continue
+    }
+
+    const fullPath = [...sectionPath, ...keyPath]
+    if (pathEquals(fullPath, targetPath)) {
+      return parsedValue
+    }
+    if (typeof parsedValue === "object" && parsedValue !== null && pathStartsWith(targetPath, fullPath)) {
+      const nested = getObjectPath(parsedValue, targetPath.slice(fullPath.length))
+      if (nested !== undefined) {
+        return nested
+      }
+    }
+  }
+  return undefined
+}
+
+function hasTomlBoolean(content, path, value) {
+  return tomlValueAtPath(content, path) === value
 }
 
 function pluginRef(pluginId, namespace) {
@@ -395,6 +464,83 @@ function assertNoUserDisabledDeskConfig(config, namespace) {
   }
 }
 
+function assertNoUserDisabledDirectDeskMcpConfig(config) {
+  if (hasTomlBoolean(config, ["mcp_servers", "desk", "enabled"], false)) {
+    throw new Error(
+      "user-authored disabled Desk MCP config must be removed before automatic Desk activation",
+    )
+  }
+}
+
+function removeUnownedDeskMcpConfig(content) {
+  const directMcpPath = ["mcp_servers", "desk"]
+  const keptLines = []
+  let sectionPath = []
+  let droppingDeskMcpSection = false
+
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = stripTomlComment(rawLine).trim()
+    const tablePath = line ? parseTomlTableHeader(line) : null
+
+    if (tablePath) {
+      sectionPath = tablePath
+      droppingDeskMcpSection = pathStartsWith(sectionPath, directMcpPath)
+      if (!droppingDeskMcpSection) {
+        keptLines.push(rawLine)
+      }
+      continue
+    }
+
+    if (droppingDeskMcpSection) {
+      continue
+    }
+
+    if (!line) {
+      keptLines.push(rawLine)
+      continue
+    }
+
+    const equalsIndex = findTomlTopLevelEquals(line)
+    if (equalsIndex === -1) {
+      keptLines.push(rawLine)
+      continue
+    }
+
+    const keyPath = parseTomlDottedKey(line.slice(0, equalsIndex))
+    if (!keyPath) {
+      keptLines.push(rawLine)
+      continue
+    }
+
+    const fullPath = [...sectionPath, ...keyPath]
+    if (pathStartsWith(fullPath, directMcpPath)) {
+      continue
+    }
+
+    const parsedValue = parseTomlValue(line.slice(equalsIndex + 1))
+    if (
+      parsedValue !== undefined &&
+      pathStartsWith(directMcpPath, fullPath) &&
+      getObjectPath(parsedValue, directMcpPath.slice(fullPath.length)) !== undefined
+    ) {
+      if (
+        pathEquals(fullPath, ["mcp_servers"]) &&
+        Object.keys(parsedValue).length === 1 &&
+        hasOwn(parsedValue, "desk")
+      ) {
+        continue
+      }
+      throw new Error(
+        "user-authored inline mcp_servers.desk config must be moved out before automatic Desk activation",
+      )
+    }
+
+    keptLines.push(rawLine)
+  }
+
+  return keptLines.join("\n")
+}
+
 function selectedDependencyIds(selectedActivation) {
   const ids = []
   for (const entry of selectedActivation.chain) {
@@ -422,13 +568,18 @@ function orderedCodexPluginIds(input, selectedActivation) {
   return pluginIds
 }
 
-function renderPluginEnableBlocks(input, selectedActivation, namespace) {
+function renderPluginEnableBlocks(input, selectedActivation, namespace, existingConfig) {
   return orderedCodexPluginIds(input, selectedActivation)
+    .filter((id) => !hasTomlBoolean(existingConfig, [...deskPluginPathFor(id, namespace), "enabled"], true))
     .map((id) => `[plugins."${pluginRef(id, namespace)}"]\nenabled = true`)
     .join("\n\n")
 }
 
-function renderConfigBlock(input, modeConfig, selectedActivation) {
+function deskPluginPathFor(pluginId, namespace) {
+  return ["plugins", pluginRef(pluginId, namespace)]
+}
+
+function renderConfigBlock(input, modeConfig, selectedActivation, existingConfig) {
   const { manifest } = input
   const namespace = activationNamespace(input)
   const pluginMcpPolicy = `[plugins."${pluginRef(manifest.id, namespace)}".mcp_servers.desk]
@@ -442,18 +593,38 @@ default_tools_approval_mode = "prompt"`
 
 [mcp_servers.desk]
 command = "node"
-args = ${tomlArray([`${input.pluginRoot}/mcp/index.js`, "--root", input.deskRoot])}
+args = ${tomlArray([
+    `${input.pluginRoot}/mcp/index.js`,
+    "--activation-config",
+    modeConfig.activationConfigPath,
+  ])}
 cwd = "."
 enabled = true
 default_tools_approval_mode = "prompt"`
     : ""
 
   return `# BEGIN desk activation: ${manifest.id}@${manifest.version} mode=${input.mode} owner=desk-activation
-${renderPluginEnableBlocks(input, selectedActivation, namespace)}
+${renderPluginEnableBlocks(input, selectedActivation, namespace, existingConfig)}
 
 ${pluginMcpPolicy}${approvalPolicy}${directMcp}
 # END desk activation
 `
+}
+
+function renderActivationConfig(input, selectedActivation) {
+  return `${JSON.stringify({
+    schema_version: 1,
+    desk: {
+      root: input.deskRoot,
+    },
+    runtimeCacheDir: input.runtimeCacheDir,
+    activation: {
+      selected_id: selectedActivation.id,
+      launch_as: selectedActivation.launchAs,
+      mode: input.mode,
+      chain: selectedActivation.chain.map((entry) => entry.id),
+    },
+  }, null, 2)}\n`
 }
 
 function renderInstructionsBlock(input, modeConfig, selectedActivation) {
@@ -491,6 +662,9 @@ function generatedArtifactContent(activation, artifact) {
   if (artifact.kind === "owned-codex-instructions") {
     return activation.generatedInstructions
   }
+  if (artifact.path === activation.activationConfigPath) {
+    return activation.generatedActivationConfig
+  }
   return activation.generatedConfig
 }
 
@@ -500,8 +674,13 @@ export function materializeCodexActivation(input) {
   const selectedActivation = selectedActivationFor(input)
   const namespace = activationNamespace(input)
   const configWithoutOwnedBlock = removeOwnedActivationBlock(input.existingConfig)
-  assertNoUserDisabledDeskConfig(configWithoutOwnedBlock, namespace)
-  const generatedConfig = mergeOwnedActivationBlock(input.existingConfig, renderConfigBlock(input, modeConfig, selectedActivation))
+  assertNoUserDisabledDirectDeskMcpConfig(configWithoutOwnedBlock)
+  const configWithoutUnownedDeskMcp = removeUnownedDeskMcpConfig(configWithoutOwnedBlock)
+  assertNoUserDisabledDeskConfig(configWithoutUnownedDeskMcp, namespace)
+  const generatedConfig = mergeOwnedActivationBlock(
+    configWithoutUnownedDeskMcp,
+    renderConfigBlock(input, modeConfig, selectedActivation, configWithoutUnownedDeskMcp),
+  )
   const instructionsBlock = renderInstructionsBlock(input, modeConfig, selectedActivation)
   const generatedInstructions = instructionsBlock
     ? mergeOwnedActivationBlock(input.existingInstructions, instructionsBlock)
@@ -515,12 +694,22 @@ export function materializeCodexActivation(input) {
         },
       ]
     : []
+  const activationConfigArtifacts = modeConfig.activationConfigPath
+    ? [
+        {
+          owner: "desk-activation",
+          kind: "owned-host-config",
+          path: modeConfig.activationConfigPath,
+        },
+      ]
+    : []
 
   return {
     mode: input.mode,
     scope: modeConfig.scope,
     configPath: modeConfig.configPath,
     instructionsPath: modeConfig.instructionsPath,
+    activationConfigPath: modeConfig.activationConfigPath,
     manualSetupSteps: [],
     permissions: {
       requestedCapabilities: input.manifest.permissions.requested_capabilities,
@@ -533,9 +722,13 @@ export function materializeCodexActivation(input) {
         kind: "owned-host-config",
         path: modeConfig.configPath,
       },
+      ...activationConfigArtifacts,
       ...instructionArtifacts,
     ],
     generatedConfig,
+    generatedActivationConfig: modeConfig.activationConfigPath
+      ? renderActivationConfig(input, selectedActivation)
+      : "",
     generatedInstructions,
   }
 }
