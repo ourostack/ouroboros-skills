@@ -50,8 +50,10 @@ Before converting a web/product surface into native work units, audit the curren
 - Inventory every current product surface and route, including quiet operational routes such as account handoffs, approval links, settings subpanels, search scopes, and well-known files.
 - Mark each surface as native UI, secure web handoff, custom URL-scheme-only native action, or intentionally out of scope because it is not a current product surface.
 - Do not add comments, feeds, likes, meal planning, media libraries, or other future product surfaces while doing parity work unless the operator explicitly expands scope.
+- When planning, audit, parity matrix, and doing docs all act as source material, keep them aligned. If a later reviewer narrows or corrects scope, update the supporting artifacts too and add a stale-language check for the old requirement.
 - Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
 - When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
+- Keep parity matrices and route plans explicit about this split: AASA/universal links cover real web route modules, while native-only actions such as sheet entry points, local drafts, and command shortcuts stay custom-scheme-only until a tested web route exists.
 - For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
 
 ## Offline And Security Boundaries
@@ -144,6 +146,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - Warning scans must exclude their own prior warning-scan output and remove stale output before reruns.
 - Screenshot/design review success and blocker artifacts must be mutually exclusive; runtime screenshot blockers need a companion design-review-blocked artifact so design validation can distinguish blocked capture from design success.
 - Keep blocker paths canonical by capability instead of forcing every blocker into one directory. Native runtime and App Intents blockers can live under the native artifact directory, while cross-repo/provider/human/production blockers may need root or web artifact paths.
+- For every blocker capability, name its producer and consumer phases. Do not let a later release/production blocker satisfy an earlier local validation gate unless that earlier gate explicitly owns the capability.
 - Final validation should rerun current App Intents/App Entity contract checks for every shipped domain; stale unit-level App Intents logs do not prove final readiness.
 
 ## Xcode Health And Blockers
