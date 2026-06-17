@@ -145,6 +145,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - Make every matrix command fail-fast with `set -euo pipefail`; when using `tee`, preserve producer exit status.
 - Run DB-mutating validation suites serially when they share a local database, or give each command an isolated database path. Do not parallelize focused suites or coverage jobs that call shared cleanup/auth/test-state helpers unless isolation is proven.
 - Warning scans must exclude their own prior warning-scan output and remove stale output before reruns.
+- Warning scans should match diagnostic shapes, not plain domain words. Avoid broad `warning|error|fail` scans that false-positive on test titles, generated asset names, route names, schema enum values, or expected error-code documentation.
 - Screenshot/design review success and blocker artifacts must be mutually exclusive; runtime screenshot blockers need a companion design-review-blocked artifact so design validation can distinguish blocked capture from design success.
 - Keep blocker paths canonical by capability instead of forcing every blocker into one directory. Native runtime and App Intents blockers can live under the native artifact directory, while cross-repo/provider/human/production blockers may need root or web artifact paths.
 - For every blocker capability, name its producer and consumer phases. Do not let a later release/production blocker satisfy an earlier local validation gate unless that earlier gate explicitly owns the capability.
