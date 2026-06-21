@@ -313,7 +313,7 @@ test("Copilot packaging validation rejects missing root surfaces and stale versi
   staleWorkSuiteVersion.workSuitePlugin.version = "1.4.8"
   assert.deepEqual(
     validateCopilotPackagingContract(staleWorkSuiteVersion),
-    ["Copilot root Work Suite version must match activation lock 1.4.9"],
+    ["Copilot root Work Suite version must match activation lock 1.5.0"],
   )
 })
 
@@ -337,7 +337,7 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   delete missingWorkSuitePlugin.workSuitePlugin
   assert.deepEqual(
     validateCopilotPackagingContract(missingWorkSuitePlugin),
-    ["Copilot root Work Suite version must match activation lock 1.4.9"],
+    ["Copilot root Work Suite version must match activation lock 1.5.0"],
   )
 
   const missingBundle = clone(currentCopilotPackagingInput())

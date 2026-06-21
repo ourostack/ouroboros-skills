@@ -6,5 +6,11 @@
     "functions": 100,
     "statements": 100
   },
-  "exclusions": []
+  "exclusions": [
+    {
+      "path": "scripts/audit-work-suite-runtime.cjs",
+      "owner": "Work Suite runtime audit",
+      "reason": "Root-level runtime visibility CLI is exercised by scripts/test-work-suite-runtime-audit.cjs and validate-skills freshness checks outside the Desk MCP coverage runner."
+    }
+  ]
 }

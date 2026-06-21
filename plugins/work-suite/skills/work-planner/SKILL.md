@@ -134,6 +134,7 @@ After drafting and refining the planning doc, run a "tinfoil hat" pass before pr
 - Are there implicit assumptions that should be explicit decisions?
 - Does the scope accidentally include or exclude something it shouldn't?
 - Are there dependencies or ordering constraints that the plan ignores?
+- If the task touches UI/rendering/layout, do Completion Criteria require screenshot/live visual evidence and a visual absurdity ledger via `visual-qa-dogfood`?
 - Actually read the code/files referenced — do they exist? Do the patterns described match reality?
 - If issues found: fix them, commit with `"docs(planning): tinfoil hat pass"`, then present for approval
 - If nothing found: commit with `"docs(planning): tinfoil hat pass - no issues found"`
@@ -380,6 +381,7 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 - [ ] 100% test coverage on all new code
 - [ ] All tests pass
 - [ ] No warnings
+- [ ] If UI/rendering/layout changed: `visual-qa-dogfood` evidence captured, absurdity ledger closed, and automated visual metrics still pass
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**
@@ -440,6 +442,7 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 - [ ] 100% test coverage on all new code
 - [ ] All tests pass
 - [ ] No warnings
+- [ ] If UI/rendering/layout changed: `visual-qa-dogfood` evidence captured, absurdity ledger closed, and automated visual metrics still pass
 
 ## Code Coverage Requirements
 **MANDATORY: 100% coverage on all new code.**
@@ -481,6 +484,10 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 **What**: Verify coverage, refactor if needed
 **Acceptance**: 100% coverage on new code, tests still green
 
+### ⬜ Unit 1d: [Feature] — Visual QA Dogfood (UI/rendering only)
+**What**: Run `visual-qa-dogfood` on touched surfaces
+**Acceptance**: screenshots/live evidence captured, absurdity ledger has no ready/reviewer-gated items, automated visual metrics still pass
+
 [Continue pattern: every unit header starts with ⬜]
 
 ## Execution
@@ -488,6 +495,7 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 - Commit after each phase (1a, 1b, 1c)
 - Push after each unit complete
 - Run full test suite before marking unit done
+- For UI/rendering/layout units, run `visual-qa-dogfood` before declaring the unit or task complete
 - **All artifacts**: Save outputs, logs, data to `./[task-name]/` directory
 - **Fixes/blockers**: Spawn sub-agent immediately — don't ask, just do it
 - **Decisions made**: Update docs immediately, commit right away

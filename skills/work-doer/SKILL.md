@@ -115,6 +115,15 @@ starting Unit Xa: [name]
 7. Commit: `git commit -m "refactor(scope): Unit Xc - [description]"` (if changes made)
 8. Push
 
+**For UI/rendering/layout units (Xd or named visual QA):**
+1. Run `visual-qa-dogfood` on every touched user-visible surface
+2. Capture screenshot/live evidence using the project's real app/probe path
+3. Maintain an absurdity ledger in the unit artifacts directory
+4. Fix every in-scope `ready` item and send ambiguous visual calls through a reviewer gate
+5. Re-run automated visual metrics after fixes
+6. Commit: `git commit -m "test(ui): Unit Xd - visual QA dogfood"` or the closest project convention
+7. Push
+
 **For non-coding units:**
 1. Complete work as described
 2. Produce specified output
@@ -141,7 +150,7 @@ Spawn a fresh, no-context sub-agent to review the just-completed unit. The revie
 - The diff for this unit: `git diff <unit-start-commit>..HEAD --` for the relevant files
 - The test output: passing tests + coverage report for the relevant files
 - The build output if a build was run: any warnings count as findings
-- Lens: did the unit land correctly? Tests pass? Coverage maintained or improved on new code? No warnings? Build clean? Doing-doc status updated to ✅? Every acceptance criterion the unit named is verifiable in the diff or test output? **If the unit touched adapter-pattern code (HTTP / GraphQL / gRPC / cmdlet / shell-out / SDK wrapper) — do the unit tests capture and assert on the OUTGOING request (URL, body, headers, args), not only on the response? See "Adapter-pattern testing" in TDD Requirements.**
+- Lens: did the unit land correctly? Tests pass? Coverage maintained or improved on new code? No warnings? Build clean? Doing-doc status updated to ✅? Every acceptance criterion the unit named is verifiable in the diff or test output? **If the unit touched UI/rendering/layout, did it run `visual-qa-dogfood` with screenshot/live evidence and a closed absurdity ledger? If the unit touched adapter-pattern code (HTTP / GraphQL / gRPC / cmdlet / shell-out / SDK wrapper) — do the unit tests capture and assert on the OUTGOING request (URL, body, headers, args), not only on the response? See "Adapter-pattern testing" in TDD Requirements.**
 - Output format: `CONVERGED` or `FINDINGS` with severity per finding (`BLOCKER / MAJOR / MINOR / NIT`)
 - Time-box: report under ~400 words
 

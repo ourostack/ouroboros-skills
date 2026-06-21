@@ -10,6 +10,7 @@ const WORK_SUITE_SKILLS = [
   "autopilot",
   "inch-worm",
   "stay-in-turn",
+  "visual-qa-dogfood",
   "work-doer",
   "work-ideator",
   "work-merger",

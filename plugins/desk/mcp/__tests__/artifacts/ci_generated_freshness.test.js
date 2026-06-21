@@ -149,6 +149,7 @@ async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }
       "autopilot",
       "inch-worm",
       "stay-in-turn",
+      "visual-qa-dogfood",
       "work-doer",
       "work-ideator",
       "work-merger",

@@ -74,6 +74,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **work-planner** | Reviewer-gated task planner. Generates planning docs and converts to doing docs after the correct gate clears. |
 | **work-doer** | Executes doing.md units sequentially with strict TDD. |
 | **work-merger** | Sync-and-merge agent. Creates PRs, waits for CI, merges to main. |
+| **visual-qa-dogfood** | Screenshot-backed dogfooding for UI/rendering work so visual absurdity cannot hide behind passing metrics. |
 | **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
 | **full-systems-audit** | End-to-end repo audit that produces an audit report plus a routed backlog for the rest of the skill ecosystem. |
@@ -102,7 +103,8 @@ node scripts/audit-work-suite-runtime.cjs --repo-root .
 node scripts/audit-work-suite-runtime.cjs --repo-root . \
   --skill-root ~/.agents/skills \
   --skill-root ~/.codex/skills \
-  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm
+  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm,visual-qa-dogfood \
+  --strict-active
 ```
 
 The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. With `--strict-installed`, installed roots must also have `_registry.json` provenance whose shared work-suite skill commits match the latest source commits; run from a real git checkout so commit provenance can be proven. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.

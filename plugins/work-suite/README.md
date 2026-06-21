@@ -8,6 +8,7 @@ A portable plugin bundle of the core workflow skills from `ouroboros-skills`:
 | `work-planner` | Planning doc → doing doc conversion with sub-agent reviewer gates by default |
 | `work-doer` | Execute doing-doc units sequentially with strict TDD and unit review |
 | `work-merger` | Fetch / merge / PR / wait for CI / merge-to-main cleanup |
+| `visual-qa-dogfood` | Screenshot-backed dogfooding for UI/rendering work before completion |
 | `autopilot` | Long-horizon full-delivery mode: no human gates, harsh reviewer gates, explicit terminal validation |
 | `stay-in-turn` | Keep CI, deploy, smoke, and multi-PR waits inside the same turn instead of yielding |
 | `inch-worm` | Open-ended improvement loop: seed → fix → log side discoveries → repeat |
@@ -34,7 +35,7 @@ The work-suite contract includes a small source/runtime audit:
 node scripts/audit-work-suite-runtime.cjs --repo-root /path/to/ouroboros-skills \
   --skill-root ~/.agents/skills \
   --skill-root ~/.codex/skills \
-  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,stay-in-turn,inch-worm
+  --active-skills autopilot,work-ideator,work-planner,work-doer,work-merger,visual-qa-dogfood,stay-in-turn,inch-worm
 ```
 
 Use it when a skill was installed or updated but the current host menu may be stale. Source drift is a hard failure. Installed-root drift and active-menu gaps are explicit runtime evidence: read the installed `SKILL.md` directly for the current run, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
