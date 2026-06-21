@@ -215,6 +215,8 @@ test("desk_reindex — stale lexical-only indexes repair through default embeddi
       docPath,
       "---\nstatus: processing\nschema_version: 1\n---\nstale semantic repair body changed\n",
     )
+    const changedAt = new Date(Date.now() + 2_000)
+    await fs.utimes(path.join(root, docPath), changedAt, changedAt)
 
     const vec = Array.from({ length: ACTIVE_EMBEDDING_SPEC.dimension }, (_, i) => (i % 13) / 768)
     let fetchCalls = 0

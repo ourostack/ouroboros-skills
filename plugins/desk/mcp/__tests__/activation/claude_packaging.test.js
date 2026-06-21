@@ -228,7 +228,7 @@ test("Claude plugin metadata declares native Desk surfaces and Work Suite depend
     },
   ])
   assert.equal(Object.hasOwn(deskPlugin, "activation"), false)
-  assert.equal(workSuitePlugin.version, "1.4.9")
+  assert.equal(workSuitePlugin.version, "1.5.0")
 })
 
 test("Work Suite Claude manifest stays a strict-loadable skill provider", () => {
@@ -406,10 +406,10 @@ test("Claude packaging validation rejects missing Work Suite dependency and stal
   )
 
   const staleProviderVersion = clone(currentClaudePackagingInput())
-  staleProviderVersion.workSuitePlugin.version = "1.5.0"
+  staleProviderVersion.workSuitePlugin.version = "1.4.9"
   assert.deepEqual(
     validateClaudePackagingContract(staleProviderVersion),
-    ["Work Suite Claude version must match activation lock 1.4.9"],
+    ["Work Suite Claude version must match activation lock 1.5.0"],
   )
 })
 

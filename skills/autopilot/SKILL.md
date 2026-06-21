@@ -194,8 +194,9 @@ Autopilot needs an explicit terminal state. If the principal says *"fully deploy
 3. Release/publish/deploy path completed when the repo has one. If auto-deploy should exist, verify the deployment provider's run for the merged commit; do not assume push-to-main deployed it. If auto-deploy fails and a documented manual deploy path is available, run it, smoke that exact deployment, and report the auto-deploy failure separately instead of treating it as the shipped state. If no deploy path exists, explicitly mark it not applicable with evidence from repo docs/scripts.
 4. Local install/runtime refresh completed when the change affects installed skills, plugins, wrappers, or agent-facing runtime behavior on this machine.
 5. Smoke test through the deployed, installed, or otherwise consuming surface, not only repository-local validation. For web apps, this means production smoke unless the user explicitly scoped the work to non-production.
-6. Operational follow-through completed for directly implicated surfaces: required secrets checked, alerts/notifications wired through existing observability tools, seeded/test data cleaned, and small polish passes done when they are an obvious part of making the shipped behavior usable.
-7. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
+6. UI/rendering/layout work has passed `visual-qa-dogfood` against the consuming surface: screenshot/live evidence, closed absurdity ledger, automated visual metrics still green, and reviewer gate when non-trivial.
+7. Operational follow-through completed for directly implicated surfaces: required secrets checked, alerts/notifications wired through existing observability tools, seeded/test data cleaned, and small polish passes done when they are an obvious part of making the shipped behavior usable.
+8. No dirty worktree, no open PR from this run, no stale local/remote branch from this run.
 
 For skill/plugin work, "deployed" usually means: merged to `main`, plugin/skill manifests updated, local installed skill copy refreshed if this machine consumes it, and a smoke check confirms the installed copy contains the new contract. If the skill repo also publishes bundles/plugins, verify that publication or explicitly prove it is not part of the current repo's release path.
 

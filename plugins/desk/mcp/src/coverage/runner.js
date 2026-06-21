@@ -34,12 +34,16 @@ export function runCoverageCommand(options = {}) {
     repoRoot: paths.repoRoot,
     spawn,
   })
+  const coverageIncludeFiles = filterCoverageIncludeFiles({
+    requiredFiles,
+    exclusions: config.exclusions,
+  })
   const tmp = fsOps.makeTempDir()
 
   try {
     const testResult = runNodeCoverage({
       repoRoot: paths.repoRoot,
-      requiredFiles,
+      requiredFiles: coverageIncludeFiles,
       spawn,
       env,
     })
@@ -92,6 +96,15 @@ export function collectChangedCoverageFiles({ repoRoot, spawn = spawnSync }) {
     .filter((file) => changed.has(file))
 }
 
+export function filterCoverageIncludeFiles({ requiredFiles, exclusions = [] }) {
+  const excludedPaths = new Set(
+    exclusions
+      .map((exclusion) => normalizePath(exclusion.path ?? ""))
+      .filter(Boolean),
+  )
+  return requiredFiles.filter((file) => !excludedPaths.has(normalizePath(file)))
+}
+
 export function collectChangedFiles({ repoRoot, spawn = spawnSync }) {
   return unique([
     ...changedSinceMergeBase({ repoRoot, spawn }),
@@ -119,6 +132,9 @@ export function runNodeCoverage({
   const args = [
     "--test",
     "--experimental-test-coverage",
+    "--test-coverage-lines=0",
+    "--test-coverage-branches=0",
+    "--test-coverage-functions=0",
     "--test-coverage-exclude=plugins/desk/mcp/__tests__/**",
     "--test-coverage-exclude=plugins/desk/mcp/node_modules/**",
     ...requiredFiles.map((file) => `--test-coverage-include=${file}`),

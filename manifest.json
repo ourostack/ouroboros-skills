@@ -43,6 +43,12 @@
       "tags": ["workflow", "execution", "tdd"]
     },
     {
+      "name": "visual-qa-dogfood",
+      "path": "skills/visual-qa-dogfood/SKILL.md",
+      "description": "Run screenshot-backed dogfooding for UI, rendering, layout, typography, visual assets, native app surfaces, or user-reported visual weirdness. Forces agents to inspect representative visuals and maintain an absurdity ledger so metric-only checks cannot miss obviously broken UX.",
+      "tags": ["workflow", "qa", "ui", "visual", "dogfood"]
+    },
+    {
       "name": "work-merger",
       "path": "skills/work-merger/SKILL.md",
       "description": "Sync-and-merge agent. Fetches origin/main, resolves conflicts using task docs, creates PRs, runs harsh reviewer gates, waits for CI, merges to main, verifies terminal deploy/install state when applicable, and cleans up stale PR/branch/worktree state.",

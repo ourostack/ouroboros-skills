@@ -556,12 +556,155 @@ test("coverage runner invokes node coverage with include filters and child no-op
   assert.equal(result.status, 0)
   assert.equal(captured.cmd, process.execPath)
   assert.ok(captured.args.includes("--experimental-test-coverage"))
+  assert.ok(captured.args.includes("--test-coverage-lines=0"))
+  assert.ok(captured.args.includes("--test-coverage-branches=0"))
+  assert.ok(captured.args.includes("--test-coverage-functions=0"))
   assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/index.js"))
   assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/src/coverage/gate.js"))
   assert.ok(captured.args.includes("--test-coverage-include=plugins/desk/mcp/scripts/run-coverage.js"))
   assert.equal(captured.options.cwd, "/fixture/repo")
   assert.equal(captured.options.env.CUSTOM_ENV, "1")
   assert.equal(captured.options.env.DESK_COVERAGE_RUNNER_CHILD, "1")
+})
+
+test("coverage runner include filter removes exclusions without mutating required files", async () => {
+  const { filterCoverageIncludeFiles } = await loadRunner()
+  const requiredFiles = [
+    "plugins/desk/mcp/src/coverage/gate.js",
+    "scripts/audit-work-suite-runtime.cjs",
+  ]
+
+  assert.deepEqual(filterCoverageIncludeFiles({ requiredFiles }), requiredFiles)
+  assert.deepEqual(
+    filterCoverageIncludeFiles({
+      requiredFiles,
+      exclusions: [
+        { path: "scripts/audit-work-suite-runtime.cjs" },
+        { owner: "missing path fixture", reason: "ignored by include filtering" },
+      ],
+    }),
+    ["plugins/desk/mcp/src/coverage/gate.js"],
+  )
+  assert.deepEqual(requiredFiles, [
+    "plugins/desk/mcp/src/coverage/gate.js",
+    "scripts/audit-work-suite-runtime.cjs",
+  ])
+})
+
+test("coverage runner filters documented exclusions before native Node coverage", async () => {
+  const { runCoverageCommand } = await loadRunner()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    const configPath = writeFixture(
+      fixtureRoot,
+      "plugins/desk/mcp/config/coverage-gate.json",
+      JSON.stringify({
+        thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+        exclusions: [
+          {
+            path: "scripts/audit-work-suite-runtime.cjs",
+            owner: "Work Suite runtime audit",
+            reason: "covered by the root work-suite runtime audit test harness",
+          },
+        ],
+      }),
+    )
+    const packageJsonPath = writeFixture(
+      fixtureRoot,
+      "plugins/desk/mcp/package.json",
+      JSON.stringify({ scripts: { "test:coverage": "node scripts/run-coverage.js" } }),
+    )
+    const workflowPath = writeFixture(
+      fixtureRoot,
+      ".github/workflows/desk-mcp-tests.yml",
+      [
+        "on:",
+        "  pull_request:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "  push:",
+        "    paths:",
+        "      - \"plugins/desk/mcp/**\"",
+        "      - \"scripts/*.cjs\"",
+        "      - \".github/workflows/desk-mcp-tests.yml\"",
+        "jobs:",
+        "  desk-mcp-tests:",
+        "    steps:",
+        "      - run: npm run test:coverage",
+      ].join("\n"),
+    )
+    writeFixture(fixtureRoot, "plugins/desk/mcp/src/coverage/gate.js", "export {}\n")
+    writeFixture(fixtureRoot, "scripts/audit-work-suite-runtime.cjs", "module.exports = {}\n")
+
+    let nodeCoverageArgs = null
+    const spawn = (_cmd, args) => {
+      const key = args.join(" ")
+      if (args[0] === "--test") {
+        nodeCoverageArgs = args
+        return {
+          status: 0,
+          stdout: coverageTable([
+            "# plugins       |        |          |         | ",
+            "#  desk         |        |          |         | ",
+            "#   mcp         |        |          |         | ",
+            "#    src        |        |          |         | ",
+            "#     coverage  |        |          |         | ",
+            "#      gate.js  | 100.00 |   100.00 |  100.00 | ",
+          ]),
+          stderr: "",
+        }
+      }
+      if (key === "merge-base origin/main HEAD") return { status: 0, stdout: "base\n", stderr: "" }
+      if (key === "diff --name-only --diff-filter=AM base..HEAD") {
+        return {
+          status: 0,
+          stdout: [
+            "plugins/desk/mcp/src/coverage/gate.js",
+            "scripts/audit-work-suite-runtime.cjs",
+          ].join("\n"),
+          stderr: "",
+        }
+      }
+      return { status: 0, stdout: "", stderr: "" }
+    }
+    const writes = { stdout: "", stderr: "" }
+    const fsOps = {
+      makeTempDir: () => path.join(tmp, `run-${Date.now()}-${Math.random()}`),
+      removeDir: (dir) => rmSync(dir, { recursive: true, force: true }),
+      readText: (file) => readFileSync(file, "utf8"),
+      writeText: (file, text) => writeFixture(path.dirname(file), path.basename(file), text),
+    }
+    const result = runCoverageCommand({
+      paths: {
+        repoRoot: fixtureRoot,
+        mcpRoot: path.join(fixtureRoot, "plugins/desk/mcp"),
+        configPath,
+        packageJsonPath,
+        workflowPath,
+      },
+      spawn,
+      fsOps,
+      io: {
+        stdout: { write: (text) => { writes.stdout += text } },
+        stderr: { write: (text) => { writes.stderr += text } },
+      },
+      env: {},
+    })
+
+    assert.equal(result, 0)
+    assert.ok(nodeCoverageArgs.includes(
+      "--test-coverage-include=plugins/desk/mcp/src/coverage/gate.js",
+    ))
+    assert.ok(!nodeCoverageArgs.includes(
+      "--test-coverage-include=scripts/audit-work-suite-runtime.cjs",
+    ))
+    assert.match(writes.stdout, /passed for 1 changed production file/)
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
 })
 
 test("coverage runner parses Node's tree coverage report", async () => {

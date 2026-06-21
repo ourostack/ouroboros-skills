@@ -11,6 +11,7 @@ const WORK_SUITE_SKILLS = [
   "autopilot",
   "inch-worm",
   "stay-in-turn",
+  "visual-qa-dogfood",
   "work-doer",
   "work-ideator",
   "work-merger",
@@ -186,7 +187,7 @@ const activeMissing = run([
   "--repo-root",
   ".",
   "--active-skills",
-  "work-planner,work-doer,work-merger,stay-in-turn,inch-worm",
+  "work-planner,work-doer,work-merger,stay-in-turn,inch-worm,visual-qa-dogfood",
   "--strict-active",
   "--json",
 ]);
