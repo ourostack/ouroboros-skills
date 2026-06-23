@@ -16,13 +16,29 @@ These are the actual project repos where implementation happens (paths resolved 
 **Before starting work**:
 ```bash
 cd <repo-local-path>
-git fetch origin
+git fetch origin                          # ALWAYS first — see the stale-status trap below
+git rev-list --count HEAD..origin/main    # how far behind is the base you'd branch from?
 # If on a feature branch from prior work:
 git rebase origin/main   # or `git merge origin/main`, per repo convention
 # If on main:
 git pull origin main
 git status               # check for uncommitted changes; warn, don't silently overwrite
 ```
+
+### The stale-status trap — `git status` lies without a fetch
+
+`git fetch` is not an optional first line of the recipe above — it is the **load-bearing** one, and the failure mode when it's skipped is silent and expensive.
+
+`git status` reports your branch as "up to date with 'origin/main'" by comparing against the **last-fetched** remote-tracking ref — a local cache that can be arbitrarily old. With no `git fetch` first, "up to date" only means "up to date with a possibly-ancient local copy of the remote," **not** "current with what's actually on the server." A clone that's been idle (or that another machine has been pushing to) can read "up to date" while sitting dozens of commits and several releases behind reality.
+
+Branch off that stale base and the entire unit of work lands on dead code: the diff is computed against an old tree, the PR opens against a base that no longer reflects `main`, conventions may have drifted underneath you, and — worst — if the work targets a running artifact, you can "fix" something the operator already moved past, or even ship a **downgrade**. The cost is invisible until the work lands on the wrong base, and by then recovery is a full redo plus a credibility hit ("you said it was done").
+
+The rule:
+
+1. **Treat a no-fetch `git status` as `unknown`, never as `current`.** `git fetch` (or `git pull --rebase`) before branching or starting work in ANY code repo — every session, even for a one-line fix. Staleness scales with how long since the clone was last touched; you cannot eyeball it.
+2. **Quantify the gap before branching.** `git rev-list --count HEAD..origin/main` — a non-zero count means your local base is behind; sync (`git checkout main && git pull --rebase`, or branch from `origin/main` directly) before doing anything else. Don't trust a green-looking `status`; trust the count after a fresh fetch.
+3. **Cross-check HEAD against the real artifact when the work targets one.** If you're changing something with a deployed/published form (an installed app, a released package, a live service), compare the clone's version/HEAD against what's actually running (installed version, latest release tag, live response). A gap between the clone and reality is a second, independent staleness signal — stop and sync first.
+4. **"Done" means the operator's real artifact changed — not "a PR exists" or "a harness passed."** Verify the outcome against the thing the operator actually uses (the installed binary, the live endpoint, the rendered output), not only a synthetic test or an open PR. A green proxy can hide that the operator's experience is unchanged.
 
 **During work**: `work-doer` handles commit + push per its own protocol.
 
