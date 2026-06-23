@@ -388,7 +388,70 @@ function runRuntimeAudit(options = {}) {
   }
 }
 
+function listSkillFiles(dir, options, out) {
+  let entries;
+  try {
+    entries = readDir(dir, options);
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    if (entry === "node_modules" || entry === ".git") {
+      continue;
+    }
+    const full = path.join(dir, entry);
+    if (stat(full, options).isDirectory()) {
+      listSkillFiles(full, options, out);
+    } else if (entry === "SKILL.md") {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+// Enforces the Agent Skills spec frontmatter limits on EVERY skill in the repo
+// (https://agentskills.io/specification): name <=64 chars + matches its directory,
+// description non-empty + <=1024 chars. A description over 1024 chars fails to load
+// in the Copilot CLI and other Agent Skills runtimes. The authoring rubric for
+// writing tight descriptions lives in the skill-management skill.
+function validateSkillDescriptionLimits(options = {}) {
+  const maxLen = maxCodexSkillDescriptionLength;
+  const maxNameLen = 64;
+  const files = [];
+  for (const root of ["skills", "plugins"]) {
+    if (exists(root, options)) {
+      listSkillFiles(root, options, files);
+    }
+  }
+  for (const file of files) {
+    const frontmatter = frontmatterBlock(readText(file, options));
+    if (!frontmatter) {
+      throw new Error(`${file}: missing YAML frontmatter`);
+    }
+    const name = frontmatterScalar(frontmatter, "name");
+    const description = frontmatterScalar(frontmatter, "description");
+    const dir = path.basename(path.dirname(file));
+    if (!hasText(name)) {
+      throw new Error(`${file}: frontmatter name is missing`);
+    }
+    if (name.length > maxNameLen) {
+      throw new Error(`${file}: frontmatter name exceeds ${maxNameLen} characters (${name.length})`);
+    }
+    if (name !== dir) {
+      throw new Error(`${file}: frontmatter name "${name}" does not match directory "${dir}"`);
+    }
+    if (!hasText(description)) {
+      throw new Error(`${file}: frontmatter description is missing`);
+    }
+    if (description.length > maxLen) {
+      throw new Error(`${file}: frontmatter description exceeds ${maxLen} characters (${description.length})`);
+    }
+  }
+  console.log(`Validated ${files.length} skill descriptions within ${maxLen} characters.`);
+}
+
 function validateAll(options = {}) {
+  validateSkillDescriptionLimits(options);
   validateManifest(options);
   validateWorkSuiteCopies(options);
   validatePluginMetadata(options);
@@ -434,6 +497,7 @@ module.exports = {
   validateDeskMcpPackageScripts,
   validateManifest,
   validatePluginMetadata,
+  validateSkillDescriptionLimits,
   validateWorkSuiteCopies,
 };
 

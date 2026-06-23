@@ -1,22 +1,17 @@
 ---
 name: pr-self-review
-description: |
-  Final pre-open fresh-eyes pass on a PR after operator-worker
-  collab review cycles. Invoke ONLY when the operator explicitly
-  signals "ready" for a self-review convergence pass — phrased as
-  "run self-review", "polish this PR", "ready to share", "final
-  gate", "pr-self-review". Worker runs a thorough evaluation against
-  the diff, fact-checks findings, classifies each finding as
-  `auto` (agent can fix mechanically) or `human` (requires operator
-  judgment), and enters a convergence loop that auto-addresses
-  `auto` findings via `pr-feedback-on-own-pr`'s auto-apply path, re-reviewing
-  after each pass until no more auto-addressable findings remain.
-
-  Do NOT invoke: during initial implementation (work-doer's job),
-  during manual human-agent review cycles (that's step 3 of the
-  broader lifecycle — the collab that gives self-review its
-  direction), or as a substitute for real reviewer sign-off. This
-  skill is a final polish pass, not a replacement for humans.
+description: >-
+  Final pre-open fresh-eyes pass on a PR after operator-worker collab review
+  cycles. Invoke only when the operator explicitly signals ready for a
+  self-review convergence pass, phrased as run self-review, polish this PR,
+  ready to share, final gate, or pr-self-review. Worker runs a thorough
+  evaluation against the diff, fact-checks findings, classifies each as auto
+  (the agent can fix it mechanically) or human (requires operator judgment), and
+  enters a convergence loop that auto-addresses the auto findings via
+  pr-feedback-on-own-pr, re-reviewing after each pass until no auto-addressable
+  findings remain. Do NOT invoke during initial implementation (work-doer's
+  job), during manual human-agent review cycles, or as a substitute for real
+  reviewer sign-off; this is a final polish pass, not a replacement for humans.
 ---
 
 # pr-self-review
