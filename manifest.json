@@ -13,6 +13,12 @@
       "tags": ["meta", "workflow", "execution", "long-horizon"]
     },
     {
+      "name": "deep-research",
+      "path": "skills/deep-research/SKILL.md",
+      "description": "The research-shaped sibling of `autopilot`: drive a deep investigation to completion in one go, never handing control back mid-dive. Invoke when the principal says \"deep dive on X\", \"investigate X\", \"research X\", \"get to the bottom of X\", \"go to work on this\", or \"finish the investigation\" — any mandate to investigate a topic by reading real sources (code, docs, issues, telemetry) and producing grounded, captured findings. Also fires when the agent catches itself about to hand control back with a readable-but-unread thread, findings only in chat, or a \"want me to keep going? / loose ends:\" handoff — mode violations here. Terminal state is the sweater test: pull every thread until there's no more sweater AND every thread is routed to its durable home. Two narrow exceptions, as autopilot (a human-only credential/access wall; an irreversible destructive op); everything else is keep pulling. Do NOT invoke for a quick single lookup or an explicitly interactive \"let's think this through\" session.",
+      "tags": ["meta", "workflow", "research", "long-horizon"]
+    },
+    {
       "name": "stay-in-turn",
       "path": "skills/stay-in-turn/SKILL.md",
       "description": "Stay-in-turn for long-running work. Replaces the background+ScheduleWakeup+yield anti-pattern with a Monitor stream that produces events back into the same turn. Reach for this whenever the operator says 'do not return control until X' or whenever a task involves waiting on CI, a chain of merges, a build, or any operation longer than ~2 minutes.",
