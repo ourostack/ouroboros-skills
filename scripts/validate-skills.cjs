@@ -139,6 +139,7 @@ function validateWorkSuiteCopies(options = {}) {
   const pluginSkillsDir = "plugins/work-suite/skills";
   const expectedSkillNames = [
     "autopilot",
+    "deep-research",
     "inch-worm",
     "stay-in-turn",
     "visual-qa-dogfood",
