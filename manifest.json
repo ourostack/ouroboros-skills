@@ -4,127 +4,240 @@
       "name": "skill-management",
       "path": "skills/skill-management/SKILL.md",
       "description": "Browse, install, update, and contribute skills from the ouroboros-skills shared repository. This is the bootstrap skill that teaches agents how to manage their skill library.",
-      "tags": ["meta", "bootstrap", "registry"]
+      "tags": [
+        "meta",
+        "bootstrap",
+        "registry"
+      ]
     },
     {
       "name": "autopilot",
       "path": "skills/autopilot/SKILL.md",
       "description": "Operate as an engineer, not a journal-keeper. Removes human gates from full-delivery work: the agent ultrathinks, decides, ships, uses harsh sub-agent reviewer gates, keeps Arc/resume continuity current, validates the explicit terminal state, and keeps building through the durable continuation loop. Fires when the principal says next/go on/dogfood/build it, when the agent drafts action items, frames tractable failures as known quirks, overrides wrong defaults via flag, hot-patches without a source PR, stops a broken thing instead of investigating it, or tries to hand back an open PR as done. Only two narrow exceptions: human-only credential/capability, or unrecoverable destructive shared-production action.",
-      "tags": ["meta", "workflow", "execution", "long-horizon"]
+      "tags": [
+        "meta",
+        "workflow",
+        "execution",
+        "long-horizon"
+      ]
     },
     {
       "name": "deep-research",
       "path": "skills/deep-research/SKILL.md",
-      "description": "The research-shaped sibling of `autopilot`: drive a deep investigation to completion in one go, never handing control back mid-dive. Invoke when the principal says \"deep dive on X\", \"investigate X\", \"research X\", \"get to the bottom of X\", \"go to work on this\", or \"finish the investigation\" — any mandate to investigate a topic by reading real sources (code, docs, issues, telemetry) and producing grounded, captured findings. Also fires when the agent catches itself about to hand control back with a readable-but-unread thread, findings only in chat, or a \"want me to keep going? / loose ends:\" handoff — mode violations here. Terminal state is the sweater test: pull every thread until there's no more sweater AND every thread is routed to its durable home. Two narrow exceptions, as autopilot (a human-only credential/access wall; an irreversible destructive op); everything else is keep pulling. Do NOT invoke for a quick single lookup or an explicitly interactive \"let's think this through\" session.",
-      "tags": ["meta", "workflow", "research", "long-horizon"]
+      "description": "The research-shaped sibling of `autopilot`: drive a deep investigation to completion in one go, never handing control back mid-dive. Invoke when the principal says \"deep dive on X\", \"investigate X\", \"research X\", \"get to the bottom of X\", \"go to work on this\", or \"finish the investigation\" \u2014 any mandate to investigate a topic by reading real sources (code, docs, issues, telemetry) and producing grounded, captured findings. Also fires when the agent catches itself about to hand control back with a readable-but-unread thread, findings only in chat, or a \"want me to keep going? / loose ends:\" handoff \u2014 mode violations here. Terminal state is the sweater test: pull every thread until there's no more sweater AND every thread is routed to its durable home. Two narrow exceptions, as autopilot (a human-only credential/access wall; an irreversible destructive op); everything else is keep pulling. Do NOT invoke for a quick single lookup or an explicitly interactive \"let's think this through\" session.",
+      "tags": [
+        "meta",
+        "workflow",
+        "research",
+        "long-horizon"
+      ]
     },
     {
       "name": "stay-in-turn",
       "path": "skills/stay-in-turn/SKILL.md",
       "description": "Stay-in-turn for long-running work. Replaces the background+ScheduleWakeup+yield anti-pattern with a Monitor stream that produces events back into the same turn. Reach for this whenever the operator says 'do not return control until X' or whenever a task involves waiting on CI, a chain of merges, a build, or any operation longer than ~2 minutes.",
-      "tags": ["meta", "workflow", "execution"]
+      "tags": [
+        "meta",
+        "workflow",
+        "execution"
+      ]
     },
     {
       "name": "work-ideator",
       "path": "skills/work-ideator/SKILL.md",
       "description": "Explore ambiguous product, architecture, workflow, or coding ideas before invoking work-planner. Use when the user asks to ideate, think through, investigate, flesh out, compare prior art, run Tinfoil Hat and Stranger With Candy scrutiny passes, or prepare a better planning handoff before $work-planner; especially for harness changes where naming, scope, mental model, or implementation shape is still unsettled.",
-      "tags": ["workflow", "ideation", "planning"]
+      "tags": [
+        "workflow",
+        "ideation",
+        "planning"
+      ]
     },
     {
       "name": "workbench-operator",
       "path": "skills/workbench-operator/SKILL.md",
       "description": "Use Ouro Workbench as the native control room for terminal/TUI agents, including boss-agent check-ins, Workbench MCP tools, Desk mirroring, onboarding, and first-class Claude Code, Codex, Copilot CLI, and shell sessions.",
-      "tags": ["workflow", "workbench", "desk", "mcp", "terminal-agents"]
+      "tags": [
+        "workflow",
+        "workbench",
+        "desk",
+        "mcp",
+        "terminal-agents"
+      ]
     },
     {
       "name": "work-planner",
       "path": "skills/work-planner/SKILL.md",
       "description": "Task planner for coding tasks. Generates planning docs, runs reviewer-gated approval by default, converts to doing docs after the correct gate clears, and treats autopilot/no-human-gates mandates as sub-agent reviewer gates rather than human stops.",
-      "tags": ["workflow", "planning"]
+      "tags": [
+        "workflow",
+        "planning"
+      ]
     },
     {
       "name": "work-doer",
       "path": "skills/work-doer/SKILL.md",
       "description": "Executes doing.md units sequentially with strict TDD. Reads the doing doc, resolves ordinary blockers with sub-agent reviewers/fixers under autopilot, updates continuity state, and commits after each unit.",
-      "tags": ["workflow", "execution", "tdd"]
+      "tags": [
+        "workflow",
+        "execution",
+        "tdd"
+      ]
     },
     {
       "name": "visual-qa-dogfood",
       "path": "skills/visual-qa-dogfood/SKILL.md",
       "description": "Run screenshot-backed dogfooding for UI, rendering, layout, typography, visual assets, native app surfaces, or user-reported visual weirdness. Forces agents to inspect representative visuals and maintain an absurdity ledger so metric-only checks cannot miss obviously broken UX.",
-      "tags": ["workflow", "qa", "ui", "visual", "dogfood"]
+      "tags": [
+        "workflow",
+        "qa",
+        "ui",
+        "visual",
+        "dogfood"
+      ]
     },
     {
       "name": "work-merger",
       "path": "skills/work-merger/SKILL.md",
       "description": "Sync-and-merge agent. Fetches origin/main, resolves conflicts using task docs, creates PRs, runs harsh reviewer gates, waits for CI, merges to main, verifies terminal deploy/install state when applicable, and cleans up stale PR/branch/worktree state.",
-      "tags": ["workflow", "git", "merge"]
+      "tags": [
+        "workflow",
+        "git",
+        "merge"
+      ]
     },
     {
       "name": "video-editing",
       "path": "skills/video-editing/SKILL.md",
       "description": "Build and edit videos using Remotion with kinetic typography, VO-synced timing, and motion design. Use this skill when the user asks to create, edit, or fix video content.",
-      "tags": ["video", "remotion", "creative"]
+      "tags": [
+        "video",
+        "remotion",
+        "creative"
+      ]
     },
     {
       "name": "design",
       "path": "skills/design/SKILL.md",
       "description": "Design and build production-grade frontend interfaces from scratch. Covers the full workflow from context gathering through visual direction, implementation, and polish.",
-      "tags": ["design", "frontend", "creative", "ui"]
+      "tags": [
+        "design",
+        "frontend",
+        "creative",
+        "ui"
+      ]
     },
     {
       "name": "frontend-design",
       "path": "skills/frontend-design/SKILL.md",
       "description": "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics.",
-      "tags": ["design", "frontend", "creative", "aesthetics"]
+      "tags": [
+        "design",
+        "frontend",
+        "creative",
+        "aesthetics"
+      ]
     },
     {
       "name": "build-native-apple-app",
       "path": "skills/build-native-apple-app/SKILL.md",
       "description": "Use when planning, building, auditing, or shipping a native Apple app for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS. Applies to SwiftUI, UIKit, AppKit, Xcode projects, Swift packages, simulator/device validation, App Intents, Apple Intelligence, TestFlight/App Store readiness, and work that must justify native Apple platform leverage instead of a web or cross-platform shell.",
-      "tags": ["native", "apple", "ios", "macos", "workflow"]
+      "tags": [
+        "native",
+        "apple",
+        "ios",
+        "macos",
+        "workflow"
+      ]
     },
     {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
-      "tags": ["seo", "copywriting", "marketing"]
+      "tags": [
+        "seo",
+        "copywriting",
+        "marketing"
+      ]
     },
     {
       "name": "book-fetch",
       "path": "skills/book-fetch/SKILL.md",
-      "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
-      "tags": ["books", "ebooks", "libgen", "e-reader"]
+      "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic \u2014 discovers the user's setup at runtime.",
+      "tags": [
+        "books",
+        "ebooks",
+        "libgen",
+        "e-reader"
+      ]
     },
     {
       "name": "inch-worm",
       "path": "skills/inch-worm/SKILL.md",
       "description": "Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a bundle task backlog, pick the next highest-value discovery, repeat, and close the backlog when done. Each fix is its own PR.",
-      "tags": ["workflow", "maintenance", "iterative"]
+      "tags": [
+        "workflow",
+        "maintenance",
+        "iterative"
+      ]
     },
     {
       "name": "full-systems-audit",
       "path": "skills/full-systems-audit/SKILL.md",
       "description": "Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces an audit report plus a routed backlog for work-planner, inch-worm, and companion skills.",
-      "tags": ["audit", "architecture", "refactoring", "code-quality"]
+      "tags": [
+        "audit",
+        "architecture",
+        "refactoring",
+        "code-quality"
+      ]
     },
     {
       "name": "dragon-hunt",
       "path": "skills/dragon-hunt/SKILL.md",
       "description": "Run an adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. Find, prove, fix, test, and log every reachable defect before declaring a system ready.",
-      "tags": ["audit", "security", "qa", "integration", "workflow"]
+      "tags": [
+        "audit",
+        "security",
+        "qa",
+        "integration",
+        "workflow"
+      ]
     },
     {
       "name": "word-docs",
       "path": "skills/word-docs/SKILL.md",
       "description": "Convert markdown drafts into shareable Word documents using a bundled helper script.",
-      "tags": ["documents", "word", "docx", "formatting"]
+      "tags": [
+        "documents",
+        "word",
+        "docx",
+        "formatting"
+      ]
     },
     {
       "name": "product-cloner",
       "path": "skills/product-cloner/SKILL.md",
       "description": "Clone the look, feel, and behavior of an existing application (especially desktop, Electron, or web apps) by reading its shipped source as ground truth instead of guessing. Use when the user says make X look or behave exactly like Y, clone Typora or Notion or Linear, or pushes back that a parity attempt does not match. Covers locating the source of truth (app bundle CSS and JS, plists, defaults read, beautified minified bundles, the DOM template), pinning the user's active variant, extracting a complete source-grounded spec (visual tokens, DOM and feature inventory, behavior defaults, string inventory), implementing against the spec, and verifying against the reference. Keeps the IP line clear by reading shipped artifacts to extract facts and reimplementing originally.",
-      "tags": ["clone", "parity", "reverse-engineering", "design", "spec"]
+      "tags": [
+        "clone",
+        "parity",
+        "reverse-engineering",
+        "design",
+        "spec"
+      ]
+    },
+    {
+      "name": "anneal",
+      "path": "skills/anneal/SKILL.md",
+      "description": "Drive a defined codebase scope to a rigorously-defined, defect-free FIXED POINT via gated, convergent, parallel multi-agent autopilot. Measures a scope against an objective rubric, backlogs every violation, plans the fixes as a dependency graph (PERT), executes them through the work-suite (ideator\u2192planner\u2192doer\u2192adversarial-review\u2192merger) in parallel with serialized merges, and re-measures \u2014 looping until the rubric is fully satisfied (the energy function reaches zero) or a safety cap trips. Use when the user wants a scope driven to \"perfect\" with no handwaving. NOT for opportunistic one-off fixes (use inch-worm) or a one-shot audit (use full-systems-audit) \u2014 anneal is the convergence ENGINE that uses both.",
+      "tags": [
+        "meta",
+        "workflow",
+        "quality",
+        "convergence",
+        "mutation-testing",
+        "long-horizon"
+      ]
     }
   ]
 }
