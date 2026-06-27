@@ -55,6 +55,7 @@ Before converting a web/product surface into native work units, audit the curren
 - When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
 - Keep parity matrices and route plans explicit about this split: AASA/universal links cover real web route modules, while native-only actions such as sheet entry points, local drafts, and command shortcuts stay custom-scheme-only until a tested web route exists.
 - For share, Spotlight, App Intents, and Siri, expose the current model through entities and transfer values; avoid string-ID-only shortcuts when the platform can resolve real entities.
+- Capture surfaces must turn native inputs into importable domain data. Photo-library and camera affordances should load real image bytes, request platform permissions, run OCR or another tested extraction path, and preserve the prior draft when capture, OCR, or replacement fails. A UI that records only an asset identifier or fabricated camera token creates dead drafts, not native parity.
 
 ## Offline And Security Boundaries
 
@@ -73,6 +74,8 @@ Offline is native product behavior, not a cache implementation detail. Define it
 - Native detail caches that restore parent records must also fold restored child records and child tombstones into the parent snapshot when the visible product surface depends on those children. A parent-only restore can silently regress offline parity for recent activity, cover candidates, comments, or other child-derived detail sections.
 - Server idempotency conflict and replay checks must happen before media validation, storage reads, provider calls, and other expensive or side-effecting validation. Reusing a `clientMutationId` with a different body should return the documented idempotency conflict without touching R2, Photos, provider APIs, or staged media.
 - Offline indicators may be dismissible for informational stale/offline states only. Queued work, sync failures, conflicts, blockers, and destructive confirmations must remain visible until resolved.
+- Domain blockers embedded in otherwise successful API envelopes are not drained successes. Native transports and sync engines must classify provider-secret, auth, conflict, quota, and other HITL blockers before queue deletion, persist the blocker separately from pending retry metadata, and keep the original draft/queued mutation available until the user retries, discards, or a later drain proves completion.
+- Pending native imports need separate persisted state for draft content, queued mutation identity, blocker identity/resource, and imported-route destination. Clear each piece only on the event that owns it: successful direct import, verified queued drain, explicit retry, explicit discard, or account/cache purge.
 - Media staging needs explicit size/count limits and a no-silent-eviction rule for unsynced user-selected media. Failed or cancelled replacement attempts must preserve the existing staged media and draft metadata; only explicit clear, successful replacement, successful submit, or a resolved conflict policy may evict old unqueued media.
 - Spotlight, App Intents, App Shortcuts, and donated entities for private cached data need account/environment-scoped identifiers, purge hooks for logout/account switch/cache deletion/tombstones, stale-index deletion, and private-field filtering. Do not index raw media paths, secrets, provider blockers, hidden conflict/debug metadata, or source text that is not deliberately user-visible.
 
@@ -175,6 +178,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - For every blocker capability, name its producer and consumer phases. Do not let a later release/production blocker satisfy an earlier local validation gate unless that earlier gate explicitly owns the capability.
 - If a full validation suite removes blocker artifacts during per-test setup or cleanup, add a dedicated artifact-producer command after the suite is green. Response assertions prove behavior, but downstream phases that consume a blocker file need the file to exist at the canonical path in the final artifact set.
 - Final validation should rerun current App Intents/App Entity contract checks for every shipped domain; stale unit-level App Intents logs do not prove final readiness.
+- URL-scheme and Universal Link validation must prove both declaration and routing. Check `Info.plist`/entitlements for the entry point, app router parsing for every supported route/action, stale or malformed URL rejection, and the resulting navigation/state mutation. Do not count a registered scheme as complete if it only opens the app shell.
 
 ## Xcode Health And Blockers
 
@@ -184,6 +188,7 @@ Before treating `xcodebuild` failures as app bugs, classify where they fail:
 - Run bounded probes such as `xcodebuild -version`, `xcodebuild -checkFirstLaunchStatus`, `xcode-select -p`, and a short `xcodebuild -list`.
 - If first-launch work is pending, try the non-privileged repair path only if it is safe and bounded. Privileged repair, Xcode reinstall/update, Apple Developer Program enrollment, and account signing setup are human/capability gates.
 - If Xcode cannot load required plug-ins or private frameworks before project parsing, record a blocker artifact with the exact command, exit code, log path, Xcode version/build, developer directory, attempted repairs, and required human resolution.
+- If a promised platform build is blocked by a missing local runtime or SDK, write a capability-specific blocker artifact and keep structural/project checks as fallback evidence only. Missing iOS simulator platforms, unavailable visionOS runtimes, or unsigned device-only destinations are validation blockers, not passing substitutes.
 
 Do not mark app-bundle validation complete when `xcodebuild` is blocked locally. Strengthen structural project checks and direct `swiftc -typecheck` probes where useful, but label them as fallback evidence; they do not replace required iOS/macOS app builds, simulator launch, or macOS launch validation.
 
