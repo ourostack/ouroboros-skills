@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.4 — 2026-06-29
+
+**Defensive top-level `tools:` allowlist on the `worker` agent.** Declared `tools: ["*"]` (unrestricted) on `agents/worker.md` so a recent Agency tool-visibility change — which strips any agent that declares an `mcp-servers:` block down to control tools (`skill`, `sql`, `task_complete`) unless it also carries a top-level `tools:` allowlist — cannot silently narrow the substrate base if it tightens further. The base `worker` declares no `mcp-servers:` block, so this is preventive, not a fix for a live regression. The Copilot (`worker.agent.md`) and Codex (`worker.toml`) renderings carry no tools-allowlist field and are unchanged.
+
 ## 1.7.3 — 2026-06-17
 
 **Codex activation config is MCP-visible.** Global Codex activation now owns a `~/.codex/desk.activation.json` file alongside the generated `config.toml` and `AGENTS.md` blocks in the default Codex profile, and emits an owned top-level `mcp_servers.desk` bridge that passes that activation config to the bundled Desk MCP entrypoint. `desk_status` can report the selected activation target and overlay chain instead of only proving that a Desk root was found. Project-local Codex activation passes the same config explicitly with `--activation-config .codex/desk.activation.json`. The shared `.mcp.json` remains host-neutral (`["./mcp/index.js"]`) so Claude/Copilot plugin launches are not coupled to Codex paths.
