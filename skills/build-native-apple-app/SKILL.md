@@ -66,6 +66,7 @@ Offline is native product behavior, not a cache implementation detail. Define it
 - Separate queueable product writes from online-only security/account actions. Queue domain mutations that can be replayed safely; keep token creation/revocation, OAuth disconnect, logout/session revoke, passkey/password/provider-link flows, permission prompts, and device-token acquisition online-only unless the product has a tested reason otherwise.
 - Siri and Shortcuts must use the same queueability policy as in-app UI and must clearly say when an online-only action was not queued.
 - Review App Intents against the domain mutation matrix, not just the visible native UI. If a user can add, check, delete, clear, fork, save, or otherwise mutate a queueable surface in-app, the corresponding Siri/Shortcuts path should resolve to the same native queued mutation and REST contract unless the action is semantically false for the product.
+- App Intents that clear, revoke, switch, or invalidate account/session state must run private Spotlight/AppEntity/App Shortcut donation purges before credentials disappear, deriving account/environment scope while auth is still available. These purges are not best-effort: failures should propagate or leave credentials intact. Account-scope private-domain purges must delete both indexed entities and donated intent types for every shipped private domain, including account/settings actions.
 - Idempotent native/offline replay APIs must be durable after domain side effects commit. Prefer reservation-derived domain IDs for create/fork-style writes, recovery callbacks that can reconstruct committed responses from stored state, and no-side-effect recovery paths before deleting or retrying an in-flight reservation.
 - For provider-backed or journaled native/offline writes, committed domain rows outrank blockers and missing journals during recovery. First recover from the reservation-derived domain row and ownership check; then read the tombstone/journal if present; only use no-side-effect blocker recovery when no domain row committed. Missing, null, malformed, or wrong-shaped journals should produce honest nullable fallback metadata, not invented provenance, and wrong-owner reservation-derived rows must remain in-progress or fail safely.
 - On storage platforms without a tested interactive transaction boundary, multi-record native/offline mutation helpers need a proven atomic boundary before falling back to compensating rollback. For Prisma on D1, prefer `$transaction([...ops])` batch writes over restore-after-failure code, and test that every domain side effect and delete tombstone enters the same batch. Recovery must match the full requested graph and fields, not only reservation-derived IDs; hard-delete replay must require explicit mutation tombstones tied to the idempotency reservation before treating absence as success.
@@ -80,7 +81,7 @@ Offline is native product behavior, not a cache implementation detail. Define it
 - Domain blockers embedded in otherwise successful API envelopes are not drained successes. Native transports and sync engines must classify provider-secret, auth, conflict, quota, and other HITL blockers before queue deletion, persist the blocker separately from pending retry metadata, and keep the original draft/queued mutation available until the user retries, discards, or a later drain proves completion.
 - Pending native imports need separate persisted state for draft content, queued mutation identity, blocker identity/resource, and imported-route destination. Clear each piece only on the event that owns it: successful direct import, verified queued drain, explicit retry, explicit discard, or account/cache purge.
 - Media staging needs explicit size/count limits and a no-silent-eviction rule for unsynced user-selected media. Failed or cancelled replacement attempts must preserve the existing staged media and draft metadata; only explicit clear, successful replacement, successful submit, or a resolved conflict policy may evict old unqueued media.
-- Spotlight, App Intents, App Shortcuts, and donated entities for private cached data need account/environment-scoped identifiers, purge hooks for logout/account switch/cache deletion/tombstones, stale-index deletion, and private-field filtering. Do not index raw media paths, secrets, provider blockers, hidden conflict/debug metadata, or source text that is not deliberately user-visible.
+- Spotlight, App Intents, App Shortcuts, and donated entities for private cached data need account/environment-scoped identifiers, purge hooks for logout/account switch/cache deletion/tombstones, stale-index deletion, donation deletion, and private-field filtering. Do not index raw media paths, secrets, provider blockers, hidden conflict/debug metadata, or source text that is not deliberately user-visible.
 
 ## Architecture
 
@@ -140,6 +141,8 @@ Use sub-agents for parallel implementation only with disjoint write scopes. Alwa
 
 When using strict TDD, require a distinct implementation-green artifact for every implementation unit: the unit must rerun the exact red suite/contract after implementation and before any broader coverage/refactor step. Red logs plus later coverage are not enough to prove the TDD sequence happened.
 
+For App Intents, App Entity, Spotlight, and SwiftUI shell changes, source-contract tests should be body-scoped to the exact intent/view/helper that owns the behavior. File-level token checks are too weak for privacy/order guarantees; assert ordering such as purge-before-clear, specific callback signatures on the inner view that compiles in the app target, and domain-to-intent donation mappings inside the function that performs deletion.
+
 ## Validation
 
 Do not declare completion from compilation alone. A credible native validation set includes:
@@ -153,6 +156,8 @@ Do not declare completion from compilation alone. A credible native validation s
 - Branch protection with required checks matching workflow job names.
 
 Paid-program distribution is a separate gate. TestFlight/App Store upload requires Apple Developer Program membership and App Store Connect access; until that exists, validate through local simulator, local macOS app, and any free-account device testing available through Xcode.
+
+Treat app-target builds as a distinct validation ring from Swift package tests. SwiftPM tests may compile shared core and source-contract tests without compiling SwiftUI app-target files, AppIntents macro expansion, target membership, or app-only availability/sendability diagnostics. After any edit under an app target or generated Xcode project membership, run or wait for an `xcodebuild`/CI app-bundle job before claiming compile validation; package tests are supplemental evidence only.
 
 Validation artifact contracts should be explicit and stale-proof:
 
@@ -190,6 +195,7 @@ Validation artifact contracts should be explicit and stale-proof:
 - For every blocker capability, name its producer and consumer phases. Do not let a later release/production blocker satisfy an earlier local validation gate unless that earlier gate explicitly owns the capability.
 - If a full validation suite removes blocker artifacts during per-test setup or cleanup, add a dedicated artifact-producer command after the suite is green. Response assertions prove behavior, but downstream phases that consume a blocker file need the file to exist at the canonical path in the final artifact set.
 - Final validation should rerun current App Intents/App Entity contract checks for every shipped domain; stale unit-level App Intents logs do not prove final readiness.
+- Final validation matrices should distinguish "the matrix runner worked and only canonical blockers remain" from "the app is fully validated." Include fields such as `ok`, `fullyValidated`, `result`, and pass/fail/blocked counts so a local Xcode/simulator blocker cannot be mistaken for successful app launch or screenshot validation.
 - URL-scheme and Universal Link validation must prove both declaration and routing. Check `Info.plist`/entitlements for the entry point, app router parsing for every supported route/action, stale or malformed URL rejection, and the resulting navigation/state mutation. Do not count a registered scheme as complete if it only opens the app shell.
 
 ## Xcode Health And Blockers
