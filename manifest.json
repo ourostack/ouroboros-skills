@@ -150,6 +150,19 @@
       ]
     },
     {
+      "name": "sign-apple-apps",
+      "path": "skills/sign-apple-apps/SKILL.md",
+      "description": "Set up Developer ID signing, notarization, stapling, and release-channel checks for native Apple apps. Use when a user asks to sign, notarize, distribute, renew Apple Developer membership, configure notarytool credentials, create Developer ID certificates, unblock Gatekeeper warnings, or support direct-download macOS releases alongside future App Store/TestFlight channels.",
+      "tags": [
+        "native",
+        "apple",
+        "macos",
+        "signing",
+        "notarization",
+        "release"
+      ]
+    },
+    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
