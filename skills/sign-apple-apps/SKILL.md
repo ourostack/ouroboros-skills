@@ -72,6 +72,25 @@ Support these notary authentication modes, in this order:
 
 Use `OURO_CODESIGN_IDENTITY` or `DEVELOPER_ID_APPLICATION` for the Developer ID Application identity. Prefer `APPLE_TEAM_ID` or `OURO_APPLE_TEAM_ID` for Team ID. Never commit private keys, `.p12` files, API keys, app-specific passwords, or raw notary credentials.
 
+## Developer ID Certificate Creation
+
+When creating a Developer ID Application certificate:
+
+1. Generate the CSR/private key locally in a locked-down directory.
+2. In Apple Certificates, choose `Developer ID Application`.
+3. When Apple asks for the Developer ID certificate intermediary, choose `G2 Sub-CA (Xcode 11.4.1 or later)` unless the operator explicitly needs old Xcode compatibility.
+4. Upload only the `.csr` file to Apple.
+5. Download the issued `.cer`, combine it with the matching local private key, and import the identity into Keychain or export a password-protected `.p12` for CI secrets.
+
+Some browser automation surfaces cannot attach files to Apple’s CSR upload input. Before declaring the account blocked, try a browser/control surface with first-class file upload support. If that is unavailable, stop with an exact one-click handoff:
+
+- URL/page: Apple Developer certificate CSR upload step.
+- Selected options: `Developer ID Application`, `G2 Sub-CA`.
+- CSR path for the operator to choose.
+- Expected next step after upload: click Continue/Create, download the resulting `.cer`, then resume local import/notarization setup.
+
+Do not ask the operator to regenerate the CSR unless the upload validation rejects the file.
+
 ## Repo Contract
 
 For each app repo, add or reuse:
