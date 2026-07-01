@@ -49,6 +49,29 @@ You stop pulling **only** when you can honestly say: *"there is no thread left I
 pulled has a home."* (Autopilot's exit signal — *"I've run out of things to build"* — in research shape.) Until
 that's true, keep pulling.
 
+## Reading the vein: where to dig deepest, and when a seam is played out
+
+The sweater test is about *completeness* (pull every thread, leave no wool on the floor). The **vein** is its
+partner about *value*: not every thread is worth the same depth, and a dive that treats them uniformly either
+under-mines the gold or over-grinds the rock. Two calls the investigator owns:
+
+1. **Striking gold is a signal to dig *deeper*, not to stop.** When a thread opens into a rich seam (a query
+   that keeps returning load-bearing findings, a source that answers three questions and raises five better
+   ones), that is where the value concentrates. Follow it down *now*, while you are in the ore, rather than
+   noting "rich area, could explore later" and moving on. "This is gold" and "so I am done" is exactly
+   backwards. The right response to hitting gold is to *keep mining that seam* until it stops assaying.
+2. **A played-out seam is a signal to *move*, not to grind.** The converse honesty: when a thread's assays
+   keep coming back empty (the next query adds nothing new, the source restates what three others already
+   said, you are polishing a finding that is already filed), the vein is spent. Stop grinding tailings and
+   move to the next unpulled thread. Over-mining a dead seam is procrastination wearing diligence's clothes;
+   it is not the same as pulling a live thread.
+
+The vein does **not** license leaving a readable thread unpulled: a *low-value* thread still gets pulled to its
+dead-end and routed home (that is the sweater test), just not mined to bedrock. The judgment is **depth**, not
+**whether** to pull. Prioritize the highest-assay threads first, mine each to the point of diminishing returns,
+and be honest in both directions: a rich vein you abandoned early and a dead one you kept grinding are the
+same mistake in opposite directions, and both cost the principal the value the dive was for.
+
 ## When this fires
 
 - The principal gives an investigation mandate: *"deep dive on X"*, *"investigate / research X"*, *"figure out
