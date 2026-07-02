@@ -100,6 +100,30 @@ If the binary is still hosted on GitHub Releases, say so or make the site redire
 
 ## App Store Checklist
 
+Before implementation or upload, complete this reusable intake. Treat it as a product contract, not a clerical form:
+
+- Public app name.
+- Subtitle.
+- Bundle ID for every platform.
+- SKU.
+- Primary language.
+- Category and optional secondary category.
+- Price and availability territories.
+- Support URL, marketing URL, and privacy policy URL.
+- Copyright holder string.
+- Minimum OS and supported devices.
+- Age rating answers.
+- Export-compliance answer, with code evidence when possible.
+- App privacy answers, with code evidence for analytics, diagnostics, accounts, purchases, user content, location, contacts, health, finance, identifiers, and crash reporting.
+- Review notes, demo account, and test fixture data if review cannot exercise the app unauthenticated.
+- Screenshot matrix and source of truth for current screenshots.
+- App icon and in-app product name verification.
+- Direct-download/update policy for App Store builds.
+- Telemetry policy for App Store builds, including opt-out behavior and privacy copy.
+- Version/build number to upload.
+
+Do not copy answers between apps because they "feel similar." Re-run the intake and inspect the code. A document editor with optional product analytics, a cooking/social app with accounts and recipe content, and an internal utility all have different privacy/review shapes.
+
 Before upload:
 
 - App Store Connect app record exists.
@@ -115,11 +139,51 @@ Before upload:
 
 After upload:
 
-- Validate or upload with Xcode, Transporter, `xcrun altool`, or the App Store Connect API.
+- Validate or upload with Xcode, Transporter, repo-supported command-line tooling, or the App Store Connect API.
 - Wait for processing.
 - Confirm the build appears under the app record.
 - Attach metadata/screenshots, complete privacy/export/compliance, add review notes, and submit for review.
 - Record any review blockers in the owning task/backlog.
+
+## App Store Sequence
+
+Use this order for each app:
+
+1. Verify Apple Developer Program membership, App Store Connect access, and paid-app agreements/tax/banking state if the app is not free.
+2. Register or confirm the bundle ID and capabilities in Certificates, Identifiers & Profiles.
+3. Create the App Store Connect app record before upload. The app record must match bundle ID, SKU, platform, and public name.
+4. Create/import App Store signing materials: `Apple Distribution`, `3rd Party Mac Developer Installer`, and provisioning profile if needed.
+5. Add App Store Connect API credentials for automation, or app-specific password credentials for a local/manual lane when scripts support it.
+6. Build the App Store channel locally and inspect `Info.plist`, entitlements, sandbox, version/build, telemetry behavior, and direct-update suppression.
+7. Validate the upload package against App Store Connect.
+8. Upload the package and wait until App Store Connect finishes processing it.
+9. Attach the processed build to the version.
+10. Finish metadata, screenshots, privacy, age rating, export compliance, review notes, and submit for review.
+11. Record every rejection or review question in the owning backlog, then update the reusable playbook if the issue can recur across apps.
+
+## App-Specific Starting Points
+
+Use these as seeds only; still verify in the repo and App Store Connect before final submission.
+
+Ouro MD:
+
+- Public name: `Ouro MD`.
+- Subtitle: `The Markdown App`.
+- Bundle ID: `org.ourostack.ouro-md`.
+- SKU: `ouro-md-macos`.
+- Platform: macOS.
+- Likely category: Developer Tools.
+- Support/marketing URL: `https://ouro.bot/apps/ouro-md/`.
+- Store build should disable direct-download update checks and use store-owned updates.
+- Privacy hinges on whether the packaged build embeds PostHog/product telemetry. If it does, disclose product-interaction analytics and diagnostics without document contents, file names, or raw paths.
+
+Spoonjoy:
+
+- Do not reuse Ouro names, bundle IDs, SKUs, categories, URLs, privacy answers, or telemetry assumptions.
+- Inspect native targets and server/backend config for bundle IDs, Sign in with Apple audiences, accounts/auth, recipe/cookbook/shopping data, uploads, notifications, analytics, diagnostics, and any social/user-generated content behavior.
+- Expect a demo/review account unless the app has a complete unauthenticated review path.
+- Expect category, age rating, and privacy answers to need product judgement after code inspection; likely candidates should be recorded as options, not silently chosen.
+- If reusable signing/distribution scripts are copied from Ouro repos, rename environment variables and docs so non-Ouro apps do not inherit `OURO_` naming outside explicitly Ouro-owned repos.
 
 ## Privacy And Telemetry
 

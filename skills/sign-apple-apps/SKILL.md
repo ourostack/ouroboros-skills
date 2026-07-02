@@ -1,11 +1,11 @@
 ---
 name: sign-apple-apps
-description: Set up Developer ID signing, notarization, stapling, and release-channel checks for native Apple apps. Use when a user asks to sign, notarize, distribute, renew Apple Developer membership, configure notarytool credentials, create Developer ID certificates, unblock Gatekeeper warnings, or support direct-download macOS releases alongside future App Store/TestFlight channels.
+description: Set up Apple app signing, notarization, stapling, Mac App Store signing, and release-channel checks for native Apple apps. Use when a user asks to sign, notarize, distribute, renew Apple Developer membership, configure notarytool credentials, create Developer ID or App Store certificates, unblock Gatekeeper warnings, submit to App Store Connect, or support direct-download macOS releases alongside App Store/TestFlight channels.
 ---
 
 # Sign Apple Apps
 
-Use this with `build-native-apple-app` for distribution work. This skill owns the signing/notarization/release-credential lane; app architecture, UI, and native product validation still belong to the native-app skill.
+Use this with `build-native-apple-app` and `mac-app-distribution` for distribution work. This skill owns the signing/notarization/release-credential lane; app architecture, UI, public store metadata, and native product validation still belong to the native-app and distribution skills.
 
 ## Human Boundary
 
@@ -13,6 +13,7 @@ Stop for the operator for:
 
 - Apple Developer Program enrollment, renewal, payment, identity verification, Apple ID password, 2FA, CAPTCHA, or support contact.
 - Creating/downloading certificates or API keys if the Apple portal requires private account prompts.
+- App Store Connect agreements, app ownership, or app-transfer decisions.
 - Saving secrets into GitHub, Keychain, App Store Connect, or another external account unless the operator explicitly authorized that exact destination.
 
 Do not ask the operator to switch branches or manage worktrees. Do that yourself.
@@ -95,6 +96,49 @@ Some browser automation surfaces cannot attach files to Apple’s CSR upload inp
 
 Do not ask the operator to regenerate the CSR unless the upload validation rejects the file.
 
+## Mac App Store Signing Lane
+
+Developer ID and Mac App Store signing are different lanes. A working Developer ID Application certificate proves direct-download readiness, but it cannot submit a Mac App Store package.
+
+For Mac App Store macOS uploads, expect three separate materials:
+
+- `Apple Distribution` identity: signs the `.app` bundle for App Store distribution.
+- `3rd Party Mac Developer Installer` identity: signs the `.pkg` uploaded for Mac App Store review.
+- Mac App Store provisioning profile: embedded in the app when the app uses entitlements or capabilities that require a profile. Some repos make this optional, but do not skip it if Apple's validation or the app capability set requires it.
+
+Probe local readiness with:
+
+```bash
+security find-identity -v -p codesigning | rg "Apple Distribution|3rd Party Mac Developer"
+security find-certificate -a -c "Apple Distribution" -Z ~/Library/Keychains/login.keychain-db
+security find-certificate -a -c "3rd Party Mac Developer Installer" -Z ~/Library/Keychains/login.keychain-db
+```
+
+Store-build packaging should:
+
+1. Build with an explicit App Store distribution channel flag.
+2. Disable direct-download update checks and direct-updater UI.
+3. Use App Sandbox and the narrowest entitlements that preserve product behavior.
+4. Sign the `.app` with `Apple Distribution`.
+5. Build/sign the `.pkg` with `3rd Party Mac Developer Installer`.
+6. Validate the package against App Store Connect before upload whenever the repo supports validation mode.
+7. Upload only after validation passes, then wait for App Store Connect processing.
+
+Prefer App Store Connect API credentials for repeatable automation:
+
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
+- `APP_STORE_CONNECT_API_KEY_PATH` or `APP_STORE_CONNECT_API_KEY_BASE64`
+- `APP_STORE_CONNECT_PROVIDER_PUBLIC_ID` when the account has more than one provider.
+
+Apple ID plus an app-specific password can be useful for local one-off validation/upload when a repo's scripts support it:
+
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+
+Do not commit `.p8`, `.p12`, provisioning profiles, app-specific passwords, or exported private keys. If a password or private key is visible in shared UI, clean it up immediately and offer to revoke/regenerate.
+
 ## Repo Contract
 
 For each app repo, add or reuse:
@@ -102,6 +146,8 @@ For each app repo, add or reuse:
 - `scripts/check-signing-readiness.sh`: non-secret by default; validates tools (`codesign`, `xcrun notarytool`, `xcrun stapler`) and fails closed only when `OURO_REQUIRE_NOTARIZATION=1` or live credential validation is requested.
 - `scripts/prepare-ci-signing-assets.sh`: no-op only when no signing mode, notarization requirement, or signing identity is configured. When Developer ID signing is required or an identity secret is present on GitHub-hosted macOS, import the base64 `.p12` Developer ID certificate into a temporary keychain, write any base64 App Store Connect `.p8` key to a temporary file, and append paths/derived env to `$GITHUB_ENV`.
 - `scripts/sign-notarize-app.sh`: signs, submits, staples, and verifies one `.app`; includes a `--selftest` that needs no Apple credentials.
+- `scripts/package-app-store.sh`: builds the App Store channel, embeds the provisioning profile when configured, signs with `Apple Distribution`, creates a Mac App Store `.pkg`, and supports at least validate/upload modes when App Store credentials are present.
+- `scripts/check-app-store-build.sh`: builds or inspects the App Store channel without secrets and proves channel-specific behavior such as sandbox entitlements, category, telemetry configuration, and direct-updater suppression.
 - Release packaging support for `OURO_RELEASE_SIGNING_MODE=developer-id` and `OURO_REQUIRE_NOTARIZATION=1`.
 - Manifest fields:
   - `"signingMode": "ad-hoc"` or `"developer-id"`
@@ -129,6 +175,20 @@ Use explicit env names in release workflows:
 - `APP_STORE_CONNECT_API_ISSUER_ID`
 - `APPLE_TEAM_ID`
 
+For App Store packaging, use app-neutral names where possible and app-prefixed names only when the repo already has that convention:
+
+- `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`
+- `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`
+- `APPLE_DISTRIBUTION_CERTIFICATE_IDENTITY`
+- `APPLE_MAC_INSTALLER_CERTIFICATE_BASE64`
+- `APPLE_MAC_INSTALLER_CERTIFICATE_PASSWORD`
+- `APPLE_MAC_INSTALLER_CERTIFICATE_IDENTITY`
+- `MAC_APP_STORE_PROVISIONING_PROFILE_BASE64`
+- `APP_STORE_CONNECT_API_KEY_BASE64`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
+- `APP_STORE_CONNECT_PROVIDER_PUBLIC_ID`
+
 For local maintainer releases, a Keychain notary profile is usually less brittle than keeping API-key files in the repo workspace.
 
 ## Validation
@@ -142,5 +202,8 @@ Before claiming the signing lane is complete:
 - Existing app tests and app-bundle verification.
 - A dry-run package that stays ad-hoc and records `"signingMode": "ad-hoc"`.
 - Once credentials are available, a Developer ID package that signs, notarizes, staples, passes `spctl`, and records `"signingMode": "developer-id"` plus `"notarized": true`.
+- `scripts/check-app-store-build.sh` or the repo's equivalent App Store channel preflight.
+- Once App Store credentials are available, `scripts/package-app-store.sh --validate` or the repo's equivalent validation path.
+- Once the app record exists and validation passes, upload the package and verify the processed build appears under the correct App Store Connect app/version before claiming the store lane is ready for review.
 
 If Apple Developer membership is active in payment/subscriptions but certificate access still says the team is ineligible, record it as Apple propagation/support state, set a reminder or heartbeat to check again, and continue only with repo-side preparation.
