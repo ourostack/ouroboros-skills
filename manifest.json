@@ -163,6 +163,19 @@
       ]
     },
     {
+      "name": "mac-app-distribution",
+      "path": "skills/mac-app-distribution/SKILL.md",
+      "description": "Plan, build, validate, and operate macOS app distribution across direct download, DMG, update manifests, hosted download pages, TestFlight, and Mac App Store submission.",
+      "tags": [
+        "native",
+        "apple",
+        "macos",
+        "distribution",
+        "release",
+        "app-store"
+      ]
+    },
+    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
