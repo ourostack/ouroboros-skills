@@ -72,6 +72,10 @@ Support these notary authentication modes, in this order:
 
 Use `OURO_CODESIGN_IDENTITY` or `DEVELOPER_ID_APPLICATION` for the Developer ID Application identity. Prefer `APPLE_TEAM_ID` or `OURO_APPLE_TEAM_ID` for Team ID. Never commit private keys, `.p12` files, API keys, app-specific passwords, or raw notary credentials.
 
+When an Apple app-specific password is generated in a browser, capture it once into the intended secret store, then immediately dismiss the modal and clear any temporary screenshots or clipboard contents. Do not leave the one-time password visible while continuing repo work. If it was exposed in shared UI/logs, offer to revoke and regenerate it.
+
+Do not flip `OURO_RELEASE_SIGNING_MODE=developer-id` or `OURO_REQUIRE_NOTARIZATION=1` in CI until the notary credential path has been live-validated (`xcrun notarytool store-credentials ... --validate`, `notarytool history`, or equivalent Apple ID/API-key validation). Set inert certificate/identity secrets first, prove the import/readiness path, then require notarization.
+
 ## Developer ID Certificate Creation
 
 When creating a Developer ID Application certificate:
@@ -96,7 +100,7 @@ Do not ask the operator to regenerate the CSR unless the upload validation rejec
 For each app repo, add or reuse:
 
 - `scripts/check-signing-readiness.sh`: non-secret by default; validates tools (`codesign`, `xcrun notarytool`, `xcrun stapler`) and fails closed only when `OURO_REQUIRE_NOTARIZATION=1` or live credential validation is requested.
-- `scripts/prepare-ci-signing-assets.sh`: no-op by default; when signing is explicitly required on GitHub-hosted macOS, imports a base64 `.p12` Developer ID certificate into a temporary keychain, writes a base64 App Store Connect `.p8` key to a temporary file, and appends paths/derived env to `$GITHUB_ENV`.
+- `scripts/prepare-ci-signing-assets.sh`: no-op only when no signing mode, notarization requirement, or signing identity is configured. When Developer ID signing is required or an identity secret is present on GitHub-hosted macOS, import the base64 `.p12` Developer ID certificate into a temporary keychain, write any base64 App Store Connect `.p8` key to a temporary file, and append paths/derived env to `$GITHUB_ENV`.
 - `scripts/sign-notarize-app.sh`: signs, submits, staples, and verifies one `.app`; includes a `--selftest` that needs no Apple credentials.
 - Release packaging support for `OURO_RELEASE_SIGNING_MODE=developer-id` and `OURO_REQUIRE_NOTARIZATION=1`.
 - Manifest fields:
@@ -110,6 +114,8 @@ Default CI should remain safe without Apple credentials. Real release signing sh
 ## GitHub Actions Notes
 
 GitHub-hosted macOS runners do not have the operator's Keychain certificates. If CI should produce Developer ID releases, import certificates into a temporary keychain from GitHub secrets before packaging, then delete the keychain after the job. Keep dry-run and PR checks non-secret.
+
+If a release workflow passes `OURO_CODESIGN_IDENTITY` into readiness checks, it must run the signing-assets preparation step before readiness or the identity lookup will fail on the clean runner. The prep step should also selftest this "identity configured implies assets needed" contract.
 
 Use explicit env names in release workflows:
 
