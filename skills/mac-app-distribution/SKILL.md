@@ -165,21 +165,35 @@ Use this order for each app:
 
 Use these as seeds only; still verify in the repo and App Store Connect before final submission.
 
+Canonical bundle identifiers:
+
+- Ouro-owned apps should use the `bot.ouro.<product>` family, not GitHub-org-shaped bundle IDs.
+- Current Ouro targets: `bot.ouro.md` for Ouro MD and `bot.ouro.workbench` for Ouro Workbench.
+- Spoonjoy is not an Ouro app; its canonical family is `app.spoonjoy`.
+- If an existing shipped app still has an older bundle ID, treat migration/update continuity as a release-engineering problem to solve explicitly. Do not keep stale IDs in new App Store records just because an old direct-download build used them.
+
 Ouro MD:
 
 - Public name: `Ouro MD`.
 - Subtitle: `The Markdown App`.
-- Bundle ID: `org.ourostack.ouro-md`.
-- SKU: `ouro-md-macos`.
+- Bundle ID: `bot.ouro.md`.
+- SKU: `bot-ouro-md-macos`.
 - Platform: macOS.
 - Likely category: Developer Tools.
 - Support/marketing URL: `https://ouro.bot/apps/ouro-md/`.
 - Store build should disable direct-download update checks and use store-owned updates.
 - Privacy hinges on whether the packaged build embeds PostHog/product telemetry. If it does, disclose product-interaction analytics and diagnostics without document contents, file names, or raw paths.
 
+Ouro Workbench:
+
+- Public name: `Ouro Workbench`.
+- Bundle ID seed: `bot.ouro.workbench`.
+- Keep shared shell behavior in the shell repo, but keep app-specific App Store metadata in the Workbench repo.
+
 Spoonjoy:
 
 - Do not reuse Ouro names, bundle IDs, SKUs, categories, URLs, privacy answers, or telemetry assumptions.
+- Bundle ID family seed: `app.spoonjoy`.
 - Inspect native targets and server/backend config for bundle IDs, Sign in with Apple audiences, accounts/auth, recipe/cookbook/shopping data, uploads, notifications, analytics, diagnostics, and any social/user-generated content behavior.
 - Expect a demo/review account unless the app has a complete unauthenticated review path.
 - Expect category, age rating, and privacy answers to need product judgement after code inspection; likely candidates should be recorded as options, not silently chosen.
