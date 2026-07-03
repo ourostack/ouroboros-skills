@@ -456,8 +456,24 @@ function validateAll(options = {}) {
   validateManifest(options);
   validateWorkSuiteCopies(options);
   validatePluginMetadata(options);
+  validateAppleDistributionKitSkill(options);
   runDeskFreshnessChecks(options);
   runRuntimeAudit(options);
+}
+
+function validateAppleDistributionKitSkill(options = {}) {
+  const {
+    childStdio = "inherit",
+    repoRoot = process.cwd(),
+    spawnSync = defaultSpawnSync,
+  } = options;
+  const result = spawnSync(process.execPath, ["scripts/check-apple-distribution-kit-skill.cjs"], {
+    cwd: repoRoot,
+    stdio: childStdio,
+  });
+  if ((result.status ?? 1) !== 0) {
+    throw new Error("apple distribution kit skill guidance check failed");
+  }
 }
 
 function run({
@@ -495,6 +511,7 @@ module.exports = {
   runRuntimeAudit,
   startCli,
   validateAll,
+  validateAppleDistributionKitSkill,
   validateDeskMcpPackageScripts,
   validateManifest,
   validatePluginMetadata,
