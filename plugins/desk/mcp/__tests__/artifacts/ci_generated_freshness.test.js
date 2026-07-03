@@ -137,6 +137,7 @@ async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }
     copyRepoFile(".github/workflows/desk-mcp-tests.yml", fixtureRoot)
     copyRepoFile(".github/workflows/validate-skills.yml", fixtureRoot)
     copyRepoFile("scripts/validate-skills.cjs", fixtureRoot)
+    copyRepoFile("scripts/check-apple-distribution-kit-skill.cjs", fixtureRoot)
     writeJson(fixtureRoot, "plugins/desk/mcp/package.json", {
       scripts: requiredPackageScripts,
     })
@@ -160,6 +161,30 @@ async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }
       writeText(fixtureRoot, `skills/${name}/SKILL.md`, body)
       writeText(fixtureRoot, `plugins/work-suite/skills/${name}/SKILL.md`, body)
     }
+    writeText(
+      fixtureRoot,
+      "skills/sign-apple-apps/SKILL.md",
+      `---
+name: sign-apple-apps
+description: fixture skill
+---
+# sign-apple-apps
+
+apple-distribution-kit
+distribution/apple-distribution.json
+scripts/apple-distribution-kit.sh
+bot.ouro.md
+bot.ouro.workbench
+app.spoonjoy
+APP_STORE_CONNECT_API_KEY_ID
+APP_STORE_CONNECT_PROVIDER_PUBLIC_ID
+Stop for the operator for:
+not source files
+non-secret CI/preflight gate
+Use app-neutral names for reusable materials
+For non-Ouro apps, rename these env vars
+`,
+    )
 
     for (const script of [
       "scripts/test-autopilot-state-audit.cjs",

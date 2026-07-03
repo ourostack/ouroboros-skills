@@ -4,10 +4,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const repoRoot = process.cwd();
-const skillPath = path.join(repoRoot, "skills", "sign-apple-apps", "SKILL.md");
-const skill = fs.readFileSync(skillPath, "utf8");
-
 const requiredNeedles = [
   "apple-distribution-kit",
   "distribution/apple-distribution.json",
@@ -24,10 +20,53 @@ const requiredNeedles = [
   "For non-Ouro apps, rename these env vars",
 ];
 
-const missing = requiredNeedles.filter((needle) => !skill.includes(needle));
-if (missing.length > 0) {
-  console.error(`sign-apple-apps skill is missing Apple distribution kit guidance: ${missing.join(", ")}`);
-  process.exit(1);
+function skillPathFor(repoRoot = process.cwd()) {
+  return path.join(repoRoot, "skills", "sign-apple-apps", "SKILL.md");
 }
 
-console.log("sign-apple-apps apple distribution kit guidance ok");
+function readSkill(repoRoot = process.cwd()) {
+  return fs.readFileSync(skillPathFor(repoRoot), "utf8");
+}
+
+function findMissingNeedles(skill, needles = requiredNeedles) {
+  return needles.filter((needle) => !skill.includes(needle));
+}
+
+function checkAppleDistributionKitSkill({
+  repoRoot = process.cwd(),
+  stderr = process.stderr,
+  stdout = process.stdout,
+} = {}) {
+  const missing = findMissingNeedles(readSkill(repoRoot));
+  if (missing.length > 0) {
+    stderr.write(
+      `sign-apple-apps skill is missing Apple distribution kit guidance: ${missing.join(", ")}\n`,
+    );
+    return 1;
+  }
+
+  stdout.write("sign-apple-apps apple distribution kit guidance ok\n");
+  return 0;
+}
+
+function startCli({
+  isMain = require.main === module,
+  run = checkAppleDistributionKitSkill,
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+} = {}) {
+  if (!isMain) return;
+  setExitCode(run());
+}
+
+startCli();
+
+module.exports = {
+  checkAppleDistributionKitSkill,
+  findMissingNeedles,
+  readSkill,
+  requiredNeedles,
+  skillPathFor,
+  startCli,
+};
