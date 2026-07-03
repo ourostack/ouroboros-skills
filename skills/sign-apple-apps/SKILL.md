@@ -46,6 +46,7 @@ Stop for the operator for:
 - Apple Developer Program enrollment, renewal, payment, identity verification, Apple ID password, 2FA, CAPTCHA, or support contact.
 - Creating/downloading certificates or API keys if the Apple portal requires private account prompts.
 - App Store Connect agreements, app ownership, or app-transfer decisions.
+- App Review contact phone number. Apple requires `contactPhone` in international `+<country code> ...` format before review details can be created; never invent or scrape a personal phone number.
 - Saving secrets into GitHub, Keychain, App Store Connect, or another external account unless the operator explicitly authorized that exact destination.
 
 Do not ask the operator to switch branches or manage worktrees. Do that yourself.
@@ -169,6 +170,13 @@ Store-build packaging should:
 6. Validate the package against App Store Connect before upload whenever the repo supports validation mode.
 7. Upload only after validation passes, then wait for App Store Connect processing.
 
+Common Mac App Store validation failures to source-fix, not hand-edit in the generated app:
+
+- ICNS missing the required 512pt @2x representation. Regenerate the source `.icns` from a 1024px source image and add a CI check that expands the ICNS with `iconutil`.
+- App Store signature missing `com.apple.application-identifier` or `com.apple.developer.team-identifier`. The App Store entitlements file should match the active provisioning profile, for example `<TEAM_ID>.<bundle-id>`.
+- Embedded provisioning profile copied as mode `600`. Set the bundled `Contents/embedded.provisionprofile` to `644` before signing/productbuild so non-root users can verify the installed app signature.
+- `altool` cannot find `AuthKey_<KEY_ID>.p8`. Pass `--p8-file-path` when supported and also keep a local copy at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` for Apple's conventional lookup path.
+
 Prefer App Store Connect API credentials for repeatable automation:
 
 - `APP_STORE_CONNECT_API_KEY_ID`
@@ -183,6 +191,71 @@ Apple ID plus an app-specific password can be useful for local one-off validatio
 - `APPLE_APP_SPECIFIC_PASSWORD`
 
 Do not commit `.p8`, `.p12`, provisioning profiles, app-specific passwords, or exported private keys. If a password or private key is visible in shared UI, clean it up immediately and offer to revoke/regenerate.
+
+## App Store Connect Submission Lane
+
+After `altool-upload` passes, verify the server-side build state with App Store Connect before claiming review readiness:
+
+```text
+GET /v1/builds?filter[app]=<APP_STORE_ID>&sort=-uploadedDate&limit=10
+```
+
+The uploaded build should reach `processingState: VALID`, have the expected `version`, and have `usesNonExemptEncryption` consistent with the app's export-compliance declaration.
+
+For first Mac App Store submission, the public App Store Connect API can apply most app/version metadata:
+
+- `PATCH /v1/appStoreVersions/<version-id>` for `versionString`, copyright, release type, and other version attributes.
+- `PATCH /v1/appStoreVersionLocalizations/<localization-id>` for description, keywords, marketing/support URLs, and promotional text. Do not set `whatsNew` on an initial version; Apple rejects it as not editable.
+- `PATCH /v1/appInfoLocalizations/<localization-id>` for subtitle and privacy policy URL.
+- `PATCH /v1/appInfos/<app-info-id>` with `relationships.primaryCategory` to set category. The relationship endpoint itself may be read-only.
+- `PATCH /v1/ageRatingDeclarations/<app-info-id>` for age rating. Many content fields use string severities such as `NONE`, not booleans; set only the current override field (`ageRatingOverrideV2`), not both v1 and v2.
+- `PATCH /v1/appStoreVersions/<version-id>/relationships/build` to attach the processed build.
+- `PATCH /v1/apps/<app-id>` with `contentRightsDeclaration`, commonly `DOES_NOT_USE_THIRD_PARTY_CONTENT` when the app does not contain or provide third-party content.
+
+Mac screenshots use `APP_DESKTOP`, not `APP_MAC`:
+
+1. `POST /v1/appScreenshotSets` with `screenshotDisplayType: APP_DESKTOP` and the app-store-version localization relationship.
+2. `POST /v1/appScreenshots` with `fileName`, `fileSize`, and the screenshot-set relationship.
+3. Upload bytes to every returned `uploadOperations[]` URL with its exact method, length/offset, and request headers.
+4. Commit the upload with `PATCH /v1/appScreenshots/<id>` using `sourceFileChecksum` (MD5 hex) and `uploaded: true`.
+5. Poll `GET /v1/appScreenshots/<id>` until `assetDeliveryState.state` is `COMPLETE` and `imageAsset` has the expected dimensions.
+
+For free apps, create a price schedule instead of assuming the app defaults to free:
+
+1. Read a free base price point, for example `GET /v1/apps/<app-id>/appPricePoints?filter[territory]=USA`.
+2. `POST /v1/appPriceSchedules` with relationships to the app, base territory (`USA` is acceptable when product policy agrees), and an included `appPrices` row that points at the free `appPricePoint`.
+3. Inline included app-price ids must use JSON:API local-id syntax such as `${price-0}`.
+
+The "App Privacy / Data Usage" questionnaire may be web-only. If the public API reports `STATE_ERROR.APP_DATA_USAGES_REQUIRED` but `/v1/appDataUsages` does not exist on the public API host, use an authenticated App Store Connect web session against the `iris` JSON:API base. Do not print cookies or signed upload URLs. A proven no-data-collected flow:
+
+```text
+GET   /iris/v1/apps/<adam-id>/dataUsages?include=category,grouping,purpose,dataProtection&limit=500
+GET   /iris/v1/appDataUsageDataProtections
+POST  /iris/v1/appDataUsages
+      data.type = appDataUsages
+      relationships.app = apps/<adam-id>
+      relationships.dataProtection = appDataUsageDataProtections/DATA_NOT_COLLECTED
+PATCH /iris/v1/appDataUsagesPublishState/<adam-id>
+      data.type = appDataUsagesPublishState
+      data.id = <adam-id>
+      attributes.published = true
+GET   /iris/v1/apps/<adam-id>/dataUsagePublishState
+```
+
+Publishing an empty data-usage set can fail with "You do not have any data usages to publish"; create the explicit `DATA_NOT_COLLECTED` row first.
+
+App Review details are required before an app version can be reviewed:
+
+- `POST /v1/appStoreReviewDetails` with first name, last name, email, `contactPhone`, notes, and the app-store-version relationship.
+- For apps with no login, set notes to say no sign-in, demo account, subscription, or server-side test account is required.
+- `contactPhone` is a human gate unless it is already explicitly provided by the operator.
+
+Use the modern review-submission flow. The older `POST /v1/appStoreVersionSubmissions` can be delete-only and return "does not allow CREATE":
+
+1. `POST /v1/reviewSubmissions` with `platform: MAC_OS` and the app relationship to create a draft review submission.
+2. `POST /v1/reviewSubmissionItems` with the review submission and app-store-version relationships.
+3. If adding the item fails, read `meta.associatedErrors`; it is the most precise remaining blocker list.
+4. After the item is accepted, submit through the supported current API/UI path and verify the review-submission/app-version state changed. Do not claim submission from a draft `READY_FOR_REVIEW` review submission alone.
 
 ## Apple Portal Automation Discipline
 
