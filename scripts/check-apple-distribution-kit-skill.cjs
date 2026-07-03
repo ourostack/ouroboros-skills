@@ -17,6 +17,11 @@ const requiredNeedles = [
   "app.spoonjoy",
   "APP_STORE_CONNECT_API_KEY_ID",
   "APP_STORE_CONNECT_PROVIDER_PUBLIC_ID",
+  "Stop for the operator for:",
+  "not source files",
+  "non-secret CI/preflight gate",
+  "Use app-neutral names for reusable materials",
+  "For non-Ouro apps, rename these env vars",
 ];
 
 const missing = requiredNeedles.filter((needle) => !skill.includes(needle));

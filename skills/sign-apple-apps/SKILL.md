@@ -222,7 +222,10 @@ For each app repo, add or reuse:
 - `scripts/sign-notarize-app.sh`: signs, submits, staples, and verifies one `.app`; includes a `--selftest` that needs no Apple credentials.
 - `scripts/package-app-store.sh`: builds the App Store channel, embeds the provisioning profile when configured, signs with `Apple Distribution`, creates a Mac App Store `.pkg`, and supports at least validate/upload modes when App Store credentials are present.
 - `scripts/check-app-store-build.sh`: builds or inspects the App Store channel without secrets and proves channel-specific behavior such as sandbox entitlements, category, telemetry configuration, and direct-updater suppression.
-- Release packaging support for `OURO_RELEASE_SIGNING_MODE=developer-id` and `OURO_REQUIRE_NOTARIZATION=1`.
+- Release packaging support for repo-local signing toggles. Ouro-owned repos may
+  use `OURO_RELEASE_SIGNING_MODE=developer-id` and
+  `OURO_REQUIRE_NOTARIZATION=1`. For non-Ouro apps, rename these env vars to the
+  app or vendor namespace while preserving the same semantics.
 - Manifest fields:
   - `"signingMode": "ad-hoc"` or `"developer-id"`
   - `"notarized": true` or `false`
