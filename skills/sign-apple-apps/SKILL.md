@@ -102,17 +102,30 @@ Developer ID and Mac App Store signing are different lanes. A working Developer 
 
 For Mac App Store macOS uploads, expect three separate materials:
 
-- `Apple Distribution` identity: signs the `.app` bundle for App Store distribution.
-- `3rd Party Mac Developer Installer` identity: signs the `.pkg` uploaded for Mac App Store review.
+- `Mac App Distribution` certificate in the Apple portal: signs the `.app` bundle for Mac App Store distribution. The imported Keychain identity may appear as `Apple Distribution`, `3rd Party Mac Developer Application`, or another Apple-renamed equivalent depending on current portal/Xcode naming.
+- `Mac Installer Distribution` certificate in the Apple portal: signs the `.pkg` uploaded for Mac App Store review. The imported Keychain identity commonly appears as `3rd Party Mac Developer Installer`.
 - Mac App Store provisioning profile: embedded in the app when the app uses entitlements or capabilities that require a profile. Some repos make this optional, but do not skip it if Apple's validation or the app capability set requires it.
 
 Probe local readiness with:
 
 ```bash
-security find-identity -v -p codesigning | rg "Apple Distribution|3rd Party Mac Developer"
-security find-certificate -a -c "Apple Distribution" -Z ~/Library/Keychains/login.keychain-db
-security find-certificate -a -c "3rd Party Mac Developer Installer" -Z ~/Library/Keychains/login.keychain-db
+security find-identity -v -p codesigning | rg "Apple Distribution|3rd Party Mac Developer|Mac App|Mac Installer"
+security find-certificate -a ~/Library/Keychains/login.keychain-db | rg "Apple Distribution|3rd Party Mac Developer|Mac App|Mac Installer"
 ```
+
+Do not hard-code the documentation example identity name after certificate creation. Import the downloaded `.cer` plus its matching private key, then record the exact `security find-identity` output and use that exact string in package env.
+
+Recommended local CSR layout:
+
+```text
+~/Library/Application Support/<Vendor>/Signing/apple-app-store-<TEAM_ID>/
+  MacAppDistribution-<TEAM_ID>.certSigningRequest
+  MacAppDistribution-<TEAM_ID>.key
+  MacInstallerDistribution-<TEAM_ID>.certSigningRequest
+  MacInstallerDistribution-<TEAM_ID>.key
+```
+
+Use distinct CSR/key pairs for app and installer certificates. Upload only `.certSigningRequest` files to Apple. Keep private keys local, chmod `600`, and never paste their contents into chat, logs, PRs, or task cards.
 
 Store-build packaging should:
 
@@ -138,6 +151,28 @@ Apple ID plus an app-specific password can be useful for local one-off validatio
 - `APPLE_APP_SPECIFIC_PASSWORD`
 
 Do not commit `.p8`, `.p12`, provisioning profiles, app-specific passwords, or exported private keys. If a password or private key is visible in shared UI, clean it up immediately and offer to revoke/regenerate.
+
+## Apple Portal Automation Discipline
+
+Browser control against Apple account pages is brittle. Use the most deterministic control surface available and avoid restarting a logged-in browser unless it is already unrecoverable.
+
+Preferred order:
+
+1. Official/local CLI or API path, when the needed operation supports it.
+2. Browser automation with first-class DOM and file upload support, using an authenticated session.
+3. Live browser UI with keyboard navigation and screenshot gates.
+4. Human handoff only for account prompts, 2FA, CAPTCHA, payment, legal agreements, or a browser-auth state that cannot be transferred.
+
+When using a live browser:
+
+- Do not close or restart a browser that the operator just authenticated unless it is already wedged and unusable.
+- Prefer direct portal URLs over coordinate clicks for navigation.
+- Prefer keyboard navigation over pointer clicks when the page has stable tab/radio behavior.
+- If Chrome blocks AppleScript JavaScript, enable `View > Developer > Allow JavaScript from Apple Events`, then verify with a harmless script before depending on it. Some sessions still require a browser restart; do not take that restart while it would lose the only authenticated session unless there is no other path.
+- For native file pickers, prefer an automation surface that can set the file input directly. If forced through the macOS open panel, use `Command-Shift-G`, paste the full path, and screenshot/URL-check after selection. If the picker or browser turns into a black/uncapturable state, record the exact state and stop browser driving rather than repeatedly thrashing auth.
+- Keychain prompts for browser cookie extraction or signing imports may ask for Chrome Safe Storage or private-key access. Only click `Always Allow` when the operator has explicitly authorized it for the current work. If no password is configured and the operator has authorized blank-password access, use the blank field and `Always Allow`.
+
+If browser cookies are reused in Playwright or another tool, verify the target page renders the actual form controls, not just account chrome. Apple pages can show the signed-in header while a React view fails to render certificate inputs; that is not sufficient evidence that the automation path is usable.
 
 ## Repo Contract
 
