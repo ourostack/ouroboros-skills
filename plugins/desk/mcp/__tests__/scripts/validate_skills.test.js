@@ -146,6 +146,7 @@ test("validate-skills exports a testable CLI contract and validates a healthy re
     "runRuntimeAudit",
     "startCli",
     "validateAll",
+    "validateAppleDistributionKitSkill",
     "validateDeskMcpPackageScripts",
     "validateManifest",
     "validatePluginMetadata",
@@ -159,10 +160,11 @@ test("validate-skills exports a testable CLI contract and validates a healthy re
     validator.validateAll({
       repoRoot: fixtureRoot,
       childStdio: "pipe",
-      spawnSync: spawnSequence([0, 0, 0, 0, 0, 0], calls),
+      spawnSync: spawnSequence([0, 0, 0, 0, 0, 0, 0], calls),
     })
 
     assert.deepEqual(calls.map((call) => call.args.join(" ")), [
+      "scripts/check-apple-distribution-kit-skill.cjs",
       "scripts/test-desk-host-manifests.cjs",
       "scripts/test-desk-generated-artifacts.cjs",
       "scripts/test-codex-plugin-cache-audit.cjs",
@@ -182,7 +184,7 @@ test("validate-skills exports a testable CLI contract and validates a healthy re
       validator.run({
         repoRoot: fixtureRoot,
         childStdio: "pipe",
-        spawnSync: spawnSequence([0, 0, 0, 0, 0, 0]),
+        spawnSync: spawnSequence([0, 0, 0, 0, 0, 0, 0]),
         stdout: { write: (text) => stdout.push(text) },
         stderr: { write: (text) => stderr.push(text) },
       }),
@@ -706,7 +708,7 @@ test("run and startCli expose success, Error, non-Error, and no-op CLI paths", a
       }),
       1,
     )
-    assert.match(errorStderr.join(""), /desk host manifest freshness tests failed/u)
+    assert.match(errorStderr.join(""), /apple distribution kit skill guidance check failed/u)
 
     const stringStderr = []
     assert.equal(
