@@ -7,6 +7,38 @@ description: Set up Apple app signing, notarization, stapling, Mac App Store sig
 
 Use this with `build-native-apple-app` and `mac-app-distribution` for distribution work. This skill owns the signing/notarization/release-credential lane; app architecture, UI, public store metadata, and native product validation still belong to the native-app and distribution skills.
 
+## Shared Distribution Kit
+
+Start every reusable signing/distribution pass from `ourostack/apple-distribution-kit`.
+Each app repo should have `distribution/apple-distribution.json` plus a thin
+`scripts/apple-distribution-kit.sh` wrapper that resolves, in order:
+
+1. `APPLE_DISTRIBUTION_KIT_BIN`
+2. a CI checkout at `.ci/apple-distribution-kit/dist/cli.js`
+3. a sibling checkout at `../apple-distribution-kit/dist/cli.js`
+4. an installed `apple-distribution-kit` command
+
+The shared kit owns app-neutral manifest validation, dry-run/apply planning,
+App Store Connect review-plan generation, and non-secret CI gates. The app repo
+owns only app-specific build/package scripts and product metadata.
+
+Canonical current bundle IDs:
+
+- Ouro MD: `bot.ouro.md`
+- Ouro Workbench: `bot.ouro.workbench`
+- Spoonjoy: `app.spoonjoy`
+
+Use app-neutral names for reusable materials. `OURO_` prefixes are acceptable
+inside Ouro-owned app repos but should not leak into non-Ouro apps such as
+Spoonjoy. Store App Store Connect automation values as secrets or local config,
+not source files:
+
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
+- `APP_STORE_CONNECT_API_KEY_PATH` or `APP_STORE_CONNECT_API_KEY_BASE64`
+- `APP_STORE_CONNECT_PROVIDER_PUBLIC_ID` when Transporter/altool needs a
+  provider short name or public provider id.
+
 ## Human Boundary
 
 Stop for the operator for:
@@ -178,6 +210,13 @@ If browser cookies are reused in Playwright or another tool, verify the target p
 
 For each app repo, add or reuse:
 
+- `distribution/apple-distribution.json`: the canonical app/channel manifest
+  consumed by `apple-distribution-kit`.
+- `scripts/apple-distribution-kit.sh`: a thin resolver for the shared kit CLI;
+  keep it app-neutral except for local path comments if unavoidable.
+- `scripts/check-apple-distribution-kit.sh`: non-secret CI/preflight gate that
+  validates the manifest, runs `apple-distribution-kit plan --mode dry-run`, and
+  rejects committed Apple credential files.
 - `scripts/check-signing-readiness.sh`: non-secret by default; validates tools (`codesign`, `xcrun notarytool`, `xcrun stapler`) and fails closed only when `OURO_REQUIRE_NOTARIZATION=1` or live credential validation is requested.
 - `scripts/prepare-ci-signing-assets.sh`: no-op only when no signing mode, notarization requirement, or signing identity is configured. When Developer ID signing is required or an identity secret is present on GitHub-hosted macOS, import the base64 `.p12` Developer ID certificate into a temporary keychain, write any base64 App Store Connect `.p8` key to a temporary file, and append paths/derived env to `$GITHUB_ENV`.
 - `scripts/sign-notarize-app.sh`: signs, submits, staples, and verifies one `.app`; includes a `--selftest` that needs no Apple credentials.
