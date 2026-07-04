@@ -247,7 +247,7 @@ Publishing an empty data-usage set can fail with "You do not have any data usage
 App Review details are required before an app version can be reviewed:
 
 - `POST /v1/appStoreReviewDetails` with first name, last name, email, `contactPhone`, notes, and the app-store-version relationship.
-- For apps with no login, set notes to say no sign-in, demo account, subscription, or server-side test account is required.
+- For apps with no login, set notes to say no sign-in, demo account, subscription, or server-side test account is required. Also explicitly set `demoAccountRequired: false`; Apple may otherwise default it to `true` and then block review on missing `demoAccountName` / `demoAccountPassword`.
 - `contactPhone` is a human gate unless it is already explicitly provided by the operator.
 
 Use the modern review-submission flow. The older `POST /v1/appStoreVersionSubmissions` can be delete-only and return "does not allow CREATE":
@@ -255,7 +255,8 @@ Use the modern review-submission flow. The older `POST /v1/appStoreVersionSubmis
 1. `POST /v1/reviewSubmissions` with `platform: MAC_OS` and the app relationship to create a draft review submission.
 2. `POST /v1/reviewSubmissionItems` with the review submission and app-store-version relationships.
 3. If adding the item fails, read `meta.associatedErrors`; it is the most precise remaining blocker list.
-4. After the item is accepted, submit through the supported current API/UI path and verify the review-submission/app-version state changed. Do not claim submission from a draft `READY_FOR_REVIEW` review submission alone.
+4. After the item is accepted, submit with `PATCH /v1/reviewSubmissions/<id>` and `attributes.submitted: true`.
+5. Verify the review submission has `state: WAITING_FOR_REVIEW` and the app store version has `appStoreState` / `appVersionState` of `WAITING_FOR_REVIEW`. Do not claim submission from a draft `READY_FOR_REVIEW` review submission alone.
 
 ## Apple Portal Automation Discipline
 
