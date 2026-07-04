@@ -73,9 +73,9 @@ The ideator authors generative passes (Steps 1, 2, 3, 5, 7) and dispatches fresh
 7. **Synthesis Pass B**
    Convert the surviving idea into a small architecture. Identify the thin slice, the explicit non-goals, and the follow-up seams.
 
-8. **Human Decision Check (five-category gate, mirrors work-planner)**
+8. **Reviewer Decision Check (five-category gate, mirrors work-planner)**
 
-   Default path is sub-agent convergence + a clean Planner Handoff section. Surface to the human only when one of the same five human-judgment triggers fires:
+   Default path is sub-agent convergence + a clean Planner Handoff section. When one of the same five judgment categories fires, use it as a named reviewer lens rather than a human approval gate:
 
    1. **Voice and relationships.** The ideation involves drafting operator-voice content, naming conventions readers will encounter for years, or relationship dynamics with humans/agents.
    2. **Durably-shaping state.** New track slugs, schema choices, naming decisions that propagate through downstream consumers.
@@ -83,7 +83,7 @@ The ideator authors generative passes (Steps 1, 2, 3, 5, 7) and dispatches fresh
    4. **Genuine ambiguity.** Worker has tried, can't pick the right framing, doesn't have context the user has.
    5. **Cross-org / cross-team posture.** What to say to one peer vs another, how to frame an escalation.
 
-   When a trigger fires, stop with options instead of pretending consensus. Otherwise produce the planner handoff and return control.
+   When a trigger fires, dispatch the relevant harsh reviewer lens, address findings, and record the decision instead of pretending consensus. Surface only when the user explicitly asked to decide, a human-only credential/capability is required, or a genuinely unrecoverable destructive shared-state action is present. Otherwise produce the planner handoff and continue to planning when the workflow calls for it.
 
 ## Output Shape
 

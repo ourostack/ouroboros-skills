@@ -22,7 +22,7 @@ When a task enters `drafting`, start with exploration if the problem is ambiguou
 
 1. Invoke `work-ideator` via the Skill tool.
 2. Produces a planner handoff: spark, observed terrain, surviving shape, scrutiny notes, thin slice, non-goals, open questions.
-3. If the operator needs to decide (scope, naming, architecture) → transition to `collaborating` and wait.
+3. If scope, naming, or architecture needs extra judgment → run the relevant reviewer lens and record the decision. Transition to `collaborating` only when the operator explicitly asked to decide or a true human-only/destructive hard exception is present.
 4. Once the shape is clear → Phase 2.
 
 **Skip Phase 1** when the operator gave a clear, well-scoped task description or work-tracker item with sufficient detail. Not every task needs ideation.
@@ -33,9 +33,9 @@ When a task enters `drafting`, start with exploration if the problem is ambiguou
 2. Pass task context — ideation output (if any), work-tracker item details, operator description.
 3. **If the resulting doing doc will produce units that author PR content** (PR description, top-level PR comment), include a directive that those units apply the `pr-surface-hygiene` skill. `work-planner` and `work-doer` are general-purpose; they don't know which pipelines are required in this org. Worker bridges that gap by flagging the hygiene requirement at planning time so the drafted description lands correctly the first time.
 4. `work-planner` writes a planning doc to the repo workspace: `$DESK/<track>/<task>/<repo>/YYYY-MM-DD-HHMM-planning-*.md`.
-5. `work-planner` has a hard approval gate — the operator must explicitly approve the planning doc.
-6. If review is needed → transition to `collaborating` and wait.
-7. Once approved, `work-planner` converts the planning doc to a doing doc.
+5. `work-planner` has a hard reviewer gate — unbiased sub-agent reviewer convergence approves the planning doc by default.
+6. If review is needed → run the reviewer gate and keep going. Transition to `collaborating` only when the operator explicitly asked to be the reviewer/wait point or a true human-only/destructive hard exception is present.
+7. Once reviewer-approved, `work-planner` converts the planning doc to a doing doc.
 8. Transition to `processing`.
 
 ## Phase 3 — Implementation (processing state)
@@ -45,8 +45,8 @@ worker IS the doer.
 1. Invoke `work-doer` via the Skill tool.
 2. `work-doer` reads the doing doc and executes units sequentially.
 3. For each unit: write tests (red), implement (green), verify coverage, commit, push.
-4. If a unit needs operator input → transition to `collaborating`.
-5. If a unit is blocked externally → transition to `blocked`.
+4. If a unit needs extra judgment → run the relevant reviewer/fixer gate. Transition to `collaborating` only for explicit operator wait requests or true human-only/destructive hard exceptions.
+5. If a unit is blocked externally → exhaust alternate transports, simulations, retries, and reviewer/fixer paths before transitioning to `blocked`.
 6. When all units complete → transition to `validating`.
 
 **"Multi-session" is not a valid stop reason.** Context compression is the harness's job; worker proceeds until all units are `✅`, a real unit blocker surfaces, or the operator explicitly stops. If a sub-agent returns early framing remaining work as "should be sized as multiple dispatches," the default response is re-dispatch or handle in the main thread — not agreement with the framing. See `principles.md` sub-invariant 2a (no-flinching / phantom limits) for the flinch-phrase signals and the three valid stop conditions.
@@ -59,8 +59,8 @@ worker IS the doer.
 2. Invoke `work-merger` via the Skill tool.
 3. `work-merger`: fetches `origin/main`, merges, resolves conflicts, creates PR, waits for CI, merges to main.
 4. If CI fails, `work-merger` self-repairs (up to 2 attempts per failure).
-5. If the PR needs human review/approval → transition to `collaborating`.
-6. If `work-merger` escalates (genuinely stuck) → transition to `blocked`.
+5. If the PR needs review/approval → use reviewer gates by default. Transition to `collaborating` only when the operator explicitly asked to review or an external platform requires a human reviewer.
+6. If `work-merger` escalates (genuinely stuck after reviewer/fixer paths) → transition to `blocked`.
 7. When the PR is merged → transition to `done` and invoke `archive-workflow`.
 
 ## Available operator-triggered passes
@@ -251,15 +251,16 @@ git push origin <branch>       # regular push, no force
 The merge commit on the PR branch is collapsed at squash-merge time;
 `main`'s history stays linear.
 
-## PERT human gates to the tail of the workflow
+## PERT true-human gates to the tail of the workflow
 
-When a doing doc carries human-required gates (operator-voice
-public-surface posts, cross-team coordination calls, irreversible
-external sends), batch them **at the tail of the workflow**, never
-mid-stream. PERT-late: human-gated work lands at the latest
-possible point on the critical path. The doing-doc straight-line
-of code-change units stays clean; human checkpoints bunch into a
-single hand-off phase.
+When a doing doc carries true human-required gates (operator-voice
+public-surface posts when the operator explicitly asked to review,
+cross-team coordination calls, irreversible external sends), batch
+them **at the tail of the workflow**, never mid-stream. PERT-late:
+human-required work lands at the latest possible point on the
+critical path. The doing-doc straight-line of code-change units
+stays clean; true human checkpoints bunch into a single hand-off
+phase.
 
 **Why PERT-late.** Mid-stream human gates create coordination
 friction that compounds across units. A unit whose primary
@@ -276,7 +277,7 @@ hand-off.
   `pr-feedback-on-own-pr` Phase 6a's per-thread acceptance line),
   but the actual reply-posting + thread-resolving step lives in
   the tail-end phase.
-- Tail phase ("Phase H — Human-gated batch" or similar): all
+- Tail phase ("Phase H — Human-required batch" or similar): all
   operator-voice posts, all thread resolutions, all external
   sends. Runs after the last code-change unit's commit lands.
   Each item in the tail phase carries its `action` tag (per
@@ -284,18 +285,19 @@ hand-off.
   loop knows what to close vs leave active.
 
 **When mid-stream human gates ARE legitimate.** A unit that
-genuinely cannot proceed without a human decision (a scope
-question that determines which of two approaches to take, an
-external dependency that must be confirmed before code lands)
-belongs where the decision-point is, not at the tail. The rule
-is "don't intersperse FOR CONVENIENCE" — interspersing for
-genuine dependency is fine.
+genuinely cannot proceed without a true human action (credential
+entry, external account approval, irreversible real-world send, or
+an explicit operator request to decide) belongs where the
+decision-point is, not at the tail. Ordinary scope and design
+questions go through reviewer lenses instead of becoming human
+approval gates.
 
 **Composes with the validator-first gate.** Tail-phase items
 that are operator-voice artifacts run through
 `operator-voice-comments` → "Validator-first gate" before
 surfacing to operator. Most items waive the human gate cleanly
-on validator-pass; only residuals reach the operator.
+on validator-pass; only residual true-human-required actions reach
+the operator.
 
 ## Engine-agnostic dispatch note
 
