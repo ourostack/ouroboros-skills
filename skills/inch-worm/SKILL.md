@@ -14,7 +14,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 4. **Review**: When the seed fix is merged and its terminal state is verified, read the backlog. Prioritize. Pick the next item.
 5. **Go back to step 2** with the new item as the seed.
 6. **Close out**: When no open items remain, mark the campaign closed and clean up the active backlog so it cannot be mistaken for a future seed source.
-7. **Terminal condition**: In non-autopilot mode, stop when the user says stop, the backlog is empty after closeout, or the remaining observed issues have been explicitly marked `deferred`, `superseded`, or out of scope with evidence. Under autopilot/no-human-gates, stop only after the durable scan proves every remaining item is fixed, superseded, explicitly out of scope, or a true hard exception with evidence. Scope creep is NOT a terminal condition — that's the whole point of this skill. A merged-but-not-deployed PR, a deployed-but-not-smoked change, or an obvious directly implied follow-up is NOT a terminal condition. When you hit a real stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
+7. **Terminal condition**: Stop when the user explicitly says stop, the backlog is empty after closeout, or the durable scan proves every remaining item is fixed, superseded, explicitly out of scope, or a true hard exception with evidence. Scope creep is NOT a terminal condition — that's the whole point of this skill. A merged-but-not-deployed PR, a deployed-but-not-smoked change, or an obvious directly implied follow-up is NOT a terminal condition. When you hit a real stop line, say so plainly and stop instead of inch-worming yourself into aesthetic churn.
 
 ## Backlog format
 
@@ -126,10 +126,9 @@ When the user asks "what's on the list" — read the file verbatim to them. When
 
 ### 9. Close finished campaigns
 
-When the terminal condition is an empty backlog or, in non-autopilot mode only, no remaining sensible items:
+When the terminal condition is an empty backlog or no remaining sensible in-scope items:
 
-- In non-autopilot mode, ensure every entry is `fixed`, `superseded`, or `deferred`; no `open` or `in-progress` items remain.
-- Under autopilot/no-human-gates, ensure every entry is `fixed`, `superseded`, explicitly `deferred by scope` / out of scope with evidence, or a true `hard exception` with durable-scan evidence; no ready or reviewer-gated entries remain.
+- Ensure every entry is `fixed`, `superseded`, explicitly `deferred by scope` / out of scope with evidence, or a true `hard exception` with durable-scan evidence; no ready or reviewer-gated entries remain.
 - Record final PR/commit links in the doing doc or campaign header.
 - If the backlog file is repo-local, delete it before merging the final cleanup PR.
 - If the backlog file lives in the agent bundle, mark the campaign `closed` so future agents know it is historical evidence, not an active seed source.
@@ -137,12 +136,11 @@ When the terminal condition is an empty backlog or, in non-autopilot mode only, 
 
 ## Starting a new inch-worm session
 
-1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, use the current workspace's durable state/backlog location under autopilot/no-human-gates; in non-autopilot mode, ask before starting. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
-2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence. Under autopilot/no-human-gates, announce the seed and begin; the human can interrupt. In non-autopilot mode, confirm before starting.
+1. **Find or create the backlog**. If the user hasn't pointed you at one, put it beside the current agent's task docs under `~/AgentBundles/<agent>.ouro/tasks/one-shots/`. If you cannot identify the agent bundle, use the current workspace's durable state/backlog location and record that assumption. If you find an old repo-local `inch-worm/discoveries.md`, treat it as stale until the user explicitly says it is the active campaign.
+2. **Get the seed**. The user will give you the first fix, or point you at the first audit-routed seed. Restate it in one sentence, announce the seed, and begin; the human can interrupt.
 3. **Execute the seed**. While working, log discoveries as you notice them. When the fix is shippable, make the PR, merge it, verify deploy/publish/install and consuming-surface smoke when applicable, including manual fallback deploys when auto-deploy fails, and clean up stale work from the iteration.
 4. **Continue or hand off by mode**. After the PR is merged and terminal verification is complete, update the backlog with the fix, deploy/install/smoke evidence, new discoveries, and the next candidate seed.
-5. **Autopilot/no-human-gates**: do not wait for go/no-go. Re-read the backlog, pick the highest-value ready leaf, update durable state, and start the next fix unless the remaining work hits a hard exception or the active queue is empty.
-6. **Non-autopilot**: report the fix and proposed next seed, then wait for the user to choose, add, or reshuffle.
+5. Do not wait for go/no-go unless the user explicitly asked for that interaction. Re-read the backlog, pick the highest-value ready leaf, update durable state, and start the next fix unless the remaining work hits a hard exception or the active queue is empty.
 
 ## Autopilot exit preflight
 
@@ -168,7 +166,7 @@ You can pause and resume an inch-worm session across agent sessions. To resume:
 3. Identify unresolved entries.
 4. Make sure this is still the canonical backlog for the campaign.
 5. Revalidate audit-seeded candidates at current `HEAD`.
-6. In autopilot/no-human-gates mode, pick the highest-value ready leaf and continue. In non-autopilot mode, ask the user which one to pick as the next seed, or propose the highest-value leaf.
+6. Pick the highest-value ready leaf and continue. Ask the user which one to pick only when they explicitly requested seed selection control.
 
 Never silently reuse a stale log on resume. If a backlog has no open items, close it out instead of treating it as active. If a repo-local backlog exists without explicit user designation, propose deleting it or moving the active entries into the agent bundle task area before continuing.
 
