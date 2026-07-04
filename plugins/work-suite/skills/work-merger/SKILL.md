@@ -460,12 +460,12 @@ REVIEW
 )"
 ```
 
-**Human gate vs reviewer gate — same five categories.**
+**Human-only boundary vs reviewer gate — same five categories.**
 
 If the sub-agent's findings touch voice-and-relationships / durably-shaping state / irreversible operations / genuine ambiguity / cross-org posture, use the mode contract:
 
-- Non-autopilot: surface to the user before merging.
-- Autopilot/no-human-gates: treat the category as a required reviewer lens, dispatch a fresh harsh reviewer/fixer if needed, address BLOCKER/MAJOR findings, and make the call. Surface only for a true human-only credential/capability blocker or genuinely unrecoverable destructive shared-state action.
+- Treat the category as a required reviewer lens, dispatch a fresh harsh reviewer/fixer if needed, address BLOCKER/MAJOR findings, and make the call.
+- Surface only when the user explicitly asked to be the reviewer/wait point, for a true human-only credential/capability blocker, or for a genuinely unrecoverable destructive shared-state action.
 
 ### Step 6: Merge the PR
 
@@ -568,19 +568,7 @@ Return to **PR Workflow Step 3** (wait for CI).
 
 ### Step 5: Escalate if stuck
 
-If CI fails again after your fix attempt, use the active mode contract:
-
-- Non-autopilot: try once more. After **two consecutive failed self-repair attempts** on the same CI failure, escalate to the user:
-
-```
-CI is failing and I cannot resolve it after 2 attempts.
-Failure: <description>
-What I tried: <list of fixes>
-PR: <pr-url>
-Please investigate and advise.
-```
-
-- Autopilot/no-human-gates: spawn a fresh failure-analysis sub-agent with the CI logs, local reproduction steps, and changed files. Apply or deliberately reject its findings through a second reviewer gate, then keep repairing. Surface only when the failure is proven to require a human-only credential/capability or a genuinely unrecoverable destructive shared-state action.
+If CI fails again after your fix attempt, spawn a fresh failure-analysis sub-agent with the CI logs, local reproduction steps, and changed files. Apply or deliberately reject its findings through a second reviewer gate, then keep repairing. Surface only when the failure is proven to require a human-only credential/capability, an explicit user-requested wait point, or a genuinely unrecoverable destructive shared-state action.
 
 This boundary is clear: fixable issues (lint, test, build) are your responsibility. Only escalate when the active mode says the residual is truly outside agent capability, not on the first failure.
 
