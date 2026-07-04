@@ -19,8 +19,9 @@ Each app repo should have `distribution/apple-distribution.json` plus a thin
 4. an installed `apple-distribution-kit` command
 
 The shared kit owns app-neutral manifest validation, dry-run/apply planning,
-App Store Connect review-plan generation, and non-secret CI gates. The app repo
-owns only app-specific build/package scripts and product metadata.
+App Store Connect review-plan generation, TestFlight beta publish requests, and
+non-secret CI gates. The app repo owns only app-specific build/package scripts
+and product metadata.
 
 Canonical current bundle IDs:
 
@@ -192,6 +193,111 @@ Apple ID plus an app-specific password can be useful for local one-off validatio
 
 Do not commit `.p8`, `.p12`, provisioning profiles, app-specific passwords, or exported private keys. If a password or private key is visible in shared UI, clean it up immediately and offer to revoke/regenerate.
 
+## TestFlight Submission Lane
+
+Treat TestFlight as a first-class Apple distribution channel, not a prelude to
+bespoke browser work. The app repo should declare an iOS `testflight` channel in
+`distribution/apple-distribution.json` with:
+
+- `team.providerPublicId` for Transporter/altool disambiguation.
+- A package command that exports an IPA, usually with
+  `xcodebuild -exportArchive` and an `ExportOptions.testflight.plist` using
+  `method = app-store-connect`.
+- `store.privacy.policyUrl` and `store.exportCompliance`.
+- `testflight.groups[]` with explicit `internal` or `external` type.
+- `testflight.build.whatsNew` as tester-facing "what to test" notes.
+- `testflight.betaApp.feedbackEmail` and any beta-facing marketing/privacy URLs.
+- `testflight.betaReview` contact/demo-account details only when external beta
+  review is in scope. `contactPhone` remains a human gate unless the operator
+  explicitly provided it.
+
+Default to an internal TestFlight group for first dogfood unless the operator
+explicitly asks for external testers. Internal TestFlight can usually avoid
+Beta App Review and private contact/demo-account metadata in source. External
+TestFlight requires beta review details and a beta app review submission after a
+processed build exists.
+
+Recommended flow:
+
+```bash
+scripts/apple-distribution-kit.sh manifest validate --manifest distribution/apple-distribution.json
+scripts/apple-distribution-kit.sh testflight plan --manifest distribution/apple-distribution.json --channel ios-testflight --json
+```
+
+Build and export the IPA via the app repo's manifest command, then upload it
+with the shared kit's iOS-aware altool runner:
+
+```bash
+scripts/apple-distribution-kit.sh xcode run \
+  --kind altool-upload \
+  --mode apply \
+  --package-path build/apple/testflight/App.ipa \
+  --platform ios \
+  --api-key "$APP_STORE_CONNECT_API_KEY_ID" \
+  --api-issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+  --p8-file-path "$APP_STORE_CONNECT_API_KEY_PATH" \
+  --provider-public-id "$APP_STORE_CONNECT_PROVIDER_PUBLIC_ID" \
+  --json
+```
+
+After upload, do not guess readiness. Query App Store Connect and wait for a
+`VALID` build:
+
+```bash
+scripts/apple-distribution-kit.sh asc get \
+  --path /v1/apps \
+  --query 'filter[bundleId]=<bundle-id>' \
+  --query 'limit=1' \
+  --json
+
+scripts/apple-distribution-kit.sh asc get \
+  --path /v1/builds \
+  --query "filter[app]=$ASC_APP_ID" \
+  --query 'filter[preReleaseVersion.platform]=IOS' \
+  --query 'filter[processingState]=VALID' \
+  --query 'sort=-uploadedDate' \
+  --query 'include=buildBetaDetail' \
+  --query 'limit=10' \
+  --json
+
+scripts/apple-distribution-kit.sh asc get --path "/v1/apps/$ASC_APP_ID/betaGroups" --json
+scripts/apple-distribution-kit.sh asc get --path "/v1/apps/$ASC_APP_ID/betaAppReviewDetail" --json
+```
+
+Then dry-run and apply TestFlight publishing. Pass known group IDs with
+`--group-id "Name=<id>"`; omitted groups are created and attached to the build
+by the generated App Store Connect requests:
+
+```bash
+scripts/apple-distribution-kit.sh testflight publish \
+  --mode dry-run \
+  --manifest distribution/apple-distribution.json \
+  --channel ios-testflight \
+  --app-id "$ASC_APP_ID" \
+  --build-id "$ASC_BUILD_ID" \
+  --build-beta-detail-id "$ASC_BUILD_BETA_DETAIL_ID" \
+  --group-id "Internal Testers=$ASC_INTERNAL_GROUP_ID" \
+  --artifact artifacts/apple/testflight-publish-plan.json \
+  --json
+
+scripts/apple-distribution-kit.sh testflight publish \
+  --mode apply \
+  --manifest distribution/apple-distribution.json \
+  --channel ios-testflight \
+  --app-id "$ASC_APP_ID" \
+  --build-id "$ASC_BUILD_ID" \
+  --build-beta-detail-id "$ASC_BUILD_BETA_DETAIL_ID" \
+  --group-id "Internal Testers=$ASC_INTERNAL_GROUP_ID" \
+  --json
+```
+
+If `testflight.build.autoNotifyEnabled` is set, provide
+`--build-beta-detail-id`. For an external TestFlight group, add beta-review
+metadata to the manifest and pass `--beta-app-review-detail-id`; then expect a
+`POST /v1/betaAppReviewSubmissions` request. Keep the dry-run artifact in the
+review bundle; it is the cleanest way for another agent to audit exactly what
+will happen before Apple state changes.
+
 ## App Store Connect Submission Lane
 
 After `altool-upload` passes, verify the server-side build state with App Store Connect before claiming review readiness:
@@ -289,12 +395,17 @@ For each app repo, add or reuse:
 - `scripts/apple-distribution-kit.sh`: a thin resolver for the shared kit CLI;
   keep it app-neutral except for local path comments if unavoidable.
 - `scripts/check-apple-distribution-kit.sh`: non-secret CI/preflight gate that
-  validates the manifest, runs `apple-distribution-kit plan --mode dry-run`, and
+  validates the manifest, runs `apple-distribution-kit plan --mode dry-run`,
+  runs `apple-distribution-kit testflight plan` for TestFlight channels, and
   rejects committed Apple credential files.
 - `scripts/check-signing-readiness.sh`: non-secret by default; validates tools (`codesign`, `xcrun notarytool`, `xcrun stapler`) and fails closed only when `OURO_REQUIRE_NOTARIZATION=1` or live credential validation is requested.
 - `scripts/prepare-ci-signing-assets.sh`: no-op only when no signing mode, notarization requirement, or signing identity is configured. When Developer ID signing is required or an identity secret is present on GitHub-hosted macOS, import the base64 `.p12` Developer ID certificate into a temporary keychain, write any base64 App Store Connect `.p8` key to a temporary file, and append paths/derived env to `$GITHUB_ENV`.
 - `scripts/sign-notarize-app.sh`: signs, submits, staples, and verifies one `.app`; includes a `--selftest` that needs no Apple credentials.
 - `scripts/package-app-store.sh`: builds the App Store channel, embeds the provisioning profile when configured, signs with `Apple Distribution`, creates a Mac App Store `.pkg`, and supports at least validate/upload modes when App Store credentials are present.
+- For iOS TestFlight channels, an `ExportOptions.testflight.plist` plus a
+  package command that archives and exports an IPA. The export options should
+  use `method = app-store-connect`, the correct Team ID, and automatic signing
+  unless the app has a tested reason to manage profiles manually.
 - `scripts/check-app-store-build.sh`: builds or inspects the App Store channel without secrets and proves channel-specific behavior such as sandbox entitlements, category, telemetry configuration, and direct-updater suppression.
 - Release packaging support for repo-local signing toggles. Ouro-owned repos may
   use `OURO_RELEASE_SIGNING_MODE=developer-id` and
