@@ -6,7 +6,9 @@ description: >-
   within a plugin an always-on body/principles vs a triggered skill. Invoke
   whenever the agent is about to encode something durable and must choose its
   home: a friction disposition (curator), a captured lesson (lesson-capture),
-  a new operator preference or rule, a repo-specific gotcha. Do NOT invoke for
+  a new operator preference or rule, a repo-specific gotcha, a new skill's
+  plugin layer (which layer it belongs in, and whether to split a generic
+  engine from a context skin). Do NOT invoke for
   where files go *inside* a workspace (that's `directory-structure`), or for
   what to say to a human (that's a voice/comms concern).
 ---
@@ -39,6 +41,22 @@ So content lives in exactly one of: a workspace (operator-specific), a generic p
 > *"Is the rule BODY universal enough that an operator who isn't this one — or a different agent entirely — would also benefit?"*
 
 If yes, the body belongs in a plugin (route per the decision above) and the rules file keeps only the instance + pointer. **Do not wedge a general-principle body in under an "operator said X" framing.** That semantic mis-tag turns the agent's application gate into *"is this an operator-X context?"* instead of the rule's real trigger — and the rule silently fails to fire when it should. "Obviously generic on first surfacing" is enough to extract; you don't have to wait for a second instance.
+
+## Placing a whole skill: engine, skin, and the canonical library
+
+A skill is a *capability*, not just a rule, so it routes the same way (whose? general? which plugin? which surface?) with two additions that decide its layer at author time.
+
+**The engine/skin test.** Ask the self-check in its sharper form: *would a worker in a different context, a different employer or a different team, want this capability unchanged?*
+
+- **All of it** yes: it is a generic **engine** and belongs in the generic layer.
+- **Only part** yes: **split it.** The generic engine goes down (the generic plugin, or the canonical library below); the thin context-specific **skin** stays up in the overlay and *composes* the engine. Do not place a half-generic skill whole in the overlay: that traps the engine one layer too high, where a different context has to rebuild it instead of inheriting it.
+
+**The canonical library + plugin bundles.** A generic capability does **not** need its own plugin. The substrate keeps standalone skills in a **canonical library** (installed individually); a **plugin is a curated bundle** that ships *copies* of the canonical skills it wants its consumers to inherit by default. So:
+
+- a wholly generic engine: author it once in the **canonical library**; any plugin that wants it auto-available **bundles a copy** (opt-in for everyone else). The canonical copy is source-of-truth; the bundle copy must not drift from it.
+- a **new plugin**: stand one up only when a *coherent set* of capability wants to be inherited as one dependency by a whole class of consumers, never for a lone builder (which is just a library skill).
+
+**The gate, at author time.** Before a new skill lands in the nearest or most-specific plugin by default, run the test. Wholly generic goes to the canonical library; generic engine plus a context skin gets split; wholly context-specific goes to the context plugin. The default home is the *lowest* layer the capability is honest at, not the *closest* one to where you happen to be working.
 
 ## Pointer shape — what stays in the workspace after extraction
 
