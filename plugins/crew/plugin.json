@@ -1,0 +1,28 @@
+{
+  "name": "crew",
+  "version": "0.1.0",
+  "description": "The multi-person shared-workspace layer on top of desk: read-across/write-own desks, the facts/perspectives/decisions attribution taxonomy, the conflict-safe write protocol, and perspective queries.",
+  "author": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/crew",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "collaboration",
+    "multiplayer",
+    "shared-workspace"
+  ],
+  "skills": "./skills/",
+  "activation": {
+    "copilot": {
+      "dependencyProvider": {
+        "id": "crew",
+        "version": "0.1.0",
+        "resolution": "flattened"
+      }
+    }
+  }
+}
