@@ -137,6 +137,20 @@ Avoid decorative card stacks, web-like tab bars on macOS, custom buttons that sh
 
 For macOS auth/setup windows, prefer sane default and minimum window sizes plus a stable non-scrolling layout. Do not wrap a normal desktop login surface in a `ScrollView` just to survive tiny remembered windows; use scrollable fallback only for compact/mobile constraints where content genuinely cannot fit.
 
+## TestFlight Feedback And Visual Dogfood
+
+Treat TestFlight screenshot feedback as product telemetry, not as an optional comment. Download and inspect screenshots before changing code; UI breakage, stranded navigation, bad empty/loading states, copy that exposes implementation language, or visually unbalanced native chrome are blocking app bugs even without a crash report.
+
+For TestFlight-driven fixes:
+
+- Reconcile feedback state against real worker liveness. A `running` label is not enough; check active processes, log mtimes, exit codes, and the current command. If a worker is stale, hung, or only created a plan, retry or take over instead of reporting progress as completion.
+- Fix from the actual screenshot and metadata. Do not infer the route from a label alone; prove the visible route, app state, and feedback instance match the code path under repair.
+- Keep mobile navigation escapable. Compact iPhone toolbars, docks, tab bars, and Liquid Glass overlays must expose an obvious route back to the app's home/root surface and must not strand users inside shopping, cook mode, capture, search, settings, or detail flows.
+- Prefer native controls and system-adjacent placement before building custom chrome. If custom chrome ships, add source-contract and screenshot tests for layout bounds, tappable actions, Dynamic Type, safe-area behavior, and overlap with content.
+- Preserve the product palette and image policy. Source native colors from the product design language or web tokens and enforce drift with CI/source-contract checks. Do not show fake/default food photos as real content; distinguish real media from generated placeholders and render an honest no-photo or capture state unless a real appetizing image exists.
+- Make loading, empty, offline, error, and permission states first-class screens. Screenshot captures should prove these states are calm, branded, non-overlapping, and actionable.
+- Do not close a feedback item from tests alone. Run focused tests, app-target build validation, screenshot-backed visual QA for the reported route, and TestFlight publish/attachment verification when the fix is intended for testers. Notify the user or helper agent only after the new build is actually available or after a concrete human-only blocker is proven.
+
 ## Implementation Loop
 
 Work in small PRs that leave the app runnable after each merge:
