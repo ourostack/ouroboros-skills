@@ -7,7 +7,7 @@ description: Answer "what would `<person>` think about X / what's `<person>` wor
 
 A shared crew workspace is a **map of whose-view-is-what** (see
 `shared-desk-conventions` §taxonomy). This skill is the read mechanism that makes
-that map answerable: *"what would Ari think about X?"*, *"what's Renyi working
+that map answerable: *"what would Alex think about X?"*, *"what's Sam working
 on?"*, *"is that actually agreed, or is it just one person's take?"* -- answered
 honestly, with attribution, against the three content buckets.
 
@@ -40,14 +40,14 @@ theirs.** Never reframe it as team gospel.
    docs, takes, attributed perspectives. (Read-across is allowed and is the
    point; you read their desk, you don't write it.)
 2. Synthesize **their** stance, with **their** reasoning, and **label it as
-   theirs** from the first word: *"Ari's posture is frontier-or-bust -- his
+   theirs** from the first word: *"Alex's posture is frontier-or-bust -- his
    reasoning is …"* -- not *"the posture is …"*.
-3. If their desk says nothing about X, say so honestly: *"Ari's desk doesn't
+3. If their desk says nothing about X, say so honestly: *"Alex's desk doesn't
    record a view on X."* Do **not** infer a stance from a fact in
    `_shared/landscape/` and attribute it to them -- a fact is team-neutral; it is
    not their opinion.
 4. If two people's desks hold **conflicting** views on X, report both,
-   attributed to each -- *"Ari thinks A; Renyi thinks B"* -- never average them
+   attributed to each -- *"Alex thinks A; Sam thinks B"* -- never average them
    into a fake "the team thinks."
 
 > The honest failure answer is *"`<person>`'s desk doesn't say"* -- always
@@ -60,7 +60,7 @@ theirs.** Never reframe it as team gospel.
 1. Read that person's `desks/<alias>/` -- their active tracks, in-flight tasks,
    recent planning/doing docs, open friction. (Same layout as a single-operator
    `$DESK`; see `desk:directory-structure`.)
-2. Report **what their desk actually shows**, attributed to them: *"Ari's active
+2. Report **what their desk actually shows**, attributed to them: *"Alex's active
    workflows track has him on the onsite-workshop task; his last iteration was
    …"*.
 3. **Read the desk; don't synthesize a summary file.** The desk is the live
@@ -87,17 +87,17 @@ rigorously separate, and treat **perspectives** as neither.
    expected pre-kickoff state, not a gap to paper over.
 2. **"What's just fact?"** → read `_shared/landscape/`. Report it as a
    team-neutral fact and cite the inline source pointer the doc carries
-   (*"verified from Nova code-read, 2026-06-04"*).
+   (*"verified from Service X code-read, 2026-06-04"*).
 3. **The discriminator to surface explicitly when asked "is X agreed?":**
    - X is in `_shared/decisions/` → **agreed** (attributed to the meeting/date).
    - X is in `_shared/landscape/` → **a fact**, not a decision (nobody had to
      "agree" it; it's externally true).
    - X is only in some `desks/<alias>/` → **one person's perspective**, not
-     agreed and not a team fact. Say so: *"that's Ari's take, not a team
+     agreed and not a team fact. Say so: *"that's Alex's take, not a team
      decision."*
 
 > Never promote a perspective into a decision because it sounds authoritative or
-> because only one person has weighed in. *"Only Ari has a view; the team hasn't
+> because only one person has weighed in. *"Only Alex has a view; the team hasn't
 > decided"* is the correct, honest answer -- and it's exactly the answer that
 > invites the kickoff conversation instead of pre-empting it.
 
@@ -105,7 +105,7 @@ rigorously separate, and treat **perspectives** as neither.
 
 - **Label the source bucket in the answer.** The reader should always be able to
   tell whether they're hearing a team fact, a named person's view, or a team
-  decision. *"That's a fact / that's Ari's view / the team agreed that on …"*.
+  decision. *"That's a fact / that's Alex's view / the team agreed that on …"*.
 - **Default to the more-attributed, less-authoritative read** when a piece of
   content is ambiguous: a stance-carrying claim is a **perspective** (attributed
   to whoever's desk it's on), not a fact; an un-recorded agreement is **not yet
