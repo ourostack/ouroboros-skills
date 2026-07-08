@@ -102,8 +102,8 @@ opinion" with "team fact." The shared workspace keeps three things distinct and
 
 | Kind | Lives in | What it is | Who can rely on it |
 |------|----------|------------|--------------------|
-| **Facts** | `_shared/landscape/` | Externally true, team-neutral. *"Nova's control flow is a model-driven loop"* (verified from code). | Anyone. |
-| **Perspectives** | `desks/<alias>/` | What a person thinks / is doing / decided, **attributed to them**. *"Ari's posture is frontier-or-bust; here's the reasoning."* | Only as **that person's view**, labeled as theirs. |
+| **Facts** | `_shared/landscape/` | Externally true, team-neutral. *"Service X's control flow is a model-driven loop"* (verified from code). | Anyone. |
+| **Perspectives** | `desks/<alias>/` | What a person thinks / is doing / decided, **attributed to them**. *"Alex's posture is frontier-or-bust; here's the reasoning."* | Only as **that person's view**, labeled as theirs. |
 | **Decisions** | `_shared/decisions/` | What the team **actually agreed**, attributed to the meeting/date. | Anyone -- but only once genuinely agreed. |
 
 Three rules fall out of this:
@@ -114,12 +114,12 @@ Three rules fall out of this:
    think…"), it is a **perspective** and belongs in that person's
    `desks/<alias>/`, attributed. Apply the same provenance discipline
    `desk:directory-structure` requires for promoted facts: inline source pointer
-   + date at write time (*"verified from Nova code-read, 2026-06-04"*).
+   + date at write time (*"verified from Service X code-read, 2026-06-04"*).
 
-2. **Every perspective is attributed.** A perspective in `desks/ari/` is *Ari's*
-   -- never reframe it as team gospel. This is what makes "what would Ari think
+2. **Every perspective is attributed.** A perspective in `desks/alex/` is *Alex's*
+   -- never reframe it as team gospel. This is what makes "what would Alex think
    about X" a clean, honest query (see `perspective-query`): the agent reads
-   `desks/ari/` and answers **as Ari's view, labeled as his**, not as the
+   `desks/alex/` and answers **as Alex's view, labeled as his**, not as the
    team's position.
 
 3. **A decision is only a decision once it's agreed.** `_shared/decisions/` is
@@ -134,7 +134,7 @@ baking it in, because it travels as reasoning-with-attribution that invites the
 kickoff conversation rather than pre-empting it.
 
 > **False-consensus is the cardinal sin here.** The taxonomy exists precisely so
-> "Ari's opinion" never reads as "the team's." When in doubt about whether
+> "Alex's opinion" never reads as "the team's." When in doubt about whether
 > something is a fact, a perspective, or a decision, the safe default is the
 > **more attributed, less authoritative** bucket: perspective over fact,
 > "not-yet-agreed" over decision.
