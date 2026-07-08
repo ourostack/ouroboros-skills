@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.5 — 2026-07-08
+
+**New `doc-review-rigor` skill.** Adds the generic doc-substance evaluation method to the desk plugin -- extract every reviewable claim from a document, classify each (blocking / should-fix / nit / open question), and surface them without ever auto-posting. Extracted from a crew-specific skill during a plugin-layering cleanup so the surface-agnostic method lives at the generic `desk` layer and overlays compose it with their own grounding. Catch-up bump: the skill itself landed one release earlier without moving the version surfaces; this aligns every desk manifest, the activation lock, and the marketplace entry. Also carries the coupled `work-suite` dependency-lock bump to 1.5.1 (below).
+
 ## 1.7.4 — 2026-06-29
 
 **Defensive top-level `tools:` allowlist on the `worker` agent.** Declared `tools: ["*"]` (unrestricted) on `agents/worker.md` so a recent Agency tool-visibility change — which strips any agent that declares an `mcp-servers:` block down to control tools (`skill`, `sql`, `task_complete`) unless it also carries a top-level `tools:` allowlist — cannot silently narrow the substrate base if it tightens further. The base `worker` declares no `mcp-servers:` block, so this is preventive, not a fix for a live regression. The Copilot (`worker.agent.md`) and Codex (`worker.toml`) renderings carry no tools-allowlist field and are unchanged.
