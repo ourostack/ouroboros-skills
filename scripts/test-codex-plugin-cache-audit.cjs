@@ -81,6 +81,8 @@ function testCurrentFixture() {
     });
     assert.equal(report.status, "current");
     assert.equal(report.marketplace_namespace, "ourostack");
+    assert.equal(report.host_marketplace.provided, false);
+    assert.equal(report.host_marketplace.current, true);
     assert.equal(report.plugins.length, 2);
     for (const plugin of report.plugins) {
       assert.equal(plugin.marketplace_namespace, "ourostack");
@@ -95,6 +97,53 @@ function testCurrentFixture() {
     assert.equal(report.active_session.status, "not_checked");
     assert.equal(report.active_session.provided, false);
     assert.ok(report.active_session.required.includes("desk_status"));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+function writeHostMarketplace(root, plugins) {
+  writeJson(path.join(root, ".agents", "plugins", "marketplace.json"), {
+    name: "ourostack",
+    plugins: plugins.map(([name, sourcePath]) => ({
+      name,
+      source: { source: "local", path: sourcePath },
+    })),
+  });
+}
+
+function testHostMarketplaceCurrentAndDrift() {
+  const fixture = makeFixture();
+  try {
+    writeHostMarketplace(fixture.root, [
+      ["desk", "./repo/plugins/desk"],
+      ["work-suite", "./repo/plugins/work-suite"],
+    ]);
+    const current = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    });
+    assert.equal(current.status, "current");
+    assert.equal(current.host_marketplace.provided, true);
+    assert.equal(current.host_marketplace.current, true);
+    assert.equal(current.host_marketplace.reason, "current");
+
+    writePlugin(fixture.root, "desk", "1.7.2");
+    writePlugin(fixture.root, "work-suite", "1.4.8");
+    writeHostMarketplace(fixture.root, [
+      ["desk", "./plugins/desk"],
+      ["work-suite", "./plugins/work-suite"],
+    ]);
+    const stale = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    });
+    assert.equal(stale.status, "stale");
+    assert.equal(stale.host_marketplace.provided, true);
+    assert.equal(stale.host_marketplace.current, false);
+    assert.equal(stale.host_marketplace.reason, "source-drift");
+    assert.equal(stale.host_marketplace.plugins.find((plugin) => plugin.name === "desk").reason, "manifest-drift");
+    assert.match(stale.host_marketplace.guidance, /Repoint ~\/\.agents\/plugins\/marketplace\.json/u);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -338,6 +387,7 @@ function testCliStrictMode() {
 }
 
 testCurrentFixture();
+testHostMarketplaceCurrentAndDrift();
 testActiveToolSnapshot();
 testActiveToolSnapshotFileAndStrictMode();
 testStaleSourceAndCache();
