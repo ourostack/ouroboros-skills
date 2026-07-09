@@ -138,6 +138,19 @@ Avoid decorative card stacks, web-like tab bars on macOS, custom buttons that sh
 
 For macOS auth/setup windows, prefer sane default and minimum window sizes plus a stable non-scrolling layout. Do not wrap a normal desktop login surface in a `ScrollView` just to survive tiny remembered windows; use scrollable fallback only for compact/mobile constraints where content genuinely cannot fit.
 
+## Native Taste Bar
+
+Before calling a native UI pass done, make a fresh-eyes taste pass against real screenshots, not only source diffs. The bar is not "terminal green"; it is whether a human would believe the app has judgment.
+
+- Beauty starts with balance. Check symmetry, optical weight, whitespace rhythm, text hierarchy, and whether large type, thumbnails, controls, and bottom chrome visually fight each other.
+- Preserve the product's nouns, order, and editorial structure from the web/source product before translating the interaction model. Native polish does not license invented copy, generic labels, or reorganized domain concepts.
+- Remove every element that does not earn its place. Audit helper labels, duplicate actions, badges, placeholders, captions, and menu items; if a control is obvious from icon, placement, or native convention, let it be quiet.
+- Never let content snap in or flash a false error. Use stable loading skeletons, eager image/cache preparation where practical, route-specific transitions, and honest unavailable states only after loading has resolved.
+- Default imagery is a product decision. Prefer real media, appetizing bundled fallback assets for demo/search contexts, or an explicit no-photo state; do not show unsettling generic placeholders as if they were food.
+- Treat fixed chrome as a spatial contract. Bottom bars, toolbar capsules, and floating controls must reserve or mask space consistently so no row, card, button, or caption peeks underneath.
+- Validate compact and roomy layouts separately. iPhone, iPad, and macOS should share product language, but each needs platform-native navigation density, toolbar placement, window sizing, and escape routes.
+- If the app looks merely acceptable, keep going. Spawn critical reviewers or run another inch-worm pass until the remaining complaints are genuinely marginal rather than obvious to a user in five seconds.
+
 ## TestFlight Feedback And Visual Dogfood
 
 Treat TestFlight screenshot feedback as product telemetry, not as an optional comment. Download and inspect screenshots before changing code; UI breakage, stranded navigation, bad empty/loading states, copy that exposes implementation language, or visually unbalanced native chrome are blocking app bugs even without a crash report.
