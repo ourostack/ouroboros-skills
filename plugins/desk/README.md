@@ -116,7 +116,7 @@ See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness agent fil
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 
-For deeper stacks, depend on the most specific layer you need. A Microsoft-flavored plugin can depend on `desk` and provide `ms-desk:worker`; an area plugin can depend on `ms-desk` and provide its own area overlay. The Codex adapter enables the selected overlay's plugin dependencies alongside Desk and Work Suite, while still enabling only one Desk MCP. The active chain is visible in generated instructions and in `desk_status` when the host passes activation context.
+For deeper stacks, depend on the most specific layer you need. An org-flavored overlay plugin can depend on `desk` and provide its own `worker` variant; an area plugin can depend on that overlay and provide its own area layer. The Codex adapter enables the selected overlay's plugin dependencies alongside Desk and Work Suite, while still enabling only one Desk MCP. The active chain is visible in generated instructions and in `desk_status` when the host passes activation context.
 
 ## what desk gives an agent
 
