@@ -333,7 +333,7 @@ This is the incident-ordered form of [§Creativity](#creativity): when the obvio
 2. **Wedged → switch transport.** A different tool, a different machine, a different channel, a different ingress for the same intent. A sibling API on a different code path often works while the primary is wedged.
 3. **No alternate transport → ship a PR.** Code that lands now and applies on the next cycle is still movement — hardening, additional guards, schema fixes, anything that strengthens the recovery posture and applies the moment the blocked path returns.
 4. **Nothing PR-worthy → encode the lesson** in the persistent state location (friction, planning doc, runbook). It survives compaction and propagates.
-5. **Everything blocked → schedule a wake at the BLOCKED-PATH cadence** (a short retry interval), not a long "hope it clears" wait. See the `ScheduleWakeup` caveat in [§Long-horizon autopilot](#long-horizon-autopilot-resume-here-docs--wakeup-loops).
+5. **Everything blocked → schedule a wake at the BLOCKED-PATH cadence** (a short retry interval), not a long "hope it clears" wait. See the `ScheduleWakeup` caveat in [§Long-horizon autopilot](#long-horizon-autopilot-arc--resume-here-docs--wakeup-loops).
 6. **Surface a status post** only if the wedge is structurally novel and the post carries new information — never as an "I'm waiting" announcement.
 
 **Anti-pattern phrases that betray a wait-instead-of-pivot:**
