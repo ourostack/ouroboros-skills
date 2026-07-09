@@ -2,7 +2,7 @@
 
 Make Desk zero-setup robust when the Desk MCP is absent from the active host session, not merely degraded after startup. Agents should naturally notice "Desk tools are missing" and route to Codex onboarding/repair instead of behaving as if durable context is optional.
 
-Host context: `ouroboros-host` / user: `arimendelow` / cwd: `/Users/arimendelow/Projects/ouroboros-skills` / OS: `Darwin` / probed: 2026-06-16 17:45 PDT.
+Host context: `ouroboros-host` / user: `<user>` / cwd: `/Users/<user>/Projects/ouroboros-skills` / OS: `Darwin` / probed: 2026-06-16 17:45 PDT.
 
 ## Scope
 
