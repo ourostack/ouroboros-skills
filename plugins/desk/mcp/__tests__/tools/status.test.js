@@ -524,6 +524,96 @@ test("desk_status reports vector coverage against the active embedding spec", as
   }
 })
 
+test("desk_status treats known unembeddable chunks as non-repairable vector skips", async () => {
+  const root = makeRoot()
+  try {
+    const db = openDb(root)
+    try {
+      const docId = db.prepare(
+        `INSERT INTO docs (path, kind, hash, mtime, frontmatter)
+         VALUES ('notes.md', 'other', 'abc', 1, '{}')
+         RETURNING id`,
+      ).get().id
+      const vectorChunkId = db.prepare(
+        `INSERT INTO chunks (
+           doc_id,
+           chunk_index,
+           chunk_key,
+           text_hash,
+           embedding_spec_id,
+           chunker_id,
+           normalization_id,
+           text
+         )
+         VALUES (?, 0, 'ck_vector', 'sha256:vector', ?, ?, ?, 'vector text')
+         RETURNING id`,
+      ).get(
+        docId,
+        ACTIVE_EMBEDDING_SPEC.id,
+        ACTIVE_EMBEDDING_SPEC.chunker_id,
+        ACTIVE_EMBEDDING_SPEC.normalization_id,
+      ).id
+      db.prepare(
+        `INSERT INTO chunks (
+           doc_id,
+           chunk_index,
+           chunk_key,
+           text_hash,
+           embedding_spec_id,
+           chunker_id,
+           normalization_id,
+           text
+         )
+         VALUES (?, 1, 'ck_oversize', 'sha256:oversize', ?, ?, ?, 'oversize text')`,
+      ).run(
+        docId,
+        ACTIVE_EMBEDDING_SPEC.id,
+        ACTIVE_EMBEDDING_SPEC.chunker_id,
+        ACTIVE_EMBEDDING_SPEC.normalization_id,
+      )
+      db.prepare(
+        `INSERT INTO chunk_embedding_failures (
+           chunk_key,
+           text_hash,
+           embedding_spec_id,
+           chunker_id,
+           normalization_id,
+           reason,
+           message,
+           failed_at
+         )
+         VALUES ('ck_oversize', 'sha256:oversize', ?, ?, ?, 'http_500',
+                 'the input length exceeds the context length',
+                 '2026-07-09T00:00:00.000Z')`,
+      ).run(
+        ACTIVE_EMBEDDING_SPEC.id,
+        ACTIVE_EMBEDDING_SPEC.chunker_id,
+        ACTIVE_EMBEDDING_SPEC.normalization_id,
+      )
+      const vec = new Float32Array(ACTIVE_EMBEDDING_SPEC.dimension)
+      db.prepare("INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)").run(BigInt(vectorChunkId), vec)
+    } finally {
+      closeDb(db)
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.document_vectors.state, "available")
+    assert.equal(body.document_vectors.chunks_total, 2)
+    assert.equal(body.document_vectors.vectors_indexed, 1)
+    assert.equal(body.document_vectors.missing_vectors, 1)
+    assert.equal(body.document_vectors.known_unembeddable_vectors, 1)
+    assert.equal(body.document_vectors.repairable_missing_vectors, 0)
+    assert.equal(body.degraded_modes.includes("document_vectors_partial"), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test("desk_status reports lexical index absence without mutating an existing DB", async () => {
   const root = makeRoot()
   const dbPath = indexDbPath(root)
@@ -534,6 +624,7 @@ test("desk_status reports lexical index absence without mutating an existing DB"
       db.exec(`
         CREATE TABLE chunks (id INTEGER PRIMARY KEY);
         CREATE TABLE chunk_vecs (chunk_id INTEGER PRIMARY KEY);
+        CREATE TABLE chunk_embedding_failures (chunk_key TEXT PRIMARY KEY);
       `)
     } finally {
       db.close()
@@ -548,6 +639,45 @@ test("desk_status reports lexical index absence without mutating an existing DB"
     assert.equal(body.local_db.exists, true)
     assert.equal(body.lexical_index.available, false)
     assert.equal(body.lexical_index.state, "missing")
+    assert.equal(body.document_vectors.known_unembeddable_vectors, 0)
+    assert.equal(body.document_vectors.repairable_missing_vectors, 0)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status tolerates a malformed embedding failure table", async () => {
+  const root = makeRoot()
+  const dbPath = indexDbPath(root)
+  try {
+    mkdirSync(path.dirname(dbPath), { recursive: true })
+    const db = new Database(dbPath)
+    try {
+      db.exec(`
+        CREATE TABLE chunks (
+          id INTEGER PRIMARY KEY,
+          chunk_key TEXT,
+          text_hash TEXT,
+          embedding_spec_id TEXT,
+          chunker_id TEXT,
+          normalization_id TEXT
+        );
+        CREATE TABLE chunk_vecs (chunk_id INTEGER PRIMARY KEY);
+        CREATE TABLE chunk_embedding_failures (chunk_key TEXT PRIMARY KEY);
+      `)
+    } finally {
+      db.close()
+    }
+
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+    }))
+
+    assert.equal(body.local_db.exists, true)
+    assert.equal(body.document_vectors.known_unembeddable_vectors, 0)
+    assert.equal(body.document_vectors.repairable_missing_vectors, 0)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

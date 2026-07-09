@@ -60,6 +60,10 @@ test("schema exposes chunk key and embedding spec metadata surfaces", async () =
       .all()
       .map((r) => r.name)
     assert.ok(tables.includes("embedding_specs"), `missing embedding_specs; got: ${tables.join(", ")}`)
+    assert.ok(
+      tables.includes("chunk_embedding_failures"),
+      `missing chunk_embedding_failures; got: ${tables.join(", ")}`,
+    )
 
     const chunkCols = db.prepare("PRAGMA table_info(chunks)").all().map((c) => c.name)
     for (const column of ["chunk_key", "text_hash", "embedding_spec_id", "chunker_id", "normalization_id"]) {
@@ -69,6 +73,14 @@ test("schema exposes chunk key and embedding spec metadata surfaces", async () =
     const specCols = db.prepare("PRAGMA table_info(embedding_specs)").all().map((c) => c.name)
     for (const column of ["id", "model", "model_revision", "dimension", "chunker_id", "normalization_id", "is_active"]) {
       assert.ok(specCols.includes(column), `missing embedding_specs.${column}; got: ${specCols.join(", ")}`)
+    }
+
+    const failureCols = db.prepare("PRAGMA table_info(chunk_embedding_failures)").all().map((c) => c.name)
+    for (const column of ["chunk_key", "text_hash", "embedding_spec_id", "chunker_id", "normalization_id", "reason", "message", "failed_at"]) {
+      assert.ok(
+        failureCols.includes(column),
+        `missing chunk_embedding_failures.${column}; got: ${failureCols.join(", ")}`,
+      )
     }
   } finally {
     closeDb(db)

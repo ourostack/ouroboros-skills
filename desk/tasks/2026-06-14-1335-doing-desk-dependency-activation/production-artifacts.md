@@ -16,16 +16,16 @@ Required release-maintenance commands:
 
 Commands run:
 
-- `node plugins/desk/mcp/scripts/rebuild-index.js --root <repo>/desk`
-- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <repo>/desk --pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
-- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <repo>/desk --snapshot-id repo-public-bootstrap-2026-06-15 --included-pack-id repo-public-bootstrap-2026-06-15 --from-local-db --provenance-commit 78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
+- Updated-source force reindex of `<repo>/desk` with `desk_reindex({ force: true })`.
+- `npm --prefix plugins/desk/mcp run artifact:vector-pack:build -- --desk-root <repo>/desk --pack-id repo-public-bootstrap-2026-06-15 --from-local-db`
+- `npm --prefix plugins/desk/mcp run artifact:snapshot:build -- --desk-root <repo>/desk --snapshot-id repo-public-bootstrap-2026-06-15 --included-pack-id repo-public-bootstrap-2026-06-15 --from-local-db`
 - `npm --prefix plugins/desk/mcp run artifact:validate -- --desk-root <repo>/desk`
 - `npm --prefix plugins/desk/mcp run artifact:snapshot:verify -- --snapshot-id repo-public-bootstrap-2026-06-15`
 - `node scripts/test-desk-generated-artifacts.cjs`
 
 Current freshness anchors:
 
-- current_artifact_source_scope_hash: sha256:248add5bba8eb662ac8654ac8d6fb3fe024f4278e2d8d01408600f9047a4368e
+- current_artifact_source_scope_hash: sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
 
 Published vector pack:
@@ -36,11 +36,11 @@ Published vector pack:
 - `pack_id`: `repo-public-bootstrap-2026-06-15`
 - `row_count`: 2
 - `rows_sha256`: `974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c`
-- `artifact_source_scope_hash`: `sha256:248add5bba8eb662ac8654ac8d6fb3fe024f4278e2d8d01408600f9047a4368e`
+- `artifact_source_scope_hash`: `sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
+- Provenance commit: `c4ce02acdc5bbb6e9ccf3eacf099a2955739bd04`
 
 Published snapshot:
 
@@ -48,14 +48,14 @@ Published snapshot:
 - Manifest: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.manifest.json`
 - Checksum: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sha256`
 - `snapshot_id`: `repo-public-bootstrap-2026-06-15`
-- `artifact_source_scope_hash`: `sha256:248add5bba8eb662ac8654ac8d6fb3fe024f4278e2d8d01408600f9047a4368e`
+- `artifact_source_scope_hash`: `sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `included_pack_ids`: `repo-public-bootstrap-2026-06-15`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Artifact sha256: `sha256:0f795d85aa9c2c7f802607cb5ef597610230d8423ffc5232b5514b0b0702916b`
+- Artifact sha256: `sha256:b34038e868ad83f2e25ca66f2b2e1c0a0bf74a22bd51405948f0f06a896eda42`
 - Runtime: `portable-portable-portable`
-- Provenance commit: `78de0eb181d54a18d999ffcfdb61f0a5d4f3041b`
+- Provenance commit: `c4ce02acdc5bbb6e9ccf3eacf099a2955739bd04`
 
 Approval state:
 

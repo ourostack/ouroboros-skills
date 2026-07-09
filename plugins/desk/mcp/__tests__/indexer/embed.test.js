@@ -8,6 +8,7 @@ import {
   embedChunkDetailed,
   embedChunks,
   EMBEDDING_DIM,
+  probeEmbeddingService,
   resolveEmbeddingEndpoints,
   resolveEmbeddingModel,
 } from "../../src/indexer/embed.js"
@@ -63,6 +64,147 @@ test("embedChunkDetailed reports endpoint/model diagnostics on failure", async (
   assert.equal(res.diagnostic.reason, "http_404")
 })
 
+test("embedChunkDetailed reports fetch-unavailable diagnostics", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: "not a function",
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.vector, null)
+  assert.equal(res.diagnostic.endpoint, "http://127.0.0.1:11434/api/embeddings")
+  assert.equal(res.diagnostic.reason, "fetch_unavailable")
+})
+
+test("embedChunkDetailed reports invalid JSON responses", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => ({
+      ok: true,
+      json: async () => {
+        throw new Error("not json")
+      },
+    }),
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.vector, null)
+  assert.equal(res.diagnostic.reason, "invalid_json")
+  assert.match(res.diagnostic.message, /not json/u)
+})
+
+test("embedChunkDetailed uses the default invalid JSON diagnostic message", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => ({
+      ok: true,
+      json: async () => {
+        throw "not-json"
+      },
+    }),
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.diagnostic.reason, "invalid_json")
+  assert.equal(res.diagnostic.message, "embedding response was not JSON")
+})
+
+test("embedChunkDetailed reports timeout diagnostics", async () => {
+  const fetchImpl = async (_url, request) => new Promise((_resolve, reject) => {
+    request.signal.addEventListener("abort", () => {
+      const err = new Error("aborted")
+      err.name = "AbortError"
+      reject(err)
+    })
+  })
+
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: fetchImpl,
+    timeoutMs: 1,
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.vector, null)
+  assert.equal(res.diagnostic.reason, "timeout")
+})
+
+test("embedChunkDetailed uses global fetch when no fetch override is passed", async () => {
+  const oldFetch = globalThis.fetch
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.25)
+  globalThis.fetch = mockOkFetch(vec)
+  try {
+    const res = await embedChunkDetailed("x", {
+      endpoint: "http://127.0.0.1:11434",
+    })
+    assert.equal(res.available, true)
+    assert.equal(res.vector.length, EMBEDDING_DIM)
+  } finally {
+    globalThis.fetch = oldFetch
+  }
+})
+
+test("embedChunkDetailed works when AbortController is unavailable", async () => {
+  const oldAbortController = globalThis.AbortController
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.25)
+  globalThis.AbortController = undefined
+  try {
+    const res = await embedChunkDetailed("x", {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: mockOkFetch(vec),
+    })
+    assert.equal(res.available, true)
+    assert.equal(res.vector.length, EMBEDDING_DIM)
+  } finally {
+    globalThis.AbortController = oldAbortController
+  }
+})
+
+test("embedChunkDetailed stringifies non-Error network failures", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => {
+      throw "offline"
+    },
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.diagnostic.reason, "network_error")
+  assert.equal(res.diagnostic.message, "offline")
+})
+
+test("embedChunkDetailed reports a null response as an HTTP error", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => null,
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.diagnostic.reason, "http_error")
+  assert.equal(res.diagnostic.message, "no response")
+})
+
+test("embedChunkDetailed falls back to statusText for non-JSON errors", async () => {
+  const res = await embedChunkDetailed("x", {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => ({
+      ok: false,
+      status: 500,
+      statusText: "plain failure",
+      json: async () => {
+        throw new Error("not json")
+      },
+    }),
+  })
+  assert.equal(res.available, false)
+  assert.equal(res.diagnostic.reason, "http_500")
+  assert.equal(res.diagnostic.message, "plain failure")
+})
+
+test("probeEmbeddingService returns availability diagnostics", async () => {
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.5)
+  const res = await probeEmbeddingService({
+    endpoint: "http://127.0.0.1:11434",
+    fetch: mockOkFetch(vec),
+  })
+  assert.equal(res.available, true)
+  assert.equal(res.diagnostic.reason, "ok")
+})
+
 test("embedChunk tries OLLAMA_HOST before default localhost fallbacks", async () => {
   const oldHost = process.env.OLLAMA_HOST
   const oldEndpoint = process.env.DESK_EMBED_ENDPOINT
@@ -93,9 +235,36 @@ test("embedChunk tries OLLAMA_HOST before default localhost fallbacks", async ()
   }
 })
 
+test("embedding endpoints normalize host and API path variants", () => {
+  const oldEndpoint = process.env.DESK_EMBED_ENDPOINT
+  const oldOllamaEndpoint = process.env.DESK_OLLAMA_ENDPOINT
+  const oldHost = process.env.OLLAMA_HOST
+  process.env.DESK_EMBED_ENDPOINT = "0.0.0.0:11434/api/embed"
+  process.env.DESK_OLLAMA_ENDPOINT = "http://example.test:11434/api/embeddings"
+  process.env.OLLAMA_HOST = "http://other.test:11434/api/embeddings"
+  try {
+    const endpoints = resolveEmbeddingEndpoints()
+    assert.equal(endpoints[0], "http://127.0.0.1:11434/api/embeddings")
+    assert.equal(endpoints[1], "http://example.test:11434/api/embeddings")
+    assert.equal(endpoints[2], "http://other.test:11434/api/embeddings")
+    assert.deepEqual(resolveEmbeddingEndpoints({ endpoint: "http://[" }), [
+      "http://[",
+    ])
+    assert.deepEqual(resolveEmbeddingEndpoints({ endpoint: "   " }), ["   "])
+  } finally {
+    if (oldEndpoint == null) delete process.env.DESK_EMBED_ENDPOINT
+    else process.env.DESK_EMBED_ENDPOINT = oldEndpoint
+    if (oldOllamaEndpoint == null) delete process.env.DESK_OLLAMA_ENDPOINT
+    else process.env.DESK_OLLAMA_ENDPOINT = oldOllamaEndpoint
+    if (oldHost == null) delete process.env.OLLAMA_HOST
+    else process.env.OLLAMA_HOST = oldHost
+  }
+})
+
 test("embedding endpoint and model can be resolved from environment", () => {
   const oldEndpoint = process.env.DESK_EMBED_ENDPOINT
   const oldModel = process.env.DESK_EMBED_MODEL
+  const oldOllamaModel = process.env.OLLAMA_EMBED_MODEL
   process.env.DESK_EMBED_ENDPOINT = "http://example.test:11434"
   process.env.DESK_EMBED_MODEL = "custom-embed"
   try {
@@ -109,11 +278,38 @@ test("embedding endpoint and model can be resolved from environment", () => {
     else process.env.DESK_EMBED_ENDPOINT = oldEndpoint
     if (oldModel == null) delete process.env.DESK_EMBED_MODEL
     else process.env.DESK_EMBED_MODEL = oldModel
+    if (oldOllamaModel == null) delete process.env.OLLAMA_EMBED_MODEL
+    else process.env.OLLAMA_EMBED_MODEL = oldOllamaModel
+  }
+
+  delete process.env.DESK_EMBED_MODEL
+  process.env.OLLAMA_EMBED_MODEL = "ollama-custom-embed"
+  try {
+    assert.equal(resolveEmbeddingModel(), "ollama-custom-embed")
+  } finally {
+    if (oldModel == null) delete process.env.DESK_EMBED_MODEL
+    else process.env.DESK_EMBED_MODEL = oldModel
+    if (oldOllamaModel == null) delete process.env.OLLAMA_EMBED_MODEL
+    else process.env.OLLAMA_EMBED_MODEL = oldOllamaModel
   }
 })
 
 test("embedChunk returns null when embedding dimensionality is wrong", async () => {
   const out = await embedChunk("x", { fetch: mockOkFetch([0, 1, 2]) })
+  assert.equal(out, null)
+})
+
+test("embedChunk coerces non-number vector entries to zero", async () => {
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.5)
+  vec[10] = "bad"
+  const out = await embedChunk("x", { fetch: mockOkFetch(vec) })
+  assert.equal(out[10], 0)
+})
+
+test("embedChunk returns null when embedding field is missing", async () => {
+  const out = await embedChunk("x", {
+    fetch: async () => ({ ok: true, json: async () => ({}) }),
+  })
   assert.equal(out, null)
 })
 
@@ -134,6 +330,101 @@ test("embedChunks stops calling fetch after the first failure", async () => {
   // The implementation may probe a chunk or two before giving up; we want
   // it to bail short of doing all 4.
   assert.equal(calls, 1, `expected single call before bail-out, got ${calls}`)
+})
+
+test("embedChunks aborts after a non-oversize HTTP failure", async () => {
+  let calls = 0
+  const out = await embedChunks(["missing model", "small"], {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => {
+      calls += 1
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ error: "model not found" }),
+      }
+    },
+  })
+  assert.equal(calls, 1)
+  assert.deepEqual(out, [null, null])
+})
+
+test("embedChunks aborts after an HTTP failure with no diagnostic message", async () => {
+  let calls = 0
+  const out = await embedChunks(["missing model", "small"], {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: async () => {
+      calls += 1
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      }
+    },
+  })
+  assert.equal(calls, 1)
+  assert.deepEqual(out, [null, null])
+})
+
+test("embedChunks continues after an oversized chunk failure", async () => {
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.75)
+  const calls = []
+  const fetchImpl = async (_url, request) => {
+    const prompt = JSON.parse(request.body).prompt
+    calls.push(prompt)
+    if (prompt === "too large") {
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }
+    }
+    return { ok: true, json: async () => ({ embedding: vec }) }
+  }
+
+  const out = await embedChunks(["too large", "small one", "small two"], {
+    endpoint: "http://127.0.0.1:11434",
+    fetch: fetchImpl,
+  })
+
+  assert.deepEqual(calls, ["too large", "small one", "small two"])
+  assert.equal(out[0], null)
+  assert.equal(out[1].length, EMBEDDING_DIM)
+  assert.equal(out[2].length, EMBEDDING_DIM)
+})
+
+test("embedChunks keeps context-length failures chunk-local when a fallback endpoint is down", async () => {
+  const vec = Array.from({ length: EMBEDDING_DIM }, () => 0.25)
+  const calls = []
+  const fetchImpl = async (url, request) => {
+    const prompt = JSON.parse(request.body).prompt
+    calls.push({ url, prompt })
+    if (prompt === "too large" && url.includes("127.0.0.1")) {
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }
+    }
+    if (prompt === "too large") {
+      throw new Error("fallback endpoint unavailable")
+    }
+    return { ok: true, json: async () => ({ embedding: vec }) }
+  }
+
+  const out = await embedChunks(["too large", "small"], { fetch: fetchImpl })
+
+  assert.deepEqual(calls.map((call) => call.prompt), [
+    "too large",
+    "too large",
+    "small",
+  ])
+  assert.equal(out[0], null)
+  assert.equal(out[1].length, EMBEDDING_DIM)
 })
 
 test("embedChunks happy path returns one vector per chunk", async () => {
