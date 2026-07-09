@@ -102,6 +102,14 @@ function marketplaceSourcePath({ repoRoot, marketplacePath, plugin }) {
   return path.resolve(repoRoot, sourcePath);
 }
 
+function defaultHostMarketplacePath(codexHome) {
+  return path.join(path.dirname(codexHome), ".agents", "plugins", "marketplace.json");
+}
+
+function defaultHostMarketplaceRoot(hostMarketplacePath) {
+  return path.dirname(path.dirname(path.dirname(hostMarketplacePath)));
+}
+
 function cacheManifestPath({ cacheRoot, namespace, pluginName, version }) {
   return path.join(
     cacheRoot,
@@ -207,11 +215,85 @@ function auditPlugin({ repoRoot, cacheRoot, marketplace, marketplacePath, namesp
   };
 }
 
+function auditHostMarketplace({
+  repoRoot,
+  hostMarketplacePath,
+  hostMarketplaceRoot,
+  namespace,
+  plugins,
+}) {
+  const resolvedPath = path.isAbsolute(hostMarketplacePath)
+    ? hostMarketplacePath
+    : path.resolve(repoRoot, hostMarketplacePath);
+  const resolvedRoot = path.isAbsolute(hostMarketplaceRoot)
+    ? hostMarketplaceRoot
+    : path.resolve(repoRoot, hostMarketplaceRoot);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return {
+      provided: false,
+      current: true,
+      reason: "missing",
+      path: resolvedPath,
+      root: resolvedRoot,
+      marketplace_namespace: null,
+      namespace_current: true,
+      plugins: [],
+      guidance: "Host implicit marketplace was not found; repo/cache freshness can still be current, but Codex may use another marketplace source.",
+    };
+  }
+
+  const hostMarketplace = readJson(resolvedPath);
+  const hostNamespace = marketplaceNamespace(hostMarketplace);
+  const pluginReports = plugins.map((pluginName) => {
+    const repoManifestPath = pluginManifestPath(repoRoot, pluginName);
+    const repoManifest = readJson(repoManifestPath);
+    const entry = marketplacePlugin(hostMarketplace, pluginName);
+    const sourceRoot = marketplaceSourcePath({
+      repoRoot: resolvedRoot,
+      marketplacePath: resolvedPath,
+      plugin: entry,
+    });
+    const sourceManifestPath = sourceRoot === null
+      ? null
+      : path.join(sourceRoot, ".codex-plugin", "plugin.json");
+    const comparison = entry === null
+      ? { current: false, reason: "missing-marketplace-entry" }
+      : sourceManifestPath === null
+        ? { current: false, reason: "missing-marketplace-source" }
+        : compareManifest(readJsonIfPresent(sourceManifestPath), repoManifest);
+    return {
+      name: pluginName,
+      repo_manifest_path: repoManifestPath,
+      host_marketplace_source_path: sourceManifestPath,
+      current: comparison.current,
+      reason: comparison.reason,
+    };
+  });
+  const namespaceCurrent = hostNamespace === namespace;
+  const sourcesCurrent = pluginReports.every((plugin) => plugin.current);
+  return {
+    provided: true,
+    current: namespaceCurrent && sourcesCurrent,
+    reason: !namespaceCurrent ? "namespace-mismatch" : sourcesCurrent ? "current" : "source-drift",
+    path: resolvedPath,
+    root: resolvedRoot,
+    marketplace_namespace: hostNamespace,
+    namespace_current: namespaceCurrent,
+    plugins: pluginReports,
+    guidance: namespaceCurrent && sourcesCurrent
+      ? "Host implicit marketplace resolves Desk plugin sources to the same manifests as the repo source of truth."
+      : "Host implicit marketplace is stale or points at a different plugin source. Repoint ~/.agents/plugins/marketplace.json at the canonical repo, reinstall plugins, and restart/open a fresh Codex session.",
+  };
+}
+
 function auditCodexPluginCache({
   repoRoot = path.resolve(__dirname, ".."),
   codexHome = path.join(os.homedir(), ".codex"),
   cacheRoot = path.join(codexHome, "plugins", "cache"),
   marketplacePath = path.join(repoRoot, ".agents", "plugins", "marketplace.json"),
+  hostMarketplacePath = defaultHostMarketplacePath(codexHome),
+  hostMarketplaceRoot = defaultHostMarketplaceRoot(hostMarketplacePath),
   plugins = defaultPlugins,
   activeTools = null,
   activeToolsFiles = [],
@@ -235,6 +317,13 @@ function auditCodexPluginCache({
     namespace,
     pluginName,
   }));
+  const hostMarketplace = auditHostMarketplace({
+    repoRoot,
+    hostMarketplacePath,
+    hostMarketplaceRoot,
+    namespace,
+    plugins,
+  });
   if (activeSession.provided) {
     for (const plugin of pluginReports) {
       if (plugin.name === "desk") {
@@ -246,7 +335,7 @@ function auditCodexPluginCache({
   return {
     status: pluginReports.every((plugin) => (
       plugin.repo_source_current && plugin.installed_cache_current
-    )) ? "current" : "stale",
+    )) && hostMarketplace.current ? "current" : "stale",
     repo_root: repoRoot,
     codex_home: codexHome,
     marketplace_namespace: namespace,
@@ -255,8 +344,10 @@ function auditCodexPluginCache({
     evidence_states: {
       repo_source_current: "compares .agents marketplace source manifests with repo manifests",
       installed_cache_current: "compares ~/.codex/plugins/cache manifests with repo manifests",
+      host_marketplace_current: "compares the host implicit ~/.agents marketplace source manifests with repo manifests when present",
       active_session_visible: "checks an optional active MCP tool snapshot when --active-tools or --active-tools-file is supplied",
     },
+    host_marketplace: hostMarketplace,
     active_session: activeSession,
     plugins: pluginReports,
   };
@@ -280,6 +371,13 @@ function parseArgs(argv) {
       options.cacheRoot = path.resolve(requireValue(argv, ++index, arg));
     } else if (arg === "--marketplace") {
       options.marketplacePath = requireValue(argv, ++index, arg);
+    } else if (arg === "--host-marketplace") {
+      options.hostMarketplacePath = requireValue(argv, ++index, arg);
+    } else if (arg === "--host-marketplace-root") {
+      options.hostMarketplaceRoot = path.resolve(requireValue(argv, ++index, arg));
+    } else if (arg === "--no-host-marketplace") {
+      options.hostMarketplacePath = path.join(os.tmpdir(), "missing-codex-host-marketplace.json");
+      options.hostMarketplaceRoot = os.tmpdir();
     } else if (arg === "--plugins") {
       options.plugins = requireValue(argv, ++index, arg).split(",").map((name) => name.trim()).filter(Boolean);
     } else if (arg === "--active-tools") {
@@ -340,6 +438,7 @@ function startCli({
 module.exports = {
   auditActiveTools,
   auditCodexPluginCache,
+  auditHostMarketplace,
   requiredDeskMcpTools,
   run,
   startCli,

@@ -33,15 +33,35 @@ Do this before treating `session-start` as healthy:
 
 ## Verify or repair
 
-1. If this is a local development install, sync the plugin directories through the host's plugin source. For example, a local marketplace may point at a directory containing both plugins:
+1. If this is a local development install, make the host marketplace point at the canonical `ouroboros-skills` checkout, not a long-lived `~/plugins` snapshot. The common Codex implicit marketplace is `~/.agents/plugins/marketplace.json`; its source paths are resolved relative to `$HOME`, so local repo paths should look like:
 
-```bash
-mkdir -p ~/plugins
-rsync -a --delete /path/to/ouroboros-skills/plugins/desk/ ~/plugins/desk/
-rsync -a --delete /path/to/ouroboros-skills/plugins/work-suite/ ~/plugins/work-suite/
+```json
+{
+  "name": "ourostack",
+  "plugins": [
+    {
+      "name": "desk",
+      "source": { "source": "local", "path": "./Projects/ouroboros-skills/plugins/desk" }
+    },
+    {
+      "name": "work-suite",
+      "source": { "source": "local", "path": "./Projects/ouroboros-skills/plugins/work-suite" }
+    }
+  ]
+}
 ```
 
-2. Ensure the plugin source/marketplace includes `desk` and `work-suite`. Use the marketplace `name` as the namespace in config (`desk@<marketplace-name>`), not a hard-coded `ourostack` value. Local development installs often use `ourostack-local`.
+Avoid keeping `~/plugins/desk` and `~/plugins/work-suite` as the steady-state source unless a separate sync job and audit prove they are fresh. Stale snapshots can keep Codex installing old plugin versions even after the repo and cache look healthy.
+
+2. Ensure the plugin source/marketplace includes `desk` and `work-suite`. Use the marketplace `name` as the namespace in config (`desk@<marketplace-name>`), not a hard-coded `ourostack` value. Local development installs may use `ourostack`; older installs may still say `ourostack-local`, but the source path must still resolve to the canonical plugin files.
+
+Run the source/cache/implicit-marketplace audit after repairs:
+
+```bash
+node scripts/audit-codex-plugin-cache.cjs --strict
+```
+
+This checks the repo marketplace, installed `~/.codex/plugins/cache` manifests, and the host implicit `~/.agents/plugins/marketplace.json` when present. A current repo/cache report with a stale host marketplace still means future Codex sessions can reinstall old plugins.
 
 3. Ensure `~/.codex/config.toml` has an owned Desk activation block equivalent to the adapter output for the selected mode:
 
