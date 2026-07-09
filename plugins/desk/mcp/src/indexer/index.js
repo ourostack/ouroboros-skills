@@ -15,7 +15,11 @@ import {
 } from "../artifacts/tombstones.js"
 import { discover } from "./discover.js"
 import { chunkBody } from "./chunk.js"
-import { embedChunks, EMBEDDING_DIM } from "./embed.js"
+import {
+  embedChunksDetailed,
+  EMBEDDING_DIM,
+  isChunkLocalEmbeddingFailure,
+} from "./embed.js"
 import { computeRefs } from "./refs.js"
 import {
   ACTIVE_EMBEDDING_SPEC,
@@ -25,6 +29,13 @@ import {
 import { importVectorPacks } from "./vector-packs.js"
 
 const SQLITE_PARAMETER_BATCH_SIZE = 500
+const ACTIVE_CHUNK_FAILURE_JOIN = `
+  f.chunk_key = c.chunk_key AND
+  f.text_hash = c.text_hash AND
+  f.embedding_spec_id = c.embedding_spec_id AND
+  f.chunker_id = c.chunker_id AND
+  f.normalization_id = c.normalization_id
+`
 
 /**
  * Run the indexer against `deskRoot`. Creates/refreshes
@@ -57,6 +68,7 @@ export async function rebuildIndex(deskRoot, opts = {}) {
     docs_tombstoned: 0,
     chunks_inserted: 0,
     semantic_warnings: 0,
+    embedding_failures_recorded: 0,
   }
 
   try {
@@ -135,6 +147,8 @@ export async function rebuildIndex(deskRoot, opts = {}) {
         signal: opts.signal,
       }))
     }
+
+    pruneStaleEmbeddingFailures(db)
 
     if (!opts.skipEmbed) {
       throwIfAborted(opts.signal)
@@ -271,6 +285,7 @@ function docHasMissingActiveEmbeddings(db, docId) {
       `SELECT COUNT(*) AS missing
        FROM chunks c
        LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+       LEFT JOIN chunk_embedding_failures f ON ${ACTIVE_CHUNK_FAILURE_JOIN}
        WHERE c.doc_id = ?
          AND (
            v.chunk_id IS NULL OR
@@ -278,7 +293,8 @@ function docHasMissingActiveEmbeddings(db, docId) {
            c.embedding_spec_id != ? OR
            c.chunker_id != ? OR
            c.normalization_id != ?
-         )`,
+         )
+         AND f.chunk_key IS NULL`,
     )
     .get(
       docId,
@@ -392,11 +408,20 @@ async function embedMissingVectors(db, opts, summary, docIds) {
     const placeholders = batch.map(() => "?").join(", ")
     const rows = db
       .prepare(
-        `SELECT c.id, c.text
+        `SELECT
+           c.id,
+           c.text,
+           c.chunk_key,
+           c.text_hash,
+           c.embedding_spec_id,
+           c.chunker_id,
+           c.normalization_id
          FROM chunks c
          LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+         LEFT JOIN chunk_embedding_failures f ON ${ACTIVE_CHUNK_FAILURE_JOIN}
          WHERE v.chunk_id IS NULL
            AND c.doc_id IN (${placeholders})
+           AND f.chunk_key IS NULL
          ORDER BY c.id`,
       )
       .all(...batch)
@@ -406,11 +431,14 @@ async function embedMissingVectors(db, opts, summary, docIds) {
   }
   if (missing.length === 0) return
 
-  const embeddings = await embedChunks(
+  const embeddingResults = await embedChunksDetailed(
     missing.map((c) => c.text),
     opts.embed ?? {},
   )
-  if (embeddings.some((e) => e == null) && summary.semantic_warnings === 0) {
+  const serviceFailure = embeddingResults.some((result) => (
+    result.vector == null && !isChunkLocalEmbeddingFailure(result.diagnostic)
+  ))
+  if (serviceFailure && summary.semantic_warnings === 0) {
     summary.semantic_warnings += 1
     // One log line per run is enough; downstream tools surface the
     // semantic_unavailable warning at query time.
@@ -422,18 +450,78 @@ async function embedMissingVectors(db, opts, summary, docIds) {
   const insertVec = db.prepare(
     `INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)`,
   )
+  const upsertFailure = db.prepare(
+    `INSERT INTO chunk_embedding_failures (
+       chunk_key,
+       text_hash,
+       embedding_spec_id,
+       chunker_id,
+       normalization_id,
+       reason,
+       message,
+       failed_at
+     )
+     VALUES (@chunk_key, @text_hash, @embedding_spec_id, @chunker_id,
+             @normalization_id, @reason, @message, @failed_at)
+     ON CONFLICT (
+       chunk_key,
+       text_hash,
+       embedding_spec_id,
+       chunker_id,
+       normalization_id
+     ) DO UPDATE SET
+       reason = excluded.reason,
+       message = excluded.message,
+       failed_at = excluded.failed_at`,
+  )
+  const deleteFailure = db.prepare(
+    `DELETE FROM chunk_embedding_failures
+     WHERE chunk_key = @chunk_key
+       AND text_hash = @text_hash
+       AND embedding_spec_id = @embedding_spec_id
+       AND chunker_id = @chunker_id
+       AND normalization_id = @normalization_id`,
+  )
+  const failedAt = new Date().toISOString()
   const txn = db.transaction(() => {
     for (let i = 0; i < missing.length; i++) {
-      const vec = embeddings[i]
+      const row = missing[i]
+      const result = embeddingResults[i]
+      const vec = result.vector
       if (vec) {
         // sqlite-vec's vec0 virtual table requires BigInt for primary-key
         // bind values — plain JS numbers raise "Only integers are allows
         // for primary key values on chunk_vecs".
-        insertVec.run(BigInt(missing[i].id), new Float32Array(vec))
+        insertVec.run(BigInt(row.id), new Float32Array(vec))
+        deleteFailure.run(row)
+      } else if (isChunkLocalEmbeddingFailure(result.diagnostic)) {
+        upsertFailure.run({
+          ...row,
+          reason: result.diagnostic.reason,
+          message: result.diagnostic.message,
+          failed_at: failedAt,
+        })
+        summary.embedding_failures_recorded += 1
       }
     }
   })
   txn()
+}
+
+function pruneStaleEmbeddingFailures(db) {
+  const result = db.prepare(
+    `DELETE FROM chunk_embedding_failures
+     WHERE NOT EXISTS (
+       SELECT 1
+       FROM chunks c
+       WHERE c.chunk_key = chunk_embedding_failures.chunk_key
+         AND c.text_hash = chunk_embedding_failures.text_hash
+         AND c.embedding_spec_id = chunk_embedding_failures.embedding_spec_id
+         AND c.chunker_id = chunk_embedding_failures.chunker_id
+         AND c.normalization_id = chunk_embedding_failures.normalization_id
+     )`,
+  ).run()
+  return result.changes
 }
 
 function refreshRefs(db, docs) {

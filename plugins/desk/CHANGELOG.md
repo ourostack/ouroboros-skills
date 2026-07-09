@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.6 — 2026-07-09
+
+**Oversized embedding chunks no longer abort the rest of a Desk reindex.** The Desk MCP indexer now treats Ollama context-length failures as chunk-local vector misses and continues embedding later chunks in the same batch. Known chunk-local failures are recorded as stable `chunk_embedding_failures` tombstones, so startup and search repairs do not repeatedly probe permanently oversized chunks. `desk_status` now separates known unembeddable skips from repairable missing vectors, and vector-pack import clears the tombstone when a shared embedding becomes available. No-op vector-pack repairs are remembered by a signature over the missing chunk identities and pack sidecars, so a pack that does not cover a known-unembeddable chunk is not revalidated on every search; changing the pack sidecars retries repair. This prevents one very large task card from leaving unrelated downstream documents without vectors after `desk_reindex --force`; only the oversized chunk remains missing, while every embeddable chunk after it is indexed. Coverage now exercises the detailed embedding diagnostics, HTTP/JSON/timeout failure paths, endpoint normalization, vector-pack tombstone repair, no-op vector-pack retry suppression, malformed-status-table tolerance, and the vector rebuild behavior that keeps later chunks moving after an oversized input.
+
 ## 1.7.5 — 2026-07-08
 
 **New `doc-review-rigor` skill.** Adds the generic doc-substance evaluation method to the desk plugin -- extract every reviewable claim from a document, classify each (blocking / should-fix / nit / open question), and surface them without ever auto-posting. Extracted from a crew-specific skill during a plugin-layering cleanup so the surface-agnostic method lives at the generic `desk` layer and overlays compose it with their own grounding.

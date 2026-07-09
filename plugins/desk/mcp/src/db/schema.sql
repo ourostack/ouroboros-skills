@@ -118,3 +118,30 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunk_vecs USING vec0(
   chunk_id INTEGER PRIMARY KEY,
   embedding FLOAT[768]
 );
+
+-- ---------------------------------------------------------------------------
+-- chunk_embedding_failures: stable tombstones for chunks that the active
+-- embedding provider rejected for chunk-local reasons (for example context
+-- length). These rows prevent every startup/search from retrying known
+-- unembeddable chunks while still letting text changes or spec changes retry.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chunk_embedding_failures (
+  chunk_key TEXT NOT NULL,
+  text_hash TEXT NOT NULL,
+  embedding_spec_id TEXT NOT NULL,
+  chunker_id TEXT NOT NULL,
+  normalization_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  message TEXT,
+  failed_at TEXT NOT NULL,
+  PRIMARY KEY (
+    chunk_key,
+    text_hash,
+    embedding_spec_id,
+    chunker_id,
+    normalization_id
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunk_embedding_failures_spec
+  ON chunk_embedding_failures(embedding_spec_id, chunker_id, normalization_id);

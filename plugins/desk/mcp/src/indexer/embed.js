@@ -24,7 +24,6 @@ function unique(values) {
 function normalizeBaseUrl(raw) {
   if (!raw || typeof raw !== "string") return null
   let value = raw.trim()
-  if (!value) return null
   if (!/^https?:\/\//i.test(value)) value = `http://${value}`
   try {
     const url = new URL(value)
@@ -89,7 +88,6 @@ export function resolveEmbeddingEndpoints(opts = {}) {
 }
 
 function compactDiagnostic(diagnostic) {
-  if (!diagnostic) return null
   return {
     endpoint: diagnostic.endpoint,
     model: diagnostic.model,
@@ -163,7 +161,7 @@ export async function embedChunkDetailed(text, opts = {}) {
       vector: null,
       available: false,
       diagnostic: {
-        endpoint: endpoints[0] ?? null,
+        endpoint: endpoints[0],
         model,
         reason: "fetch_unavailable",
         message: "global fetch is unavailable in this Node runtime",
@@ -171,21 +169,9 @@ export async function embedChunkDetailed(text, opts = {}) {
     }
   }
 
-  if (!endpoints.length) {
-    return {
-      vector: null,
-      available: false,
-      diagnostic: {
-        endpoint: null,
-        model,
-        reason: "endpoint_unavailable",
-        message: "no embedding endpoint could be resolved",
-      },
-    }
-  }
-
   const timeoutMs = parseTimeoutMs(opts)
   let lastDiagnostic = null
+  let chunkLocalDiagnostic = null
   for (const endpoint of endpoints) {
     let response
     try {
@@ -212,6 +198,9 @@ export async function embedChunkDetailed(text, opts = {}) {
         model,
         reason: `http_${response?.status ?? "error"}`,
         message: response ? await parseErrorMessage(response) : "no response",
+      }
+      if (isChunkLocalEmbeddingFailure(lastDiagnostic)) {
+        chunkLocalDiagnostic = lastDiagnostic
       }
       continue
     }
@@ -248,7 +237,11 @@ export async function embedChunkDetailed(text, opts = {}) {
     }
   }
 
-  return { vector: null, available: false, diagnostic: lastDiagnostic }
+  return {
+    vector: null,
+    available: false,
+    diagnostic: chunkLocalDiagnostic ?? lastDiagnostic,
+  }
 }
 
 export async function probeEmbeddingService(opts = {}) {
@@ -259,29 +252,53 @@ export async function probeEmbeddingService(opts = {}) {
   }
 }
 
+export function isChunkLocalEmbeddingFailure(diagnostic) {
+  if (!String(diagnostic.reason).startsWith("http_")) return false
+  return /input length exceeds the context length/i.test(
+    String(diagnostic.message),
+  )
+}
+
 /**
  * Batch-embed an array of chunk texts. Returns an array of the same length
- * where each entry is either a 768-dim array or null (chunk-level soft-fail
- * — though in practice if one fails, they all fail because Ollama is down).
+ * where each entry is either a 768-dim array or null.
  *
- * Stops calling Ollama after the first failure to avoid hammering a dead
- * endpoint; remaining chunks are returned as null.
+ * Service-level failures stop the batch to avoid hammering a dead endpoint.
+ * Chunk-local failures, such as an oversized chunk exceeding the embedding
+ * model context, only leave that chunk without a vector and continue.
  */
-export async function embedChunks(texts, opts = {}) {
+export async function embedChunksDetailed(texts, opts = {}) {
   const out = []
   let aborted = false
   for (const t of texts) {
     if (aborted) {
-      out.push(null)
+      out.push({
+        vector: null,
+        available: false,
+        diagnostic: {
+          endpoint: null,
+          model: resolveEmbeddingModel(opts),
+          reason: "batch_aborted",
+          message: "embedding batch aborted after a service-level failure",
+        },
+      })
       continue
     }
-    const vec = await embedChunk(t, opts)
+    const result = await embedChunkDetailed(t, opts)
+    const vec = result.vector
     if (vec == null) {
-      aborted = true
-      out.push(null)
+      if (!isChunkLocalEmbeddingFailure(result.diagnostic)) {
+        aborted = true
+      }
+      out.push(result)
     } else {
-      out.push(vec)
+      out.push(result)
     }
   }
   return out
+}
+
+export async function embedChunks(texts, opts = {}) {
+  const results = await embedChunksDetailed(texts, opts)
+  return results.map((result) => result.vector)
 }

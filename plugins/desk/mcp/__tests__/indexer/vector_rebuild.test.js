@@ -165,7 +165,10 @@ test("rebuildIndex imports fully covered vector packs without live embedding cal
 
   const db = openDb(deskRoot)
   try {
-    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+    assert.equal(
+      db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count,
+      1,
+    )
     assertVectorApprox(storedVector(db, docPath, 0), vector(7))
   } finally {
     closeDb(db)
@@ -210,6 +213,388 @@ test("rebuildIndex live-generates only chunks missing from vector packs", async 
   } finally {
     closeDb(db)
   }
+})
+
+test("rebuildIndex continues live vector generation after an oversized chunk", async () => {
+  const deskRoot = await tmpRoot()
+  const oversizePath = "trackA/task-oversize/task.md"
+  const smallPath = "trackA/task-small/task.md"
+  await writeFile(
+    deskRoot,
+    oversizePath,
+    "---\nstatus: processing\n---\noversized semantic body",
+  )
+  await writeFile(
+    deskRoot,
+    smallPath,
+    "---\nstatus: processing\n---\nsmall semantic body",
+  )
+
+  const requests = []
+  const fetchWithOversizeFailure = async (_url, request) => {
+    const prompt = JSON.parse(request.body).prompt
+    requests.push(prompt)
+    if (/oversized semantic body/u.test(prompt)) {
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }
+    }
+    return {
+      ok: true,
+      json: async () => ({ embedding: vector(13) }),
+    }
+  }
+
+  const summary = await rebuildIndex(deskRoot, {
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: fetchWithOversizeFailure,
+    },
+  })
+  assert.equal(summary.semantic_warnings, 0)
+  assert.equal(summary.embedding_failures_recorded, 1)
+  assert.equal(requests.length, 2)
+  assert.match(requests[0], /oversized semantic body/u)
+  assert.match(requests[1], /small semantic body/u)
+
+  const db = openDb(deskRoot)
+  try {
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 1)
+    assertVectorApprox(storedVector(db, smallPath, 0), vector(13))
+    const missingOversize = db
+      .prepare(
+        `SELECT count(*) AS count
+         FROM chunks c
+         JOIN docs d ON d.id = c.doc_id
+         LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+         WHERE d.path = ? AND v.chunk_id IS NULL`,
+      )
+      .get(oversizePath).count
+    assert.equal(missingOversize, 1)
+    const failure = db
+      .prepare(
+        `SELECT reason, message
+         FROM chunk_embedding_failures`,
+      )
+      .get()
+    assert.equal(failure.reason, "http_500")
+    assert.match(failure.message, /input length exceeds the context length/u)
+  } finally {
+    closeDb(db)
+  }
+
+  const second = await rebuildIndex(deskRoot, {
+    reembedMissing: true,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: fetchWithOversizeFailure,
+    },
+  })
+  assert.equal(second.docs_indexed, 0)
+  assert.equal(second.docs_skipped, 2)
+  assert.equal(requests.length, 2)
+
+  const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("known chunk-local failures should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(ensured.built, false)
+  assert.equal(ensured.reason, "fresh")
+  assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.known_unembeddable_vectors, 1)
+  assert.equal(ensured.semantic.repairable_missing_vectors, 0)
+})
+
+test("ensureIndex imports vector packs for chunks previously marked unembeddable", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-plugin-vector-repair-")
+  const oversizePath = "trackA/task-oversize/task.md"
+  const oversizeBody = "---\nstatus: processing\n---\noversized semantic body"
+  await writeFile(deskRoot, oversizePath, oversizeBody)
+
+  await rebuildIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }),
+    },
+  })
+
+  const before = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("known chunk-local failures should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(before.built, false)
+  assert.equal(before.semantic.missing_vectors, 1)
+  assert.equal(before.semantic.known_unembeddable_vectors, 1)
+  assert.equal(before.semantic.repairable_missing_vectors, 0)
+
+  await writePack({
+    pluginRoot,
+    packId: "late-pack",
+    rows: [rowForDoc({
+      docPath: oversizePath,
+      body: oversizeBody,
+      seed: 17,
+    })],
+  })
+
+  const repaired = await ensureIndex(deskRoot, {
+    snapshots: false,
+    vectorPacks: { pluginRoot },
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("vector-pack repair should not need live embeddings")
+      },
+    },
+  })
+  assert.equal(repaired.built, true)
+  assert.equal(repaired.reason, "semantic_missing")
+  assert.equal(repaired.summary.vector_packs.rows_imported, 1)
+  assert.equal(repaired.semantic.missing_vectors, 0)
+  assert.equal(repaired.semantic.known_unembeddable_vectors, 0)
+  assert.equal(repaired.semantic.repairable_missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, oversizePath, 0), vector(17))
+    assert.equal(
+      db.prepare("SELECT count(*) AS count FROM chunk_embedding_failures").get().count,
+      0,
+    )
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex skips repeated no-op vector-pack repair for unchanged known-unembeddable misses", async () => {
+  const deskRoot = await tmpRoot()
+  const oversizePath = "trackA/task-oversize/task.md"
+  const oversizeBody = "---\nstatus: processing\n---\nknown oversize body"
+  await writeFile(deskRoot, oversizePath, oversizeBody)
+
+  await rebuildIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }),
+    },
+  })
+
+  await writePack({
+    pluginRoot: deskRoot,
+    packId: "unmatched",
+    rows: [rowForDoc({
+      docPath: "trackA/other/task.md",
+      body: "---\nstatus: processing\n---\nother vector pack body",
+      seed: 19,
+    })],
+  })
+
+  const first = await ensureIndex(deskRoot, {
+    snapshots: false,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("known chunk-local failures should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(first.built, true)
+  assert.equal(first.reason, "semantic_missing")
+  assert.equal(first.summary.vector_packs.import_state, "validated")
+  assert.equal(first.summary.vector_packs.rows_imported, 0)
+  assert.equal(first.semantic.missing_vectors, 1)
+  assert.equal(first.semantic.known_unembeddable_vectors, 1)
+  assert.equal(first.semantic.repairable_missing_vectors, 0)
+
+  const packPath = path.join(
+    deskRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+    "unmatched.jsonl",
+  )
+  await fs.writeFile(packPath, "not valid jsonl\n", "utf8")
+
+  const second = await ensureIndex(deskRoot, {
+    snapshots: false,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("cached no-op vector-pack repair should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(second.built, false)
+  assert.equal(second.reason, "fresh")
+  assert.equal(second.semantic.missing_vectors, 1)
+  assert.equal(second.semantic.known_unembeddable_vectors, 1)
+  assert.equal(second.semantic.repairable_missing_vectors, 0)
+
+  await writePack({
+    pluginRoot: deskRoot,
+    packId: "unmatched",
+    rows: [rowForDoc({
+      docPath: oversizePath,
+      body: oversizeBody,
+      seed: 29,
+    })],
+  })
+
+  const repaired = await ensureIndex(deskRoot, {
+    snapshots: false,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("changed vector pack should repair without live embeddings")
+      },
+    },
+  })
+  assert.equal(repaired.built, true)
+  assert.equal(repaired.reason, "semantic_missing")
+  assert.equal(repaired.summary.vector_packs.rows_imported, 1)
+  assert.equal(repaired.semantic.missing_vectors, 0)
+  assert.equal(repaired.semantic.known_unembeddable_vectors, 0)
+  assert.equal(repaired.semantic.repairable_missing_vectors, 0)
+
+  const db = openDb(deskRoot)
+  try {
+    assertVectorApprox(storedVector(db, oversizePath, 0), vector(29))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("ensureIndex remembers absent vector-pack repair for known-unembeddable misses", async () => {
+  const deskRoot = await tmpRoot()
+  const pluginRoot = await tmpRoot("desk-empty-vector-pack-root-")
+  const oversizePath = "trackA/task-oversize/task.md"
+  await writeFile(
+    deskRoot,
+    oversizePath,
+    "---\nstatus: processing\n---\nknown absent pack body",
+  )
+
+  await rebuildIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }),
+    },
+  })
+
+  const first = await ensureIndex(deskRoot, {
+    snapshots: false,
+    vectorPacks: { pluginRoot },
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("known chunk-local failures should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(first.built, true)
+  assert.equal(first.reason, "semantic_missing")
+  assert.equal(first.summary.vector_packs.import_state, "absent")
+  assert.equal(first.summary.vector_packs.rows_imported, 0)
+  assert.equal(first.semantic.known_unembeddable_vectors, 1)
+  assert.equal(first.semantic.repairable_missing_vectors, 0)
+
+  const second = await ensureIndex(deskRoot, {
+    snapshots: false,
+    vectorPacks: { pluginRoot },
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => {
+        throw new Error("cached absent vector-pack repair should not probe embeddings")
+      },
+    },
+  })
+  assert.equal(second.built, false)
+  assert.equal(second.reason, "fresh")
+  assert.equal(second.semantic.known_unembeddable_vectors, 1)
+  assert.equal(second.semantic.repairable_missing_vectors, 0)
+})
+
+test("ensureIndex still validates malformed vector packs with missing sidecars", async () => {
+  const deskRoot = await tmpRoot()
+  const oversizePath = "trackA/task-oversize/task.md"
+  await writeFile(
+    deskRoot,
+    oversizePath,
+    "---\nstatus: processing\n---\nknown malformed pack body",
+  )
+
+  await rebuildIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:11434",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }),
+    },
+  })
+
+  const packDir = path.join(
+    deskRoot,
+    "artifacts",
+    "vector-packs",
+    ACTIVE_EMBEDDING_SPEC.id,
+  )
+  await fs.mkdir(packDir, { recursive: true })
+  await fs.writeFile(path.join(packDir, "missing-sidecars.jsonl"), "{}\n", "utf8")
+
+  await assert.rejects(
+    () => ensureIndex(deskRoot, {
+      snapshots: false,
+      vectorPacks: { pluginRoot: deskRoot },
+      embed: {
+        endpoint: "http://127.0.0.1:11434",
+        fetch: async () => {
+          throw new Error("malformed vector pack should fail before live embedding")
+        },
+      },
+    }),
+    /manifest/u,
+  )
 })
 
 test("rebuildIndex with disabled embeddings still succeeds when vector packs cover all chunks", async () => {
@@ -556,6 +941,92 @@ test("ensureIndex reports failure diagnostics when probe succeeds but rebuild em
     "embedding_generation_failed",
   )
   assert.equal(ensured.semantic.missing_vectors, 1)
+})
+
+test("ensureIndex preserves probe diagnostics when repair records a known unembeddable chunk", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-oversize/task.md"
+  const body = "---\nstatus: processing\n---\noversized repair body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, { skipEmbed: true })
+
+  let calls = 0
+  const probeThenOversize = async () => {
+    calls += 1
+    if (calls === 1) {
+      return {
+        ok: true,
+        json: async () => ({ embedding: vector(43) }),
+      }
+    }
+    return {
+      ok: false,
+      status: 500,
+      json: async () => ({
+        error: "the input length exceeds the context length",
+      }),
+    }
+  }
+
+  const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: probeThenOversize,
+    },
+  })
+  assert.equal(calls, 2)
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "semantic_missing")
+  assert.equal(ensured.summary.semantic_warnings, 0)
+  assert.equal(ensured.summary.embedding_failures_recorded, 1)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.known_unembeddable_vectors, 1)
+  assert.equal(ensured.semantic.repairable_missing_vectors, 0)
+  assert.equal(ensured.semantic.embedding_available, true)
+  assert.equal(ensured.semantic.embedding_diagnostic.reason, "ok")
+})
+
+test("ensureIndex treats stale known-unembeddable-only coverage as semantically available", async () => {
+  const deskRoot = await tmpRoot()
+  const docPath = "trackA/task-oversize/task.md"
+  const body = "---\nstatus: processing\n---\nstale known oversize body"
+  await writeFile(deskRoot, docPath, body)
+  await rebuildIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({
+          error: "the input length exceeds the context length",
+        }),
+      }),
+    },
+  })
+  const future = new Date(Date.now() + 5000)
+  await fs.utimes(path.join(deskRoot, docPath), future, future)
+
+  const ensured = await ensureIndex(deskRoot, {
+    ...NO_RELEASE_ARTIFACTS,
+    embed: {
+      endpoint: "http://127.0.0.1:9/api/embeddings",
+      fetch: async () => {
+        throw new Error("known chunk-local failures should not probe embeddings")
+      },
+    },
+  })
+
+  assert.equal(ensured.built, true)
+  assert.equal(ensured.reason, "stale")
+  assert.equal(ensured.summary.docs_skipped, 1)
+  assert.equal(ensured.summary.semantic_warnings, 0)
+  assert.equal(ensured.semantic.missing_vectors, 1)
+  assert.equal(ensured.semantic.known_unembeddable_vectors, 1)
+  assert.equal(ensured.semantic.repairable_missing_vectors, 0)
+  assert.equal(ensured.semantic.embedding_available, true)
+  assert.equal(ensured.semantic.embedding_diagnostic, undefined)
 })
 
 test("ensureIndex preserves successful probe diagnostics after live embedding repair", async () => {

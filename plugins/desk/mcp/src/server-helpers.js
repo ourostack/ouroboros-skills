@@ -8,7 +8,7 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
-import { closeDb, indexDbPath, openDb, setMeta } from "./db/init.js"
+import { closeDb, getMeta, indexDbPath, openDb, setMeta } from "./db/init.js"
 import { discover } from "./indexer/discover.js"
 import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 import { probeEmbeddingService } from "./indexer/embed.js"
@@ -19,6 +19,8 @@ const EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC = {
   reason: "embedding_generation_failed",
   message: "one or more document embeddings could not be generated during rebuild",
 }
+const VECTOR_PACK_NOOP_REPAIR_SIGNATURE_META_KEY =
+  "vector_pack_noop_repair_signature"
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_MCP_ROOT = path.resolve(MODULE_DIR, "..")
 const DEFAULT_PLUGIN_ROOT = path.resolve(DEFAULT_MCP_ROOT, "..")
@@ -116,7 +118,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
           )
         }
       }
-      repairMissing = await shouldRepairMissingEmbeddings(effectiveOpts, semanticBefore)
+      repairMissing = await shouldRepairMissingEmbeddings(db, effectiveOpts, semanticBefore)
     }
     const summary = await rebuildIndex(deskRoot, {
       ...effectiveOpts,
@@ -125,6 +127,7 @@ export async function ensureIndex(deskRoot, opts = {}) {
     })
     const semanticAfter = getSemanticCoverage(db)
     assignEmbeddingAvailability(semanticAfter, semanticBefore, summary)
+    rememberVectorPackNoopRepair(db, effectiveOpts, summary, semanticAfter)
     const result = {
       built: true,
       reason: snapshot?.restored ? "stale_snapshot_reconciled" : dbExisted ? "stale" : "missing",
@@ -371,16 +374,47 @@ export function getSemanticCoverage(db) {
     ACTIVE_EMBEDDING_SPEC.chunker_id,
     ACTIVE_EMBEDDING_SPEC.normalization_id,
   ).n
+  const knownFailures = db.prepare(
+    `SELECT COUNT(*) AS n
+     FROM chunks c
+     LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+     JOIN chunk_embedding_failures f
+       ON f.chunk_key = c.chunk_key
+      AND f.text_hash = c.text_hash
+      AND f.embedding_spec_id = c.embedding_spec_id
+      AND f.chunker_id = c.chunker_id
+      AND f.normalization_id = c.normalization_id
+     WHERE v.chunk_id IS NULL
+       AND c.embedding_spec_id = ?
+       AND c.chunker_id = ?
+       AND c.normalization_id = ?`,
+  ).get(
+    ACTIVE_EMBEDDING_SPEC.id,
+    ACTIVE_EMBEDDING_SPEC.chunker_id,
+    ACTIVE_EMBEDDING_SPEC.normalization_id,
+  ).n
+  const missing = Math.max(0, chunks - vectors)
   return {
     chunks_total: chunks,
     vectors_indexed: vectors,
-    missing_vectors: Math.max(0, chunks - vectors),
+    missing_vectors: missing,
+    known_unembeddable_vectors: knownFailures,
+    repairable_missing_vectors: Math.max(0, missing - knownFailures),
   }
 }
 
-async function shouldRepairMissingEmbeddings(opts, semantic) {
-  if (!semantic || semantic.missing_vectors <= 0) return false
-  if (opts.vectorPacks?.pluginRoot) return true
+async function shouldRepairMissingEmbeddings(db, opts, semantic) {
+  if (semantic.missing_vectors <= 0) return false
+  if (opts.vectorPacks?.pluginRoot) {
+    if (
+      semantic.repairable_missing_vectors <= 0 &&
+      vectorPackNoopRepairAlreadyTried(db, opts.vectorPacks)
+    ) {
+      return false
+    }
+    return true
+  }
+  if (semantic.repairable_missing_vectors <= 0) return false
   if (opts.skipEmbed) return false
   const probe = await probeEmbeddingService(opts.embed ?? {})
   semantic.embedding_available = probe.available
@@ -389,13 +423,19 @@ async function shouldRepairMissingEmbeddings(opts, semantic) {
 }
 
 async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
-  const shouldRepair = await shouldRepairMissingEmbeddings(opts, semantic)
+  const shouldRepair = await shouldRepairMissingEmbeddings(db, opts, semantic)
   if (!shouldRepair) return null
   const summary = await rebuildIndex(deskRoot, {
     ...opts,
     db,
     reembedMissing: true,
   })
+  const semanticAfter = assignEmbeddingAvailability(
+    getSemanticCoverage(db),
+    semantic,
+    summary,
+  )
+  rememberVectorPackNoopRepair(db, opts, summary, semanticAfter)
   return {
     built: true,
     reason: "semantic_missing",
@@ -404,11 +444,7 @@ async function maybeRepairMissingEmbeddings(deskRoot, db, opts, semantic) {
     vector_packs: fallbackFor(opts, null, summary.vector_packs) === "vector_packs"
       ? fallbackVectorPackStatus(summary.vector_packs)
       : summary.vector_packs,
-    semantic: assignEmbeddingAvailability(
-      getSemanticCoverage(db),
-      semantic,
-      summary,
-    ),
+    semantic: semanticAfter,
   }
 }
 
@@ -416,6 +452,11 @@ function assignEmbeddingAvailability(target, source, summary) {
   if (summary.semantic_warnings > 0) {
     target.embedding_available = false
     target.embedding_diagnostic = EMBEDDING_GENERATION_FAILURE_DIAGNOSTIC
+  } else if (target.repairable_missing_vectors === 0 && target.missing_vectors > 0) {
+    target.embedding_available = source.embedding_available ?? true
+    if (source.embedding_diagnostic) {
+      target.embedding_diagnostic = source.embedding_diagnostic
+    }
   } else if (source.embedding_available === true) {
     target.embedding_available = true
     if (source.embedding_diagnostic) {
@@ -432,6 +473,135 @@ function assignEmbeddingAvailability(target, source, summary) {
     }
   }
   return target
+}
+
+function rememberVectorPackNoopRepair(db, opts, summary, semantic) {
+  if (!opts.vectorPacks?.pluginRoot) return
+  if (
+    summary.vector_packs.rows_imported === 0 &&
+    semantic.missing_vectors > 0 &&
+    semantic.repairable_missing_vectors === 0
+  ) {
+    const signature = vectorPackNoopRepairSignature(db, opts.vectorPacks)
+    setMeta(db, VECTOR_PACK_NOOP_REPAIR_SIGNATURE_META_KEY, signature)
+    return
+  }
+  db.prepare("DELETE FROM meta WHERE key = ?")
+    .run(VECTOR_PACK_NOOP_REPAIR_SIGNATURE_META_KEY)
+}
+
+function vectorPackNoopRepairAlreadyTried(db, vectorPacks) {
+  const signature = vectorPackNoopRepairSignature(db, vectorPacks)
+  return getMeta(db, VECTOR_PACK_NOOP_REPAIR_SIGNATURE_META_KEY) === signature
+}
+
+function vectorPackNoopRepairSignature(db, vectorPacks) {
+  const knownMissing = knownUnembeddableMissingChunks(db)
+  return stableJsonDigest({
+    schema_version: 1,
+    embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
+    chunks: knownMissing,
+    vector_packs: vectorPackArtifactState(vectorPacks),
+  })
+}
+
+function knownUnembeddableMissingChunks(db) {
+  return db.prepare(
+    `SELECT
+       c.chunk_key,
+       c.text_hash,
+       c.embedding_spec_id,
+       c.chunker_id,
+       c.normalization_id
+     FROM chunks c
+     LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+     JOIN chunk_embedding_failures f
+       ON f.chunk_key = c.chunk_key
+      AND f.text_hash = c.text_hash
+      AND f.embedding_spec_id = c.embedding_spec_id
+      AND f.chunker_id = c.chunker_id
+      AND f.normalization_id = c.normalization_id
+     WHERE v.chunk_id IS NULL
+       AND c.embedding_spec_id = ?
+       AND c.chunker_id = ?
+       AND c.normalization_id = ?
+     ORDER BY
+       c.chunk_key,
+       c.text_hash,
+       c.embedding_spec_id,
+       c.chunker_id,
+       c.normalization_id`,
+  ).all(
+    ACTIVE_EMBEDDING_SPEC.id,
+    ACTIVE_EMBEDDING_SPEC.chunker_id,
+    ACTIVE_EMBEDDING_SPEC.normalization_id,
+  )
+}
+
+function vectorPackArtifactState(vectorPacks) {
+  return vectorPackRoots(vectorPacks).map((root) => {
+    const packDir = path.join(
+      root,
+      "artifacts",
+      "vector-packs",
+      ACTIVE_EMBEDDING_SPEC.id,
+    )
+    return {
+      root: normalizeArtifactPath(root),
+      packs: vectorPackSidecarState(packDir),
+    }
+  })
+}
+
+function vectorPackRoots(vectorPacks) {
+  return [...new Set([
+    vectorPacks.pluginRoot,
+    ...(Array.isArray(vectorPacks.fallbackPluginRoots)
+      ? vectorPacks.fallbackPluginRoots
+      : []),
+  ].filter((value) => textOrNull(value)).map((value) => path.resolve(value)))]
+}
+
+function vectorPackSidecarState(packDir) {
+  let entries
+  try {
+    entries = readdirSync(packDir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
+    .map((entry) => entry.name)
+    .sort()
+    .map((pack) => {
+      const packPath = path.join(packDir, pack)
+      const base = packPath.slice(0, -".jsonl".length)
+      return {
+        pack,
+        manifest_sha256: fileDigest(`${base}.manifest.json`),
+        checksum_sha256: fileDigest(`${base}.sha256`),
+      }
+    })
+}
+
+function fileDigest(file) {
+  try {
+    return stableFileDigest(readFileSync(file))
+  } catch {
+    return null
+  }
+}
+
+function stableJsonDigest(value) {
+  const hash = createHash("sha256")
+  hash.update(JSON.stringify(value))
+  return `sha256:${hash.digest("hex")}`
+}
+
+function stableFileDigest(buffer) {
+  const hash = createHash("sha256")
+  hash.update(buffer)
+  return `sha256:${hash.digest("hex")}`
 }
 
 function withSnapshot(result, snapshot, fallback = null) {

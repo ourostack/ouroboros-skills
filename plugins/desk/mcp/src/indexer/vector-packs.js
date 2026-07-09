@@ -164,7 +164,13 @@ export async function importVectorPacks({
 
   const seenInRun = new Set()
   const findChunks = db.prepare(
-    `SELECT id, text_hash
+    `SELECT
+       id,
+       text_hash,
+       chunk_key,
+       embedding_spec_id,
+       chunker_id,
+       normalization_id
      FROM chunks
      WHERE chunk_key = ?
      ORDER BY id`,
@@ -174,6 +180,14 @@ export async function importVectorPacks({
   )
   const insertVector = db.prepare(
     "INSERT INTO chunk_vecs (chunk_id, embedding) VALUES (?, ?)",
+  )
+  const deleteFailure = db.prepare(
+    `DELETE FROM chunk_embedding_failures
+     WHERE chunk_key = @chunk_key
+       AND text_hash = @text_hash
+       AND embedding_spec_id = @embedding_spec_id
+       AND chunker_id = @chunker_id
+       AND normalization_id = @normalization_id`,
   )
 
   for (const packPath of packFiles) {
@@ -220,6 +234,7 @@ export async function importVectorPacks({
             continue
           }
           insertVector.run(BigInt(chunk.id), new Float32Array(row.vector))
+          deleteFailure.run(chunk)
           inserted += 1
         }
         if (inserted === 0) {

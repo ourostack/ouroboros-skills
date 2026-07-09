@@ -75,6 +75,7 @@ function inspectLocalDb(deskRoot) {
     sqliteVec.load(db)
     const chunksTableExists = tableExists(db, "chunks")
     const vectorsTableExists = tableExists(db, "chunk_vecs")
+    const embeddingFailuresTableExists = tableExists(db, "chunk_embedding_failures")
     const lexicalAvailable = tableExists(db, "chunks_fts")
     const chunksTotal = chunksTableExists ? countRows(db, "chunks") : 0
     const vectorsIndexed = countActiveVectors(db, {
@@ -82,6 +83,12 @@ function inspectLocalDb(deskRoot) {
       vectorsTableExists,
     })
     const missingVectors = Math.max(0, chunksTotal - vectorsIndexed)
+    const knownUnembeddableVectors = countKnownUnembeddableVectors(db, {
+      chunksTableExists,
+      vectorsTableExists,
+      embeddingFailuresTableExists,
+    })
+    const repairableMissingVectors = Math.max(0, missingVectors - knownUnembeddableVectors)
     const freshness = inspectFreshness(deskRoot, db)
     return {
       local_db: {
@@ -99,12 +106,15 @@ function inspectLocalDb(deskRoot) {
         state: documentVectorState({
           chunksTotal,
           missingVectors,
+          repairableMissingVectors,
           vectorsIndexed,
           vectorsTableExists,
         }),
         chunks_total: chunksTotal,
         vectors_indexed: vectorsIndexed,
         missing_vectors: missingVectors,
+        known_unembeddable_vectors: knownUnembeddableVectors,
+        repairable_missing_vectors: repairableMissingVectors,
         coverage: vectorsIndexed / Math.max(1, chunksTotal),
       },
     }
@@ -131,6 +141,8 @@ function unavailableLocalDb(dbPath, state) {
       chunks_total: 0,
       vectors_indexed: 0,
       missing_vectors: 0,
+      known_unembeddable_vectors: 0,
+      repairable_missing_vectors: 0,
       coverage: null,
     },
   }
@@ -243,13 +255,14 @@ function snapshotRestoreState(snapshot) {
 function documentVectorState({
   chunksTotal,
   missingVectors,
+  repairableMissingVectors,
   vectorsIndexed,
   vectorsTableExists,
 }) {
   if (!vectorsTableExists) return "missing"
   if (chunksTotal === 0) return "available"
-  if (vectorsIndexed === 0) return "missing"
-  return missingVectors > 0 ? "partial" : "available"
+  if (vectorsIndexed === 0 && repairableMissingVectors > 0) return "missing"
+  return repairableMissingVectors > 0 ? "partial" : "available"
 }
 
 function inferStartupFallbackMode({ ensure, lexicalIndex }) {
@@ -259,7 +272,7 @@ function inferStartupFallbackMode({ ensure, lexicalIndex }) {
   }
   if (ensure.fallback === "vector_packs") return "vector_packs"
   if (
-    ensure.semantic?.missing_vectors > 0 &&
+    (ensure.semantic?.repairable_missing_vectors ?? ensure.semantic?.missing_vectors) > 0 &&
     lexicalIndex.available
   ) {
     return "lexical_only"
@@ -452,6 +465,51 @@ function countActiveVectors(db, { chunksTableExists, vectorsTableExists }) {
      FROM chunks c
      JOIN chunk_vecs v ON v.chunk_id = c.id
      WHERE c.embedding_spec_id = ?
+       AND c.chunker_id = ?
+       AND c.normalization_id = ?`,
+  ).get(
+    ACTIVE_EMBEDDING_SPEC.id,
+    ACTIVE_EMBEDDING_SPEC.chunker_id,
+    ACTIVE_EMBEDDING_SPEC.normalization_id,
+  ).count
+}
+
+function countKnownUnembeddableVectors(db, {
+  chunksTableExists,
+  vectorsTableExists,
+  embeddingFailuresTableExists,
+}) {
+  if (!chunksTableExists || !vectorsTableExists || !embeddingFailuresTableExists) return 0
+  if (!tableHasColumns(db, "chunks", [
+    "chunk_key",
+    "text_hash",
+    "embedding_spec_id",
+    "chunker_id",
+    "normalization_id",
+  ])) {
+    return 0
+  }
+  if (!tableHasColumns(db, "chunk_embedding_failures", [
+    "chunk_key",
+    "text_hash",
+    "embedding_spec_id",
+    "chunker_id",
+    "normalization_id",
+  ])) {
+    return 0
+  }
+  return db.prepare(
+    `SELECT COUNT(*) AS count
+     FROM chunks c
+     LEFT JOIN chunk_vecs v ON v.chunk_id = c.id
+     JOIN chunk_embedding_failures f
+       ON f.chunk_key = c.chunk_key
+      AND f.text_hash = c.text_hash
+      AND f.embedding_spec_id = c.embedding_spec_id
+      AND f.chunker_id = c.chunker_id
+      AND f.normalization_id = c.normalization_id
+     WHERE v.chunk_id IS NULL
+       AND c.embedding_spec_id = ?
        AND c.chunker_id = ?
        AND c.normalization_id = ?`,
   ).get(
