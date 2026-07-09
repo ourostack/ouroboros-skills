@@ -184,6 +184,20 @@ Do not declare completion from compilation alone. A credible native validation s
 - Scenario verifier script for core user workflows.
 - Branch protection with required checks matching workflow job names.
 
+For UI or TestFlight feedback work, validate every shipped first-level route on
+every promised platform before publishing. Use route-specific screenshot capture
+or an equivalent simulator/device matrix for the home/root surface, indexes,
+detail pages, modal/auxiliary surfaces, settings panes, and any reported broken
+workflow such as cook mode. A single happy-path screenshot or compile-only app
+bundle is not enough evidence for native visual polish.
+
+For TestFlight builds that depend on Sign in with Apple or Universal Links,
+validate the production AASA/backend auth contract immediately before archive
+and upload. The Apple JWT audience must match the shipped bundle identifiers
+for every native platform, and the production AASA file must advertise those
+same bundle IDs under the active Team ID. Fix web/backend drift first; do not
+publish a native build over a known AASA/auth blocker.
+
 Paid-program distribution is a separate gate. TestFlight/App Store upload requires Apple Developer Program membership and App Store Connect access; until that exists, validate through local simulator, local macOS app, and any free-account device testing available through Xcode.
 
 Treat app-target builds as a distinct validation ring from Swift package tests. SwiftPM tests may compile shared core and source-contract tests without compiling SwiftUI app-target files, AppIntents macro expansion, target membership, or app-only availability/sendability diagnostics. After any edit under an app target or generated Xcode project membership, run or wait for an `xcodebuild`/CI app-bundle job before claiming compile validation; package tests are supplemental evidence only.
