@@ -59,6 +59,16 @@ function writeCache(codexHome, namespace, name, version, value) {
   )
 }
 
+function writeHostMarketplace(root, { namespace = "ourostack", plugins = [] } = {}) {
+  writeJson(path.join(root, ".agents", "plugins", "marketplace.json"), {
+    name: namespace,
+    plugins: plugins.map(([name, sourcePath]) => ({
+      name,
+      source: { source: "local", path: sourcePath },
+    })),
+  })
+}
+
 function makeFixture({ namespace = "ourostack" } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "desk-cache-audit-node-test-"))
   const fixtureRepo = path.join(root, "repo")
@@ -100,6 +110,114 @@ test("Codex plugin cache audit derives cache namespace from marketplace name", (
       plugin.marketplace_namespace === "contoso" &&
       plugin.installed_cache_path.includes(path.join("plugins", "cache", "contoso"))
     )))
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("Codex plugin cache audit checks host implicit marketplace source drift", () => {
+  const fixture = makeFixture()
+  try {
+    writeHostMarketplace(fixture.root, {
+      plugins: [
+        ["desk", "./repo/plugins/desk"],
+        ["work-suite", "./repo/plugins/work-suite"],
+      ],
+    })
+    const current = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    })
+    assert.equal(current.status, "current")
+    assert.equal(current.host_marketplace.provided, true)
+    assert.equal(current.host_marketplace.current, true)
+    assert.equal(current.host_marketplace.reason, "current")
+    assert.equal(current.host_marketplace.namespace_current, true)
+    assert.ok(current.host_marketplace.plugins.every((plugin) => plugin.current))
+
+    writePlugin(fixture.root, "desk", "1.7.2")
+    writePlugin(fixture.root, "work-suite", "1.4.8")
+    writeHostMarketplace(fixture.root, {
+      plugins: [
+        ["desk", "./plugins/desk"],
+        ["work-suite", "./plugins/work-suite"],
+      ],
+    })
+    const stale = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    })
+    assert.equal(stale.status, "stale")
+    assert.equal(stale.host_marketplace.provided, true)
+    assert.equal(stale.host_marketplace.current, false)
+    assert.equal(stale.host_marketplace.reason, "source-drift")
+    assert.equal(stale.host_marketplace.plugins.find((plugin) => plugin.name === "desk").reason, "manifest-drift")
+    assert.match(stale.host_marketplace.guidance, /Repoint ~\/\.agents\/plugins\/marketplace\.json/u)
+
+    writeHostMarketplace(fixture.root, {
+      namespace: "contoso",
+      plugins: [
+        ["desk", "./repo/plugins/desk"],
+        ["work-suite", "./repo/plugins/work-suite"],
+      ],
+    })
+    const namespaceMismatch = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+    })
+    assert.equal(namespaceMismatch.status, "stale")
+    assert.equal(namespaceMismatch.host_marketplace.reason, "namespace-mismatch")
+    assert.equal(namespaceMismatch.host_marketplace.namespace_current, false)
+
+    writePlugin(path.join(fixture.repoRoot, "host-root"), "desk", "1.7.3")
+    writeJson(path.join(fixture.repoRoot, "host-marketplace.json"), {
+      name: "ourostack",
+      plugins: [
+        {
+          name: "desk",
+          source: { source: "local", path: "./plugins/desk" },
+        },
+      ],
+    })
+    const relativeHostPaths = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      hostMarketplacePath: "host-marketplace.json",
+      hostMarketplaceRoot: "host-root",
+      plugins: ["desk"],
+    })
+    assert.equal(relativeHostPaths.status, "current")
+    assert.equal(relativeHostPaths.host_marketplace.path, path.join(fixture.repoRoot, "host-marketplace.json"))
+    assert.equal(relativeHostPaths.host_marketplace.root, path.join(fixture.repoRoot, "host-root"))
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("Codex plugin cache audit reports malformed host marketplace entries", () => {
+  const fixture = makeFixture()
+  try {
+    writeJson(path.join(fixture.root, ".agents", "plugins", "marketplace.json"), {
+      name: "ourostack",
+      plugins: [
+        {
+          name: "desk",
+          source: false,
+        },
+      ],
+    })
+    const report = auditCodexPluginCache({
+      repoRoot: fixture.repoRoot,
+      codexHome: fixture.codexHome,
+      plugins: ["desk", "work-suite"],
+    })
+    assert.equal(report.status, "stale")
+    assert.equal(report.host_marketplace.current, false)
+    assert.equal(report.host_marketplace.reason, "source-drift")
+    assert.equal(report.host_marketplace.plugins[0].reason, "missing-marketplace-source")
+    assert.equal(report.host_marketplace.plugins[0].host_marketplace_source_path, null)
+    assert.equal(report.host_marketplace.plugins[1].reason, "missing-marketplace-entry")
+    assert.equal(report.host_marketplace.plugins[1].host_marketplace_source_path, null)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }
@@ -345,6 +463,46 @@ test("Codex plugin cache audit CLI covers strict and error paths", () => {
       "plugins",
       "marketplace.json",
     ))
+
+    writeHostMarketplace(fixture.root, {
+      plugins: [
+        ["desk", "./repo/plugins/desk"],
+      ],
+    })
+    const hostMarketplaceStdout = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--host-marketplace", path.join(fixture.root, ".agents", "plugins", "marketplace.json"),
+          "--host-marketplace-root", fixture.root,
+          "--plugins", "desk",
+        ],
+        stdout: { write: (text) => hostMarketplaceStdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      }),
+      0,
+    )
+    const hostMarketplaceReport = JSON.parse(hostMarketplaceStdout.join(""))
+    assert.equal(hostMarketplaceReport.host_marketplace.provided, true)
+    assert.equal(hostMarketplaceReport.host_marketplace.root, fixture.root)
+
+    const disabledHostMarketplaceStdout = []
+    assert.equal(
+      run({
+        argv: [
+          "--repo-root", fixture.repoRoot,
+          "--codex-home", fixture.codexHome,
+          "--no-host-marketplace",
+          "--plugins", "desk",
+        ],
+        stdout: { write: (text) => disabledHostMarketplaceStdout.push(text) },
+        stderr: { write: (text) => stderr.push(text) },
+      }),
+      0,
+    )
+    assert.equal(JSON.parse(disabledHostMarketplaceStdout.join("")).host_marketplace.provided, false)
 
     rmSync(path.join(fixture.codexHome, "plugins", "cache"), { recursive: true, force: true })
     const staleStdout = []
