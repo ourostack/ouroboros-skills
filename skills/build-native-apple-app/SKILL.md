@@ -51,6 +51,7 @@ Before converting a web/product surface into native work units, audit the curren
 - Mark each surface as native UI, secure web handoff, custom URL-scheme-only native action, or intentionally out of scope because it is not a current product surface.
 - Do not add comments, feeds, likes, meal planning, media libraries, or other future product surfaces while doing parity work unless the operator explicitly expands scope.
 - When planning, audit, parity matrix, and doing docs all act as source material, keep them aligned. If a later reviewer narrows or corrects scope, update the supporting artifacts too and add a stale-language check for the old requirement.
+- Preserve the source product's information architecture and language before translating the chrome. For each detail surface, read the actual web route and its local components/models, name the canonical sections/actions in the audit, and reject invented native abstractions that rename or reorder product concepts. A native recipe page, for example, should preserve a web `RecipeHeader`/masthead/control area, `Steps`, per-step `Ingredients`, dependency rows, instructions, and `Cooks` rather than inventing an "ingredient receipt" plus generic "method" split.
 - Distinguish Associated Domains/Universal Links for real HTTPS routes from custom URL schemes for native-only actions. Do not AASA-claim routes that do not exist unless the plan explicitly adds and tests those web routes.
 - When a web framework has layout, index, or pathless routes, make route manifests module-aware rather than URL-only. Track both route identity/file and URL pattern, and allow duplicate URL patterns only when the modules coalesce to one URL-level universal-link/share decision.
 - Keep parity matrices and route plans explicit about this split: AASA/universal links cover real web route modules, while native-only actions such as sheet entry points, local drafts, and command shortcuts stay custom-scheme-only until a tested web route exists.
@@ -148,6 +149,7 @@ For TestFlight-driven fixes:
 - Keep mobile navigation escapable. Compact iPhone toolbars, docks, tab bars, and Liquid Glass overlays must expose an obvious route back to the app's home/root surface and must not strand users inside shopping, cook mode, capture, search, settings, or detail flows.
 - Prefer native controls and system-adjacent placement before building custom chrome. If custom chrome ships, add source-contract and screenshot tests for layout bounds, tappable actions, Dynamic Type, safe-area behavior, and overlap with content.
 - Preserve the product palette and image policy. Source native colors from the product design language or web tokens and enforce drift with CI/source-contract checks. Do not show fake/default food photos as real content; distinguish real media from generated placeholders and render an honest no-photo or capture state unless a real appetizing image exists.
+- Keep fixed custom chrome from visually competing with content. Floating docks, bottom bars, and Liquid Glass controls need opaque or deliberately masked backing, route-specific safe-area contracts, and screenshot proof that no partial button, stale row, or next section peeks through the chrome. Do not add fake in-content spacers that distort the product structure when the shell/dock contract is the real issue.
 - Make loading, empty, offline, error, and permission states first-class screens. Screenshot captures should prove these states are calm, branded, non-overlapping, and actionable.
 - Do not close a feedback item from tests alone. Run focused tests, app-target build validation, screenshot-backed visual QA for the reported route, and TestFlight publish/attachment verification when the fix is intended for testers. Notify the user or helper agent only after the new build is actually available or after a concrete human-only blocker is proven.
 
@@ -181,6 +183,20 @@ Do not declare completion from compilation alone. A credible native validation s
 - Accessibility pass for Dynamic Type, VoiceOver names, contrast, keyboard navigation, and Reduce Motion.
 - Scenario verifier script for core user workflows.
 - Branch protection with required checks matching workflow job names.
+
+For UI or TestFlight feedback work, validate every shipped first-level route on
+every promised platform before publishing. Use route-specific screenshot capture
+or an equivalent simulator/device matrix for the home/root surface, indexes,
+detail pages, modal/auxiliary surfaces, settings panes, and any reported broken
+workflow such as cook mode. A single happy-path screenshot or compile-only app
+bundle is not enough evidence for native visual polish.
+
+For TestFlight builds that depend on Sign in with Apple or Universal Links,
+validate the production AASA/backend auth contract immediately before archive
+and upload. The Apple JWT audience must match the shipped bundle identifiers
+for every native platform, and the production AASA file must advertise those
+same bundle IDs under the active Team ID. Fix web/backend drift first; do not
+publish a native build over a known AASA/auth blocker.
 
 Paid-program distribution is a separate gate. TestFlight/App Store upload requires Apple Developer Program membership and App Store Connect access; until that exists, validate through local simulator, local macOS app, and any free-account device testing available through Xcode.
 
