@@ -125,6 +125,18 @@
       ]
     },
     {
+      "name": "linkedin-profile",
+      "path": "skills/linkedin-profile/SKILL.md",
+      "description": "Author and publish a complete LinkedIn profile that reads like the operator, not like a model: goal, audience model, verbatim voice capture, fold-first drafting, section-by-section locks (About, Headline, Experience, Featured, Skills, small fields), browser publishing with character-level verification, then a rubric audit loop. Invoke when the user asks to refresh, rewrite, audit, or fix their LinkedIn profile or any section of it. Do NOT invoke for LinkedIn posts/content strategy, or for resumes (different artifact, different rules).",
+      "tags": [
+        "writing",
+        "profile",
+        "career",
+        "browser-automation",
+        "voice"
+      ]
+    },
+    {
       "name": "mac-app-distribution",
       "path": "skills/mac-app-distribution/SKILL.md",
       "description": "Plan, build, validate, and operate macOS app distribution across direct download, DMG, update manifests, hosted download pages, TestFlight, and Mac App Store submission.",
