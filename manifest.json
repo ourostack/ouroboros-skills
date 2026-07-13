@@ -127,7 +127,7 @@
     {
       "name": "linkedin-profile",
       "path": "skills/linkedin-profile/SKILL.md",
-      "description": "Author and publish a complete LinkedIn profile that reads like the operator, not like a model. Covers the full arc: pick the one conversion goal, build the audience model, capture the operator's real voice verbatim, draft fold-first, lock sections in order (About → Headline → Experience → Featured → Skills → small fields), publish via browser automation with character-level verification, then audit to a rubric until nothing improves. Invoke when the user asks to refresh, rewrite, audit, or \"fix\" their LinkedIn profile, or any section of it (About, headline, experience entries, skills, featured). Encodes hard-won failure modes: model-judged bake-offs produce polished-wrong drafts; the operator is the only valid evaluator; synthetic typing silently drops characters. Do NOT invoke for writing LinkedIn posts/content strategy, or for resumes (different artifact, different rules).",
+      "description": "Author and publish a complete LinkedIn profile that reads like the operator, not like a model: goal, audience model, verbatim voice capture, fold-first drafting, section-by-section locks (About, Headline, Experience, Featured, Skills, small fields), browser publishing with character-level verification, then a rubric audit loop. Invoke when the user asks to refresh, rewrite, audit, or fix their LinkedIn profile or any section of it. Do NOT invoke for LinkedIn posts/content strategy, or for resumes (different artifact, different rules).",
       "tags": [
         "writing",
         "profile",
