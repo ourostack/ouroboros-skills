@@ -56,10 +56,17 @@ when `desk_status` is callable:
 - if it reports healthy/fresh state, include `Desk MCP: available` in the session-start status block.
 - if it reports degraded state (missing/stale DB, lexical index, vector coverage, runtime pack, snapshot, or embedding endpoint), include a concise `Desk MCP: degraded` line with the `desk_status` guidance. degraded is not the same as absent: the agent can still use MCP-backed CRUD/status and can repair via `desk_reindex`, runtime-pack verification, snapshot/vector-pack import, or embedding/Ollama checks.
 
-when `desk_status` or the Desk MCP namespace is absent:
-- do **not** silently continue in local-only mode.
-- explain the impact in plain language: Desk MCP is the structured access path for task/track CRUD, durable status, friction/lesson writes, search/recall/timeline/thread queries, reindexing, snapshots, and vector-pack health. without it, a desk-based agent can still use shell/file/git tools, but durable task lifecycle updates, historical recall, cross-session resumption, and shared-worker continuity are weaker and easier to fork.
-- present exactly one decision group:
+when `desk_status` or the Desk MCP namespace is absent, first classify the absence. the Desk MCP is an **optional capability** — task/track CRUD, durable status, friction/lesson writes, search/recall/timeline queries, reindex, snapshots — **not a prerequisite.** a desk-based agent runs fine on shell/file/git tools without it; only durable task lifecycle updates, historical recall, cross-session resumption, and shared-worker continuity are weaker. so its absence is never a hard stop and never framed as "broken." classify by whether this host was ever actually set up to provide it:
+
+**not-yet-set-up / can't-run-here — stay calm, do NOT prompt.** this is the *default* reading of absence, and covers three overlapping cases: **first run** (`$DESK/` doesn't exist yet — there's no desk for the MCP to serve, and you're about to hand off to `first-run-bootstrap`); a desk that **never had the MCP enabled** (nothing in the runtime/workspace MCP config references Desk MCP, no activation bridge, no prior-healthy marker); and a **host/platform launch failure** (the native `better-sqlite3` / `sqlite-vec` binaries don't match the platform — common on Windows and fresh machines — so the MCP can't start here regardless of the desk). none of these is the operator's fault to chase mid-onboarding. record exactly one calm optional-capability line for the status block — and if you're handing off to `first-run-bootstrap`, just carry it forward; do not separately prompt or repair:
+
+```text
+Desk MCP: not set up yet (optional — I'll use file/git tools; richer desk search/CRUD can be enabled later)
+```
+
+if the operator later asks for something that specifically needs MCP-backed search/CRUD, mention the gap *then* — and if the block is a host/platform one (native binaries), frame it as optional enablement/rebuild guidance, not a required fix.
+
+**genuine regression on a desk that had it — offer the repair (still optional, still not a hard stop).** only when `$DESK/` already exists **and** there's positive evidence the MCP was expected and healthy here — the runtime/workspace MCP config references Desk MCP, an activation-owned bridge exists, or a prior session marked it healthy — is its absence a regression worth surfacing. in that case present the impact and exactly one decision group; do **not** silently continue in local-only mode:
 
 ```text
 Desk MCP is not available in this session. Want me to fix/reload it now, or continue without Desk MCP and stop reminding you?
@@ -259,6 +266,8 @@ crew workspace: P desks (you: <alias> → desks/<alias>) · peers: <a>, <b>
 
 omit this line entirely in single-desk (OFF) mode — no registry, no banner, byte-identical to today's output.
 
+**optional-capability lines** (from Step 0.75 Desk MCP and Step 4.7 workspace-MCP): when an optional capability is absent, it appears here as at most one calm, informational line each — e.g. `Desk MCP: not set up yet (optional — file/git tools cover it; enable richer search later)` — grouped visually apart from the task list so it reads as a capability summary, not an error. never render an absent optional capability as a warning/❌ or a "fix this" item; a healthy first run can legitimately show these lines and still be healthy. blocking-prereq failures (Step 1) never reach this block — they hard-stop earlier.
+
 if the operator picks a task to resume → hand off to the `session-resumption` skill.
 if the operator says "start new" → follow the `dual-input` skill.
 if the operator wants the fuller dashboard → invoke the `status` skill.
@@ -292,3 +301,5 @@ neither.
 every step in this skill — Step 0 plus the Step 1 through Step 5 chain (including the `.x` sub-steps for 2.5, 2.6, 4.5, 4.6, 4.7) — runs every session. Step 2.6 (desk-registry awareness) is a cheap existence-check that is silent on the single-desk happy path (no `_meta/desks.md` → no-op). the host-identity probe (Step 0) is cheap and silent on the single-host happy path; the prereq probe (Step 1) is load-bearing — most mid-session failures trace back to a missing tool, an old `gh`, or stale auth that wasn't caught at start.
 
 **auto-mode is license for action, not for skipping safety checks.** a prereq-probe failure is like a compile error: fix it, don't proceed. if the operator insists on proceeding with broken prereqs, surface the specific risk (e.g., "no gh = can't push to the workspace state repo = state won't sync across machines") and require an explicit override.
+
+**blocking prereqs vs optional capabilities — keep the two registers separate.** the hard-stop "teeth" apply *only* to the Step 1 prereqs (`gh`, gh-version, `jq`, auth) — the tools the session genuinely cannot do its job without. they do **not** apply to *optional capabilities*: the Desk MCP (Step 0.75), the workspace browser/Playwright MCP (Step 4.7), and any other enhancement MCP. an optional capability that's absent is announced calmly as "optional — here's how to enable it later," never as a failure to fix, never a hard stop, never a decision the operator must resolve before real work starts. conflating the two is exactly what turns a newcomer's first run into a rabbit hole (chasing an "error" that was only ever an optional add-on). when in doubt: if the session can do the operator's actual task without it, it's optional — say so and move on.
