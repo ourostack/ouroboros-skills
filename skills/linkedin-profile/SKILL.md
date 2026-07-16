@@ -90,6 +90,8 @@ voice as the load-bearing material and the agent as editor, publisher, and verif
 
 - **Headline:** ~220 chars; first ~60 must stand alone in search cards. Separator-segment
   form scans well: 2-4 segments — who you are, what category, what proof.
+- **Headline and Experience split the work.** Recruiter `Job titles` and `Seniority` filters derive from Experience titles, while free-text `Keywords` can reach profile copy; keep Experience accurate and use the headline for human positioning/category rather than repeating a generic title solely for structured discovery ([Recruiter filters and definitions](https://www.linkedin.com/help/recruiter/answer/a414428/recruiter-filters-and-definitions), [Edit Your Headline](https://www.linkedin.com/help/linkedin/answer/a542926/edit-your-headline)).
+- **Render, don't count.** People-search cards clamp by rendered lines, not character count; glyph width and automatic hyphenation can make a shorter candidate look worse. Test finalists in the real authenticated card at narrow widths and inspect screenshots before locking.
 - **About:** ~2,600 max, 1,100–1,800 sweet spot. First-person. Paragraph breaks survive.
 - **Experience:** ~2,000/entry. Current role carries the weight (bullet-hybrid or
   bare-facts prose); older roles are 1–3 line period pieces; delete "Technologies used:"
