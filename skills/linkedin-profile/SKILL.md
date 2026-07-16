@@ -76,6 +76,8 @@ voice as the load-bearing material and the agent as editor, publisher, and verif
   a cold reader. The test: every line must work for someone who knows nothing.
 - **Verb truth and proportion truth.** Never inflate ("worked on" ≠ "built and ran");
   never let a footnote project read as the era's main work. Junior eras stay junior.
+- **Provenance and disclosure are separate gates.** Before polishing, classify every load-bearing claim twice: factual support and publication clearance. Claims of priority (`first`, `coined`, `origin`), market-wide universals, and quantified system, business, product, or market scale require a primary public source; otherwise soften them into an explicit first-person observation or cut them.
+- **Firsthand truth does not release internal detail.** Operator attestation is enough for truthful personal and high-altitude role descriptions. Employer-internal metrics, architecture, dependencies, adoption scope, security, and cross-team details need an existing public disclosure basis or must be generalized or cut. Independent coinage is rendered as `I call this...` or `I champion...`, not historical priority.
 - **No keyword stuffing in prose.** Searchable terms live structurally: headline segments,
   skills, title fields. An About that says "agentic workflows" reads as written by a bot.
 - **Mentorship/culture claims need concrete scope or outcome** (who, how many, what
@@ -126,4 +128,3 @@ Category clarity in 5 seconds · one story across headline/About/Featured/Experi
 fold hooks · accomplishment-driven entries with real numbers · pinned skills match the
 story · Featured proves the headline with live thumbnails · fields set intentionally ·
 no stale/contradicting content · verification badges present where eligible.
-
