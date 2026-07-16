@@ -128,3 +128,4 @@ Category clarity in 5 seconds · one story across headline/About/Featured/Experi
 fold hooks · accomplishment-driven entries with publication-cleared evidence · pinned skills match the
 story · Featured proves the headline with live thumbnails · fields set intentionally ·
 no stale/contradicting content · verification badges present where eligible.
+
