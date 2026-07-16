@@ -76,11 +76,11 @@ voice as the load-bearing material and the agent as editor, publisher, and verif
   a cold reader. The test: every line must work for someone who knows nothing.
 - **Verb truth and proportion truth.** Never inflate ("worked on" ≠ "built and ran");
   never let a footnote project read as the era's main work. Junior eras stay junior.
+- **Provenance and disclosure are separate gates.** Before polishing, classify every load-bearing claim twice: factual support and publication clearance. Claims of priority (`first`, `coined`, `origin`), market-wide universals, and quantified system, business, product, or market scale require a primary public source; otherwise remove the unsupported priority, universal, or scale element. If the bounded underlying point is still useful, recast only that point as an explicit first-person observation.
+- **Firsthand truth does not release internal detail.** Operator attestation is enough for truthful personal and high-altitude role descriptions. Employer-internal metrics, architecture, dependencies, adoption scope, security, and cross-team details need an existing public disclosure basis or must be generalized or cut. Independent coinage is rendered as `I call this...` or `I champion...`, not historical priority.
 - **No keyword stuffing in prose.** Searchable terms live structurally: headline segments,
   skills, title fields. An About that says "agentic workflows" reads as written by a bot.
-- **Mentorship/culture claims need concrete scope or outcome** (who, how many, what
-  changed) or they fold into another bullet as a plain noun. Unquantified virtue lines are
-  definitionally slop.
+- **Mentorship/culture claims need concrete, publication-cleared scope or outcome** (method and what changed; counts only when publicly supportable) or they fold into another bullet as a plain noun. Unquantified virtue lines are definitionally slop.
 - **Layers retell one story at different resolutions.** A deliberate one-sentence echo
   across headline/About/entry is coherence; same-resolution duplication is a defect.
 - **Run the `humanize` skill on every published line** (it owns the AI-tell rules; don't
@@ -123,7 +123,7 @@ voice as the load-bearing material and the agent as editor, publisher, and verif
 ## Audit rubric (score 0–2 each; lowest sections = highest leverage)
 
 Category clarity in 5 seconds · one story across headline/About/Featured/Experience ·
-fold hooks · accomplishment-driven entries with real numbers · pinned skills match the
+fold hooks · accomplishment-driven entries with publication-cleared evidence · pinned skills match the
 story · Featured proves the headline with live thumbnails · fields set intentionally ·
 no stale/contradicting content · verification badges present where eligible.
 
