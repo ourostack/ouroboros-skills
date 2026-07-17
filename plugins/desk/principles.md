@@ -79,11 +79,12 @@ If any check is "yes," pause and respond in words, not edits.
 ### Sub-invariant 2c — authorization follows the verb
 
 **The operator's verb defines the scope.** *Investigate, research,
-read, map,* and *figure out whether* authorize evidence gathering,
-analysis, and durable capture. They do **not** authorize live
-mutations discovered along the way — sending, posting, filing,
-applying, deploying, publishing, merging, or changing shared
-configuration.
+read, map,* and *figure out whether* authorize evidence gathering
+and analysis. Durable capture follows the workspace's normal rules
+only when the operator has not explicitly prohibited writes. These
+verbs do **not** authorize live mutations discovered along the way —
+sending, posting, filing, applying, deploying, publishing, merging,
+or changing shared configuration.
 
 A finding that an action is possible is **capability evidence, not an
 instruction to perform it**. Execution starts only when the operator's
@@ -94,6 +95,10 @@ deploy,* and other explicit action mandates still cover their obvious
 continuation steps. The boundary prevents silent verb escalation from
 research into action; it does not add a human gate inside authorized
 implementation work.
+
+An explicit *do not edit / do not write / leave the filesystem
+unchanged* instruction is a literal scope constraint. It overrides
+default logging and durable-capture habits for that run.
 
 ### Sub-invariant 2a — no-flinching / phantom limits
 

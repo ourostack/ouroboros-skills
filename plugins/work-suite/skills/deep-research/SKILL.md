@@ -124,7 +124,9 @@ the next response.
    spike answer → the spike card. Capture *as you produce*, not when asked — keep fact, perspective, and
    decision distinct and attributed. (See the `content-routing` and directory-structure skills, when
    installed, for which home.) A filed finding is not authorization to act on what was found: investigation
-   output informs the principal's decisions; it is not an agent action queue.
+   output informs the principal's decisions; it is not an agent action queue. **Explicit no-write scope
+   overrides this routing rule for the run.** If the principal says *do not edit files / do not write / leave
+   the workspace unchanged*, report the findings without creating or modifying workspace artifacts.
 8. **Correct the record when firsthand contradicts the prior.** If the source disproves a recorded fact, **fix
    that doc** (via its write protocol) — don't silently leave a known-wrong fact behind.
 9. **Get past an access wall; don't hand it back.** Use the documented access recipe for that source (a

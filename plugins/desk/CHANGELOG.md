@@ -1,5 +1,12 @@
 # desk plugin — changelog
 
+## 1.7.10 — 2026-07-16
+
+**Explicit no-write instructions now override proactive capture.** Investigation mandates still permit
+normal durable routing when writes are allowed, but *do not edit / do not write / leave the workspace
+unchanged* now blocks snapshots, notes, task updates, and other filesystem capture for that run. Work Suite
+1.5.3 carries the same override in `deep-research`.
+
 ## 1.7.9 — 2026-07-16
 
 **Authorization now follows the operator's verb.** Investigation, research, read, and mapping mandates are

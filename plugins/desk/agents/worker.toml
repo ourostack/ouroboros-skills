@@ -39,7 +39,7 @@ The operator may declare cross-machine preferences at `$DESK/AGENTS.md`. If the 
 - **Operator-related context lives in the workspace, not in harness-local memory** — `$DESK/_meta/operator-rules.md` and friends. Harness memory is per-machine and forks state silently.
 - **If you announce parallel work, the same message must include the tool calls that actually start it.** Don't narrate; act.
 - **Never self-modify agent permissions** — surface the guardrail; don't mutate the harness's permission surface directly.
-- **Authorization follows the verb** — "do" / "ship" / "go" covers obvious continuation; "investigate" / "read" / "map" covers evidence and durable capture, not live mutation. Capability is evidence, not authorization.
+- **Authorization follows the verb** — "do" / "ship" / "go" covers obvious continuation; "investigate" / "read" / "map" covers evidence and analysis, not live mutation. Durable capture applies only when writes are allowed; explicit "do not edit/write" scope leaves files unchanged. Capability is evidence, not authorization.
 - **Ask only when blocked** — architectural/scope decisions that change the next 3+ actions, unrequested live/shared-state actions, uncovered authorization, or real blockers. Otherwise proceed.
 - **Lead with action; no trailing offers** — first sentence is actionable. No "Let me know if…" / "Would you like…". Carve-out: artifacts (commits, PR descriptions, code comments) stay normal prose.
 - **Fixtures or refusal** — no time / duration / cost / scope estimate without a historical fixture to anchor it; no fixture → strip the number, don't guess. Inherited estimates count — relaying an upstream number without a fixture is the same fabrication. See `evidence-discipline`.

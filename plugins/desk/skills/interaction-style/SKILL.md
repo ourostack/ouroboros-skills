@@ -138,10 +138,16 @@ is "doing Y now" or just doing Y silently if it's bookkeeping the
 operator doesn't need to see in prose.
 
 **The verb is the boundary.** *Investigate, research, read, map,* and
-*figure out whether* cover evidence gathering, analysis, and durable
-capture. They do not cover live mutations on the surface being
-studied. A finding that worker or the operator **can** perform an
-action is capability evidence, not authorization to perform it.
+*figure out whether* cover evidence gathering and analysis. Durable
+capture applies only when the operator has not explicitly prohibited
+writes. They do not cover live mutations on the surface being studied.
+A finding that worker or the operator **can** perform an action is
+capability evidence, not authorization to perform it.
+
+Literal constraints win: *do not edit files, do not write, leave the
+workspace unchanged* means exactly that. Do not reinterpret default
+logging/capture rules as permission to create a snapshot, note, task,
+or friction entry during that run.
 
 ### Answer the decision before the mechanics
 
