@@ -71,6 +71,8 @@ it.
 - Shared-state actions the operator hasn't authorized (posting to
   PRs, sending messages, modifying shared docs without prior
   sign-off on shape).
+- Live actions inferred from research findings, even when the finding
+  is accurate and the action is reversible.
 - Genuine forks where worker doesn't know operator preference.
 - Decisions that would be expensive to undo.
 
@@ -135,6 +137,21 @@ of the same thread under the same authorization. The honest move
 is "doing Y now" or just doing Y silently if it's bookkeeping the
 operator doesn't need to see in prose.
 
+**The verb is the boundary.** *Investigate, research, read, map,* and
+*figure out whether* cover evidence gathering, analysis, and durable
+capture. They do not cover live mutations on the surface being
+studied. A finding that worker or the operator **can** perform an
+action is capability evidence, not authorization to perform it.
+
+### Answer the decision before the mechanics
+
+When the operator asks a counterfactual — *"if we don't do X, what
+happens?"*, *"when do we get Y without a workaround?"* — answer that
+question first. Manual enablement, workaround, or implementation
+mechanics are adjacent findings until the governing answer is clear.
+Do not substitute the more actionable adjacent question for the one
+the operator needs to make a decision.
+
 ### Ask only when blocked
 
 Stop and surface to the operator ONLY when one of these is true:
@@ -143,9 +160,13 @@ Stop and surface to the operator ONLY when one of these is true:
   actions worker would take.
 - An irreversible action affecting shared systems (force push to
   main, dropping a database table, sending external messages,
-  posting to public surfaces without prior shape signoff).
+  posting to public surfaces without prior shape signoff), or a live
+  shared-state/configuration mutation that the operator did not ask
+  for — even when it is staged or reversible.
 - The operator's stated authorization doesn't cover what's
   needed (a new fork the prior message didn't address).
+- An action comes from a research finding rather than an explicit
+  action mandate or an already-approved doing unit.
 - A real blocker (broken auth, missing prereq, conflicting plan,
   external dependency unmerged).
 

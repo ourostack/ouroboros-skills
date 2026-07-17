@@ -1,17 +1,17 @@
 ---
 name: preflight-actions
-description: Invoke ONLY when worker is about to take an irreversible-ish action (send / schedule / post / publish / file) AND one of two conditions holds — (a) worker has made more than one judgment-call substitution from the operator's literal ask without operator input (preflight-pattern); OR (b) the available tooling cannot literally deliver a specific surface, attendee shape, formatting, or content the operator named, and worker is tempted to silently substitute a workaround. Triggered by phrases like "schedule the X meeting", "post in the Y surface", "send the Z draft", "create the event with these attendees" — when the cumulative ask requires worker to pick between non-equivalent options across surface, attendees, content, timing. Do NOT invoke for routine sends/posts where the operator's ask maps unambiguously to tooling primitives, for hypothetical action discussions, or for read-only operations.
+description: Invoke ONLY when worker is about to take an irreversible-ish or live shared-state action (send / schedule / post / publish / file / apply / deploy / change shared config) AND one of three conditions holds — (a) worker made more than one judgment-call substitution from the operator's literal ask; (b) tooling cannot literally deliver the named surface/attendee/format/content and worker would silently substitute; OR (c) the action comes from a research finding rather than an explicit action mandate. Triggered by asks like "schedule the meeting", "post in the channel", "apply the config", "stage the change", or "deploy the update". Do NOT invoke for routine actions that map directly to authorized execution scope, hypothetical discussions, or read-only work.
 ---
 
 # Preflight actions
 
 This skill inherits all invariants in `../../principles.md`. Read them first if they are not already in context.
 
-Invoke this skill before taking an irreversible-ish action — sending, scheduling, posting, publishing, filing — when the operator's ask requires worker to make more than one judgment-call substitution OR when the available tooling cannot literally deliver part of what the operator named.
+Invoke this skill before taking an irreversible-ish or live shared-state action — sending, scheduling, posting, publishing, filing, applying, deploying, or changing shared configuration — when the operator's ask requires worker to make more than one judgment-call substitution, when tooling cannot literally deliver part of what the operator named, OR when the proposed action came from research rather than an action mandate.
 
 The umbrella is **don't silently compromise on irreversible actions**. The operator can clean up a delayed action; they can't clean up a wrong one without a "please send a correction" message that itself has cost.
 
-The skill bundles three sibling rules. The first (preflight pattern) is the anchor — the bar for when to preflight at all. The other two cover specific scenarios that sit just below or beside the preflight bar.
+The skill bundles four sibling rules. The first (preflight pattern) is the anchor. The other three cover specific scenarios that sit beside that bar.
 
 ## Preflight pattern — for irreversible actions with judgment calls
 
@@ -85,3 +85,47 @@ The point isn't which option the operator picks — the point is that the operat
 **What this rule is NOT.** This isn't "ask for permission before any action." The agent has authorization-as-scope (see the substrate's core invariants in `principles.md`). This rule fires specifically when the tool *cannot literally produce what the operator named* — that's the trigger. If the tool CAN produce the operator's exact ask, just do it; no flag needed.
 
 **Cross-link.** Sibling to "preflight pattern" — tooling-can't-deliver is itself a forced judgment-call substitution. If two of these stack on the same action, the preflight bar fires.
+
+## Research findings are evidence, not instructions
+
+**One-sentence statement.** When research finds that a live action is
+possible, worker does not perform it unless the operator's action verb
+or an approved execution unit already authorizes that action.
+
+**Trigger phrase.** Worker is about to change shared/live state because
+an investigation found a capability, access path, or plausible fix —
+but the operator asked to investigate, assess, read, map, or figure out
+whether, not to execute the discovered action.
+
+**What to do.**
+
+1. State the finding that matters.
+2. Name the exact live action it suggests and the surface it would
+   mutate.
+3. Preflight the verb transition in one line:
+
+   > "Research found [finding]. The next step would [exact live
+   > mutation] on [surface]. That action was not part of the research
+   > ask. Proceed?"
+
+The preflight is required even when:
+
+- the action is reversible;
+- approval gates would run afterward;
+- worker or the operator has permission to perform it;
+- no tooling substitution is needed.
+
+**Anti-pattern.** Investigation discovers that the operator can
+self-service a configuration change. Worker treats access as consent,
+stages the change, and creates review noise before the operator has
+decided whether changing anything is the right path.
+
+**What this rule is NOT.** It does not add a confirmation step inside
+an explicit implementation or rollout mandate. If the operator said
+*apply, deploy, ship, fix,* or equivalent — or an approved doing unit
+names the mutation — execute the obvious continuation under that
+scope.
+
+**Cross-link.** This operationalizes `interaction-style` §6 and
+`principles.md` Sub-invariant 2c at the exact moment research would
+turn into live action.

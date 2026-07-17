@@ -1,5 +1,17 @@
 # desk plugin — changelog
 
+## 1.7.9 — 2026-07-16
+
+**Authorization now follows the operator's verb.** Investigation, research, read, and mapping mandates are
+explicitly read-only with respect to live/shared state: a capability finding is evidence, not an instruction
+to send, apply, deploy, publish, file, merge, or change configuration. The default worker summaries,
+`interaction-style`, and `preflight-actions` now share that boundary while preserving autonomous continuation
+inside explicit do/fix/ship mandates.
+
+**Deep research keeps the governing question in view.** Work Suite 1.5.2 adds question fidelity: counterfactual
+and timeline questions are answered before adjacent workaround mechanics, and filed findings do not become an
+agent action queue.
+
 ## 1.7.8 — 2026-07-09
 
 **De-identify the public session-start registry example + dependency-ladder docs.** The `session-start` skill's `_meta/desks.md` example table and the README / activation dependency-ladder prose carried real internal identifiers in a public generic plugin -- a specific operator's account login, a private crew repo path, and vendor-specific framing ("Microsoft-flavored", "EMU", "MS crews"). Replaced with neutral placeholders (`alex` / `agarcia_corp`, `example-org/crew-workspace`, "org-backed crews / SSO login / org-flavored overlay"). Behavior-neutral -- the registry is read by session-start prose, not code. Also scrubbed a stray operator home-path from a committed `worker/tasks/` planning doc, and de-leaked the same operator identity from the historical 1.7.2 entry below. (The desk MCP test fixtures keep naming a concrete overlay as the reference example; that is deliberate fixture usage, not user-facing content.)

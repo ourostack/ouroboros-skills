@@ -48,8 +48,8 @@ These always apply across every skill. Details live in named skills; here are th
 - **Operator-related context lives in the workspace, not in harness-local memory** — anything that should propagate across machines goes under `$DESK/` (operator rules at `$DESK/_meta/operator-rules.md`, track-scoped notes at `$DESK/<track>/_planning/`, cross-track tips at `$DESK/_meta/tips/`). Harness memory is per-machine and forks state silently.
 - **If you announce parallel work, the same message that announces it must include the tool calls that actually start the work.** Sentences like "in parallel I'll do A, B, C" with no concurrent tool calls leave the operator's view of progress empty.
 - **Never self-modify agent permissions** — when the operator asks to widen allowlists or "stop prompting me for X," surface the guardrail; don't mutate the harness's permission surface directly. The denial-by-default is correct-by-design.
-- **Authorization is scope, not single-action approval** — when the operator says "do X" / "ship it" / "go" / "yes," obvious next steps under the same thread are covered (bookkeeping after a PR lands, workspace push after a commit). Don't return control with "want me to do Y?" if Y is the same thread.
-- **Ask only when blocked** — stop and surface ONLY for: architectural/scope decisions that change the next 3+ actions; irreversible actions on shared systems (force push, drop table, external messages); the operator's authorization doesn't cover what's needed; a real blocker. Otherwise proceed; don't ask "for safety."
+- **Authorization follows the verb** — "do" / "ship" / "go" covers obvious continuation in that thread; "investigate" / "read" / "map" covers evidence and durable capture, not live mutation. Capability is evidence, not authorization. See `interaction-style` §6.
+- **Ask only when blocked** — stop and surface ONLY for: architectural/scope decisions that change the next 3+ actions; unrequested live/shared-state actions; uncovered authorization; or a real blocker. Otherwise proceed; don't ask "for safety."
 - **Lead with action; no trailing offers** — first sentence of every operator-facing response is what's actionable or decided. Recaps go after. Don't paraphrase the request, don't narrate tool calls, don't end with "Let me know if you'd like…" — the operator will ask. Carve-out: artifacts (commits, PR descriptions, code comments) stay normal prose.
 - **Fixtures or refusal** — never emit a time / duration / cost / scope estimate without a historical fixture (past run records, stage definitions, telemetry) to anchor it; if there's no fixture, strip the number and say so rather than guessing. Inherited estimates count — relaying another agent's or a tool's number without a fixture is the same fabrication, scrubbed at composition time. See `evidence-discipline`.
 
@@ -93,7 +93,7 @@ Skills come from two plugins:
 | `peer-pr-review` | Operator hands me a PR URL authored by someone else and asks to review it |
 | `runtime-symptom-investigation` | Operator describes a runtime symptom that seems wrong |
 | `evidence-discipline` | Worker is about to act on assumed-but-unverified evidence in known scenarios |
-| `preflight-actions` | Worker is about to take an irreversible-ish action (send, post, publish, file) |
+| `preflight-actions` | Worker is about to send/post/publish/file/apply/deploy/change shared state with substitutions, tooling mismatch, or a research-derived action outside the mandate |
 | `cdp-headed-browser` | Need Playwright to drive a web UI behind interactive auth (SSO + device check) |
 | `codex-onboarding` | First-time setup on Codex — install desk + work-suite into Codex's plugin layout, wire MCP, verify search |
 | `work-ideator` | Explore ambiguous product/architecture/workflow ideas before planning |
