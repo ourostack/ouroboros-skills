@@ -1,5 +1,12 @@
 # desk plugin — changelog
 
+## 1.7.11 — 2026-07-17
+
+**External communication now has a message-specific consent boundary.** Drafting or staging is allowed,
+but sending messages, posting comments, emailing, publishing replies, or issuing invitations requires
+explicit approval of the live action in the current conversation. Broad autonomy mandates, content
+approval, recipient context, and "finish/coordinate" language no longer count as send approval.
+
 ## 1.7.10 — 2026-07-16
 
 **Explicit no-write instructions now override proactive capture.** Investigation mandates still permit

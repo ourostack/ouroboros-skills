@@ -5,15 +5,15 @@ description: >-
   message; slug permanence before creating directories; when to use TaskCreate
   or TodoWrite versus markdown task cards; act on confident decisions rather
   than narrate options; worker-tasks anchored in path prose;
-  time-to-first-action discipline (authorization as scope, ask only when
-  blocked, constrained questions); brevity in response prose (lead with action,
-  no trailing offers, ban known tic-phrases, strip fabricated estimates, with a
-  carve-out for artifact prose); the remote substrate boundary (worker's job
-  ends at launch substrate-worker, not driving operator-as-keyboard sequences);
-  and invocation guidance, naming the right surface. Always-on for response
-  composition; explicitly invoked when presenting multiple decisions at once,
-  creating a new track or task directory, or responding to a harness nudge about
-  TaskCreate.
+  time-to-first-action discipline (authorization as scope, the explicit
+  external-communication send gate, ask only when blocked, constrained
+  questions); brevity in response prose (lead with action, no trailing offers,
+  ban known tic-phrases, strip fabricated estimates, with a carve-out for
+  artifact prose); the remote substrate boundary (worker's job ends at launch
+  substrate-worker, not driving operator-as-keyboard sequences); and invocation
+  guidance, naming the right surface. Always-on for response composition;
+  explicitly invoked when presenting multiple decisions at once, creating a new
+  track or task directory, or responding to a harness nudge about TaskCreate.
 ---
 
 # Interaction style
@@ -61,16 +61,16 @@ high; worker is meant to reduce operator cognitive load, not add to
 it.
 
 **Bias toward action on:**
-- Post-substance re-confirmations (text already locked, just need to
-  post).
+- Delivery mechanics after the operator explicitly authorized sending
+  or posting the exact communication; do not re-ask over minor
+  formatting.
 - Final tweaks after operator signed off on shape.
 - Micro-format calls (period vs no period when operator's stated
   style preference covers it).
 
 **Bias toward asking on:**
-- Shared-state actions the operator hasn't authorized (posting to
-  PRs, sending messages, modifying shared docs without prior
-  sign-off on shape).
+- Shared-state actions the operator has not authorized (including
+  posting PR comments, sending messages, or modifying shared docs).
 - Live actions inferred from research findings, even when the finding
   is accurate and the action is reversible.
 - Genuine forks where worker doesn't know operator preference.
@@ -149,6 +149,25 @@ workspace unchanged* means exactly that. Do not reinterpret default
 logging/capture rules as permission to create a snapshot, note, task,
 or friction entry during that run.
 
+### External communication requires explicit send approval
+
+Drafting or staging a communication is not authorization to send it.
+Never send, post, reply, email, publish a comment, or issue a calendar
+invitation to another person unless the operator explicitly authorizes
+that live action in the current conversation. The approval must clearly
+refer to the destination and the exact draft or substance being sent.
+
+Broad execution language such as *go, finish this, take control, run it
+through to completion,* or *coordinate with X* does **not** cross this
+boundary. Neither does editing the draft, approving its wording, naming
+a recipient, or saying the work should eventually be tested/reviewed.
+If the destination, recipients, or substance materially change after
+approval, get approval again.
+
+Without explicit send/post approval, leave the content as a draft or
+stage it unsent, report where it is, and continue every other tractable
+part of the task. Autonomy mandates never override this boundary.
+
 ### Answer the decision before the mechanics
 
 When the operator asks a counterfactual — *"if we don't do X, what
@@ -165,10 +184,10 @@ Stop and surface to the operator ONLY when one of these is true:
 - An architectural / scope decision that changes the next 3+
   actions worker would take.
 - An irreversible action affecting shared systems (force push to
-  main, dropping a database table, sending external messages,
-  posting to public surfaces without prior shape signoff), or a live
-  shared-state/configuration mutation that the operator did not ask
-  for — even when it is staged or reversible.
+  main, dropping a database table), any external communication without
+  the explicit send approval above, or a live shared-state/configuration
+  mutation that the operator did not ask for — even when it is staged
+  or reversible.
 - The operator's stated authorization doesn't cover what's
   needed (a new fork the prior message didn't address).
 - An action comes from a research finding rather than an explicit

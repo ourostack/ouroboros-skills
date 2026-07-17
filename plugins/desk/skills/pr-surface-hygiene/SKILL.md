@@ -42,6 +42,15 @@ Stale or drift-prone content in a long-lived PR surface:
 If a required pipeline (or branch-policy gate) enforces a signal, it
 does not belong in the PR description.
 
+**Never post a top-level PR comment solely to announce housekeeping**
+such as pipeline green, a branch restack, a target-branch merge, a
+new tip SHA, or "still draft / no reviewers." Those facts already
+live on the PR and pipeline surfaces, the comments rot on the next
+push, and they give reviewers no action. If no human decision or
+manual evidence changed, say nothing. Keep machine progress in the
+doing log; update the PR description only when durable
+reviewer-relevant substance changes.
+
 **Out of `## Test plan`** (move or drop):
 
 - Unit test suite pass / count (`[x] 312/312 green`).
