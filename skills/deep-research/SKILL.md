@@ -33,6 +33,9 @@ durable home — not a catalogue of "next threads to pull" for the principal to 
 role is to **steer direction and own the human-only calls** (a strategic decision, a credential) — not to kick
 the agent back into motion after every thread.
 
+Answering an adjacent question instead of the governing one is the same failure at a smaller scale: the
+principal still does not have the answer they hired the investigator to produce.
+
 ## The terminal state — the sweater test
 
 "Done" is **not** "I read the main thing." Done is **both** halves, together:
@@ -91,41 +94,48 @@ the next response.
 
 ## Core rules
 
-1. **Pull, don't list.** Reading a thread and capturing it beats naming it for later. A "next threads"
+1. **Question fidelity.** Before pulling threads, name the **governing question** — the exact question the
+   principal asked — and distinguish it from adjacent questions that are related but not the assignment.
+   The governing question is the first thread to pull and the last to close. Richer, more actionable, or
+   easier adjacent threads do not replace it. When the governing question is a counterfactual or timeline
+   (*"when does X happen without manual action?"*), a manual-enablement answer (*"here is how to trigger X
+   yourself"*) is a different question. Give the governing answer first; label adjacent findings as adjacent.
+2. **Pull, don't list.** Reading a thread and capturing it beats naming it for later. A "next threads"
    backlog is a *resume-safe record of what you've pulled and what's left*, not a to-do list you hand the
    principal.
-2. **Ground firsthand — the dossier / prior / sub-agent is a lead, not evidence.** Read the *actual* source
+3. **Ground firsthand — the dossier / prior / sub-agent is a lead, not evidence.** Read the *actual* source
    (code, docs, issues, telemetry, the artifact itself). When a claim is verifiable, verify it; **correct it
    when wrong, with a citation.** A "rigorously-cited" report from a tool that *couldn't reach the source* (a
    sub-agent with no shell, a stale dossier) is a **framework, not evidence** — re-ground every load-bearing
    claim yourself. (See the companion `evidence-discipline` skill, when installed.)
-3. **Cite every load-bearing claim** with a path / permalink / issue#, dated. A fact you can't trace back is
+4. **Cite every load-bearing claim** with a path / permalink / issue#, dated. A fact you can't trace back is
    half a fact. Pin code links to a commit, not a branch tip.
-4. **Decompose into a tracked backlog.** Maintain a prioritized, **readiness-tagged** thread list
+5. **Decompose into a tracked backlog.** Maintain a prioritized, **readiness-tagged** thread list
    (readable-now / access-gated / human-decision). Work highest-value first. Keep it current as a resume-safe
    record, and **close it at the end** — every thread marked *pulled* or *explicitly staged*.
-5. **Parallelize reads — but only delegate where the sub-agent can reach the source.** Spawn sub-agents for
+6. **Parallelize reads — but only delegate where the sub-agent can reach the source.** Spawn sub-agents for
    big independent crawls, then **verify they could actually access it** and re-ground their claims. (A
    sub-agent restricted to one tool surface may be unable to read a source behind a different auth — its
    report is then a framework to re-ground, not findings to trust.) Do your own reads while they run; never
    idle-poll.
-6. **Route every finding to its home, proactively.** A take you hold → a perspective doc on the desk; a
+7. **Route every finding to its home, proactively.** A take you hold → a perspective doc on the desk; a
    neutral, verified fact → the landscape / facts area (sourced + dated); a genuine decision → the decisions
    record (only when earned); the internals of a system you're tracking → its standing watch / tracker doc; a
    spike answer → the spike card. Capture *as you produce*, not when asked — keep fact, perspective, and
    decision distinct and attributed. (See the `content-routing` and directory-structure skills, when
-   installed, for which home.)
-7. **Correct the record when firsthand contradicts the prior.** If the source disproves a recorded fact, **fix
+   installed, for which home.) A filed finding is not authorization to act on what was found: investigation
+   output informs the principal's decisions; it is not an agent action queue.
+8. **Correct the record when firsthand contradicts the prior.** If the source disproves a recorded fact, **fix
    that doc** (via its write protocol) — don't silently leave a known-wrong fact behind.
-8. **Get past an access wall; don't hand it back.** Use the documented access recipe for that source (a
+9. **Get past an access wall; don't hand it back.** Use the documented access recipe for that source (a
    well-kept landscape usually records one), or fall back to the authenticated browser (a Playwright /
    computer-use session) and read it yourself. Only a **true human-only credential** (a device-code tap, an
    org-admin grant) is a wall — and then: name the exact action, then **keep pulling other threads while you
    wait.**
-9. **Human-owned threads get staged, not dropped.** A thread whose resolution is a human / leadership call (a
+10. **Human-owned threads get staged, not dropped.** A thread whose resolution is a human / leadership call (a
    strategy decision, a conversation to raise) is *agent-done* when it's **fully teed up with evidence and
    explicitly marked owner = human** — never left ambiguous. A clearly-staged thread *is* a routed home.
-10. **Never hand back mid-dive.** If a thread is readable, pull it. The handoff-shaped phrases in the next
+11. **Never hand back mid-dive.** If a thread is readable, pull it. The handoff-shaped phrases in the next
     section are a mode violation, not a courtesy.
 
 ## Never hand back a partial dive — same doctrine as `autopilot`
@@ -182,8 +192,8 @@ Everything else is: **keep pulling.**
 
 - `autopilot` — the autonomy spine this skill rides; deep-research *is* autopilot applied to investigation.
   Lean on it, don't restate it.
-- `evidence-discipline` (when installed) — verify-before-asserting; the firsthand-grounding rule (core rule 2).
+- `evidence-discipline` (when installed) — verify-before-asserting; the firsthand-grounding rule (core rule 3).
 - `content-routing` / directory-structure (when installed) — where each finding's durable home is (core
-  rule 6).
+  rule 7).
 - `interaction-style` (when installed) — the always-on "no trailing offers" rule the no-handoff section
   sharpens for dives.
