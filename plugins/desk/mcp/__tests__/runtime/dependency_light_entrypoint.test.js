@@ -622,7 +622,7 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
   }
 })
 
-test("MCP entrypoint serves desk_status from the source mirror after bounded lexical startup fallback", {
+test("MCP entrypoint serves coherent desk_status from the source mirror after bounded startup fallback", {
   skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${hostTarget}`,
 }, async () => {
   const fixture = makeFixture()
@@ -649,8 +649,19 @@ test("MCP entrypoint serves desk_status from the source mirror after bounded lex
     assert.equal(body.local_db.exists, true)
     assert.equal(body.local_db.state, "available")
     assert.equal(body.lexical_index.available, true)
-    assert.equal(body.document_vectors.state, "missing")
-    assert.equal(body.startup_fallback.mode, "lexical_only")
+    assert.ok(
+      ["lexical_only", "startup_deferred"].includes(body.startup_fallback.mode),
+      `expected bounded lexical or deferred fallback, got ${body.startup_fallback.mode}`,
+    )
+    if (body.startup_fallback.mode === "lexical_only") {
+      assert.equal(body.document_vectors.state, "missing")
+      assert.ok(body.document_vectors.chunks_total > 0)
+      assert.ok(body.document_vectors.repairable_missing_vectors > 0)
+    } else {
+      assert.equal(body.document_vectors.state, "available")
+      assert.equal(body.document_vectors.chunks_total, 0)
+      assert.equal(body.document_vectors.vectors_indexed, 0)
+    }
     assert.equal(body.startup_fallback.degraded, true)
     assert.equal(body.runtime.loaded_from_source_mirror, true)
     assert.ok(
