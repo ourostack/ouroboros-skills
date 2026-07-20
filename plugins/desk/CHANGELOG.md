@@ -1,5 +1,17 @@
 # desk plugin — changelog
 
+## 1.7.11 — 2026-07-20
+
+**Authorization now includes an ownership axis.** Explicit action
+mandates remain full-send on worker/operator-owned surfaces and
+established contribution or delegation paths. Technical access no
+longer implies authority to mutate a partner-operated live surface
+outside its owners' SOP or operating path.
+
+**Autopilot preserves collaboration boundaries.** Work Suite 1.5.4
+keeps broad, reversible mandates autonomous without treating broad
+authority as ownership of another team's live operational state.
+
 ## 1.7.10 — 2026-07-16
 
 **Explicit no-write instructions now override proactive capture.** Investigation mandates still permit

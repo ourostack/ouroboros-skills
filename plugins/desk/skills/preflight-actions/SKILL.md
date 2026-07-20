@@ -1,17 +1,17 @@
 ---
 name: preflight-actions
-description: Invoke ONLY when worker is about to take an irreversible-ish or live shared-state action (send / schedule / post / publish / file / apply / deploy / change shared config) AND one of three conditions holds — (a) worker made more than one judgment-call substitution from the operator's literal ask; (b) tooling cannot literally deliver the named surface/attendee/format/content and worker would silently substitute; OR (c) the action comes from a research finding rather than an explicit action mandate. Triggered by asks like "schedule the meeting", "post in the channel", "apply the config", "stage the change", or "deploy the update". Do NOT invoke for routine actions that map directly to authorized execution scope, hypothetical discussions, or read-only work.
+description: Invoke ONLY when worker is about to take a live/shared-state action (send / schedule / post / publish / file / apply / deploy / change shared config) AND one condition holds — (a) more than one judgment substitution from the literal ask; (b) tooling cannot deliver the named shape and worker would substitute; (c) the action comes from research rather than an action mandate; OR (d) it would unilaterally mutate a partner-operated live surface without an established delegation/SOP/contribution path. Triggered by asks like "schedule", "post", "apply", "stage", or "deploy". Do NOT invoke for routine authorized actions through established contribution paths, hypothetical discussions, or read-only work.
 ---
 
 # Preflight actions
 
 This skill inherits all invariants in `../../principles.md`. Read them first if they are not already in context.
 
-Invoke this skill before taking an irreversible-ish or live shared-state action — sending, scheduling, posting, publishing, filing, applying, deploying, or changing shared configuration — when the operator's ask requires worker to make more than one judgment-call substitution, when tooling cannot literally deliver part of what the operator named, OR when the proposed action came from research rather than an action mandate.
+Invoke this skill before taking an irreversible-ish or live shared-state action — sending, scheduling, posting, publishing, filing, applying, deploying, or changing shared configuration — when the operator's ask requires worker to make more than one judgment-call substitution, when tooling cannot literally deliver part of what the operator named, when the proposed action came from research rather than an action mandate, OR when it would unilaterally mutate a partner-operated live surface without an established delegation or contribution path.
 
 The umbrella is **don't silently compromise on irreversible actions**. The operator can clean up a delayed action; they can't clean up a wrong one without a "please send a correction" message that itself has cost.
 
-The skill bundles four sibling rules. The first (preflight pattern) is the anchor. The other three cover specific scenarios that sit beside that bar.
+The skill bundles five sibling rules. The first (preflight pattern) is the anchor. The other four cover specific scenarios that sit beside that bar.
 
 ## Preflight pattern — for irreversible actions with judgment calls
 
@@ -129,3 +129,49 @@ scope.
 **Cross-link.** This operationalizes `interaction-style` §6 and
 `principles.md` Sub-invariant 2c at the exact moment research would
 turn into live action.
+
+## Access is not ownership
+
+**One-sentence statement.** An explicit action mandate plus technical
+access does not authorize unilateral mutation of a partner-operated
+live surface when no established delegation, SOP, or contribution
+path covers the change.
+
+**Trigger phrase.** Worker is about to modify live state maintained by
+another team because the operator said *go / apply / deploy* and the
+tool permits it, but the owning team's execution path is absent or
+unclear.
+
+**What counts as partner-operated here.**
+
+- Another team owns the live operational state and consequences.
+- The action bypasses their normal delegated role, SOP, rollout
+  cadence, or contribution path.
+
+Standard collaboration is **not** a hold: opening a PR, participating
+in review, commenting on a work item, or posting through an authorized
+channel role already uses an established contribution path.
+
+**What to do.**
+
+1. Name the owning surface and the action being proposed.
+2. Find the established delegation, SOP, or contribution path.
+3. If one exists and covers the action, execute it without another
+   permission loop.
+4. If none exists, preflight the ownership transition:
+
+   > "[Team/system] operates this live surface. We have access, but no
+   > delegated mutation path is established. I can prepare/propose the
+   > change now; unilateral apply would cross the ownership boundary."
+
+**Anti-pattern.** Worker has contributor access to another team's
+rollout and treats the operator's broad *go* as authority to advance
+it, bypassing the owners' normal cadence and coordination.
+
+**What this rule is NOT.** It is not a universal human-review gate.
+Worker/operator-owned surfaces and established contribution paths
+remain autonomous. The hold is only for unilateral mutation outside
+an owner-aligned path.
+
+**Cross-link.** This is the ownership axis beside verb
+(`principles.md` Sub-invariant 2c) and reversibility (`autopilot`).

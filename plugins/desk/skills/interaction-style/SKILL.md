@@ -149,6 +149,13 @@ workspace unchanged* means exactly that. Do not reinterpret default
 logging/capture rules as permission to create a snapshot, note, task,
 or friction entry during that run.
 
+**Ownership is a separate axis.** An action verb authorizes full
+execution on worker/operator-owned surfaces and through established
+contribution or delegated operating paths. Access alone does not make
+a partner-operated live surface ours to mutate. Standard PRs, reviews,
+work-item comments, and authorized channel participation are
+contribution paths, not ownership holds.
+
 ### Answer the decision before the mechanics
 
 When the operator asks a counterfactual — *"if we don't do X, what
@@ -173,6 +180,8 @@ Stop and surface to the operator ONLY when one of these is true:
   needed (a new fork the prior message didn't address).
 - An action comes from a research finding rather than an explicit
   action mandate or an already-approved doing unit.
+- A live mutation targets a partner-operated surface and no
+  established delegation, SOP, or contribution path covers it.
 - A real blocker (broken auth, missing prereq, conflicting plan,
   external dependency unmerged).
 
