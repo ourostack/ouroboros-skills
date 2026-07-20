@@ -348,6 +348,14 @@ When the principal has granted broad authority (an autopilot mandate) and the as
 
 **The hold-line is load-bearing — do not let "act" degrade into "act on everything."** The actions that warrant acting are the ones that are *both* evidence-grade-safe *and* reversible-by-restore (re-fetchable, re-runnable, restorable from a known-good state). The actions that still warrant holding are the genuinely-destructive-on-shared-state ones — the same set as [§The only two exceptions](#the-only-two-exceptions): force-push to a shared `main`, drop a production datastore, restart shared security / infrastructure services, or anything the mandate explicitly excluded or that was separately vetoed. Reversible-and-safe → act; destructive-on-shared-state → still hold.
 
+Broad authority and reversibility do not create ownership of a
+partner-operated live surface. When another team owns the live
+operational state and no established delegation, SOP, or contribution
+path covers the mutation, prepare/propose or follow the owner-aligned
+path — do not mutate unilaterally. Standard PRs, reviews, work-item
+comments, and authorized channel participation are established
+contribution paths and remain full-send.
+
 ### A newer, broader instruction supersedes an older, narrower one
 
 A pre-written gate — an authorization table, a recurring-job prompt, a runbook — was authored at a point in time. When the principal later gives a broader mandate ("fix everything, you've got this"), that broader signal **supersedes** the earlier narrow gate at execution time. Recognize when the literal scope you are holding to was written *before* the broader signal arrived; resolve in favor of the broader signal.
