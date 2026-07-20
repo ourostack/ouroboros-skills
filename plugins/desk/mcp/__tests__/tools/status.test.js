@@ -39,6 +39,64 @@ test("desk_status is registered with a session-start-safe description", () => {
   assert.match(TOOL_DESCRIPTIONS.desk_status, /session-start|fast|repair/iu)
 })
 
+test("desk_status reports the exact workspace write scope for OFF person values", async () => {
+  const root = makeRoot()
+  try {
+    for (const person of [undefined, null, 42, {}, true, "", "   ", "\t\n"]) {
+      const body = parseToolResult(await callTool({
+        deskRoot: root,
+        name: "desk_status",
+        input: {},
+        person,
+      }))
+      assert.deepEqual(body.write_scope, {
+        mode: "workspace",
+        person: null,
+        relative_path: ".",
+      })
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status reports the exact normalized person write scope", async () => {
+  const root = makeRoot()
+  try {
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_status",
+      input: {},
+      person: "  ari  ",
+    }))
+    assert.deepEqual(body.write_scope, {
+      mode: "person",
+      person: "ari",
+      relative_path: "desks/ari",
+    })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("desk_status rejects every traversal and multi-segment alias family", async () => {
+  const root = makeRoot()
+  try {
+    for (const person of [".", "..", "../evil", "a..b", "a/b", "a\\b", "/etc/passwd"]) {
+      const response = await callTool({
+        deskRoot: root,
+        name: "desk_status",
+        input: {},
+        person,
+      })
+      assert.equal(response.isError, true)
+      assert.match(JSON.parse(response.content[0].text).message, /alias/iu)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test("desk_status reports root, runtime, missing DB, and deferred repair state without creating .state", async () => {
   const root = makeRoot()
   const runtimeCacheDir = path.join(root, "..", "runtime-cache")

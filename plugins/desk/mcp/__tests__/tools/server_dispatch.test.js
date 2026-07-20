@@ -212,6 +212,11 @@ test("server.startServer registers list/call handlers and forwards status contex
   assert.equal(body.root.source, "unit-test")
   assert.equal(body.runtime.runtime_cache_dir, "/tmp/runtime")
   assert.equal(body.runtime.loaded_from_source_mirror, true)
+  assert.deepEqual(body.write_scope, {
+    mode: "person",
+    person: "ari",
+    relative_path: "desks/ari",
+  })
 
   const defaultArgs = await handlers[1].handler({
     params: {
