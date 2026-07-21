@@ -38,6 +38,18 @@ test("resolveWriteTarget creates and resolves a missing person root safely", asy
   assert.equal((await fs.stat(path.join(root, "desks", "ari"))).isDirectory(), true)
 })
 
+test("resolveWriteTarget rejects a missing segment list", async () => {
+  const root = await makeRoot()
+  await assert.rejects(
+    resolveWriteTarget({ deskRoot: root, person: "ari" }),
+    /requires at least one path segment/i,
+  )
+  await assert.rejects(
+    resolveWriteTarget({ deskRoot: root, person: "ari", segments: [] }),
+    /requires at least one path segment/i,
+  )
+})
+
 const hostileSegments = [
   ["null", null],
   ["non-string", 42],
@@ -80,6 +92,36 @@ test("resolveWriteTarget rejects an effective person root symlinked outside the 
       segments: ["track", "task.md"],
     }),
     containmentError(),
+  )
+})
+
+test("resolveWriteTarget rejects an effective person root component that is not a directory", async () => {
+  const root = await makeRoot()
+  await fs.mkdir(path.join(root, "desks"), { recursive: true })
+  await fs.writeFile(path.join(root, "desks", "ari"), "not a directory", "utf8")
+
+  await assert.rejects(
+    resolveWriteTarget({
+      deskRoot: root,
+      person: "ari",
+      segments: ["track", "task.md"],
+    }),
+    /not a directory/i,
+  )
+})
+
+test("resolveWriteTarget rejects a desk root that is not a directory", async () => {
+  const parent = await makeRoot()
+  const root = path.join(parent, "desk-file")
+  await fs.writeFile(root, "not a directory", "utf8")
+
+  await assert.rejects(
+    resolveWriteTarget({
+      deskRoot: root,
+      person: null,
+      segments: ["track.md"],
+    }),
+    /desk root is not a directory/i,
   )
 })
 
@@ -166,4 +208,54 @@ test("resolveWriteTarget permits an existing symlink that remains inside the eff
     segments: ["track", "task.md"],
   })
   assert.equal(target, path.join(personRoot, "track", "task.md"))
+})
+
+test("resolveWriteTarget treats the effective root itself as contained", async () => {
+  const root = await makeRoot()
+  const personRoot = path.join(root, "desks", "ari")
+  await fs.mkdir(personRoot, { recursive: true })
+  await fs.symlink(personRoot, path.join(personRoot, "track"))
+
+  const target = await resolveWriteTarget({
+    deskRoot: root,
+    person: "ari",
+    segments: ["track", "task.md"],
+  })
+  assert.equal(target, path.join(personRoot, "track", "task.md"))
+})
+
+test("resolveWriteTarget rejects a symlink to the effective root parent", async () => {
+  const root = await makeRoot()
+  const personRoot = path.join(root, "desks", "ari")
+  await fs.mkdir(personRoot, { recursive: true })
+  await fs.symlink(path.dirname(personRoot), path.join(personRoot, "track"))
+
+  await assert.rejects(
+    resolveWriteTarget({
+      deskRoot: root,
+      person: "ari",
+      segments: ["track", "task.md"],
+    }),
+    containmentError(),
+  )
+})
+
+test("resolveWriteTarget propagates non-missing filesystem errors", async () => {
+  const root = await makeRoot()
+  const blocked = path.join(root, "blocked")
+  await fs.mkdir(blocked)
+  await fs.chmod(blocked, 0o000)
+
+  try {
+    await assert.rejects(
+      resolveWriteTarget({
+        deskRoot: root,
+        person: null,
+        segments: ["blocked", "task.md"],
+      }),
+      (error) => error?.code === "EACCES",
+    )
+  } finally {
+    await fs.chmod(blocked, 0o700)
+  }
 })

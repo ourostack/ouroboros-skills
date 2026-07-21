@@ -11,7 +11,7 @@
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
 import { today, slugify, pathExists } from "../util/fm.js"
-import { personPrefix } from "../util/paths.js"
+import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
@@ -34,25 +34,26 @@ function relPath(deskRoot, absPath) {
  * Returns: { status: "added", path }
  */
 export async function friction_add({ deskRoot, input, person = null }) {
-  const { track, theme, body } = input ?? {}
+  const values = input ?? {}
+  const { track, theme, body } = values
   if (!body || typeof body !== "string") {
     throw new Error("friction_add: `body` is required (string)")
   }
 
-  // base = effective write root (personPrefix); applies to BOTH the track-local
-  // and the cross-cutting branches.
-  const base = personPrefix(deskRoot, person)
   let filePath
-  if (track && typeof track === "string" && track.length) {
+  if (Object.hasOwn(values, "track")) {
     const themeSlug = slugify(theme) || "untitled"
-    filePath = path.join(
-      base,
-      track,
-      "_friction",
-      `${today()}-${themeSlug}.md`,
-    )
+    filePath = await resolveWriteTarget({
+      deskRoot,
+      person,
+      segments: [track, "_friction", `${today()}-${themeSlug}.md`],
+    })
   } else {
-    filePath = path.join(base, "_meta", "friction.md")
+    filePath = await resolveWriteTarget({
+      deskRoot,
+      person,
+      segments: ["_meta", "friction.md"],
+    })
   }
 
   await fs.mkdir(path.dirname(filePath), { recursive: true })

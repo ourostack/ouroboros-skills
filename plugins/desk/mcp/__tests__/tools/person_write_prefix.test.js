@@ -612,7 +612,7 @@ test("task_archive rejects an _archive parent symlink before rename", async () =
   assert.equal(await exists(path.join(outside, "s")), false)
 })
 
-test("task_archive revalidates a moved task.md before nested-file mutation", async () => {
+test("task_archive rejects a relocation-sensitive task.md symlink before rename", async () => {
   const root = await mkTempDeskRoot()
   const taskDir = path.join(root, "desks", "ari", "t", "s")
   const sourceTarget = path.join(root, "desks", "ari", "t", "target.md")
@@ -636,4 +636,244 @@ test("task_archive revalidates a moved task.md before nested-file mutation", asy
     await fs.readFile(sourceTarget, "utf8"),
     "---\ntitle: Safe before move\nstatus: drafting\n---\n\nuntouched\n",
   )
+  assert.equal(await exists(taskDir), true)
+  assert.equal(
+    await exists(path.join(root, "desks", "ari", "t", "_archive", "s")),
+    false,
+  )
+})
+
+test("task_archive cannot retarget a relative task.md symlink to another internal card", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const taskDir = path.join(trackDir, "s")
+  const sourceTarget = path.join(trackDir, "target.md")
+  const relocatedTarget = path.join(trackDir, "_archive", "target.md")
+  const sourceContent = "---\ntitle: Source\nstatus: drafting\n---\n\nsource\n"
+  const relocatedContent = "---\ntitle: Wrong target\nstatus: drafting\n---\n\nwrong\n"
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.mkdir(path.dirname(relocatedTarget), { recursive: true })
+  await fs.writeFile(sourceTarget, sourceContent, "utf8")
+  await fs.writeFile(relocatedTarget, relocatedContent, "utf8")
+  await fs.symlink("../target.md", path.join(taskDir, "task.md"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /symlink would change referent/i,
+  )
+
+  assert.equal(await fs.readFile(sourceTarget, "utf8"), sourceContent)
+  assert.equal(await fs.readFile(relocatedTarget, "utf8"), relocatedContent)
+  assert.equal(await exists(taskDir), true)
+  assert.equal(await exists(path.join(trackDir, "_archive", "s")), false)
+})
+
+test("task_archive preserves a relative task.md symlink whose target moves with the task", async () => {
+  const root = await mkTempDeskRoot()
+  const taskDir = path.join(root, "desks", "ari", "t", "s")
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.writeFile(
+    path.join(taskDir, "card.md"),
+    "---\ntitle: Internal card\nstatus: drafting\n---\n\nbody\n",
+    "utf8",
+  )
+  await fs.symlink("card.md", path.join(taskDir, "task.md"))
+
+  const result = await task_archive({
+    deskRoot: root,
+    person: "ari",
+    input: { track: "t", slug: "s" },
+  })
+
+  assert.equal(result.status, "archived")
+  const archivedDir = path.join(root, "desks", "ari", "t", "_archive", "s")
+  assert.equal(await fs.readlink(path.join(archivedDir, "task.md")), "card.md")
+  assert.equal((await readFront(path.join(archivedDir, "card.md"))).data.status, "done")
+})
+
+test("task_archive preserves a stable nested symlink chain that moves with the task", async () => {
+  const root = await mkTempDeskRoot()
+  const taskDir = path.join(root, "desks", "ari", "t", "s")
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.writeFile(
+    path.join(taskDir, "card.md"),
+    "---\ntitle: Internal card\nstatus: drafting\n---\n\nbody\n",
+    "utf8",
+  )
+  await fs.symlink("card.md", path.join(taskDir, "card-link.md"))
+  await fs.symlink("card-link.md", path.join(taskDir, "task.md"))
+
+  const result = await task_archive({
+    deskRoot: root,
+    person: "ari",
+    input: { track: "t", slug: "s" },
+  })
+
+  assert.equal(result.status, "archived")
+  const archivedDir = path.join(root, "desks", "ari", "t", "_archive", "s")
+  assert.equal(await fs.readlink(path.join(archivedDir, "task.md")), "card-link.md")
+  assert.equal(await fs.readlink(path.join(archivedDir, "card-link.md")), "card.md")
+  assert.equal((await readFront(path.join(archivedDir, "card.md"))).data.status, "done")
+})
+
+test("task_archive preserves a stable absolute task.md symlink within the person root", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const taskDir = path.join(trackDir, "s")
+  const sharedCard = path.join(trackDir, "shared.md")
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.writeFile(
+    sharedCard,
+    "---\ntitle: Shared card\nstatus: drafting\n---\n\nbody\n",
+    "utf8",
+  )
+  await fs.symlink(sharedCard, path.join(taskDir, "task.md"))
+
+  const result = await task_archive({
+    deskRoot: root,
+    person: "ari",
+    input: { track: "t", slug: "s" },
+  })
+
+  assert.equal(result.status, "archived")
+  const archivedTask = path.join(trackDir, "_archive", "s", "task.md")
+  assert.equal(await fs.readlink(archivedTask), sharedCard)
+  assert.equal((await readFront(sharedCard)).data.status, "done")
+})
+
+test("task_archive rejects a nested symlink chain that retargets after relocation", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const taskDir = path.join(trackDir, "s")
+  const sourceTarget = path.join(trackDir, "target.md")
+  const relocatedTarget = path.join(trackDir, "_archive", "target.md")
+  const sourceContent = "---\ntitle: Source\nstatus: drafting\n---\n\nsource\n"
+  const relocatedContent = "---\ntitle: Wrong target\nstatus: drafting\n---\n\nwrong\n"
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.mkdir(path.dirname(relocatedTarget), { recursive: true })
+  await fs.writeFile(sourceTarget, sourceContent, "utf8")
+  await fs.writeFile(relocatedTarget, relocatedContent, "utf8")
+  await fs.symlink("../target.md", path.join(taskDir, "card.md"))
+  await fs.symlink("card.md", path.join(taskDir, "task.md"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /symlink would change referent/i,
+  )
+
+  assert.equal(await fs.readFile(sourceTarget, "utf8"), sourceContent)
+  assert.equal(await fs.readFile(relocatedTarget, "utf8"), relocatedContent)
+  assert.equal(await exists(taskDir), true)
+  assert.equal(await exists(path.join(trackDir, "_archive", "s")), false)
+})
+
+test("task_archive rejects a post-relocation symlink cycle before rename", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const taskDir = path.join(trackDir, "s")
+  const archiveParent = path.join(trackDir, "_archive")
+  const sourceTarget = path.join(trackDir, "target.md")
+  const sourceContent = "---\ntitle: Source\nstatus: drafting\n---\n\nsource\n"
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.mkdir(archiveParent, { recursive: true })
+  await fs.writeFile(sourceTarget, sourceContent, "utf8")
+  await fs.symlink("../target.md", path.join(taskDir, "card.md"))
+  await fs.symlink("card.md", path.join(taskDir, "task.md"))
+  await fs.symlink(path.join("s", "task.md"), path.join(archiveParent, "target.md"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /symlink would change referent/i,
+  )
+
+  assert.equal(await fs.readFile(sourceTarget, "utf8"), sourceContent)
+  assert.equal(await exists(taskDir), true)
+  assert.equal(await exists(path.join(archiveParent, "s")), false)
+})
+
+test("task_archive canonicalizes a symlinked track ancestor before relocation checks", async () => {
+  const root = await mkTempDeskRoot()
+  const personRoot = path.join(root, "desks", "ari")
+  const realTrack = path.join(personRoot, "real-track")
+  const taskDir = path.join(realTrack, "s")
+  const cardPath = path.join(taskDir, "card.md")
+  const original = "---\ntitle: Internal card\nstatus: drafting\n---\n\nbody\n"
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.writeFile(cardPath, original, "utf8")
+  await fs.symlink(cardPath, path.join(taskDir, "task.md"))
+  await fs.symlink("real-track", path.join(personRoot, "t"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /symlink would change referent/i,
+  )
+
+  assert.equal(await fs.readFile(cardPath, "utf8"), original)
+  assert.equal(await exists(taskDir), true)
+  assert.equal(await exists(path.join(realTrack, "_archive", "s")), false)
+})
+
+test("task_archive rejects an archive destination nested inside the source directory", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const taskDir = path.join(trackDir, "s")
+  const cardPath = path.join(taskDir, "card.md")
+  const original = "---\ntitle: Internal card\nstatus: drafting\n---\n\nbody\n"
+  await fs.mkdir(taskDir, { recursive: true })
+  await fs.writeFile(cardPath, original, "utf8")
+  await fs.symlink("card.md", path.join(taskDir, "task.md"))
+  await fs.symlink("s", path.join(trackDir, "_archive"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /archive destination cannot be inside source directory/i,
+  )
+
+  assert.equal(await fs.readFile(cardPath, "utf8"), original)
+  assert.equal(await exists(taskDir), true)
+})
+
+test("task_archive rejects an internal source-directory symlink before rename", async () => {
+  const root = await mkTempDeskRoot()
+  const trackDir = path.join(root, "desks", "ari", "t")
+  const realTask = path.join(trackDir, "real-task")
+  await fs.mkdir(realTask, { recursive: true })
+  await fs.writeFile(
+    path.join(realTask, "task.md"),
+    "---\ntitle: Internal card\nstatus: drafting\n---\n\nbody\n",
+    "utf8",
+  )
+  await fs.symlink("real-task", path.join(trackDir, "s"))
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      person: "ari",
+      input: { track: "t", slug: "s" },
+    }),
+    /source directory symlink/i,
+  )
+
+  assert.equal(await exists(path.join(trackDir, "s")), true)
+  assert.equal(await exists(path.join(trackDir, "_archive", "s")), false)
 })

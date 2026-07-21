@@ -13,7 +13,7 @@ import {
   writeMarkdown,
   pathExists,
 } from "../util/fm.js"
-import { personPrefix } from "../util/paths.js"
+import { isPathContained, resolveWriteTarget } from "../util/paths.js"
 
 const TERMINAL_STATUSES = new Set(["done", "cancelled"])
 
@@ -35,19 +35,122 @@ const OPTIONAL_RUNTIME_FIELDS = [
   "predecessor",
 ]
 
-// Builders take `base` = the effective write root (personPrefix(deskRoot,
-// person)). `relPath` stays anchored at the real deskRoot so returned paths
-// show the `desks/<alias>/` prefix when --person is on.
-function taskDir(base, track, slug) {
-  return path.join(base, track, slug)
-}
-
-function taskFile(base, track, slug) {
-  return path.join(taskDir(base, track, slug), "task.md")
-}
-
 function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
+}
+
+async function assertArchiveSourceIsRelocationSafe({
+  srcDir,
+  srcFile,
+  archiveDir,
+}) {
+  if ((await fs.lstat(srcDir)).isSymbolicLink()) {
+    throw new Error(`task_archive: source directory symlink cannot be archived safely: ${srcDir}`)
+  }
+  if (!(await pathExists(srcFile))) return
+
+  const fileStat = await fs.lstat(srcFile)
+  if (!fileStat.isSymbolicLink()) return
+
+  const realSrcDir = await fs.realpath(srcDir)
+  const realArchiveDir = await prospectiveArchiveDir(archiveDir)
+  if (isPathContained(realSrcDir, realArchiveDir)) {
+    throw new Error(`task_archive: archive destination cannot be inside source directory: ${archiveDir}`)
+  }
+
+  const sourceReferent = await fs.realpath(srcFile)
+  const expectedReferent = isPathContained(realSrcDir, sourceReferent)
+    ? path.join(realArchiveDir, path.relative(realSrcDir, sourceReferent))
+    : sourceReferent
+  const relocatedReferent = await realpathAfterArchive(
+    path.join(realArchiveDir, path.basename(srcFile)),
+    { realSrcDir, realArchiveDir },
+  )
+  if (relocatedReferent !== expectedReferent) {
+    throw new Error(`task_archive: task.md symlink would change referent when archived: ${srcFile}`)
+  }
+}
+
+async function prospectiveArchiveDir(archiveDir) {
+  const archiveParent = path.dirname(archiveDir)
+  const realArchiveParent = await pathExists(archiveParent)
+    ? await fs.realpath(archiveParent)
+    : path.join(
+        await fs.realpath(path.dirname(archiveParent)),
+        path.basename(archiveParent),
+      )
+  return path.join(realArchiveParent, path.basename(archiveDir))
+}
+
+async function realpathAfterArchive(candidate, { realSrcDir, realArchiveDir }) {
+  let { root, segments } = splitAbsolutePath(candidate)
+  let resolved = root
+  let followedLinks = 0
+
+  while (segments.length > 0) {
+    const virtualPath = path.join(resolved, segments.shift())
+    const inspectionPath = pathBeforeArchive(virtualPath, {
+      realSrcDir,
+      realArchiveDir,
+    })
+    if (inspectionPath === null) return null
+
+    let stat
+    try {
+      stat = await fs.lstat(inspectionPath)
+    } catch (error) {
+      if (
+        error?.code === "ENOENT" &&
+        isPathContained(virtualPath, realArchiveDir)
+      ) {
+        resolved = virtualPath
+        continue
+      }
+      const unavailableAfterMove = ["ENOENT", "ENOTDIR", "ELOOP"].includes(error?.code)
+      /* node:coverage ignore next 3 */
+      if (!unavailableAfterMove) {
+        throw error
+      }
+      return null
+    }
+
+    if (!stat.isSymbolicLink()) {
+      resolved = virtualPath
+      continue
+    }
+    followedLinks += 1
+    if (followedLinks > 40) return null
+
+    const linkTarget = await fs.readlink(inspectionPath)
+    const nextPath = path.resolve(
+      path.dirname(virtualPath),
+      linkTarget,
+      ...segments,
+    )
+    const splitPath = splitAbsolutePath(nextPath)
+    root = splitPath.root
+    segments = splitPath.segments
+    resolved = root
+  }
+
+  return resolved
+}
+
+function pathBeforeArchive(candidate, { realSrcDir, realArchiveDir }) {
+  if (isPathContained(realArchiveDir, candidate)) {
+    return path.join(realSrcDir, path.relative(realArchiveDir, candidate))
+  }
+  if (isPathContained(realSrcDir, candidate)) return null
+  return candidate
+}
+
+function splitAbsolutePath(candidate) {
+  const resolved = path.resolve(candidate)
+  const root = path.parse(resolved).root
+  return {
+    root,
+    segments: resolved.slice(root.length).split(path.sep).filter(Boolean),
+  }
 }
 
 /**
@@ -70,19 +173,23 @@ function relPath(deskRoot, absPath) {
  * Returns: { status: "created", path: "<track>/<slug>/task.md" }
  */
 export async function task_create({ deskRoot, input, person = null }) {
-  const { track, slug, title } = input ?? {}
-  if (!track || typeof track !== "string") {
+  const values = input ?? {}
+  const { track, slug, title } = values
+  if (!Object.hasOwn(values, "track")) {
     throw new Error("task_create: `track` is required (string)")
   }
-  if (!slug || typeof slug !== "string") {
+  if (!Object.hasOwn(values, "slug")) {
     throw new Error("task_create: `slug` is required (string)")
   }
   if (!title || typeof title !== "string") {
     throw new Error("task_create: `title` is required (string)")
   }
 
-  const base = personPrefix(deskRoot, person)
-  const filePath = taskFile(base, track, slug)
+  const filePath = await resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: [track, slug, "task.md"],
+  })
   if (await pathExists(filePath)) {
     throw new Error(
       `task_create: task already exists at ${relPath(deskRoot, filePath)}`,
@@ -93,16 +200,16 @@ export async function task_create({ deskRoot, input, person = null }) {
   const data = {
     schema_version: 1,
     title,
-    status: input.status ?? "drafting",
+    status: values.status ?? "drafting",
     created: ts,
     updated: ts,
     track,
   }
   for (const k of OPTIONAL_RUNTIME_FIELDS) {
-    if (input[k] !== undefined) data[k] = input[k]
+    if (values[k] !== undefined) data[k] = values[k]
   }
 
-  await writeMarkdown(filePath, data, input.body ?? "")
+  await writeMarkdown(filePath, data, values.body ?? "")
   return { status: "created", path: relPath(deskRoot, filePath) }
 }
 
@@ -126,13 +233,20 @@ export async function task_create({ deskRoot, input, person = null }) {
  * Returns: { status: "updated", path }
  */
 export async function task_update({ deskRoot, input, person = null }) {
-  const { track, slug, frontmatter, body_append } = input ?? {}
-  if (!track || !slug) {
+  const values = input ?? {}
+  const { track, slug, frontmatter, body_append } = values
+  if (
+    !Object.hasOwn(values, "track") ||
+    !Object.hasOwn(values, "slug")
+  ) {
     throw new Error("task_update: `track` and `slug` are required")
   }
 
-  const base = personPrefix(deskRoot, person)
-  const filePath = taskFile(base, track, slug)
+  const filePath = await resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: [track, slug, "task.md"],
+  })
   if (!(await pathExists(filePath))) {
     throw new Error(
       `task_update: task does not exist at ${relPath(deskRoot, filePath)}`,
@@ -154,7 +268,7 @@ export async function task_update({ deskRoot, input, person = null }) {
   merged.updated = nowIso()
 
   let newBody = existing.content
-  if (body_append && typeof body_append === "string" && body_append.length) {
+  if (typeof body_append === "string" && body_append.length > 0) {
     const sep = newBody.endsWith("\n\n") || newBody.length === 0 ? "" : "\n\n"
     newBody = `${newBody}${sep}${body_append}`
   }
@@ -177,15 +291,21 @@ export async function task_update({ deskRoot, input, person = null }) {
  * Returns: { status: "archived" | "already_archived", path }
  */
 export async function task_archive({ deskRoot, input, person = null }) {
-  const { track, slug } = input ?? {}
-  if (!track || !slug) {
+  const values = input ?? {}
+  const { track, slug } = values
+  if (
+    !Object.hasOwn(values, "track") ||
+    !Object.hasOwn(values, "slug")
+  ) {
     throw new Error("task_archive: `track` and `slug` are required")
   }
 
-  const base = personPrefix(deskRoot, person)
-  const srcDir = taskDir(base, track, slug)
-  const archiveDir = path.join(base, track, "_archive", slug)
-  const archivedFile = path.join(archiveDir, "task.md")
+  const target = (segments) =>
+    resolveWriteTarget({ deskRoot, person, segments })
+  const srcDir = await target([track, slug])
+  const srcFile = await target([track, slug, "task.md"])
+  const archiveDir = await target([track, "_archive", slug])
+  const archivedFile = await target([track, "_archive", slug, "task.md"])
 
   const srcExists = await pathExists(srcDir)
   const dstExists = await pathExists(archiveDir)
@@ -210,12 +330,19 @@ export async function task_archive({ deskRoot, input, person = null }) {
     )
   }
 
+  await assertArchiveSourceIsRelocationSafe({
+    srcDir,
+    srcFile,
+    archiveDir,
+  })
+
   // Move the dir. fs.rename is atomic on the same filesystem.
   await fs.mkdir(path.dirname(archiveDir), { recursive: true })
   await fs.rename(srcDir, archiveDir)
 
   // Bump task status to `done` (and refresh `updated`) if not already terminal.
-  const filePath = path.join(archiveDir, "task.md")
+  await target([track, "_archive", slug])
+  const filePath = await target([track, "_archive", slug, "task.md"])
   if (await pathExists(filePath)) {
     const existing = await readMarkdown(filePath)
     const currentStatus = existing.data.status

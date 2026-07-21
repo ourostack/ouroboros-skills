@@ -22,7 +22,7 @@
 
 import * as path from "node:path"
 import * as os from "node:os"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, promises as fs } from "node:fs"
 
 export function resolveDeskRoot(explicit, options = {}) {
   return resolveDeskRootWithSource({
@@ -179,4 +179,150 @@ export function personPrefix(deskRoot, person) {
   }
 
   return path.join(deskRoot, "desks", alias)
+}
+
+// ── Confined write targets ───────────────────────────────────────────────────
+
+export async function resolveWriteTarget({
+  deskRoot,
+  person = null,
+  segments,
+}) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    throw new Error("desk-mcp: write target requires at least one path segment")
+  }
+  for (const segment of segments) {
+    validateWriteSegment(segment)
+  }
+
+  const effectiveRoot = path.resolve(personPrefix(deskRoot, person))
+  const target = path.resolve(effectiveRoot, ...segments)
+  // Segment validation makes this invariant redundant by construction; retain the lexical boundary as defense in depth if validation evolves.
+  /* node:coverage ignore next 3 */
+  if (!isPathContained(effectiveRoot, target)) {
+    throw new Error(`desk-mcp: write target is outside effective write root: ${target}`)
+  }
+
+  const realEffectiveRoot = await prepareEffectiveRoot({
+    deskRoot,
+    effectiveRoot,
+  })
+  await validateExistingTarget({
+    effectiveRoot,
+    realEffectiveRoot,
+    segments,
+  })
+  return target
+}
+
+function validateWriteSegment(segment) {
+  if (
+    typeof segment !== "string" ||
+    segment.trim() === "" ||
+    segment === "." ||
+    segment === ".." ||
+    segment.includes("..") ||
+    segment.includes("/") ||
+    segment.includes("\\")
+  ) {
+    throw new Error(
+      `desk-mcp: invalid write path segment ${JSON.stringify(segment)} — ` +
+        `segments must be non-empty single path components with no ".." or separators.`,
+    )
+  }
+}
+
+async function prepareEffectiveRoot({ deskRoot, effectiveRoot }) {
+  const lexicalDeskRoot = path.resolve(deskRoot)
+  const realDeskRoot = await realDirectory(lexicalDeskRoot, "desk root")
+  if (effectiveRoot === lexicalDeskRoot) return realDeskRoot
+
+  const relativeRoot = path.relative(lexicalDeskRoot, effectiveRoot)
+  const rootSegments = relativeRoot.split(path.sep)
+  let lexicalCursor = lexicalDeskRoot
+  let realCursor = realDeskRoot
+
+  for (const segment of rootSegments) {
+    lexicalCursor = path.join(lexicalCursor, segment)
+    realCursor = path.join(realCursor, segment)
+    let stat = await lstatIfExists(lexicalCursor)
+    if (stat === null) {
+      await fs.mkdir(lexicalCursor)
+      stat = await fs.lstat(lexicalCursor)
+    }
+    const resolved = await realpathOrSymlinkError(lexicalCursor)
+    if (resolved !== realCursor) {
+      throw new Error(
+        `desk-mcp: effective write root resolves outside its canonical person path: ${lexicalCursor}`,
+      )
+    }
+    if (!stat.isDirectory()) {
+      throw new Error(
+        `desk-mcp: effective write root component is not a directory: ${lexicalCursor}`,
+      )
+    }
+  }
+
+  const resolvedRoot = await fs.realpath(effectiveRoot)
+  return resolvedRoot
+}
+
+async function validateExistingTarget({
+  effectiveRoot,
+  realEffectiveRoot,
+  segments,
+}) {
+  let cursor = effectiveRoot
+  for (const segment of segments) {
+    cursor = path.join(cursor, segment)
+    const stat = await lstatIfExists(cursor)
+    if (stat === null) return
+
+    const resolved = await realpathOrSymlinkError(cursor)
+    if (!isPathContained(realEffectiveRoot, resolved)) {
+      throw new Error(
+        `desk-mcp: write target resolves outside effective write root: ${cursor}`,
+      )
+    }
+  }
+}
+
+async function realDirectory(candidate, label) {
+  const stat = await fs.stat(candidate)
+  if (!stat.isDirectory()) {
+    throw new Error(`desk-mcp: ${label} is not a directory: ${candidate}`)
+  }
+  return fs.realpath(candidate)
+}
+
+async function realpathOrSymlinkError(candidate) {
+  try {
+    return await fs.realpath(candidate)
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(`desk-mcp: broken symlink in write target: ${candidate}`)
+    }
+    throw error
+  }
+}
+
+async function lstatIfExists(candidate) {
+  try {
+    return await fs.lstat(candidate)
+  } catch (error) {
+    if (error?.code === "ENOENT") return null
+    throw error
+  }
+}
+
+export function isPathContained(root, candidate) {
+  const relative = path.relative(root, candidate)
+  // path.relative can only return an absolute path for cross-drive Windows inputs, which cannot be constructed by these macOS/Linux test fixtures.
+  /* node:coverage ignore next */
+  if (path.isAbsolute(relative)) return false
+  return (
+    relative === "" ||
+    (relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`))
+  )
 }
