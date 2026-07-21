@@ -25,7 +25,7 @@ Commands run:
 
 Current freshness anchors:
 
-- current_artifact_source_scope_hash: sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d
+- current_artifact_source_scope_hash: sha256:762ef7011a04670ee29c6f38df1b688d0cf9828cfdc4b017de84dc4433371c87
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
 
 Published vector pack:
