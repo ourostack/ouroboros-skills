@@ -720,11 +720,18 @@ test("MCP entrypoint serves coherent desk_status from the source mirror after bo
     assert.equal(doctor.mode, "healthy")
     assert.equal(doctor.runtime.state, "ready")
     assert.deepEqual(doctor.remediation, [])
-    assert.equal(result.mutation.result.isError, true)
-    assert.doesNotMatch(
-      result.mutation.result.content[0].text,
-      /runtime dependency pack|runtime bootstrap/iu,
-      "healthy mutation validation must not be mistaken for runtime degradation",
+    assert.equal(result.mutation.result.isError, undefined, JSON.stringify(result.mutation.result))
+    assert.deepEqual(
+      JSON.parse(result.mutation.result.content[0].text),
+      {
+        status: "created",
+        path: "diagnostic-probe/must-not-write/task.md",
+      },
+      "healthy runtime mode must execute valid mutations rather than returning diagnostic errors",
+    )
+    assert.equal(
+      existsSync(path.join(fixture.deskRoot, "diagnostic-probe", "must-not-write", "task.md")),
+      true,
     )
     assertNoBootstrapSideEffects(fixture)
   } finally {
