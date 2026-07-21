@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -186,6 +187,40 @@ async function writeRuntimePack({
     manifest,
     archiveBytes: provisionalArchiveBytes,
     target: `${platform}-${arch}-node-${nodeAbi}`,
+  }
+}
+
+function writeRuntimeSupportMatrixFixture({ mcpRoot: fixtureMcpRoot, pack, mutate }) {
+  const matrix = {
+    schema_version: 1,
+    plugin: {
+      name: pack.manifest.plugin.name,
+      version: pack.manifest.plugin.version,
+    },
+    targets: [
+      {
+        id: pack.target,
+        platform: pack.manifest.platform.os,
+        arch: pack.manifest.platform.arch,
+        node_abi: pack.manifest.platform.node_abi,
+        prod_dependency_lock_hash: pack.manifest.package_lock.prod_dependency_lock_hash,
+        archive_sha256: pack.manifest.archive.sha256,
+        artifact_path: `${pack.target}/${pack.manifest.package_lock.prod_dependency_lock_hash}`,
+      },
+    ],
+  }
+  mutate?.(matrix)
+  const matrixPath = path.join(
+    fixtureMcpRoot,
+    "artifacts",
+    "runtime-deps",
+    pack.packageJson.version,
+    "support-matrix.json",
+  )
+  writeJson(matrixPath, matrix)
+  return {
+    matrix,
+    matrixPath,
   }
 }
 
@@ -987,5 +1022,269 @@ test("runtime pack diagnostics list expected paths, available targets, and remed
     )
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("runtime pack inspection classifies unsupported, missing, checksum, manifest, and archive failures", async () => {
+  const { inspectRuntimeDependencyPack } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    let pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const ready = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(ready.mode, "ready")
+    assert.equal(ready.target.id, pack.target)
+    assert.equal(ready.failure_kind, undefined)
+
+    const unsupported = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: "other-os",
+      arch: "other-arch",
+      nodeAbi: "000",
+    })
+    assert.equal(unsupported.mode, "diagnostic")
+    assert.equal(unsupported.reason, "unsupported_target")
+    assert.deepEqual(
+      unsupported.shipped_targets.map((target) => target.id),
+      [pack.target],
+    )
+    assert.ok(unsupported.paths_checked.includes(unsupported.support_matrix_path))
+
+    rmSync(pack.packPaths.archivePath)
+    const missing = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(missing.mode, "diagnostic")
+    assert.equal(missing.reason, "missing_pack")
+    assert.equal(missing.failure_kind, "missing_artifact")
+    assert.ok(missing.paths_checked.includes(pack.packPaths.archivePath))
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    writeText(pack.packPaths.checksumPath, `${"0".repeat(64)}  runtime-deps.tgz\n`)
+    const checksumMismatch = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(checksumMismatch.mode, "diagnostic")
+    assert.equal(checksumMismatch.reason, "corrupt_pack")
+    assert.equal(checksumMismatch.failure_kind, "checksum_mismatch")
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const driftedManifest = readJson(pack.packPaths.manifestPath)
+    driftedManifest.plugin.version = "0.0.0"
+    writeJson(pack.packPaths.manifestPath, driftedManifest)
+    const manifestMismatch = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(manifestMismatch.mode, "diagnostic")
+    assert.equal(manifestMismatch.reason, "corrupt_pack")
+    assert.equal(manifestMismatch.failure_kind, "manifest_mismatch")
+
+    const corruptBytes = Buffer.from("not a gzip archive\n", "utf8")
+    pack = await writeRuntimePack({
+      mcpRoot: fixture.mcpRoot,
+      archiveBytes: corruptBytes,
+      checksum: sha256(corruptBytes),
+      manifestMutator: (manifest) => {
+        manifest.archive.sha256 = sha256(corruptBytes)
+      },
+    })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const corruptArchive = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(corruptArchive.mode, "diagnostic")
+    assert.equal(corruptArchive.reason, "corrupt_pack")
+    assert.equal(corruptArchive.failure_kind, "archive_corrupt")
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("atomic publication restores the previous cache after interruption", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-unit")
+  try {
+    writeText(path.join(destinationDir, "marker"), "previous\n")
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          if (source === stagingDir && destination === destinationDir) {
+            const error = new Error("injected publish interruption")
+            error.code = "EIO"
+            throw error
+          }
+          renameSync(source, destination)
+        },
+      }),
+      /injected publish interruption/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(existsSync(stagingDir), false)
+    assert.equal(
+      readdirSync(root).some((entry) => entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("concurrent atomic publication losers verify and reuse the coherent winner", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-loser")
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    const result = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => (
+        existsSync(path.join(candidate, "marker"))
+        && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+      ),
+      rename: (source, destination) => {
+        if (source === stagingDir && destination === destinationDir) {
+          writeText(path.join(destinationDir, "marker"), "candidate\n")
+          const error = new Error("simulated concurrent rename collision")
+          error.code = "EEXIST"
+          throw error
+        }
+        renameSync(source, destination)
+      },
+    })
+    assert.deepEqual(result, {
+      destinationDir,
+      published: false,
+      reused: true,
+    })
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+    assert.equal(existsSync(stagingDir), false)
+    assert.deepEqual(readdirSync(root), ["runtime-cache"])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("runtime restoration stages a complete tree before replacing a stale cache", async () => {
+  const { restoreRuntimeDependencies } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    const pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    const runtimeCacheDir = path.join(fixture.root, "runtime-cache")
+    const target = `${fixturePlatform}-${fixtureArch}-node-${fixtureNodeAbi}`
+    writeText(path.join(runtimeCacheDir, "previous-payload"), "preserve me\n")
+    writeJson(path.join(runtimeCacheDir, ".desk-runtime-cache.json"), {
+      schema_version: 1,
+      archive_sha256: "stale",
+    })
+    assert.throws(
+      () => restoreRuntimeDependencies({
+        mcpRoot: fixture.mcpRoot,
+        packageJson: pack.packageJson,
+        packageLockPath: fixture.packageLockPath,
+        packPaths: pack.packPaths,
+        runtimeCacheDir,
+        target,
+        platform: fixturePlatform,
+        arch: fixtureArch,
+        nodeAbi: fixtureNodeAbi,
+        publishDirectory: ({ destinationDir, stagingDir }) => {
+          assert.equal(destinationDir, runtimeCacheDir)
+          assert.equal(
+            readFileSync(
+              path.join(stagingDir, "node_modules", "better-sqlite3", "fixture.txt"),
+              "utf8",
+            ),
+            "better-sqlite3\n",
+          )
+          assert.equal(existsSync(path.join(stagingDir, ".complete.json")), true)
+          throw new Error("injected runtime publication failure")
+        },
+      }),
+      /injected runtime publication failure/u,
+    )
+    assert.equal(
+      readFileSync(path.join(runtimeCacheDir, "previous-payload"), "utf8"),
+      "preserve me\n",
+    )
+    assert.equal(
+      readdirSync(path.dirname(runtimeCacheDir))
+        .some((entry) => entry.includes(".stage-") || entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("source mirror stages a complete tree before replacing a stale mirror", async () => {
+  const { syncSourceMirror } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    const runtimeCacheDir = path.join(fixture.root, "runtime-cache")
+    const sourceMirror = syncSourceMirror({
+      mcpRoot: fixture.mcpRoot,
+      runtimeCacheDir,
+    })
+    const markerPath = path.join(sourceMirror, ".complete.json")
+    assert.equal(existsSync(markerPath), true)
+    rmSync(markerPath)
+    writeText(path.join(sourceMirror, "previous-payload"), "preserve me\n")
+    assert.throws(
+      () => syncSourceMirror({
+        mcpRoot: fixture.mcpRoot,
+        runtimeCacheDir,
+        publishDirectory: ({ destinationDir, stagingDir }) => {
+          assert.equal(destinationDir, sourceMirror)
+          assert.equal(
+            readFileSync(path.join(stagingDir, "package.json"), "utf8"),
+            readFileSync(path.join(fixture.mcpRoot, "package.json"), "utf8"),
+          )
+          assert.equal(existsSync(path.join(stagingDir, ".complete.json")), true)
+          throw new Error("injected source publication failure")
+        },
+      }),
+      /injected source publication failure/u,
+    )
+    assert.equal(
+      readFileSync(path.join(sourceMirror, "previous-payload"), "utf8"),
+      "preserve me\n",
+    )
+    assert.equal(
+      readdirSync(path.dirname(sourceMirror))
+        .some((entry) => entry.includes(".stage-") || entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
   }
 })
