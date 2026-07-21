@@ -1221,10 +1221,10 @@ test("runtime restoration stages a complete tree before replacing a stale cache"
           assert.equal(destinationDir, runtimeCacheDir)
           assert.equal(
             readFileSync(
-              path.join(stagingDir, "node_modules", "better-sqlite3", "fixture.txt"),
+              path.join(stagingDir, "node_modules", "fixture-package", "package.json"),
               "utf8",
             ),
-            "better-sqlite3\n",
+            '{"name":"fixture-package"}\n',
           )
           assert.equal(existsSync(path.join(stagingDir, ".complete.json")), true)
           throw new Error("injected runtime publication failure")
