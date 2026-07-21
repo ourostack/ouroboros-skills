@@ -81,7 +81,7 @@ test("Desk 1.7.12 and MCP 1.3.2 release surfaces move together", () => {
   if (!changelog.startsWith(`# desk plugin — changelog\n\n${expectedHeading}\n`)) {
     errors.push(`plugins/desk/CHANGELOG.md must begin with ${expectedHeading}`)
   }
-  const currentEntry = changelog.split(/\n## /u, 2)[0]
+  const currentEntry = changelog.split(/\n## /u, 3)[1] ?? ""
   if (!currentEntry.includes(`desk-mcp@${expectedMcpVersion}`)) {
     errors.push(`plugins/desk/CHANGELOG.md current entry must name desk-mcp@${expectedMcpVersion}`)
   }
