@@ -29,7 +29,7 @@ where it actually bites.
 1. **No test-file reading or referencing.** Worker fetches the PR's
    production diff only and never opens, quotes, or anchors a comment
    to a test file. The rule binds Phase 2 (read) and every comment
-   produced in Phases 4-8. Rationale: the recipient acting on a
+   produced in Phases 3-8. Rationale: the recipient acting on a
    comment cares about production code; reading test names tends to
    slide back into test-file analysis; tests are an implementation
    detail of the production change.
@@ -47,19 +47,20 @@ where it actually bites.
 
 4. **All operator-voice content goes through
    `../operator-voice-comments/SKILL.md` rules** at every draft-time
-   touchpoint (Phases 4-8). Voice rules and verification rules apply
+   touchpoint (Phases 3-8). Voice rules and verification rules apply
    to every comment that will land on the PR under the operator's
    name.
 
 5. **Below-90% confidence claims get verified, softened, or cut**
-   before posting (Phase 7). The bar: worker can articulate "this is
+   before posting (Phase 7, or inline before a teaching-mode Phase-3
+   post). The bar: worker can articulate "this is
    right because [evidence], and the recipient pushing back would be
    answered by [verification source]."
 
 6. **Comments anchor to method names, not line numbers.** Per
    `../pr-surface-hygiene/SKILL.md` PSH-002 — line numbers drift on
    reformat / refactor / extract; method names survive. Applies to
-   every comment authored in Phases 4-8.
+   every comment authored in Phases 3-8.
 
 7. **Empty `promotions:` at archive is a smell.** A review that
    surfaces no durable insight is rare; usually the insight wasn't
@@ -243,6 +244,43 @@ hunk for large files), worker names what changed and surfaces
 questions; the operator reacts; the conversation produces decisions
 that end up in `notes.md` as backlog candidates (Phase 4) or as
 walked-through-and-no-action notes.
+
+### Teaching mode for an unfamiliar codebase
+
+When the operator says they have not worked much in the repo, wants
+to understand the architecture while reviewing, or asks worker to
+teach them the code, Phase 3 changes order. **Start at the runtime
+entry point, not at the changed helper or a finding worker already
+knows about.**
+
+1. Map the external request into the repo: caller/service boundary →
+   workflow entry point → composition root / dispatcher → selected
+   scenario or handler → model-callable tool → nested workflow /
+   downstream dependency.
+2. Open those source locations in the authenticated browser and
+   drive one slice at a time. Define overloaded local vocabulary
+   before asking the operator to judge it.
+3. Only after the operator understands the normal path, layer the PR
+   diff onto it: what changed, what stayed inherited, and which
+   alternate routes bypass or override the changed code.
+4. Keep privately discovered findings in `notes.md`; do not lead the
+   walkthrough with them, draft a comment, or ask for posting
+   approval before the operator reaches the relevant code and forms
+   their own judgment.
+5. Once the operator states a judgment, draft the narrow comment in
+   their voice. Before any mid-walkthrough post, explicitly invoke
+   `operator-voice-comments`, verify every load-bearing claim, and run
+   the Phase-7 confidence plus validator-parrot / landscape-gap value
+   filters inline. Post only when those gates pass and the operator
+   explicitly approves that exact text and destination; record the
+   thread ID in `notes.md` and continue teaching. Otherwise place it
+   in the Phase-4 backlog.
+
+The anti-pattern is "finding-first teaching": dropping an operator
+into the line worker wants to critique, explaining just enough to
+justify a prewritten comment, then treating agreement as approval.
+That teaches the finding, not the system, and turns the walkthrough
+into verdict validation.
 
 **When to invoke `pr-review-interrogation`.** If a thread or design
 choice surfaces a design-premise question — "is this abstraction
@@ -492,7 +530,8 @@ Post the surviving backlog as PR comments via the available
 PR-comment-create tool — engine-specific. The skill references the
 action category, not a specific tool identifier; the underlying
 call shape is a thin wrapper over the platform's PR-thread-create
-REST API.
+REST API. Exclude items already posted inline during a teaching-mode
+walkthrough; their thread IDs are already in `notes.md`.
 
 Two kinds of comments:
 
