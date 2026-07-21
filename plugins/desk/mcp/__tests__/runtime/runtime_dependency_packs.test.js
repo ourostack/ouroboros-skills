@@ -2492,6 +2492,20 @@ test("runtime dependency pack rebuilds are byte-stable when inputs are unchanged
       provenanceSource: "unit stable rebuild fixture",
     })
     assert.equal(Number.isFinite(Date.parse(rebuiltAfterInvalidTimestamp.manifest.created_at)), true)
+
+    rmSync(rebuilt.manifestPath)
+    mkdirSync(rebuilt.manifestPath)
+    assert.throws(
+      () => buildRuntimeDependencyPack({
+        mcpRoot: syntheticMcpRoot.root,
+        outputRoot,
+        platform: target.platform,
+        arch: target.arch,
+        nodeAbi: targetNodeAbi,
+        provenanceSource: "unit stable rebuild fixture",
+      }),
+      (error) => error?.code === "EISDIR",
+    )
   } finally {
     rmSync(syntheticMcpRoot.root, { recursive: true, force: true })
     rmSync(outputRoot, { recursive: true, force: true })
