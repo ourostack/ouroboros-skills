@@ -2437,6 +2437,67 @@ test("runtime dependency pack builder handles long paths and CLI argument edge c
   }
 })
 
+test("runtime dependency pack rebuilds are byte-stable when inputs are unchanged", async () => {
+  const { buildRuntimeDependencyPack } = await loadRuntimeDeps()
+  const syntheticMcpRoot = writeSyntheticMcpRoot({
+    dependencyFiles: ["index.js"],
+    dependencyName: "stable-runtime",
+  })
+  const outputRoot = makeTempDir()
+
+  try {
+    const firstBuild = buildRuntimeDependencyPack({
+      mcpRoot: syntheticMcpRoot.root,
+      outputRoot,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      createdAt: "2026-06-15T00:00:00.000Z",
+      provenanceSource: "unit stable rebuild fixture",
+    })
+    const firstArchive = readFileSync(firstBuild.archivePath)
+    const firstChecksum = readFileSync(firstBuild.checksumPath, "utf8")
+
+    const rebuilt = buildRuntimeDependencyPack({
+      mcpRoot: syntheticMcpRoot.root,
+      outputRoot,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      provenanceSource: "unit stable rebuild fixture",
+    })
+
+    assert.equal(rebuilt.manifest.created_at, firstBuild.manifest.created_at)
+    assert.deepEqual(readFileSync(rebuilt.archivePath), firstArchive)
+    assert.equal(readFileSync(rebuilt.checksumPath, "utf8"), firstChecksum)
+
+    writeFileSync(rebuilt.manifestPath, "{invalid", "utf8")
+    const rebuiltAfterMalformedManifest = buildRuntimeDependencyPack({
+      mcpRoot: syntheticMcpRoot.root,
+      outputRoot,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      provenanceSource: "unit stable rebuild fixture",
+    })
+    assert.equal(Number.isFinite(Date.parse(rebuiltAfterMalformedManifest.manifest.created_at)), true)
+
+    writeFileSync(rebuilt.manifestPath, JSON.stringify({ created_at: "invalid" }), "utf8")
+    const rebuiltAfterInvalidTimestamp = buildRuntimeDependencyPack({
+      mcpRoot: syntheticMcpRoot.root,
+      outputRoot,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      provenanceSource: "unit stable rebuild fixture",
+    })
+    assert.equal(Number.isFinite(Date.parse(rebuiltAfterInvalidTimestamp.manifest.created_at)), true)
+  } finally {
+    rmSync(syntheticMcpRoot.root, { recursive: true, force: true })
+    rmSync(outputRoot, { recursive: true, force: true })
+  }
+})
+
 test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
   const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
   const pullRequestPathFilters = workflowPathFilters(workflow, "pull_request")

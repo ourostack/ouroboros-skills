@@ -390,7 +390,7 @@ export function buildRuntimeDependencyPack({
   platform = process.platform,
   arch = process.arch,
   nodeAbi = process.versions.modules,
-  createdAt = new Date().toISOString(),
+  createdAt,
   provenanceSource = "runtime dependency pack build script",
 } = {}) {
   const packageJson = readJson(path.join(mcpRoot, "package.json"))
@@ -400,9 +400,12 @@ export function buildRuntimeDependencyPack({
   const entries = archiveEntriesForProductionDependencies(productionDependencies, { mcpRoot })
   const root = outputRoot ?? path.join(mcpRoot, "artifacts", "runtime-deps")
   const packDir = path.join(root, packageJson.version, `${platform}-${arch}-node-${nodeAbi}`, prodDependencyLockHash)
+  const effectiveCreatedAt = createdAt
+    ?? existingRuntimeDependencyPackCreatedAt(path.join(packDir, "runtime-deps.manifest.json"))
+    ?? new Date().toISOString()
   const provisionalManifest = runtimeDependencyPackManifest({
     archiveSha: "0".repeat(64),
-    createdAt,
+    createdAt: effectiveCreatedAt,
     mcpRoot,
     packageJson,
     packageLock,
@@ -421,7 +424,7 @@ export function buildRuntimeDependencyPack({
   const archiveSha = sha256(archiveBytes)
   const manifest = runtimeDependencyPackManifest({
     archiveSha,
-    createdAt,
+    createdAt: effectiveCreatedAt,
     mcpRoot,
     packageJson,
     packageLock,
@@ -443,6 +446,24 @@ export function buildRuntimeDependencyPack({
     checksumPath: path.join(packDir, "runtime-deps.sha256"),
     manifest,
   }
+}
+
+function existingRuntimeDependencyPackCreatedAt(manifestPath) {
+  if (!existsSync(manifestPath)) {
+    return undefined
+  }
+  let manifest
+  try {
+    manifest = readJson(manifestPath)
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return undefined
+    }
+    throw error
+  }
+  return typeof manifest.created_at === "string" && Number.isFinite(Date.parse(manifest.created_at))
+    ? manifest.created_at
+    : undefined
 }
 
 export function runRuntimeDependencyPackBuildCli({ argv = process.argv.slice(2), io = process } = {}) {
