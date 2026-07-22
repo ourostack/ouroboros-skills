@@ -23,6 +23,8 @@ import {
 const cacheMarkerFile = ".desk-runtime-cache.json"
 const sourceMirrorDir = "source-mirror"
 const embeddedArchiveShaMarker = "<archive-sha256-recorded-in-sidecar>"
+const publicationLockPollMs = 25
+const publicationLockTimeoutMs = 30_000
 
 function runtimeEvidence({
   target,
@@ -33,6 +35,9 @@ function runtimeEvidence({
   supportMatrix,
   supportMatrixPath,
 }) {
+  const shippedTargets = Array.isArray(supportMatrix?.targets)
+    ? supportMatrix.targets.filter(isRuntimeTarget)
+    : []
   const currentTarget = {
     id: target,
     platform,
@@ -43,7 +48,7 @@ function runtimeEvidence({
     state: "unavailable",
     target: currentTarget,
     current_target: currentTarget,
-    shipped_targets: supportMatrix?.targets ?? [],
+    shipped_targets: shippedTargets,
     paths_checked: [
       supportMatrixPath,
       packPaths.packDir,
@@ -248,6 +253,17 @@ export function inspectRuntimeDependencyPack({
     supportMatrixPath,
   })
   if (
+    Array.isArray(resolvedSupportMatrix?.targets)
+    && resolvedSupportMatrix.targets.some((candidate) => !isRuntimeTarget(candidate))
+  ) {
+    return corruptPackInspection({
+      failureKind: "manifest_mismatch",
+      summary: `The runtime support matrix contains invalid targets for ${currentTarget}.`,
+      runtime,
+      errors: ["runtime support matrix targets must be objects with non-empty id fields"],
+    })
+  }
+  if (
     !Array.isArray(resolvedSupportMatrix?.targets)
     || !resolvedSupportMatrix.targets.some((candidate) => candidate.id === currentTarget)
   ) {
@@ -362,7 +378,13 @@ export function publishDirectoryAtomically({
   stagingDir,
   destinationDir,
   validateDestination,
+  lockTimeoutMs = publicationLockTimeoutMs,
+  createLockDirectory = mkdirSync,
+  now = Date.now,
+  processAlive = processIsAlive,
   rename = renameSync,
+  sleep = sleepSynchronously,
+  writeLockOwner = writeFileSync,
 }) {
   if (!existsSync(stagingDir)) {
     throw new Error(`atomic publication staging directory is missing: ${stagingDir}`)
@@ -373,9 +395,42 @@ export function publishDirectoryAtomically({
   }
 
   mkdirSync(path.dirname(destinationDir), { recursive: true })
+  let publicationLock
+  try {
+    publicationLock = acquirePublicationLock({
+      destinationDir,
+      lockTimeoutMs,
+      createLockDirectory,
+      now,
+      processAlive,
+      sleep,
+      validateDestination,
+      writeLockOwner,
+    })
+  } catch (error) {
+    rmSync(stagingDir, { recursive: true, force: true })
+    throw error
+  }
+  if (!publicationLock.owned) {
+    rmSync(stagingDir, { recursive: true, force: true })
+    return {
+      destinationDir,
+      published: false,
+      reused: true,
+    }
+  }
   const backupDir = siblingWorkPath(destinationDir, "backup")
   let hadDestination = false
+  let publicationError
   try {
+    if (directoryIsValid(validateDestination, destinationDir)) {
+      rmSync(stagingDir, { recursive: true, force: true })
+      return {
+        destinationDir,
+        published: false,
+        reused: true,
+      }
+    }
     if (existsSync(destinationDir)) {
       rename(destinationDir, backupDir)
       hadDestination = true
@@ -423,8 +478,159 @@ export function publishDirectoryAtomically({
       renameSync(backupDir, destinationDir)
     }
     rmSync(backupDir, { recursive: true, force: true })
+    publicationError = error
+  } finally {
+    releasePublicationLock(publicationLock)
+  }
+  throw publicationError
+}
+
+function acquirePublicationLock({
+  destinationDir,
+  lockTimeoutMs,
+  createLockDirectory,
+  now,
+  processAlive,
+  sleep,
+  validateDestination,
+  writeLockOwner,
+}) {
+  const lockDir = `${destinationDir}.publish-lock`
+  const startedAt = now()
+  while (true) {
+    if (directoryIsValid(validateDestination, destinationDir)) {
+      return { lockDir, owned: false }
+    }
+    let acquired = false
+    try {
+      createLockDirectory(lockDir)
+      acquired = true
+    } catch (error) {
+      if (error?.code !== "EEXIST" && error?.code !== "ENOTEMPTY") {
+        throw error
+      }
+    }
+    if (acquired) {
+      const token = randomUUID()
+      try {
+        writeLockOwner(
+          path.join(lockDir, "owner.json"),
+          JSON.stringify({
+            schema_version: 1,
+            pid: process.pid,
+            token,
+          }),
+          "utf8",
+        )
+      } catch (error) {
+        rmSync(lockDir, { recursive: true, force: true })
+        throw error
+      }
+      return { lockDir, owned: true, token }
+    }
+    if (reclaimAbandonedPublicationLock({
+      lockDir,
+      lockTimeoutMs,
+      createLockDirectory,
+      now,
+      processAlive,
+    })) {
+      continue
+    }
+    const elapsedMs = now() - startedAt
+    if (elapsedMs >= lockTimeoutMs) {
+      throw new Error(`atomic publication lock timed out: ${lockDir}`)
+    }
+    sleep(Math.min(publicationLockPollMs, lockTimeoutMs - elapsedMs))
+  }
+}
+
+function reclaimAbandonedPublicationLock({
+  lockDir,
+  lockTimeoutMs,
+  createLockDirectory,
+  now,
+  processAlive,
+}) {
+  const reclaimLockDir = `${lockDir}.reclaim-lock`
+  try {
+    createLockDirectory(reclaimLockDir)
+  } catch (error) {
+    if (error?.code === "EEXIST" || error?.code === "ENOTEMPTY") {
+      return false
+    }
     throw error
   }
+  try {
+    if (!publicationLockIsAbandoned({
+      lockDir,
+      lockTimeoutMs,
+      now,
+      processAlive,
+    })) {
+      return false
+    }
+    rmSync(lockDir, { recursive: true, force: true })
+    return true
+  } finally {
+    rmSync(reclaimLockDir, { recursive: true, force: true })
+  }
+}
+
+function publicationLockIsAbandoned({
+  lockDir,
+  lockTimeoutMs,
+  now,
+  processAlive,
+}) {
+  let owner
+  try {
+    owner = readJson(path.join(lockDir, "owner.json"))
+  } catch {
+    try {
+      return now() - statSync(lockDir).mtimeMs >= lockTimeoutMs
+    /* The lock can disappear after the colliding mkdir and before its metadata is read. */
+    /* node:coverage ignore next 3 */
+    } catch {
+      return true
+    }
+  }
+  return !Number.isInteger(owner?.pid)
+    || owner.pid <= 0
+    || !processAlive(owner.pid)
+}
+
+function releasePublicationLock({ lockDir, token }) {
+  let owner
+  try {
+    owner = readJson(path.join(lockDir, "owner.json"))
+  /* A lock removed by a dead-owner recovery no longer belongs to this publisher. */
+  /* node:coverage ignore next 3 */
+  } catch {
+    return
+  }
+  if (owner.token === token) {
+    rmSync(lockDir, { recursive: true, force: true })
+  }
+}
+
+export function processIsAlive(pid, kill = process.kill) {
+  try {
+    kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code !== "ESRCH"
+  }
+}
+
+function sleepSynchronously(durationMs) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs)
+}
+
+function isRuntimeTarget(candidate) {
+  return candidate !== null
+    && typeof candidate === "object"
+    && hasText(candidate.id)
 }
 
 export function restoreRuntimeDependencies({

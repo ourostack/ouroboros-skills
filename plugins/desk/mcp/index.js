@@ -152,7 +152,21 @@ export async function main({
   let inspection = null
   let runtimeServer
   if (runtimeInspector !== null) {
-    inspection = runtimeInspector({ mcpRoot })
+    try {
+      inspection = runtimeInspector({ mcpRoot })
+    } catch {
+      inspection = startupFailureInspection({
+        mcpRoot,
+        reason: "runtime_inspection_failed",
+      })
+      return diagnosticServerStarter({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
     if (!inspection.ok) {
       return handleUnavailableRuntime({
         argv,
@@ -250,12 +264,24 @@ async function handleUnavailableRuntime({
     })
   }
 
-  const selection = nodeSelector({
-    candidates: nodeCandidateDiscoverer({ env, homeDir }),
-    currentTarget: inspection.runtime?.current_target ?? inspection.current_target,
-    env,
-    shippedTargets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
-  })
+  let selection
+  try {
+    selection = nodeSelector({
+      candidates: nodeCandidateDiscoverer({ env, homeDir }),
+      currentTarget: inspection.runtime?.current_target ?? inspection.current_target,
+      env,
+      shippedTargets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
+    })
+  } catch {
+    return diagnosticServerStarter({
+      diagnostic: runtimeDiagnostic({
+        inspection,
+        reason: "node_selection_failed",
+        runtimeCacheDir,
+        env,
+      }),
+    })
+  }
   if (selection.mode === "reexec") {
     try {
       const result = await nodeReexecutor({
@@ -264,6 +290,9 @@ async function handleUnavailableRuntime({
         env,
         executable: selection.executable,
       })
+      if (result.forwardedSignal !== null && result.forwardedSignal !== undefined) {
+        return result
+      }
       if (result.code !== 0 || result.signal !== null) {
         throw new Error(`compatible Node exited with ${result.signal ?? result.code}`)
       }
@@ -289,6 +318,27 @@ async function handleUnavailableRuntime({
       env,
     }),
   })
+}
+
+function startupFailureInspection({ mcpRoot, reason }) {
+  const currentTarget = {
+    id: `${process.platform}-${process.arch}-node-${process.versions.modules}`,
+    platform: process.platform,
+    arch: process.arch,
+    node_abi: process.versions.modules,
+  }
+  const runtime = {
+    current_target: currentTarget,
+    shipped_targets: [],
+    paths_checked: [mcpRoot],
+    support_matrix_path: null,
+  }
+  return {
+    ok: false,
+    mode: "diagnostic",
+    reason,
+    runtime,
+  }
 }
 
 function runtimeDiagnostic({

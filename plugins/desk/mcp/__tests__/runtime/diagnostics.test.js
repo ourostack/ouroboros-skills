@@ -30,6 +30,8 @@ test("runtime diagnostic vocabulary distinguishes every recoverable first-boot f
     "missing_pack",
     "corrupt_pack",
     "runtime_restore_failed",
+    "runtime_inspection_failed",
+    "node_selection_failed",
     "no_compatible_node",
     "guarded_reexec_failure",
   ]) {

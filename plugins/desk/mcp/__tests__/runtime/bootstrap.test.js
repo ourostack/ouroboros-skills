@@ -1143,6 +1143,19 @@ test("runtime pack inspection classifies unsupported, missing, checksum, manifes
     assert.equal(unreadable.failure_kind, "archive_corrupt")
     assert.deepEqual(unreadable.errors, ["fixture verifier failure"])
 
+    const verifierError = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      verifyPack: () => {
+        throw new Error("fixture verifier error")
+      },
+    })
+    assert.equal(verifierError.reason, "corrupt_pack")
+    assert.equal(verifierError.failure_kind, "archive_corrupt")
+    assert.deepEqual(verifierError.errors, ["fixture verifier error"])
+
     const missingTargets = inspectRuntimeDependencyPack({
       mcpRoot: fixture.mcpRoot,
       platform: fixturePlatform,
@@ -1152,6 +1165,18 @@ test("runtime pack inspection classifies unsupported, missing, checksum, manifes
     })
     assert.equal(missingTargets.reason, "unsupported_target")
     assert.deepEqual(missingTargets.shipped_targets, [])
+
+    const invalidTargets = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      supportMatrix: { targets: [null, "invalid", { id: "   " }] },
+    })
+    assert.equal(invalidTargets.reason, "corrupt_pack")
+    assert.equal(invalidTargets.failure_kind, "manifest_mismatch")
+    assert.deepEqual(invalidTargets.shipped_targets, [])
+    assert.match(invalidTargets.errors[0], /non-empty id/u)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }
@@ -1257,6 +1282,29 @@ test("atomic publication restores the previous cache after interruption", async 
       readdirSync(root).some((entry) => entry.includes(".backup-")),
       false,
     )
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let renameCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          renameCount += 1
+          if (renameCount >= 2) {
+            throw new Error("injected restoration interruption")
+          }
+          renameSync(source, destination)
+        },
+      }),
+      /injected restoration interruption/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(existsSync(stagingDir), false)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -1300,6 +1348,269 @@ for (const collisionCode of ["EEXIST", "ENOTEMPTY"]) {
     }
   })
 }
+
+test("publication lock makes concurrent publishers reuse a valid winner without moving it", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-loser")
+  const lockDir = `${destinationDir}.publish-lock`
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    writeJson(path.join(lockDir, "owner.json"), {
+      schema_version: 1,
+      pid: process.pid,
+      token: "winner",
+    })
+    let waits = 0
+    const result = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => (
+        existsSync(path.join(candidate, "marker"))
+        && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+      ),
+      lockTimeoutMs: 100,
+      processAlive: () => true,
+      sleep: () => {
+        waits += 1
+        writeText(path.join(destinationDir, "marker"), "candidate\n")
+        rmSync(lockDir, { recursive: true, force: true })
+      },
+    })
+    assert.deepEqual(result, {
+      destinationDir,
+      published: false,
+      reused: true,
+    })
+    assert.equal(waits, 1)
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+    assert.deepEqual(readdirSync(root), ["runtime-cache"])
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let destinationChecks = 0
+    const winnerAfterAcquisition = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => {
+        if (candidate === stagingDir) {
+          return true
+        }
+        destinationChecks += 1
+        return destinationChecks > 1
+      },
+    })
+    assert.equal(winnerAfterAcquisition.reused, true)
+    assert.equal(existsSync(stagingDir), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("publication lock reclaims dead and malformed owners but times out behind a live owner", async () => {
+  const {
+    processIsAlive,
+    publishDirectoryAtomically,
+  } = await loadBootstrap()
+  const root = makeTempDir()
+  try {
+    assert.equal(processIsAlive(123, () => {}), true)
+    assert.equal(processIsAlive(123, () => {
+      const error = new Error("missing")
+      error.code = "ESRCH"
+      throw error
+    }), false)
+    assert.equal(processIsAlive(123, () => {
+      const error = new Error("denied")
+      error.code = "EPERM"
+      throw error
+    }), true)
+
+    const deadDestination = path.join(root, "dead-runtime-cache")
+    const deadStaging = `${deadDestination}.stage`
+    writeText(path.join(deadStaging, "marker"), "candidate\n")
+    writeJson(path.join(`${deadDestination}.publish-lock`, "owner.json"), {
+      schema_version: 1,
+      pid: 999_999,
+      token: "dead",
+    })
+    const deadOwnerResult = publishDirectoryAtomically({
+      destinationDir: deadDestination,
+      stagingDir: deadStaging,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      processAlive: () => false,
+    })
+    assert.equal(deadOwnerResult.published, true)
+    assert.equal(existsSync(`${deadDestination}.publish-lock`), false)
+
+    const malformedDestination = path.join(root, "malformed-runtime-cache")
+    const malformedStaging = `${malformedDestination}.stage`
+    const malformedLock = `${malformedDestination}.publish-lock`
+    writeText(path.join(malformedStaging, "marker"), "candidate\n")
+    mkdirSync(malformedLock, { recursive: true })
+    const malformedOwnerResult = publishDirectoryAtomically({
+      destinationDir: malformedDestination,
+      stagingDir: malformedStaging,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      lockTimeoutMs: 1,
+      now: () => Date.now() + 10_000,
+    })
+    assert.equal(malformedOwnerResult.published, true)
+    assert.equal(existsSync(malformedLock), false)
+
+    for (const [name, pid] of [["invalid", "not-a-pid"], ["nonpositive", 0]]) {
+      const invalidDestination = path.join(root, `${name}-runtime-cache`)
+      const invalidStaging = `${invalidDestination}.stage`
+      writeText(path.join(invalidStaging, "marker"), "candidate\n")
+      writeJson(path.join(`${invalidDestination}.publish-lock`, "owner.json"), {
+        schema_version: 1,
+        pid,
+        token: name,
+      })
+      const invalidOwnerResult = publishDirectoryAtomically({
+        destinationDir: invalidDestination,
+        stagingDir: invalidStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      })
+      assert.equal(invalidOwnerResult.published, true)
+    }
+
+    const liveDestination = path.join(root, "live-runtime-cache")
+    const liveStaging = `${liveDestination}.stage`
+    writeText(path.join(liveStaging, "marker"), "candidate\n")
+    writeJson(path.join(`${liveDestination}.publish-lock`, "owner.json"), {
+      schema_version: 1,
+      pid: process.pid,
+      token: "live",
+    })
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir: liveDestination,
+        stagingDir: liveStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+        lockTimeoutMs: 1,
+        processAlive: () => true,
+      }),
+      /publication lock timed out/u,
+    )
+    assert.equal(existsSync(liveStaging), false)
+
+    const reclaimDestination = path.join(root, "reclaim-runtime-cache")
+    const reclaimStaging = `${reclaimDestination}.stage`
+    const reclaimLock = `${reclaimDestination}.publish-lock`
+    writeText(path.join(reclaimStaging, "marker"), "candidate\n")
+    writeJson(path.join(reclaimLock, "owner.json"), {
+      schema_version: 1,
+      pid: 999_999,
+      token: "dead",
+    })
+    mkdirSync(`${reclaimLock}.reclaim-lock`)
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir: reclaimDestination,
+        stagingDir: reclaimStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+        lockTimeoutMs: 1,
+        processAlive: () => false,
+      }),
+      /publication lock timed out/u,
+    )
+    assert.equal(existsSync(reclaimStaging), false)
+
+    for (const failureSurface of ["owner", "acquire", "reclaim", "reclaim-nonempty"]) {
+      const failureDestination = path.join(root, `${failureSurface}-failure-runtime-cache`)
+      const failureStaging = `${failureDestination}.stage`
+      const failureLock = `${failureDestination}.publish-lock`
+      writeText(path.join(failureStaging, "marker"), "candidate\n")
+      if (failureSurface.startsWith("reclaim")) {
+        writeJson(path.join(failureLock, "owner.json"), {
+          schema_version: 1,
+          pid: 999_999,
+          token: "dead",
+        })
+      }
+      assert.throws(
+        () => publishDirectoryAtomically({
+          destinationDir: failureDestination,
+          stagingDir: failureStaging,
+          validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+          lockTimeoutMs: 1,
+          createLockDirectory: (candidate) => {
+            if (failureSurface === "acquire" && candidate === failureLock) {
+              const error = new Error("publication lock denied")
+              error.code = "EACCES"
+              throw error
+            }
+            if (failureSurface.startsWith("reclaim") && candidate.endsWith(".reclaim-lock")) {
+              const error = new Error(
+                failureSurface === "reclaim"
+                  ? "reclaim directory denied"
+                  : "reclaim directory nonempty",
+              )
+              error.code = failureSurface === "reclaim" ? "EACCES" : "ENOTEMPTY"
+              throw error
+            }
+            mkdirSync(candidate)
+          },
+          writeLockOwner: () => {
+            if (failureSurface === "owner") {
+              const error = new Error("owner metadata denied")
+              error.code = "EACCES"
+              throw error
+            }
+          },
+        }),
+        failureSurface === "owner"
+          ? /owner metadata denied/u
+          : failureSurface === "acquire"
+            ? /publication lock denied/u
+            : failureSurface === "reclaim"
+              ? /reclaim directory denied/u
+              : /publication lock timed out/u,
+      )
+      assert.equal(existsSync(failureStaging), false)
+      if (failureSurface === "owner") {
+        assert.equal(existsSync(failureLock), false)
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("publication lock does not remove a lock whose ownership token changed", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = `${destinationDir}.stage`
+  const lockDir = `${destinationDir}.publish-lock`
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let destinationValidationCount = 0
+    const result = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => {
+        if (candidate === destinationDir && existsSync(path.join(candidate, "marker"))) {
+          destinationValidationCount += 1
+          if (destinationValidationCount === 1) {
+            writeJson(path.join(lockDir, "owner.json"), {
+              schema_version: 1,
+              pid: process.pid,
+              token: "replacement-owner",
+            })
+          }
+          return true
+        }
+        return existsSync(path.join(candidate, "marker"))
+      },
+    })
+    assert.equal(result.published, true)
+    assert.equal(existsSync(lockDir), true)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
 
 test("runtime restoration stages a complete tree before replacing a stale cache", async () => {
   const { restoreRuntimeDependencies } = await loadBootstrap()

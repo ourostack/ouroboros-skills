@@ -19,6 +19,7 @@ export function discoverNodeCandidates({
   env = process.env,
   homeDir = env.HOME ?? os.homedir(),
   platform = process.platform,
+  readDirectory = readdirSync,
 } = {}) {
   const executableName = platform === "win32" ? "node.exe" : "node"
   const candidates = []
@@ -28,7 +29,7 @@ export function discoverNodeCandidates({
   }
   const nvmVersionsRoot = path.join(homeDir, ".nvm", "versions", "node")
   if (isDirectory(nvmVersionsRoot)) {
-    for (const version of readdirSync(nvmVersionsRoot).sort()) {
+    for (const version of readDirectorySafely(nvmVersionsRoot, readDirectory).sort()) {
       addExecutable(candidates, path.join(nvmVersionsRoot, version, "bin", executableName))
     }
   }
@@ -109,6 +110,8 @@ export function selectCompatibleNode({
       continue
     }
     const target = shippedTargets.find((candidate) => (
+      candidate !== null &&
+      typeof candidate === "object" &&
       candidate.platform === runtime.platform &&
       candidate.arch === runtime.arch &&
       String(candidate.node_abi) === String(runtime.node_abi)
@@ -134,9 +137,13 @@ export function reexecWithCompatibleNode({
   entrypointPath,
   env = process.env,
   executable,
+  parentProcess = process,
+  raiseSignal = (signal) => parentProcess.kill(parentProcess.pid, signal),
   spawn = nodeSpawn,
 } = {}) {
   return new Promise((resolve, reject) => {
+    let childClosed = false
+    let forwardedSignal = null
     const child = spawn(executable, [entrypointPath, ...argv], {
       env: {
         ...env,
@@ -145,9 +152,46 @@ export function reexecWithCompatibleNode({
       shell: false,
       stdio: "inherit",
     })
-    child.once("error", reject)
+    const forwardSignal = (signal) => {
+      if (childClosed || forwardedSignal !== null) {
+        return
+      }
+      forwardedSignal = signal
+      child.kill(signal)
+    }
+    const terminateChildOnParentExit = () => {
+      if (!childClosed) {
+        child.kill("SIGTERM")
+      }
+    }
+    const signalHandlers = new Map(
+      ["SIGINT", "SIGTERM", "SIGHUP"].map((signal) => [
+        signal,
+        () => forwardSignal(signal),
+      ]),
+    )
+    const cleanup = () => {
+      for (const [signal, handler] of signalHandlers) {
+        parentProcess.removeListener(signal, handler)
+      }
+      parentProcess.removeListener("exit", terminateChildOnParentExit)
+    }
+    for (const [signal, handler] of signalHandlers) {
+      parentProcess.on(signal, handler)
+    }
+    parentProcess.once("exit", terminateChildOnParentExit)
+    child.once("error", (error) => {
+      childClosed = true
+      cleanup()
+      reject(error)
+    })
     child.once("close", (code, signal) => {
-      resolve({ code, signal })
+      childClosed = true
+      cleanup()
+      resolve({ code, signal, forwardedSignal })
+      if (forwardedSignal !== null) {
+        queueMicrotask(() => raiseSignal(forwardedSignal))
+      }
     })
   })
 }
@@ -178,6 +222,14 @@ function isDirectory(candidate) {
   /* node:coverage ignore next 3 */
   } catch {
     return false
+  }
+}
+
+function readDirectorySafely(candidate, readDirectory) {
+  try {
+    return readDirectory(candidate)
+  } catch {
+    return []
   }
 }
 

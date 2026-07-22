@@ -108,6 +108,8 @@ test("Node probes execute candidates directly and selection requires an exact sh
     env: {},
     probe,
     shippedTargets: [
+      null,
+      "invalid-target",
       {
         id: "darwin-arm64-node-127",
         platform: "darwin",
@@ -244,6 +246,7 @@ test("compatible-Node re-exec forwards stdio once with the guard sentinel", asyn
   assert.deepEqual(result, {
     code: 0,
     signal: null,
+    forwardedSignal: null,
   })
   assert.equal(calls.length, 1)
   assert.equal(calls[0].command, "/fixture/node-22")
@@ -258,6 +261,80 @@ test("compatible-Node re-exec forwards stdio once with the guard sentinel", asyn
   assert.equal(calls[0].options.stdio, "inherit")
   assert.equal(calls[0].options.env.HOME, "/Users/unit")
   assert.equal(calls[0].options.env[REEXEC_ATTEMPT_ENV], "1")
+})
+
+test("compatible-Node re-exec forwards parent termination and removes lifecycle handlers", async () => {
+  const { reexecWithCompatibleNode } = await loadNodeSelection()
+  const parentProcess = new EventEmitter()
+  parentProcess.pid = 4242
+  const raisedSignals = []
+  parentProcess.kill = (pid, signal) => {
+    raisedSignals.push({ pid, signal })
+  }
+  const child = new EventEmitter()
+  const childSignals = []
+  child.kill = (signal) => {
+    childSignals.push(signal)
+    return true
+  }
+
+  const resultPromise = reexecWithCompatibleNode({
+    argv: [],
+    entrypointPath: "/plugin/mcp/index.js",
+    env: {},
+    executable: "/fixture/node-22",
+    parentProcess,
+    spawn: () => child,
+  })
+  assert.equal(parentProcess.listenerCount("SIGINT"), 1)
+  assert.equal(parentProcess.listenerCount("SIGTERM"), 1)
+  assert.equal(parentProcess.listenerCount("SIGHUP"), 1)
+  assert.equal(parentProcess.listenerCount("exit"), 1)
+
+  parentProcess.emit("SIGTERM")
+  parentProcess.emit("SIGINT")
+  assert.deepEqual(childSignals, ["SIGTERM"])
+  child.emit("close", null, "SIGTERM")
+  assert.deepEqual(await resultPromise, {
+    code: null,
+    signal: "SIGTERM",
+    forwardedSignal: "SIGTERM",
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(raisedSignals, [{ pid: 4242, signal: "SIGTERM" }])
+  assert.equal(parentProcess.listenerCount("SIGINT"), 0)
+  assert.equal(parentProcess.listenerCount("SIGTERM"), 0)
+  assert.equal(parentProcess.listenerCount("SIGHUP"), 0)
+  assert.equal(parentProcess.listenerCount("exit"), 0)
+})
+
+test("compatible-Node re-exec terminates its child if the parent exits", async () => {
+  const { reexecWithCompatibleNode } = await loadNodeSelection()
+  const parentProcess = new EventEmitter()
+  const child = new EventEmitter()
+  const childSignals = []
+  child.kill = (signal) => {
+    childSignals.push(signal)
+    return true
+  }
+  const resultPromise = reexecWithCompatibleNode({
+    argv: [],
+    entrypointPath: "/plugin/mcp/index.js",
+    env: {},
+    executable: "/fixture/node-22",
+    parentProcess,
+    raiseSignal: assert.fail,
+    spawn: () => child,
+  })
+
+  parentProcess.emit("exit")
+  assert.deepEqual(childSignals, ["SIGTERM"])
+  child.emit("close", 0, null)
+  assert.deepEqual(await resultPromise, {
+    code: 0,
+    signal: null,
+    forwardedSignal: null,
+  })
 })
 
 test("Node discovery and probes cover Windows, missing PATH, and malformed candidates", async () => {
@@ -280,6 +357,17 @@ test("Node discovery and probes cover Windows, missing PATH, and malformed candi
       env: {},
       platform: "win32",
     })[0], currentExecutable)
+    const nvmRoot = path.join(root, "home", ".nvm", "versions", "node")
+    mkdirSync(nvmRoot, { recursive: true })
+    assert.deepEqual(discoverNodeCandidates({
+      currentExecutable,
+      env: {},
+      homeDir: path.join(root, "home"),
+      platform: "win32",
+      readDirectory: () => {
+        throw new Error("directory disappeared")
+      },
+    }), [currentExecutable])
 
     assert.deepEqual(probeNodeRuntime({
       executable: "/missing/node",

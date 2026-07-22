@@ -51,6 +51,28 @@ const reasonDetails = {
       },
     ],
   },
+  runtime_inspection_failed: {
+    summary: "Desk could not inspect its committed offline runtime metadata safely.",
+    remediation: [
+      {
+        action: "refresh_plugin",
+        message: "Refresh the Desk plugin to restore readable runtime support metadata.",
+      },
+    ],
+  },
+  node_selection_failed: {
+    summary: "Desk could not complete bounded discovery of a compatible local Node runtime.",
+    remediation: [
+      {
+        action: "use_shipped_node",
+        message: "Start Desk directly with a Node runtime listed in the shipped runtime support matrix.",
+      },
+      {
+        action: "refresh_plugin",
+        message: "Refresh the Desk plugin if local Node discovery continues to fail.",
+      },
+    ],
+  },
   no_compatible_node: {
     summary: "Desk could not find a local Node runtime matching a shipped offline dependency pack.",
     remediation: [

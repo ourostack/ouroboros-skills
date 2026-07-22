@@ -255,6 +255,73 @@ test("startup handles unavailable runtime through diagnostics and guarded compat
     })
     assert.equal(noCompatibleNode.reason, "no_compatible_node")
     assert.equal(noCompatibleNode.failure_kind, undefined)
+
+    const forwardedTermination = await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      runtimeImporter: async () => assert.fail("runtime import should not run"),
+      runtimeInspector: () => ({ ...baseInspection, reason: "unsupported_target" }),
+      diagnosticServerStarter: () => assert.fail("termination should not start diagnostics"),
+      nodeCandidateDiscoverer: () => ["/node-22"],
+      nodeSelector: () => ({
+        mode: "reexec",
+        executable: "/node-22",
+        paths_checked: ["/node-22"],
+      }),
+      nodeReexecutor: async () => ({
+        code: null,
+        signal: "SIGTERM",
+        forwardedSignal: "SIGTERM",
+      }),
+    })
+    assert.equal(forwardedTermination.forwardedSignal, "SIGTERM")
+
+    const inspectionFailure = await main({
+      argv: ["--root", root],
+      env: {},
+      cwd: root,
+      homeDir: root,
+      mcpRoot: "/plugin",
+      runtimeImporter: async () => assert.fail("runtime import should not run"),
+      runtimeInspector: () => {
+        throw new Error("corrupt support metadata")
+      },
+      diagnosticServerStarter,
+    })
+    assert.equal(inspectionFailure.reason, "runtime_inspection_failed")
+    assert.equal(inspectionFailure.runtime.current_target.id, `${process.platform}-${process.arch}-node-${process.versions.modules}`)
+    assert.deepEqual(inspectionFailure.runtime.paths_checked, ["/plugin"])
+
+    for (const failingSelection of [
+      {
+        nodeCandidateDiscoverer: () => {
+          throw new Error("candidate discovery failed")
+        },
+        nodeSelector: () => assert.fail("selector should not run"),
+      },
+      {
+        nodeCandidateDiscoverer: () => ["/node-22"],
+        nodeSelector: () => {
+          throw new Error("selection failed")
+        },
+      },
+    ]) {
+      const selectionFailure = await main({
+        argv: ["--root", root],
+        env: {},
+        cwd: root,
+        homeDir: root,
+        runtimeImporter: async () => assert.fail("runtime import should not run"),
+        runtimeInspector: () => ({ ...baseInspection, reason: "unsupported_target" }),
+        diagnosticServerStarter,
+        ...failingSelection,
+      })
+      assert.equal(selectionFailure.reason, "node_selection_failed")
+      assert.equal(selectionFailure.runtime.current_target, baseInspection.current_target)
+      assert.deepEqual(selectionFailure.runtime.paths_checked, ["/pack"])
+    }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
