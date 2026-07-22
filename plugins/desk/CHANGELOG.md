@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.16 — 2026-07-22
+
+**Persistent MCP configuration now treats startup availability as part of the contract.** `add-workspace-mcp` classifies every frontmatter or auto-loaded workspace MCP as boot-critical: persist only when it can initialize truthfully everywhere the agent is expected to launch, keep conditionally available services behind explicit one-off activation, and never disguise authentication, authorization, or protocol failures as success. Launch verification now proves first-prompt readiness and checks the full output for repeated initialization failures instead of stopping at a successful config parse. MCP remains `desk-mcp@1.3.3`.
+
 ## 1.7.15 — 2026-07-22
 
 **Research-backed recommendations now start from primary evidence.** A new always-on substrate invariant requires workers to verify load-bearing claims against reasonably available first-party sources, keep verified facts, evidence-based inferences, unknowns, and decisions distinct, and continue reading and synthesizing instead of returning control while a material primary-source thread remains open. The rule is repeated across every worker boot surface so it stays active across Claude Code, GitHub Copilot CLI, Codex, and every overlay that inherits Desk. `desk-mcp@1.3.3` remains unchanged.
