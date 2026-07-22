@@ -14,7 +14,7 @@ Or via environment:
 DESK=~/<your-workspace> node ./index.js
 ```
 
-## Tools exposed (14)
+## Tools exposed (15)
 
 **Runtime CRUD:**
 - `task_create`, `task_update`, `task_archive`
@@ -23,6 +23,7 @@ DESK=~/<your-workspace> node ./index.js
 
 **Status:**
 - `desk_status` — session-start-safe MCP health, root, activation, index, snapshot, and vector-pack status
+- `desk_doctor` — healthy-runtime confirmation or precise first-boot failure diagnosis and remediation
 
 **Search:**
 - `desk_search` — hybrid lexical + semantic
@@ -32,7 +33,7 @@ DESK=~/<your-workspace> node ./index.js
 - `desk_thread` — provenance walk via refs_graph
 - `desk_reindex` — rebuild or repair the local search index
 
-All 14 tools are wired to real implementations.
+All 15 tools are wired to real implementations.
 
 ## How consumers wire this up
 
@@ -82,6 +83,8 @@ This path provides MCP tools only; there is no worker activation, default agent 
 - `gray-matter` — YAML frontmatter parser
 
 `sqlite-vec` and `better-sqlite3` are native deps. Healthy plugin activation restores the committed production runtime pack into a writable cache.
+
+Desk validates the committed runtime support matrix before loading production dependencies. If the host's Node ABI is unsupported, Desk searches only bounded local Node locations (the active executable, `PATH`, and standard NVM, Volta, asdf, and mise locations) and performs at most one guarded stdio-preserving handoff to a compatible runtime. It never installs, downloads, or reaches the network during startup. If no healthy local path exists, a dependency-free diagnostic MCP remains live with `desk_status` and `desk_doctor`; all mutation tools fail closed with the same diagnosis and offline remediation instead of crashing the host.
 
 ### Developer notes
 

@@ -3,15 +3,15 @@
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
-import { runArtifactValidateCli } from "../src/artifacts/artifact-scripts.js"
 import { verifyRuntimeSupportMatrix } from "../src/runtime/runtime-deps.js"
 
 const mcpRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const packageJson = JSON.parse(readFileSync(path.join(mcpRoot, "package.json"), "utf8"))
 const packageLock = JSON.parse(readFileSync(path.join(mcpRoot, "package-lock.json"), "utf8"))
-const support = verifyRuntimeSupportMatrix({ mcpRoot, packageJson, packageLock })
-if (!support.ok) {
-  for (const error of support.errors) console.error(error)
+const result = verifyRuntimeSupportMatrix({ mcpRoot, packageJson, packageLock })
+if (!result.ok) {
+  for (const error of result.errors) console.error(error)
+  process.exitCode = 1
+} else {
+  console.log(`runtime support matrix verified (${result.matrix.targets.length} targets)`)
 }
-const artifactExitCode = await runArtifactValidateCli()
-process.exitCode = support.ok ? artifactExitCode : 1

@@ -102,6 +102,186 @@ export function deriveRuntimeDependencyPackPaths({
   }
 }
 
+export function deriveRuntimeSupportMatrixPath({ mcpRoot = defaultMcpRoot, packageJson }) {
+  return path.join(
+    mcpRoot,
+    "artifacts",
+    "runtime-deps",
+    packageJson.version,
+    "support-matrix.json",
+  )
+}
+
+export const runtimeSupportMatrixPath = deriveRuntimeSupportMatrixPath
+
+export function buildRuntimeSupportMatrix({
+  mcpRoot = defaultMcpRoot,
+  packageJson,
+} = {}) {
+  const versionRoot = path.join(
+    mcpRoot,
+    "artifacts",
+    "runtime-deps",
+    packageJson.version,
+  )
+  const targets = []
+  if (existsSync(versionRoot)) {
+    for (const targetId of readdirSync(versionRoot).sort()) {
+      const targetDir = path.join(versionRoot, targetId)
+      if (!statSync(targetDir).isDirectory()) continue
+      for (const lockHash of readdirSync(targetDir).sort()) {
+        const packDir = path.join(targetDir, lockHash)
+        if (!statSync(packDir).isDirectory()) continue
+        const manifestPath = path.join(packDir, "runtime-deps.manifest.json")
+        const archivePath = path.join(packDir, "runtime-deps.tgz")
+        if (!existsSync(manifestPath) || !existsSync(archivePath)) continue
+        const manifest = readJson(manifestPath)
+        targets.push({
+          id: targetId,
+          platform: manifest.platform.os,
+          arch: manifest.platform.arch,
+          node_abi: String(manifest.platform.node_abi),
+          prod_dependency_lock_hash: manifest.package_lock.prod_dependency_lock_hash,
+          archive_sha256: sha256(readFileSync(archivePath)),
+          artifact_path: `${targetId}/${lockHash}`,
+        })
+      }
+    }
+  }
+
+  return {
+    schema_version: 1,
+    plugin: {
+      name: packageJson.name,
+      version: packageJson.version,
+    },
+    targets: targets.sort((left, right) => left.id.localeCompare(right.id)),
+  }
+}
+
+export const generateRuntimeSupportMatrix = buildRuntimeSupportMatrix
+
+export function validateRuntimeSupportMatrix({
+  matrix,
+  mcpRoot = defaultMcpRoot,
+  packageJson,
+} = {}) {
+  const errors = []
+  if (!matrix || typeof matrix !== "object" || Array.isArray(matrix)) {
+    return ["runtime support matrix must be a JSON object"]
+  }
+  if (matrix.schema_version !== 1) {
+    errors.push("runtime support matrix schema_version must be 1")
+  }
+  if (matrix.plugin?.name !== packageJson?.name) {
+    errors.push("runtime support matrix plugin.name must match package.json")
+  }
+  if (matrix.plugin?.version !== packageJson?.version) {
+    errors.push("runtime support matrix plugin.version must match package.json")
+  }
+  if (!Array.isArray(matrix.targets)) {
+    errors.push("runtime support matrix targets must be an array")
+    return errors
+  }
+  const ids = new Set()
+  for (const target of matrix.targets) {
+    if (!target || typeof target !== "object" || Array.isArray(target)) {
+      errors.push("runtime support matrix target entries must be JSON objects")
+      continue
+    }
+    for (const field of [
+      "id",
+      "platform",
+      "arch",
+      "node_abi",
+      "prod_dependency_lock_hash",
+      "archive_sha256",
+      "artifact_path",
+    ]) {
+      if (typeof target[field] !== "string" || target[field].length === 0) {
+        errors.push(`runtime support matrix target ${target.id ?? "<unknown>"} is missing ${field}`)
+      }
+    }
+    if (ids.has(target.id)) {
+      errors.push(`runtime support matrix contains duplicate target ${target.id}`)
+    }
+    ids.add(target.id)
+    const expectedId = `${target.platform}-${target.arch}-node-${target.node_abi}`
+    if (target.id !== expectedId) {
+      errors.push(`runtime support matrix target id must match platform, arch, and node_abi: expected ${expectedId}, got ${target.id}`)
+    }
+  }
+
+  const expected = buildRuntimeSupportMatrix({
+    mcpRoot,
+    packageJson,
+  })
+  const expectedById = new Map(expected.targets.map((target) => [target.id, target]))
+  if (
+    matrix.targets.length !== expected.targets.length
+    || matrix.targets.some((target) => !expectedById.has(target?.id))
+  ) {
+    errors.push("runtime support matrix targets must exactly match physically shipped runtime packs")
+  }
+  for (const target of matrix.targets) {
+    const expectedTarget = expectedById.get(target?.id)
+    if (!expectedTarget) continue
+    for (const field of [
+      "platform",
+      "arch",
+      "node_abi",
+      "prod_dependency_lock_hash",
+      "archive_sha256",
+      "artifact_path",
+    ]) {
+      if (target[field] !== expectedTarget[field]) {
+        errors.push(`runtime support matrix target ${target.id} ${field} must match the shipped pack`)
+      }
+    }
+  }
+  return errors
+}
+
+export function loadRuntimeSupportMatrix({
+  mcpRoot = defaultMcpRoot,
+  packageJson,
+} = {}) {
+  const matrixPath = deriveRuntimeSupportMatrixPath({ mcpRoot, packageJson })
+  if (!existsSync(matrixPath)) {
+    throw new Error(`runtime support matrix is missing: ${matrixPath}`)
+  }
+  const matrix = readJson(matrixPath)
+  const errors = validateRuntimeSupportMatrix({
+    matrix,
+    mcpRoot,
+    packageJson,
+  })
+  if (errors.length > 0) {
+    throw new Error(errors.join("; "))
+  }
+  return matrix
+}
+
+export function verifyRuntimeSupportMatrix({
+  mcpRoot = defaultMcpRoot,
+  packageJson,
+} = {}) {
+  try {
+    return {
+      ok: true,
+      matrix: loadRuntimeSupportMatrix({
+        mcpRoot,
+        packageJson,
+      }),
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [error instanceof Error ? error.message : String(error)],
+    }
+  }
+}
+
 export function collectProductionDependencyClosure({
   packageJson,
   packageLock,

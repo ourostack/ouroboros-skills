@@ -19,7 +19,18 @@ import {
   budgetValue,
   loadPerformanceBudgets,
 } from "./src/artifacts/performance-budgets.js"
-import { importRuntimeServer } from "./src/runtime/bootstrap.js"
+import {
+  importRuntimeServer,
+  inspectRuntimeDependencyPack,
+} from "./src/runtime/bootstrap.js"
+import { startDiagnosticServer } from "./src/runtime/diagnostic-server.js"
+import { createRuntimeDiagnostic } from "./src/runtime/diagnostics.js"
+import {
+  discoverNodeCandidates,
+  REEXEC_ATTEMPT_ENV,
+  reexecuteWithCompatibleNode,
+  selectCompatibleNode,
+} from "./src/runtime/node-selection.js"
 import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
 
 export function parseArgs(argv) {
@@ -123,17 +134,61 @@ export async function main({
   const { root: deskRoot } = rootResolution
   const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, env, homeDir })
   const activationStatus = resolveStartupActivationContext({ args, cwd, env, homeDir })
-  const runtimeServer = await runtimeImporter({
-    env,
-    mcpRoot,
-    runtimeCacheDir,
-  })
-  const runtimeStatus = runtimeServer._deskRuntime ?? {
+  let inspection = null
+  let runtimeServer
+  if (runtimeImporter === importRuntimeServer) {
+    inspection = inspectRuntimeDependencyPack({ mcpRoot })
+    if (!inspection.ok) {
+      return handleUnavailableRuntime({
+        argv,
+        env,
+        homeDir,
+        inspection,
+        mcpRoot,
+        runtimeCacheDir,
+      })
+    }
+    try {
+      runtimeServer = await runtimeImporter({
+        env,
+        mcpRoot,
+        runtimeCacheDir,
+      })
+    } catch {
+      return startDiagnosticServer({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          reason: "runtime_restore_failed",
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
+  } else {
+    runtimeServer = await runtimeImporter({
+      env,
+      mcpRoot,
+      runtimeCacheDir,
+    })
+  }
+  const importedRuntime = runtimeServer._deskRuntime ?? {
     runtime_cache_dir: runtimeCacheDir,
     source_mirror_path: null,
     target: null,
     loaded_from_source_mirror: false,
   }
+  const runtimeStatus = inspection === null
+    ? importedRuntime
+    : {
+        ...inspection.runtime,
+        ...importedRuntime,
+        state: "ready",
+        current_target: inspection.runtime?.current_target ?? inspection.current_target,
+        shipped_targets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
+        paths_checked: inspection.runtime?.paths_checked ?? inspection.paths_checked ?? [],
+        runtime_cache_path: importedRuntime.runtime_cache_dir ?? runtimeCacheDir,
+        support_matrix_path: inspection.runtime?.support_matrix_path ?? inspection.support_matrix_path,
+      }
   const performanceBudgets = await loadPerformanceBudgets({ mcpRoot })
   const startupStatus = await runStartupEnsureIndex({
     budgetMs: budgetValue(performanceBudgets, "startup", "ensure_index_ms"),
@@ -149,6 +204,86 @@ export async function main({
       runtime: runtimeStatus,
       startup: startupStatus,
     },
+  })
+}
+
+async function handleUnavailableRuntime({
+  argv,
+  env,
+  homeDir,
+  inspection,
+  mcpRoot,
+  runtimeCacheDir,
+}) {
+  const shouldSelectNode = inspection.reason === "unsupported_target"
+    || hasText(env[REEXEC_ATTEMPT_ENV])
+  if (!shouldSelectNode) {
+    return startDiagnosticServer({
+      diagnostic: runtimeDiagnostic({
+        inspection,
+        runtimeCacheDir,
+        env,
+      }),
+    })
+  }
+
+  const selection = selectCompatibleNode({
+    candidates: discoverNodeCandidates({ env, homeDir }),
+    currentTarget: inspection.runtime?.current_target ?? inspection.current_target,
+    env,
+    shippedTargets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
+  })
+  if (selection.mode === "reexec") {
+    try {
+      const result = await reexecuteWithCompatibleNode({
+        argv,
+        entrypointPath: path.join(mcpRoot, "index.js"),
+        env,
+        executable: selection.executable,
+      })
+      if (result.code !== 0 || result.signal !== null) {
+        throw new Error(`compatible Node exited with ${result.signal ?? result.code}`)
+      }
+      return result
+    } catch {
+      return startDiagnosticServer({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          reason: "guarded_reexec_failure",
+          pathsChecked: selection.paths_checked,
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
+  }
+  return startDiagnosticServer({
+    diagnostic: runtimeDiagnostic({
+      inspection,
+      reason: selection.reason,
+      pathsChecked: selection.paths_checked,
+      runtimeCacheDir,
+      env,
+    }),
+  })
+}
+
+function runtimeDiagnostic({
+  inspection,
+  reason = inspection.reason,
+  pathsChecked = [],
+  runtimeCacheDir,
+  env,
+}) {
+  const runtime = inspection.runtime ?? inspection
+  return createRuntimeDiagnostic({
+    reason,
+    failureKind: reason === inspection.reason ? inspection.failure_kind : undefined,
+    currentTarget: runtime.current_target,
+    shippedTargets: runtime.shipped_targets ?? [],
+    pathsChecked: [...(runtime.paths_checked ?? []), ...pathsChecked],
+    runtimeCachePath: runtimeCacheDir ?? env.DESK_RUNTIME_CACHE_DIR ?? null,
+    supportMatrixPath: runtime.support_matrix_path ?? null,
   })
 }
 

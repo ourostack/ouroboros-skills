@@ -1,4 +1,4 @@
-// Single source of truth for the 14 MCP tools desk-mcp exposes.
+// Single source of truth for the 15 MCP tools desk-mcp exposes.
 //
 // Imported by both server.js (registers them) and the tests (asserts the
 // list is canonical). Kept in a no-deps file so tests can import without
@@ -23,6 +23,7 @@ export const TOOL_NAMES = [
   "desk_reindex",
   // Health/status
   "desk_status",
+  "desk_doctor",
 ]
 
 export const TOOL_DESCRIPTIONS = {
@@ -54,4 +55,6 @@ export const TOOL_DESCRIPTIONS = {
     "Rebuild the desk-index sqlite db. Without args, behaves like ensureIndex (mtime-based incremental). With force:true, drops the db and rebuilds from scratch. Returns counts + timing.",
   desk_status:
     "Fast session-start health/status report for the resolved desk root, runtime cache, plugin version, local DB, lexical index, document-vector coverage, snapshots, and vector packs. Does not run expensive repair work or probe live embedding endpoints.",
+  desk_doctor:
+    "Report whether Desk MCP started in healthy runtime mode and describe the active runtime target. In diagnostic mode, reports the precise startup failure and offline remediation.",
 }

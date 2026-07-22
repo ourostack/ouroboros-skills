@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import {
   cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -14,11 +15,63 @@ import * as path from "node:path"
 import { pathToFileURL } from "node:url"
 import { isDeepStrictEqual } from "node:util"
 import { gunzipSync } from "node:zlib"
-import { deriveRuntimeDependencyPackPaths } from "./runtime-deps.js"
+import {
+  deriveRuntimeDependencyPackPaths,
+  deriveRuntimeSupportMatrixPath,
+} from "./runtime-deps.js"
 
 const cacheMarkerFile = ".desk-runtime-cache.json"
 const sourceMirrorDir = "source-mirror"
 const embeddedArchiveShaMarker = "<archive-sha256-recorded-in-sidecar>"
+
+function runtimeEvidence({
+  target,
+  platform,
+  arch,
+  nodeAbi,
+  packPaths,
+  supportMatrix,
+  supportMatrixPath,
+}) {
+  const currentTarget = {
+    id: target,
+    platform,
+    arch,
+    node_abi: String(nodeAbi),
+  }
+  return {
+    state: "unavailable",
+    target: currentTarget,
+    current_target: currentTarget,
+    shipped_targets: supportMatrix?.targets ?? [],
+    paths_checked: [
+      supportMatrixPath,
+      packPaths.packDir,
+      packPaths.manifestPath,
+      packPaths.checksumPath,
+      packPaths.archivePath,
+    ].filter(Boolean),
+    support_matrix_path: supportMatrixPath,
+  }
+}
+
+function corruptPackInspection({
+  failureKind,
+  summary,
+  runtime,
+  errors = [],
+}) {
+  return {
+    ok: false,
+    mode: "diagnostic",
+    reason: "corrupt_pack",
+    failure_kind: failureKind,
+    summary,
+    ...runtime,
+    runtime,
+    errors,
+  }
+}
 
 export async function importRuntimeServer({
   mcpRoot,
@@ -132,6 +185,247 @@ export function resolveRuntimeCacheDir({
   )
 }
 
+export function inspectRuntimeDependencyPack({
+  mcpRoot,
+  packageJson = readJson(path.join(mcpRoot, "package.json")),
+  packageLockPath = path.join(mcpRoot, "package-lock.json"),
+  packageLock = readJson(packageLockPath),
+  packPaths,
+  target,
+  platform = process.platform,
+  arch = process.arch,
+  nodeAbi = process.versions.modules,
+  supportMatrix,
+}) {
+  const currentTarget = target ?? `${platform}-${arch}-node-${nodeAbi}`
+  const supportMatrixPath = deriveRuntimeSupportMatrixPath({ mcpRoot, packageJson })
+  let resolvedSupportMatrix = supportMatrix
+  if (resolvedSupportMatrix === undefined) {
+    try {
+      resolvedSupportMatrix = readJson(supportMatrixPath)
+    } catch (error) {
+      const fallbackPackPaths = packPaths ?? deriveRuntimeDependencyPackPaths({
+        mcpRoot,
+        packageJson,
+        packageLock,
+        platform,
+        arch,
+        nodeAbi,
+      })
+      const runtime = runtimeEvidence({
+        target: currentTarget,
+        platform,
+        arch,
+        nodeAbi,
+        packPaths: fallbackPackPaths,
+        supportMatrix: { targets: [] },
+        supportMatrixPath,
+      })
+      return corruptPackInspection({
+        failureKind: "manifest_mismatch",
+        summary: `The runtime support matrix cannot be read for ${currentTarget}.`,
+        runtime,
+        errors: [error instanceof Error ? error.message : String(error)],
+      })
+    }
+  }
+  const resolvedPackPaths = packPaths ?? deriveRuntimeDependencyPackPaths({
+    mcpRoot,
+    packageJson,
+    packageLock,
+    platform,
+    arch,
+    nodeAbi,
+  })
+  const runtime = runtimeEvidence({
+    target: currentTarget,
+    platform,
+    arch,
+    nodeAbi,
+    packPaths: resolvedPackPaths,
+    supportMatrix: resolvedSupportMatrix,
+    supportMatrixPath,
+  })
+  if (
+    !Array.isArray(resolvedSupportMatrix?.targets)
+    || !resolvedSupportMatrix.targets.some((candidate) => candidate.id === currentTarget)
+  ) {
+    return {
+      ok: false,
+      mode: "diagnostic",
+      reason: "unsupported_target",
+      summary: `No shipped runtime dependency pack supports ${currentTarget}.`,
+      ...runtime,
+      runtime,
+      errors: [`unsupported runtime dependency pack target ${currentTarget}`],
+    }
+  }
+
+  const missingPaths = [
+    resolvedPackPaths.manifestPath,
+    resolvedPackPaths.checksumPath,
+    resolvedPackPaths.archivePath,
+  ].filter((candidate) => !existsSync(candidate))
+  if (missingPaths.length > 0) {
+    return {
+      ok: false,
+      mode: "diagnostic",
+      reason: "missing_pack",
+      failure_kind: "missing_artifact",
+      summary: `The runtime dependency pack for ${currentTarget} is incomplete or missing.`,
+      ...runtime,
+      runtime,
+      errors: missingPaths.map((candidate) => {
+        if (candidate === resolvedPackPaths.manifestPath) {
+          return "runtime dependency pack manifest runtime-deps.manifest.json is missing"
+        }
+        if (candidate === resolvedPackPaths.checksumPath) {
+          return "runtime dependency pack checksum runtime-deps.sha256 is missing"
+        }
+        return "runtime dependency pack archive runtime-deps.tgz is missing"
+      }),
+    }
+  }
+
+  let verification
+  try {
+    verification = verifyBootstrapRuntimeDependencyPack({
+      packageJson,
+      packageLockPath,
+      packPaths: resolvedPackPaths,
+      target: currentTarget,
+      platform,
+      arch,
+      nodeAbi,
+    })
+  } catch (error) {
+    return corruptPackInspection({
+      failureKind: "archive_corrupt",
+      summary: `The runtime dependency pack cannot be read for ${currentTarget}.`,
+      runtime,
+      errors: [error instanceof Error ? error.message : String(error)],
+    })
+  }
+  if (verification.ok) {
+    return {
+      ok: true,
+      mode: "ready",
+      reason: "ready",
+      ...runtime,
+      manifest: verification.manifest,
+      archiveEntries: verification.archiveEntries,
+      runtime: {
+        ...runtime,
+        state: "ready",
+      },
+    }
+  }
+
+  const checksumMismatch = verification.errors.some((error) => (
+    error.includes("checksum mismatch")
+    || error.includes("archive.sha256 must match")
+  ))
+  const archiveCorrupt = verification.errors.some((error) => (
+    error.includes("readable gzip tar archive")
+  ))
+  const failureKind = checksumMismatch
+    ? "checksum_mismatch"
+    : archiveCorrupt
+      ? "archive_corrupt"
+      : "manifest_mismatch"
+  return corruptPackInspection({
+    failureKind,
+    summary: failureKind === "checksum_mismatch"
+      ? `The runtime dependency pack checksum does not match for ${currentTarget}.`
+      : failureKind === "archive_corrupt"
+        ? `The runtime dependency archive cannot be read for ${currentTarget}.`
+        : `The runtime dependency pack manifest does not match ${currentTarget}.`,
+    runtime,
+    errors: verification.errors,
+  })
+}
+
+function siblingWorkPath(destinationDir, kind) {
+  return `${destinationDir}.${kind}-${process.pid}-${randomUUID()}`
+}
+
+function directoryIsValid(validateDestination, candidate) {
+  try {
+    return validateDestination(candidate) === true
+  } catch {
+    return false
+  }
+}
+
+export function publishDirectoryAtomically({
+  stagingDir,
+  destinationDir,
+  validateDestination,
+  rename = renameSync,
+}) {
+  if (!existsSync(stagingDir)) {
+    throw new Error(`atomic publication staging directory is missing: ${stagingDir}`)
+  }
+  if (!directoryIsValid(validateDestination, stagingDir)) {
+    rmSync(stagingDir, { recursive: true, force: true })
+    throw new Error(`atomic publication staging directory is incomplete: ${stagingDir}`)
+  }
+
+  mkdirSync(path.dirname(destinationDir), { recursive: true })
+  const backupDir = siblingWorkPath(destinationDir, "backup")
+  let hadDestination = false
+  try {
+    if (existsSync(destinationDir)) {
+      rename(destinationDir, backupDir)
+      hadDestination = true
+    }
+    try {
+      rename(stagingDir, destinationDir)
+    } catch (error) {
+      if (
+        error?.code === "EEXIST"
+        && directoryIsValid(validateDestination, destinationDir)
+      ) {
+        rmSync(stagingDir, { recursive: true, force: true })
+        rmSync(backupDir, { recursive: true, force: true })
+        return {
+          destinationDir,
+          published: false,
+          reused: true,
+        }
+      }
+      if (hadDestination) {
+        rmSync(destinationDir, { recursive: true, force: true })
+        rename(backupDir, destinationDir)
+        hadDestination = false
+      }
+      throw error
+    }
+
+    if (!directoryIsValid(validateDestination, destinationDir)) {
+      rmSync(destinationDir, { recursive: true, force: true })
+      if (hadDestination) {
+        rename(backupDir, destinationDir)
+        hadDestination = false
+      }
+      throw new Error(`atomic publication produced an incomplete directory: ${destinationDir}`)
+    }
+    rmSync(backupDir, { recursive: true, force: true })
+    return {
+      destinationDir,
+      published: true,
+      reused: false,
+    }
+  } catch (error) {
+    rmSync(stagingDir, { recursive: true, force: true })
+    if (hadDestination && existsSync(backupDir) && !existsSync(destinationDir)) {
+      renameSync(backupDir, destinationDir)
+    }
+    rmSync(backupDir, { recursive: true, force: true })
+    throw error
+  }
+}
+
 export function restoreRuntimeDependencies({
   mcpRoot,
   packageJson,
@@ -142,8 +436,11 @@ export function restoreRuntimeDependencies({
   platform = process.platform,
   arch = process.arch,
   nodeAbi = process.versions.modules,
+  supportMatrix,
+  publishDirectory = publishDirectoryAtomically,
 }) {
-  const verification = verifyBootstrapRuntimeDependencyPack({
+  const inspection = inspectRuntimeDependencyPack({
+    mcpRoot,
     packageJson,
     packageLockPath,
     packPaths,
@@ -151,48 +448,80 @@ export function restoreRuntimeDependencies({
     platform,
     arch,
     nodeAbi,
+    supportMatrix: supportMatrix ?? { targets: [{ id: target }] },
   })
-  if (!verification.ok) {
+  if (!inspection.ok) {
     throw runtimeDependencyPackError({
       mcpRoot,
       packageJson,
       packPaths,
       target,
-      errors: verification.errors,
+      errors: inspection.errors,
     })
   }
-  const archiveSha = verification.manifest.archive.sha256
+  const archiveSha = inspection.manifest.archive.sha256
   if (runtimeCacheIsCurrent({
     runtimeCacheDir,
     archiveSha,
     target,
-    expectedPlugin: verification.manifest.plugin,
-    requiredCacheEntries: verification.archiveEntries,
+    expectedPlugin: inspection.manifest.plugin,
+    requiredCacheEntries: inspection.archiveEntries,
   })) {
     return { restored: false, runtimeCacheDir }
   }
-  mkdirSync(runtimeCacheDir, { recursive: true })
-  for (const entry of ["node_modules", "package.json", "package-lock.json", "runtime-deps.manifest.json"]) {
-    rmSync(path.join(runtimeCacheDir, entry), { recursive: true, force: true })
+  if (existsSync(runtimeCacheDir) && !statSync(runtimeCacheDir).isDirectory()) {
+    mkdirSync(runtimeCacheDir, { recursive: true })
   }
-  extractRuntimeArchive({
-    archivePath: packPaths.archivePath,
-    destinationDir: runtimeCacheDir,
-  })
-  writeFileSync(
-    path.join(runtimeCacheDir, cacheMarkerFile),
-    JSON.stringify({
-      schema_version: 1,
-      archive_sha256: archiveSha,
-      target,
-      plugin: {
-        name: verification.manifest.plugin.name,
-        version: verification.manifest.plugin.version,
-      },
-    }, null, 2),
-    "utf8",
-  )
-  return { restored: true, runtimeCacheDir }
+  mkdirSync(path.dirname(runtimeCacheDir), { recursive: true })
+  const stagingDir = siblingWorkPath(runtimeCacheDir, "stage")
+  try {
+    mkdirSync(stagingDir, { recursive: true })
+    extractRuntimeArchive({
+      archivePath: packPaths.archivePath,
+      destinationDir: stagingDir,
+    })
+    writeFileSync(
+      path.join(stagingDir, cacheMarkerFile),
+      JSON.stringify({
+        schema_version: 1,
+        archive_sha256: archiveSha,
+        target,
+        plugin: {
+          name: inspection.manifest.plugin.name,
+          version: inspection.manifest.plugin.version,
+        },
+      }, null, 2),
+      "utf8",
+    )
+    writeFileSync(
+      path.join(stagingDir, ".complete.json"),
+      `${JSON.stringify({
+        schema_version: 1,
+        kind: "runtime-cache",
+        target,
+        prod_dependency_lock_hash: inspection.manifest.package_lock.prod_dependency_lock_hash,
+        archive_sha256: archiveSha,
+      }, null, 2)}\n`,
+      "utf8",
+    )
+    const publication = publishDirectory({
+      stagingDir,
+      destinationDir: runtimeCacheDir,
+      validateDestination: (candidate) => runtimeCacheIsCurrent({
+        runtimeCacheDir: candidate,
+        archiveSha,
+        target,
+        expectedPlugin: inspection.manifest.plugin,
+        requiredCacheEntries: inspection.archiveEntries,
+      }),
+    })
+    return {
+      restored: publication?.reused !== true,
+      runtimeCacheDir,
+    }
+  } finally {
+    rmSync(stagingDir, { recursive: true, force: true })
+  }
 }
 
 export function verifyBootstrapRuntimeDependencyPack({
@@ -324,26 +653,60 @@ function readRuntimeArchiveEntries(archiveBytes, errors) {
   return entries
 }
 
-export function syncSourceMirror({ mcpRoot, runtimeCacheDir }) {
+function sourceMirrorIsCurrent({ mirrorPath, sourceHash }) {
+  try {
+    const marker = readJson(path.join(mirrorPath, ".complete.json"))
+    return marker.schema_version === 1
+      && marker.kind === "source-mirror"
+      && marker.source_hash === sourceHash
+      && existsSync(path.join(mirrorPath, "index.js"))
+      && existsSync(path.join(mirrorPath, "package.json"))
+      && existsSync(path.join(mirrorPath, "src"))
+  } catch {
+    return false
+  }
+}
+
+export function syncSourceMirror({
+  mcpRoot,
+  runtimeCacheDir,
+  publishDirectory = publishDirectoryAtomically,
+}) {
   const sourceHash = hashCurrentSource(mcpRoot)
   const mirrorPath = path.join(runtimeCacheDir, sourceMirrorDir, sourceHash)
-  if (existsSync(mirrorPath)) {
+  if (sourceMirrorIsCurrent({ mirrorPath, sourceHash })) {
     return mirrorPath
   }
-  const stagingPath = `${mirrorPath}.tmp-${process.pid}`
-  rmSync(stagingPath, { recursive: true, force: true })
-  mkdirSync(stagingPath, { recursive: true })
-  for (const entry of ["index.js", "package.json", "package-lock.json", "scripts", "src"]) {
-    cpSync(path.join(mcpRoot, entry), path.join(stagingPath, entry), {
-      recursive: true,
-      filter: (source) => !source.split(path.sep).includes("node_modules"),
+  const stagingPath = siblingWorkPath(mirrorPath, "stage")
+  try {
+    mkdirSync(stagingPath, { recursive: true })
+    for (const entry of ["index.js", "package.json", "package-lock.json", "scripts", "src"]) {
+      cpSync(path.join(mcpRoot, entry), path.join(stagingPath, entry), {
+        recursive: true,
+        filter: (source) => !source.split(path.sep).includes("node_modules"),
+      })
+    }
+    writeFileSync(
+      path.join(stagingPath, ".complete.json"),
+      `${JSON.stringify({
+        schema_version: 1,
+        kind: "source-mirror",
+        source_hash: sourceHash,
+      }, null, 2)}\n`,
+      "utf8",
+    )
+    publishDirectory({
+      stagingDir: stagingPath,
+      destinationDir: mirrorPath,
+      validateDestination: (candidate) => sourceMirrorIsCurrent({
+        mirrorPath: candidate,
+        sourceHash,
+      }),
     })
+    return mirrorPath
+  } finally {
+    rmSync(stagingPath, { recursive: true, force: true })
   }
-  mkdirSync(path.dirname(mirrorPath), { recursive: true })
-  rmSync(mirrorPath, { recursive: true, force: true })
-  cpSync(stagingPath, mirrorPath, { recursive: true })
-  rmSync(stagingPath, { recursive: true, force: true })
-  return mirrorPath
 }
 
 export function hashCurrentSource(mcpRoot) {
@@ -428,11 +791,13 @@ export function runtimeDependencyPackError({
 
 function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin, requiredCacheEntries = [] }) {
   const markerPath = path.join(runtimeCacheDir, cacheMarkerFile)
-  if (!existsSync(markerPath)) {
+  const completeMarkerPath = path.join(runtimeCacheDir, ".complete.json")
+  if (!existsSync(markerPath) || !existsSync(completeMarkerPath)) {
     return false
   }
   try {
     const marker = readJson(markerPath)
+    const completeMarker = readJson(completeMarkerPath)
     const cachedPackageJson = readJson(path.join(runtimeCacheDir, "package.json"))
     const cachedRuntimeManifest = readJson(path.join(runtimeCacheDir, "runtime-deps.manifest.json"))
     return marker.schema_version === 1
@@ -440,6 +805,10 @@ function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPl
       && marker.target === target
       && marker.plugin?.name === expectedPlugin?.name
       && marker.plugin?.version === expectedPlugin?.version
+      && completeMarker.schema_version === 1
+      && completeMarker.kind === "runtime-cache"
+      && completeMarker.target === target
+      && completeMarker.archive_sha256 === archiveSha
       && cachedPackageJson.name === expectedPlugin?.name
       && cachedPackageJson.version === expectedPlugin?.version
       && cachedRuntimeManifest.plugin?.name === expectedPlugin?.name

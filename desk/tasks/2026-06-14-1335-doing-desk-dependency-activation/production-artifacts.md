@@ -25,7 +25,7 @@ Commands run:
 
 Current freshness anchors:
 
-- current_artifact_source_scope_hash: sha256:762ef7011a04670ee29c6f38df1b688d0cf9828cfdc4b017de84dc4433371c87
+- current_artifact_source_scope_hash: sha256:aa934129585223f261da2ede556070178b073087ac702ca91c62c7807c700347
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
 
 Published vector pack:
@@ -36,7 +36,7 @@ Published vector pack:
 - `pack_id`: `repo-public-bootstrap-2026-06-15`
 - `row_count`: 2
 - `rows_sha256`: `974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c`
-- `artifact_source_scope_hash`: `sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d`
+- `artifact_source_scope_hash`: `sha256:aa934129585223f261da2ede556070178b073087ac702ca91c62c7807c700347`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
@@ -48,7 +48,7 @@ Published snapshot:
 - Manifest: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.manifest.json`
 - Checksum: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sha256`
 - `snapshot_id`: `repo-public-bootstrap-2026-06-15`
-- `artifact_source_scope_hash`: `sha256:d75f7e31f863996f9bb7447ba7c360f8abe3c4c32d92a2335afd3cbff8e4d73d`
+- `artifact_source_scope_hash`: `sha256:aa934129585223f261da2ede556070178b073087ac702ca91c62c7807c700347`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `included_pack_ids`: `repo-public-bootstrap-2026-06-15`
 - `represented_document_count`: 1

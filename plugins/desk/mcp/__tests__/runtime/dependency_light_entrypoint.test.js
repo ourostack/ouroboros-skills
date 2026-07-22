@@ -772,7 +772,11 @@ test("MCP entrypoint keeps a diagnostic MCP live when the current runtime pack i
     assert.equal(status.status, "degraded")
     assert.equal(status.mode, "diagnostic")
     assert.equal(status.runtime.current_target.id, hostTarget)
-    assert.ok(["missing_pack", "unsupported_target"].includes(status.reason))
+    assert.ok(["missing_pack", "unsupported_target", "no_compatible_node"].includes(status.reason))
+    assert.equal(
+      status.remediation.some((item) => item.action === "refresh_plugin"),
+      true,
+    )
     assert.match(
       JSON.stringify(status.runtime.paths_checked),
       new RegExp(escapeRegExp(path.join(artifactsRoot, hostTarget)), "u"),
@@ -784,7 +788,7 @@ test("MCP entrypoint keeps a diagnostic MCP live when the current runtime pack i
     assert.deepEqual(doctor.remediation, status.remediation)
     assert.equal(result.mutation.result.isError, true)
     assert.match(result.mutation.result.content[0].text, new RegExp(escapeRegExp(hostTarget), "u"))
-    assert.match(result.mutation.result.content[0].text, /runtime:deps-pack:build/u)
+    assert.match(result.mutation.result.content[0].text, /"action":\s*"refresh_plugin"/u)
     assert.doesNotMatch(result.stderr, /Cannot find package '@modelcontextprotocol\/sdk'/u)
     assert.doesNotMatch(result.stderr, /\n\s+at\s+/u)
     assertNoBootstrapSideEffects(fixture)
