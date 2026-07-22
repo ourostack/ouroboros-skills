@@ -383,7 +383,7 @@ export function publishDirectoryAtomically({
       rename(stagingDir, destinationDir)
     } catch (error) {
       if (
-        error?.code === "EEXIST"
+        (error?.code === "EEXIST" || error?.code === "ENOTEMPTY")
         && directoryIsValid(validateDestination, destinationDir)
       ) {
         rmSync(stagingDir, { recursive: true, force: true })

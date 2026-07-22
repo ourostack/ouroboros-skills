@@ -1157,42 +1157,44 @@ test("atomic publication restores the previous cache after interruption", async 
   }
 })
 
-test("concurrent atomic publication losers verify and reuse the coherent winner", async () => {
-  const { publishDirectoryAtomically } = await loadBootstrap()
-  const root = makeTempDir()
-  const destinationDir = path.join(root, "runtime-cache")
-  const stagingDir = path.join(root, "runtime-cache.stage-loser")
-  try {
-    writeText(path.join(stagingDir, "marker"), "candidate\n")
-    const result = publishDirectoryAtomically({
-      destinationDir,
-      stagingDir,
-      validateDestination: (candidate) => (
-        existsSync(path.join(candidate, "marker"))
-        && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
-      ),
-      rename: (source, destination) => {
-        if (source === stagingDir && destination === destinationDir) {
-          writeText(path.join(destinationDir, "marker"), "candidate\n")
-          const error = new Error("simulated concurrent rename collision")
-          error.code = "EEXIST"
-          throw error
-        }
-        renameSync(source, destination)
-      },
-    })
-    assert.deepEqual(result, {
-      destinationDir,
-      published: false,
-      reused: true,
-    })
-    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
-    assert.equal(existsSync(stagingDir), false)
-    assert.deepEqual(readdirSync(root), ["runtime-cache"])
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
-})
+for (const collisionCode of ["EEXIST", "ENOTEMPTY"]) {
+  test(`concurrent atomic publication losers reuse the coherent winner after ${collisionCode}`, async () => {
+    const { publishDirectoryAtomically } = await loadBootstrap()
+    const root = makeTempDir()
+    const destinationDir = path.join(root, "runtime-cache")
+    const stagingDir = path.join(root, "runtime-cache.stage-loser")
+    try {
+      writeText(path.join(stagingDir, "marker"), "candidate\n")
+      const result = publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          if (source === stagingDir && destination === destinationDir) {
+            writeText(path.join(destinationDir, "marker"), "candidate\n")
+            const error = new Error("simulated concurrent rename collision")
+            error.code = collisionCode
+            throw error
+          }
+          renameSync(source, destination)
+        },
+      })
+      assert.deepEqual(result, {
+        destinationDir,
+        published: false,
+        reused: true,
+      })
+      assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+      assert.equal(existsSync(stagingDir), false)
+      assert.deepEqual(readdirSync(root), ["runtime-cache"])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+}
 
 test("runtime restoration stages a complete tree before replacing a stale cache", async () => {
   const { restoreRuntimeDependencies } = await loadBootstrap()

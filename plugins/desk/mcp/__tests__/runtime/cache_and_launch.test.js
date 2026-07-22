@@ -21,7 +21,11 @@ const runtimeArtifactNames = new Set([
 
 const bootstrapModule = await import(pathToFileURL(path.join(mcpRoot, "src/runtime/bootstrap.js")).href);
 const runtimeDepsModule = await import(pathToFileURL(path.join(mcpRoot, "src/runtime/runtime-deps.js")).href);
-const { buildRuntimeDependencyPack } = runtimeDepsModule;
+const {
+  buildRuntimeDependencyPack,
+  buildRuntimeSupportMatrix,
+  deriveRuntimeSupportMatrixPath,
+} = runtimeDepsModule;
 const { prepareRuntime } = bootstrapModule;
 const packageJson = readJson(path.join(mcpRoot, "package.json"));
 const packageLock = readJson(path.join(mcpRoot, "package-lock.json"));
@@ -76,6 +80,17 @@ function makeInstalledPluginFixture(tempRoot) {
     createdAt: "1970-01-01T00:00:00.000Z",
     provenanceSource: "cache_and_launch.test installed plugin fixture",
   });
+  const runtimePackageJson = readJson(path.join(runtimeMcpRoot, "package.json"));
+  writeJson(
+    deriveRuntimeSupportMatrixPath({
+      mcpRoot: runtimeMcpRoot,
+      packageJson: runtimePackageJson,
+    }),
+    buildRuntimeSupportMatrix({
+      mcpRoot: runtimeMcpRoot,
+      packageJson: runtimePackageJson,
+    }),
+  );
   return { pluginRoot, mcpRoot: runtimeMcpRoot };
 }
 
