@@ -775,6 +775,8 @@ test("MCP entrypoint keeps a diagnostic MCP live when the current runtime pack i
 
     const result = await runMcpStatusSession(fixture)
     assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.initialize.result.serverInfo.name, "desk-mcp-diagnostic")
+    assert.equal(result.initialize.result.serverInfo.version, packageJson.version)
     assert.deepEqual(
       result.tools.result.tools.map((tool) => tool.name),
       ["desk_status", "desk_doctor"],

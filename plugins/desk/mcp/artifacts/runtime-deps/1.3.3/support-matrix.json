@@ -2,7 +2,7 @@
   "schema_version": 1,
   "plugin": {
     "name": "@ourostack/desk-mcp",
-    "version": "1.3.2"
+    "version": "1.3.3"
   },
   "targets": [
     {
@@ -11,7 +11,7 @@
       "arch": "arm64",
       "node_abi": "127",
       "prod_dependency_lock_hash": "e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be",
-      "archive_sha256": "7d76c97caa6e8de06af283c77ad6cedb4ac213c713830e9963ec52fc908c9f0f",
+      "archive_sha256": "85a7481dd775988812dccf9613c477270248805e28e0b99b9b73b672edd0d654",
       "artifact_path": "darwin-arm64-node-127/e28611fabac02b7d88a0ad71cd7e282de1ec09e86cefab01e6d4e572136896be"
     }
   ]
