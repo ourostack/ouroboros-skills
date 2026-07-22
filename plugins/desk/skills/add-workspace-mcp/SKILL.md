@@ -144,7 +144,7 @@ else
 fi
 cat "$output_file"
 ack_count="$(grep -icE '^[[:space:]]*ack[[:space:]]*$' "$output_file" || true)"
-failure_count="$(grep -icE 'failed to launch|initialization failed|respawn|retrying' "$output_file" || true)"
+failure_count="$(grep -icE 'fail(ed|ure|ing)?|error|unauthori[sz]ed|forbidden|permission denied|respawn|retry' "$output_file" || true)"
 rm -f "$output_file"
 test "$launch_status" -eq 0 &&
   test "$ack_count" -eq 1 &&
