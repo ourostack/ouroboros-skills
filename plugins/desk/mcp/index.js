@@ -12,7 +12,7 @@
 // CLI, ouroboros daemon per agent). Each consumer supplies or discovers its
 // own root/activation context without needing a bespoke Desk CLI.
 
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, readFileSync, realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import * as path from "node:path"
 import {
@@ -32,6 +32,8 @@ import {
   selectCompatibleNode,
 } from "./src/runtime/node-selection.js"
 import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
+
+const MCP_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\+[0-9A-Za-z][0-9A-Za-z.-]*)?$/u
 
 export function parseArgs(argv) {
   const args = { root: null, person: null }
@@ -130,6 +132,22 @@ export function resolveRuntimeInspector({ runtimeImporter, runtimeInspector }) {
     : null
 }
 
+export function resolveMcpServerVersion({
+  mcpRoot,
+  readFile = readFileSync,
+} = {}) {
+  try {
+    const version = JSON.parse(
+      readFile(path.join(mcpRoot, "package.json"), "utf8"),
+    ).version
+    return hasText(version) && MCP_VERSION_PATTERN.test(version)
+      ? version
+      : "0.0.0"
+  } catch {
+    return "0.0.0"
+  }
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -144,6 +162,11 @@ export async function main({
   nodeReexecutor = reexecuteWithCompatibleNode,
 } = {}) {
   runtimeInspector = resolveRuntimeInspector({ runtimeImporter, runtimeInspector })
+  const serverVersion = resolveMcpServerVersion({ mcpRoot })
+  const startRuntimeDiagnostic = (options) => diagnosticServerStarter({
+    ...options,
+    serverVersion,
+  })
   const args = parseArgs(argv)
   const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
   const { root: deskRoot } = rootResolution
@@ -159,7 +182,7 @@ export async function main({
         mcpRoot,
         reason: "runtime_inspection_failed",
       })
-      return diagnosticServerStarter({
+      return startRuntimeDiagnostic({
         diagnostic: runtimeDiagnostic({
           inspection,
           runtimeCacheDir,
@@ -170,7 +193,7 @@ export async function main({
     if (!inspection.ok) {
       return handleUnavailableRuntime({
         argv,
-        diagnosticServerStarter,
+        diagnosticServerStarter: startRuntimeDiagnostic,
         env,
         homeDir,
         inspection,
@@ -188,7 +211,7 @@ export async function main({
         runtimeCacheDir,
       })
     } catch {
-      return diagnosticServerStarter({
+      return startRuntimeDiagnostic({
         diagnostic: runtimeDiagnostic({
           inspection,
           reason: "runtime_restore_failed",

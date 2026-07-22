@@ -4,7 +4,11 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
 
-import { main, resolveRuntimeInspector } from "../../index.js"
+import {
+  main,
+  resolveMcpServerVersion,
+  resolveRuntimeInspector,
+} from "../../index.js"
 import {
   importRuntimeServer,
   inspectRuntimeDependencyPack,
@@ -13,6 +17,31 @@ import {
 function makeRoot(prefix) {
   return mkdtempSync(path.join(tmpdir(), prefix))
 }
+
+test("startup reads the diagnostic server version without making metadata failure fatal", () => {
+  assert.equal(resolveMcpServerVersion({
+    mcpRoot: "/plugin",
+    readFile: () => JSON.stringify({ version: "7.8.9" }),
+  }), "7.8.9")
+  assert.equal(resolveMcpServerVersion({
+    mcpRoot: "/plugin",
+    readFile: () => JSON.stringify({ version: "" }),
+  }), "0.0.0")
+  assert.equal(resolveMcpServerVersion({
+    mcpRoot: "/plugin",
+    readFile: () => JSON.stringify({ version: "not-semver" }),
+  }), "0.0.0")
+  assert.equal(resolveMcpServerVersion({
+    mcpRoot: "/plugin",
+    readFile: () => JSON.stringify({ version: "7.8.9-beta.1+build.2" }),
+  }), "7.8.9-beta.1+build.2")
+  assert.equal(resolveMcpServerVersion({
+    mcpRoot: "/plugin",
+    readFile: () => {
+      throw new Error("package metadata unavailable")
+    },
+  }), "0.0.0")
+})
 
 test("startup assembles inspected runtime status and falls back to diagnostics when restoration fails", async () => {
   const root = makeRoot("desk-startup-inspected-runtime-")

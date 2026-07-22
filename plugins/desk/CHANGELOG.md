@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.14 — 2026-07-22
+
+**Diagnostic mode now reports the installed Desk MCP version.** The dependency-light entrypoint reads package metadata before any degraded path and passes that version through every diagnostic launch, so hosts see the real `desk-mcp@1.3.3` identity instead of `0.0.0`. Invalid or unavailable package metadata still falls back safely without turning diagnostics into another startup failure.
+
 ## 1.7.13 — 2026-07-21
 
 **Person-scoped Desk writes now fail closed at the filesystem boundary.** All seven task, track, friction, and lesson mutations share one segment-validation and realpath-confinement resolver, so hostile path segments, broken links, and symlinks escaping the authenticated person's subtree are rejected while repo-wide reads remain available. Task archive additionally models the complete post-relocation symlink chain before and after rename, preserving safe internal links while rejecting retargeting, cycles, source-directory aliases, and destinations nested inside the source. MCP bumped to `desk-mcp@1.3.2`.

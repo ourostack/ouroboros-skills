@@ -118,7 +118,7 @@ export function createMcpServer() {
   return new Server(
     {
       name: "desk-mcp",
-      version: "1.3.2",
+      version: "1.3.3",
     },
     {
       capabilities: { tools: {} },
