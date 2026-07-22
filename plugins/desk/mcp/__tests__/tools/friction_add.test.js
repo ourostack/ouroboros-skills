@@ -22,6 +22,22 @@ test("friction_add (no track) writes to _meta/friction.md", async () => {
   assert.match(content, /onboarding hurts/)
 })
 
+test("friction_add treats null, empty, undefined, and non-string track values as cross-cutting", async () => {
+  for (const track of [null, "", undefined, 42]) {
+    const root = await mkTempDeskRoot()
+    const result = await friction_add({
+      deskRoot: root,
+      input: { track, body: `cross-cutting ${String(track)}` },
+    })
+
+    assert.equal(result.path, path.join("_meta", "friction.md"))
+    assert.match(
+      await fs.readFile(path.join(root, "_meta", "friction.md"), "utf8"),
+      /cross-cutting/,
+    )
+  }
+})
+
 test("friction_add (with track) writes to <track>/_friction/<date>-<theme>.md", async () => {
   const root = await mkTempDeskRoot()
   const result = await friction_add({
@@ -64,6 +80,21 @@ test("friction_add appends with a separator on the second call", async () => {
   )
 })
 
+test("friction_add normalizes trailing newlines and appends to a file without one", async () => {
+  const root = await mkTempDeskRoot()
+  const filePath = path.join(root, "_meta", "friction.md")
+  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  await fs.writeFile(filePath, "existing entry without newline", "utf8")
+
+  await friction_add({
+    deskRoot: root,
+    input: { body: "new entry with newline\n" },
+  })
+
+  const content = await fs.readFile(filePath, "utf8")
+  assert.match(content, /existing entry without newline\n\n---\n\nnew entry with newline\n$/)
+})
+
 test("friction_add defaults theme to 'untitled' if missing", async () => {
   const root = await mkTempDeskRoot()
   const result = await friction_add({
@@ -76,7 +107,15 @@ test("friction_add defaults theme to 'untitled' if missing", async () => {
 test("friction_add requires a body", async () => {
   const root = await mkTempDeskRoot()
   await assert.rejects(
+    () => friction_add({ deskRoot: root }),
+    /body.*required/,
+  )
+  await assert.rejects(
     () => friction_add({ deskRoot: root, input: {} }),
+    /body.*required/,
+  )
+  await assert.rejects(
+    () => friction_add({ deskRoot: root, input: { body: 123 } }),
     /body.*required/,
   )
 })

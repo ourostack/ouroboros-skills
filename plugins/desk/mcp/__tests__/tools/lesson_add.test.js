@@ -52,14 +52,41 @@ test("lesson_add appends an `## Update <date>` section when file exists", async 
   )
 })
 
+test("lesson_add normalizes trailing newlines and appends to a file without one", async () => {
+  const root = await mkTempDeskRoot()
+  const filePath = path.join(root, "_meta", "tips", "topic-x.md")
+  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  await fs.writeFile(filePath, "# Existing lesson", "utf8")
+
+  await lesson_add({
+    deskRoot: root,
+    input: { topic: "topic-x", body: "New lesson.\n" },
+  })
+
+  const content = await fs.readFile(filePath, "utf8")
+  assert.match(content, /# Existing lesson\n\n## Update \d{4}-\d{2}-\d{2}\n\nNew lesson\.\n$/)
+})
+
 test("lesson_add rejects empty topic or body", async () => {
   const root = await mkTempDeskRoot()
+  await assert.rejects(
+    () => lesson_add({ deskRoot: root }),
+    /topic.*required/,
+  )
   await assert.rejects(
     () => lesson_add({ deskRoot: root, input: { body: "x" } }),
     /topic.*required/,
   )
   await assert.rejects(
     () => lesson_add({ deskRoot: root, input: { topic: "x" } }),
+    /body.*required/,
+  )
+  await assert.rejects(
+    () => lesson_add({ deskRoot: root, input: { topic: 123, body: "x" } }),
+    /topic.*required/,
+  )
+  await assert.rejects(
+    () => lesson_add({ deskRoot: root, input: { topic: "x", body: 123 } }),
     /body.*required/,
   )
   await assert.rejects(

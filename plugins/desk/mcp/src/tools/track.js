@@ -10,7 +10,7 @@ import {
   writeMarkdown,
   pathExists,
 } from "../util/fm.js"
-import { personPrefix } from "../util/paths.js"
+import { resolveWriteTarget } from "../util/paths.js"
 
 // Optional fields a caller may supply at create time.
 const OPTIONAL_TRACK_FIELDS = [
@@ -18,12 +18,6 @@ const OPTIONAL_TRACK_FIELDS = [
   "adopted_from",
   "planning",
 ]
-
-// `base` = effective write root (personPrefix(deskRoot, person)); relPath
-// stays anchored at the real deskRoot so the returned path shows desks/<alias>/.
-function trackFile(base, slug) {
-  return path.join(base, slug, "track.md")
-}
 
 function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
@@ -48,15 +42,20 @@ function relPath(deskRoot, absPath) {
  * Returns: { status: "created", path }
  */
 export async function track_create({ deskRoot, input, person = null }) {
-  const { slug, title } = input ?? {}
-  if (!slug || typeof slug !== "string") {
+  const values = input ?? {}
+  const { slug, title } = values
+  if (!Object.hasOwn(values, "slug")) {
     throw new Error("track_create: `slug` is required (string)")
   }
   if (!title || typeof title !== "string") {
     throw new Error("track_create: `title` is required (string)")
   }
 
-  const filePath = trackFile(personPrefix(deskRoot, person), slug)
+  const filePath = await resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: [slug, "track.md"],
+  })
   if (await pathExists(filePath)) {
     throw new Error(
       `track_create: track already exists at ${relPath(deskRoot, filePath)}`,
@@ -67,15 +66,15 @@ export async function track_create({ deskRoot, input, person = null }) {
   const data = {
     schema_version: 1,
     title,
-    status: input.status ?? "active",
+    status: values.status ?? "active",
     created: ts,
     updated: ts,
   }
   for (const k of OPTIONAL_TRACK_FIELDS) {
-    if (input[k] !== undefined) data[k] = input[k]
+    if (values[k] !== undefined) data[k] = values[k]
   }
 
-  await writeMarkdown(filePath, data, input.body ?? "")
+  await writeMarkdown(filePath, data, values.body ?? "")
   return { status: "created", path: relPath(deskRoot, filePath) }
 }
 
@@ -98,12 +97,17 @@ export async function track_create({ deskRoot, input, person = null }) {
  * Returns: { status: "updated", path }
  */
 export async function track_update({ deskRoot, input, person = null }) {
-  const { slug, frontmatter, body_append } = input ?? {}
-  if (!slug) {
+  const values = input ?? {}
+  const { slug, frontmatter, body_append } = values
+  if (!Object.hasOwn(values, "slug")) {
     throw new Error("track_update: `slug` is required")
   }
 
-  const filePath = trackFile(personPrefix(deskRoot, person), slug)
+  const filePath = await resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: [slug, "track.md"],
+  })
   if (!(await pathExists(filePath))) {
     throw new Error(
       `track_update: track does not exist at ${relPath(deskRoot, filePath)}`,
@@ -124,7 +128,7 @@ export async function track_update({ deskRoot, input, person = null }) {
   merged.updated = nowIso()
 
   let newBody = existing.content
-  if (body_append && typeof body_append === "string" && body_append.length) {
+  if (typeof body_append === "string" && body_append.length > 0) {
     const sep = newBody.endsWith("\n\n") || newBody.length === 0 ? "" : "\n\n"
     newBody = `${newBody}${sep}${body_append}`
   }

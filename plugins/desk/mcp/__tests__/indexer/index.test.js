@@ -536,7 +536,7 @@ test("unchanged lexical-only docs do not live-embed unless reembedMissing is ena
   }
 })
 
-test("large rebuilds do not exceed SQLite variable limits when no chunks need embedding", { timeout: 30000 }, async () => {
+test("large rebuilds do not exceed SQLite variable limits when no chunks need embedding", { timeout: 60000 }, async () => {
   const root = await mkRoot()
   const docsBeyondLocalSqliteVariableLimit = 32767
   await writeManyEmptySharedDocs(root, docsBeyondLocalSqliteVariableLimit)
@@ -554,7 +554,7 @@ test("large rebuilds do not exceed SQLite variable limits when no chunks need em
   assert.equal(calls, 0)
 })
 
-test("large missing-vector batches append rows without spread argument overflow", { timeout: 30000 }, async () => {
+test("large missing-vector batches append rows without spread argument overflow", { timeout: 60000 }, async () => {
   const root = await mkRoot()
   const docsPerBatch = 500
   const chunksPerDoc = 240

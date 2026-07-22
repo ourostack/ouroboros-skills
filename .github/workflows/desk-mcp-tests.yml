@@ -125,11 +125,14 @@ jobs:
 
       - name: Build runtime dependency pack
         working-directory: plugins/desk/mcp
-        run: npm run runtime:deps-pack:build
+        run: npm run runtime:deps-pack:build -- --output-root "$RUNNER_TEMP/desk-runtime-deps"
 
       - name: Verify runtime dependency pack
         working-directory: plugins/desk/mcp
-        run: npm run runtime:deps-pack:verify
+        run: |
+          manifest="$(find "$RUNNER_TEMP/desk-runtime-deps" -name runtime-deps.manifest.json -print -quit)"
+          test -n "$manifest"
+          npm run runtime:deps-pack:verify -- --pack-dir "$(dirname "$manifest")"
 
       - name: Verify Desk snapshot artifacts
         working-directory: plugins/desk/mcp

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
-import { zstdCompressSync } from "node:zlib"
+import * as zlib from "node:zlib"
 import { fileURLToPath } from "node:url"
 
 import { closeDb, indexDbPath, openDb } from "../db/init.js"
@@ -194,7 +194,7 @@ export async function buildSnapshotFromLocalDb({
     checkpointDb(db)
     const sourceDocs = representedDocuments(db)
     const sqliteBytes = await fs.readFile(indexDbPath(deskRoot))
-    const snapshotBytes = zstdCompressSync(sqliteBytes)
+    const snapshotBytes = compressSnapshotBytes(sqliteBytes)
     const artifactSha = `sha256:${sha256Hex(snapshotBytes)}`
     const context = snapshotCompatibilityContext({ mcpRoot, docs: sourceDocs })
     const manifest = {
@@ -682,9 +682,19 @@ Usage: npm run artifact:validate -- --desk-root <path> [--plugin-root <path>] [-
 `
 }
 
+function compressSnapshotBytes(sqliteBytes, codec = zlib) {
+  if (typeof codec.zstdCompressSync !== "function") {
+    throw new Error(
+      "Snapshot compression requires a Node.js runtime with zstdCompressSync support (Node.js 22.15 or newer).",
+    )
+  }
+  return codec.zstdCompressSync(sqliteBytes)
+}
+
 export const __artifactScriptInternalsForTests = {
   commonRoots,
   checkpointDb,
+  compressSnapshotBytes,
   documentTreeHash,
   defaultIo,
   filesWithSuffix,

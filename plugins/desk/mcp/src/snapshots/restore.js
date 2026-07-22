@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
-import { zstdDecompressSync } from "node:zlib"
+import * as zlib from "node:zlib"
 import { indexDbPath } from "../db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 import { validateSnapshotArtifact } from "./manifest.js"
@@ -103,16 +103,17 @@ export async function restoreSnapshotToState({
   }
 
   const compressed = await fs.readFile(selected.snapshotPath)
-  const sqliteBytes = safeDecompress(compressed)
-  if (!sqliteBytes) {
+  const decompressed = decompressSnapshotBytes(compressed)
+  if (!decompressed.bytes) {
     return {
       restored: false,
-      reason: "snapshot_corrupt",
+      reason: decompressed.reason,
       snapshot_id: selected.snapshot_id,
       state_db_path: stateDbPath,
       freshness: selected.freshness,
     }
   }
+  const sqliteBytes = decompressed.bytes
   const stateDbSha256 = `sha256:${sha256(sqliteBytes)}`
   await fs.mkdir(path.dirname(stateDbPath), { recursive: true })
   await writeAtomic(stateDbPath, sqliteBytes)
@@ -196,11 +197,23 @@ async function writeAtomic(filePath, bytes) {
   await fs.rename(tmpPath, filePath)
 }
 
-function safeDecompress(compressed) {
+export function decompressSnapshotBytes(compressed, codec = zlib) {
+  if (typeof codec?.zstdDecompressSync !== "function") {
+    return {
+      bytes: null,
+      reason: "snapshot_codec_unavailable",
+    }
+  }
   try {
-    return zstdDecompressSync(compressed)
+    return {
+      bytes: codec.zstdDecompressSync(compressed),
+      reason: "snapshot_decompressed",
+    }
   } catch {
-    return null
+    return {
+      bytes: null,
+      reason: "snapshot_corrupt",
+    }
   }
 }
 

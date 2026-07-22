@@ -436,6 +436,24 @@ test("restoreSnapshotToState treats corrupt compressed snapshots as cache misses
   await assert.rejects(() => fs.stat(indexDbPath(deskRoot)), /ENOENT/u)
 })
 
+test("snapshot restoration stays importable when the runtime has no zstd codec", async () => {
+  const source = await fs.readFile(
+    path.join(mcpRoot, "src", "snapshots", "restore.js"),
+    "utf8",
+  )
+  assert.match(source, /import \* as zlib from "node:zlib"/u)
+  assert.doesNotMatch(source, /import \{[^}]*zstdDecompressSync[^}]*\} from "node:zlib"/u)
+
+  const { decompressSnapshotBytes } = await loadRestoreModule()
+  assert.deepEqual(
+    decompressSnapshotBytes(Buffer.from("snapshot", "utf8"), {}),
+    {
+      bytes: null,
+      reason: "snapshot_codec_unavailable",
+    },
+  )
+})
+
 test("restoreSnapshotToState surfaces unwritable state paths", async () => {
   const { restoreSnapshotToState } = await loadRestoreModule()
   const pluginRoot = await tmpRoot("desk-snapshot-restore-plugin-")

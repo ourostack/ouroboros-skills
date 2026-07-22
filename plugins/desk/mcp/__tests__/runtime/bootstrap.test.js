@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -186,6 +187,40 @@ async function writeRuntimePack({
     manifest,
     archiveBytes: provisionalArchiveBytes,
     target: `${platform}-${arch}-node-${nodeAbi}`,
+  }
+}
+
+function writeRuntimeSupportMatrixFixture({ mcpRoot: fixtureMcpRoot, pack, mutate }) {
+  const matrix = {
+    schema_version: 1,
+    plugin: {
+      name: pack.manifest.plugin.name,
+      version: pack.manifest.plugin.version,
+    },
+    targets: [
+      {
+        id: pack.target,
+        platform: pack.manifest.platform.os,
+        arch: pack.manifest.platform.arch,
+        node_abi: pack.manifest.platform.node_abi,
+        prod_dependency_lock_hash: pack.manifest.package_lock.prod_dependency_lock_hash,
+        archive_sha256: pack.manifest.archive.sha256,
+        artifact_path: `${pack.target}/${pack.manifest.package_lock.prod_dependency_lock_hash}`,
+      },
+    ],
+  }
+  mutate?.(matrix)
+  const matrixPath = path.join(
+    fixtureMcpRoot,
+    "artifacts",
+    "runtime-deps",
+    pack.packageJson.version,
+    "support-matrix.json",
+  )
+  writeJson(matrixPath, matrix)
+  return {
+    matrix,
+    matrixPath,
   }
 }
 
@@ -489,6 +524,7 @@ test("restoreRuntimeDependencies repairs corrupt or incomplete cache markers", a
     const pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
     mkdirSync(runtimeCacheDir, { recursive: true })
     writeText(path.join(runtimeCacheDir, ".desk-runtime-cache.json"), "{not json")
+    writeText(path.join(runtimeCacheDir, ".complete.json"), "{}\n")
     writeText(path.join(runtimeCacheDir, "package.json"), "{}\n")
 
     const restored = restoreRuntimeDependencies({
@@ -987,5 +1023,686 @@ test("runtime pack diagnostics list expected paths, available targets, and remed
     )
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("runtime pack inspection classifies unsupported, missing, checksum, manifest, and archive failures", async () => {
+  const { inspectRuntimeDependencyPack } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    let pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const ready = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(ready.mode, "ready")
+    assert.equal(ready.target.id, pack.target)
+    assert.equal(ready.failure_kind, undefined)
+
+    const unsupported = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: "other-os",
+      arch: "other-arch",
+      nodeAbi: "000",
+    })
+    assert.equal(unsupported.mode, "diagnostic")
+    assert.equal(unsupported.reason, "unsupported_target")
+    assert.deepEqual(
+      unsupported.shipped_targets.map((target) => target.id),
+      [pack.target],
+    )
+    assert.ok(unsupported.paths_checked.includes(unsupported.support_matrix_path))
+
+    rmSync(pack.packPaths.archivePath)
+    const missing = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(missing.mode, "diagnostic")
+    assert.equal(missing.reason, "missing_pack")
+    assert.equal(missing.failure_kind, "missing_artifact")
+    assert.ok(missing.paths_checked.includes(pack.packPaths.archivePath))
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    writeText(pack.packPaths.checksumPath, `${"0".repeat(64)}  runtime-deps.tgz\n`)
+    const checksumMismatch = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(checksumMismatch.mode, "diagnostic")
+    assert.equal(checksumMismatch.reason, "corrupt_pack")
+    assert.equal(checksumMismatch.failure_kind, "checksum_mismatch")
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const driftedManifest = readJson(pack.packPaths.manifestPath)
+    driftedManifest.plugin.version = "0.0.0"
+    writeJson(pack.packPaths.manifestPath, driftedManifest)
+    const manifestMismatch = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(manifestMismatch.mode, "diagnostic")
+    assert.equal(manifestMismatch.reason, "corrupt_pack")
+    assert.equal(manifestMismatch.failure_kind, "manifest_mismatch")
+
+    const corruptBytes = Buffer.from("not a gzip archive\n", "utf8")
+    pack = await writeRuntimePack({
+      mcpRoot: fixture.mcpRoot,
+      archiveBytes: corruptBytes,
+      checksum: sha256(corruptBytes),
+      manifestMutator: (manifest) => {
+        manifest.archive.sha256 = sha256(corruptBytes)
+      },
+    })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const corruptArchive = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(corruptArchive.mode, "diagnostic")
+    assert.equal(corruptArchive.reason, "corrupt_pack")
+    assert.equal(corruptArchive.failure_kind, "archive_corrupt")
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    rmSync(pack.packPaths.checksumPath)
+    const missingChecksum = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(missingChecksum.reason, "missing_pack")
+    assert.match(missingChecksum.errors.join("\n"), /checksum runtime-deps\.sha256 is missing/u)
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const unreadable = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      verifyPack: () => {
+        throw "fixture verifier failure"
+      },
+    })
+    assert.equal(unreadable.reason, "corrupt_pack")
+    assert.equal(unreadable.failure_kind, "archive_corrupt")
+    assert.deepEqual(unreadable.errors, ["fixture verifier failure"])
+
+    const verifierError = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      verifyPack: () => {
+        throw new Error("fixture verifier error")
+      },
+    })
+    assert.equal(verifierError.reason, "corrupt_pack")
+    assert.equal(verifierError.failure_kind, "archive_corrupt")
+    assert.deepEqual(verifierError.errors, ["fixture verifier error"])
+
+    const missingTargets = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      supportMatrix: null,
+    })
+    assert.equal(missingTargets.reason, "unsupported_target")
+    assert.deepEqual(missingTargets.shipped_targets, [])
+
+    const invalidTargets = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      supportMatrix: { targets: [null, "invalid", { id: "   " }] },
+    })
+    assert.equal(invalidTargets.reason, "corrupt_pack")
+    assert.equal(invalidTargets.failure_kind, "manifest_mismatch")
+    assert.deepEqual(invalidTargets.shipped_targets, [])
+    assert.match(invalidTargets.errors[0], /non-empty id/u)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("atomic publication rejects invalid staging and rolls back invalid destinations", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-unit")
+  try {
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => true,
+      }),
+      /staging directory is missing/u,
+    )
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          throw new Error("validator failed")
+        },
+      }),
+      /staging directory is incomplete/u,
+    )
+    assert.equal(existsSync(stagingDir), false)
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let validationCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          validationCount += 1
+          return validationCount === 1
+        },
+      }),
+      /produced an incomplete directory/u,
+    )
+    assert.equal(existsSync(destinationDir), false)
+
+    writeText(path.join(destinationDir, "marker"), "previous\n")
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    validationCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          validationCount += 1
+          return validationCount === 1
+        },
+      }),
+      /produced an incomplete directory/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(
+      readdirSync(root).some((entry) => entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("atomic publication restores the previous cache after interruption", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-unit")
+  try {
+    writeText(path.join(destinationDir, "marker"), "previous\n")
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          if (source === stagingDir && destination === destinationDir) {
+            const error = new Error("injected publish interruption")
+            error.code = "EIO"
+            throw error
+          }
+          renameSync(source, destination)
+        },
+      }),
+      /injected publish interruption/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(existsSync(stagingDir), false)
+    assert.equal(
+      readdirSync(root).some((entry) => entry.includes(".backup-")),
+      false,
+    )
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let renameCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          renameCount += 1
+          if (renameCount >= 2) {
+            throw new Error("injected restoration interruption")
+          }
+          renameSync(source, destination)
+        },
+      }),
+      /injected restoration interruption/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(existsSync(stagingDir), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+for (const collisionCode of ["EEXIST", "ENOTEMPTY"]) {
+  test(`concurrent atomic publication losers reuse the coherent winner after ${collisionCode}`, async () => {
+    const { publishDirectoryAtomically } = await loadBootstrap()
+    const root = makeTempDir()
+    const destinationDir = path.join(root, "runtime-cache")
+    const stagingDir = path.join(root, "runtime-cache.stage-loser")
+    try {
+      writeText(path.join(stagingDir, "marker"), "candidate\n")
+      const result = publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: (candidate) => (
+          existsSync(path.join(candidate, "marker"))
+          && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+        ),
+        rename: (source, destination) => {
+          if (source === stagingDir && destination === destinationDir) {
+            writeText(path.join(destinationDir, "marker"), "candidate\n")
+            const error = new Error("simulated concurrent rename collision")
+            error.code = collisionCode
+            throw error
+          }
+          renameSync(source, destination)
+        },
+      })
+      assert.deepEqual(result, {
+        destinationDir,
+        published: false,
+        reused: true,
+      })
+      assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+      assert.equal(existsSync(stagingDir), false)
+      assert.deepEqual(readdirSync(root), ["runtime-cache"])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+}
+
+test("publication lock makes concurrent publishers reuse a valid winner without moving it", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-loser")
+  const lockDir = `${destinationDir}.publish-lock`
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    writeJson(path.join(lockDir, "owner.json"), {
+      schema_version: 1,
+      pid: process.pid,
+      token: "winner",
+    })
+    let waits = 0
+    const result = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => (
+        existsSync(path.join(candidate, "marker"))
+        && readFileSync(path.join(candidate, "marker"), "utf8") === "candidate\n"
+      ),
+      lockTimeoutMs: 100,
+      processAlive: () => true,
+      sleep: () => {
+        waits += 1
+        writeText(path.join(destinationDir, "marker"), "candidate\n")
+        rmSync(lockDir, { recursive: true, force: true })
+      },
+    })
+    assert.deepEqual(result, {
+      destinationDir,
+      published: false,
+      reused: true,
+    })
+    assert.equal(waits, 1)
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+    assert.deepEqual(readdirSync(root), ["runtime-cache"])
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let destinationChecks = 0
+    const winnerAfterAcquisition = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => {
+        if (candidate === stagingDir) {
+          return true
+        }
+        destinationChecks += 1
+        return destinationChecks > 1
+      },
+    })
+    assert.equal(winnerAfterAcquisition.reused, true)
+    assert.equal(existsSync(stagingDir), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("publication lock reclaims dead and malformed owners but times out behind a live owner", async () => {
+  const {
+    processIsAlive,
+    publishDirectoryAtomically,
+  } = await loadBootstrap()
+  const root = makeTempDir()
+  try {
+    assert.equal(processIsAlive(123, () => {}), true)
+    assert.equal(processIsAlive(123, () => {
+      const error = new Error("missing")
+      error.code = "ESRCH"
+      throw error
+    }), false)
+    assert.equal(processIsAlive(123, () => {
+      const error = new Error("denied")
+      error.code = "EPERM"
+      throw error
+    }), true)
+
+    const deadDestination = path.join(root, "dead-runtime-cache")
+    const deadStaging = `${deadDestination}.stage`
+    writeText(path.join(deadStaging, "marker"), "candidate\n")
+    writeJson(path.join(`${deadDestination}.publish-lock`, "owner.json"), {
+      schema_version: 1,
+      pid: 999_999,
+      token: "dead",
+    })
+    const deadOwnerResult = publishDirectoryAtomically({
+      destinationDir: deadDestination,
+      stagingDir: deadStaging,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      processAlive: () => false,
+    })
+    assert.equal(deadOwnerResult.published, true)
+    assert.equal(existsSync(`${deadDestination}.publish-lock`), false)
+
+    const malformedDestination = path.join(root, "malformed-runtime-cache")
+    const malformedStaging = `${malformedDestination}.stage`
+    const malformedLock = `${malformedDestination}.publish-lock`
+    writeText(path.join(malformedStaging, "marker"), "candidate\n")
+    mkdirSync(malformedLock, { recursive: true })
+    const malformedOwnerResult = publishDirectoryAtomically({
+      destinationDir: malformedDestination,
+      stagingDir: malformedStaging,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      lockTimeoutMs: 1,
+      now: () => Date.now() + 10_000,
+    })
+    assert.equal(malformedOwnerResult.published, true)
+    assert.equal(existsSync(malformedLock), false)
+
+    for (const [name, pid] of [["invalid", "not-a-pid"], ["nonpositive", 0]]) {
+      const invalidDestination = path.join(root, `${name}-runtime-cache`)
+      const invalidStaging = `${invalidDestination}.stage`
+      writeText(path.join(invalidStaging, "marker"), "candidate\n")
+      writeJson(path.join(`${invalidDestination}.publish-lock`, "owner.json"), {
+        schema_version: 1,
+        pid,
+        token: name,
+      })
+      const invalidOwnerResult = publishDirectoryAtomically({
+        destinationDir: invalidDestination,
+        stagingDir: invalidStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      })
+      assert.equal(invalidOwnerResult.published, true)
+    }
+
+    const liveDestination = path.join(root, "live-runtime-cache")
+    const liveStaging = `${liveDestination}.stage`
+    writeText(path.join(liveStaging, "marker"), "candidate\n")
+    writeJson(path.join(`${liveDestination}.publish-lock`, "owner.json"), {
+      schema_version: 1,
+      pid: process.pid,
+      token: "live",
+    })
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir: liveDestination,
+        stagingDir: liveStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+        lockTimeoutMs: 1,
+        processAlive: () => true,
+      }),
+      /publication lock timed out/u,
+    )
+    assert.equal(existsSync(liveStaging), false)
+
+    const reclaimDestination = path.join(root, "reclaim-runtime-cache")
+    const reclaimStaging = `${reclaimDestination}.stage`
+    const reclaimLock = `${reclaimDestination}.publish-lock`
+    writeText(path.join(reclaimStaging, "marker"), "candidate\n")
+    writeJson(path.join(reclaimLock, "owner.json"), {
+      schema_version: 1,
+      pid: 999_999,
+      token: "dead",
+    })
+    mkdirSync(`${reclaimLock}.reclaim-lock`)
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir: reclaimDestination,
+        stagingDir: reclaimStaging,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+        lockTimeoutMs: 1,
+        processAlive: () => false,
+      }),
+      /publication lock timed out/u,
+    )
+    assert.equal(existsSync(reclaimStaging), false)
+
+    for (const failureSurface of ["owner", "acquire", "reclaim", "reclaim-nonempty"]) {
+      const failureDestination = path.join(root, `${failureSurface}-failure-runtime-cache`)
+      const failureStaging = `${failureDestination}.stage`
+      const failureLock = `${failureDestination}.publish-lock`
+      writeText(path.join(failureStaging, "marker"), "candidate\n")
+      if (failureSurface.startsWith("reclaim")) {
+        writeJson(path.join(failureLock, "owner.json"), {
+          schema_version: 1,
+          pid: 999_999,
+          token: "dead",
+        })
+      }
+      assert.throws(
+        () => publishDirectoryAtomically({
+          destinationDir: failureDestination,
+          stagingDir: failureStaging,
+          validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+          lockTimeoutMs: 1,
+          createLockDirectory: (candidate) => {
+            if (failureSurface === "acquire" && candidate === failureLock) {
+              const error = new Error("publication lock denied")
+              error.code = "EACCES"
+              throw error
+            }
+            if (failureSurface.startsWith("reclaim") && candidate.endsWith(".reclaim-lock")) {
+              const error = new Error(
+                failureSurface === "reclaim"
+                  ? "reclaim directory denied"
+                  : "reclaim directory nonempty",
+              )
+              error.code = failureSurface === "reclaim" ? "EACCES" : "ENOTEMPTY"
+              throw error
+            }
+            mkdirSync(candidate)
+          },
+          writeLockOwner: () => {
+            if (failureSurface === "owner") {
+              const error = new Error("owner metadata denied")
+              error.code = "EACCES"
+              throw error
+            }
+          },
+        }),
+        failureSurface === "owner"
+          ? /owner metadata denied/u
+          : failureSurface === "acquire"
+            ? /publication lock denied/u
+            : failureSurface === "reclaim"
+              ? /reclaim directory denied/u
+              : /publication lock timed out/u,
+      )
+      assert.equal(existsSync(failureStaging), false)
+      if (failureSurface === "owner") {
+        assert.equal(existsSync(failureLock), false)
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("publication lock does not remove a lock whose ownership token changed", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = `${destinationDir}.stage`
+  const lockDir = `${destinationDir}.publish-lock`
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let destinationValidationCount = 0
+    const result = publishDirectoryAtomically({
+      destinationDir,
+      stagingDir,
+      validateDestination: (candidate) => {
+        if (candidate === destinationDir && existsSync(path.join(candidate, "marker"))) {
+          destinationValidationCount += 1
+          if (destinationValidationCount === 1) {
+            writeJson(path.join(lockDir, "owner.json"), {
+              schema_version: 1,
+              pid: process.pid,
+              token: "replacement-owner",
+            })
+          }
+          return true
+        }
+        return existsSync(path.join(candidate, "marker"))
+      },
+    })
+    assert.equal(result.published, true)
+    assert.equal(existsSync(lockDir), true)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("runtime restoration stages a complete tree before replacing a stale cache", async () => {
+  const { restoreRuntimeDependencies } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    const pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    const runtimeCacheDir = path.join(fixture.root, "runtime-cache")
+    const target = `${fixturePlatform}-${fixtureArch}-node-${fixtureNodeAbi}`
+    writeText(path.join(runtimeCacheDir, "previous-payload"), "preserve me\n")
+    writeJson(path.join(runtimeCacheDir, ".desk-runtime-cache.json"), {
+      schema_version: 1,
+      archive_sha256: "stale",
+    })
+    assert.throws(
+      () => restoreRuntimeDependencies({
+        mcpRoot: fixture.mcpRoot,
+        packageJson: pack.packageJson,
+        packageLockPath: fixture.packageLockPath,
+        packPaths: pack.packPaths,
+        runtimeCacheDir,
+        target,
+        platform: fixturePlatform,
+        arch: fixtureArch,
+        nodeAbi: fixtureNodeAbi,
+        publishDirectory: ({ destinationDir, stagingDir }) => {
+          assert.equal(destinationDir, runtimeCacheDir)
+          assert.equal(
+            readFileSync(
+              path.join(stagingDir, "node_modules", "fixture-package", "package.json"),
+              "utf8",
+            ),
+            '{"name":"fixture-package"}\n',
+          )
+          assert.equal(existsSync(path.join(stagingDir, ".complete.json")), true)
+          throw new Error("injected runtime publication failure")
+        },
+      }),
+      /injected runtime publication failure/u,
+    )
+    assert.equal(
+      readFileSync(path.join(runtimeCacheDir, "previous-payload"), "utf8"),
+      "preserve me\n",
+    )
+    assert.equal(
+      readdirSync(path.dirname(runtimeCacheDir))
+        .some((entry) => entry.includes(".stage-") || entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("source mirror stages a complete tree before replacing a stale mirror", async () => {
+  const { syncSourceMirror } = await loadBootstrap()
+  const fixture = makeMcpFixture()
+  try {
+    const runtimeCacheDir = path.join(fixture.root, "runtime-cache")
+    const sourceMirror = syncSourceMirror({
+      mcpRoot: fixture.mcpRoot,
+      runtimeCacheDir,
+    })
+    const markerPath = path.join(sourceMirror, ".complete.json")
+    assert.equal(existsSync(markerPath), true)
+    rmSync(markerPath)
+    writeText(path.join(sourceMirror, "previous-payload"), "preserve me\n")
+    assert.throws(
+      () => syncSourceMirror({
+        mcpRoot: fixture.mcpRoot,
+        runtimeCacheDir,
+        publishDirectory: ({ destinationDir, stagingDir }) => {
+          assert.equal(destinationDir, sourceMirror)
+          assert.equal(
+            readFileSync(path.join(stagingDir, "package.json"), "utf8"),
+            readFileSync(path.join(fixture.mcpRoot, "package.json"), "utf8"),
+          )
+          assert.equal(existsSync(path.join(stagingDir, ".complete.json")), true)
+          throw new Error("injected source publication failure")
+        },
+      }),
+      /injected source publication failure/u,
+    )
+    assert.equal(
+      readFileSync(path.join(sourceMirror, "previous-payload"), "utf8"),
+      "preserve me\n",
+    )
+    assert.equal(
+      readdirSync(path.dirname(sourceMirror))
+        .some((entry) => entry.includes(".stage-") || entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
   }
 })

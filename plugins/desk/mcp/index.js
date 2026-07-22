@@ -19,7 +19,18 @@ import {
   budgetValue,
   loadPerformanceBudgets,
 } from "./src/artifacts/performance-budgets.js"
-import { importRuntimeServer } from "./src/runtime/bootstrap.js"
+import {
+  importRuntimeServer,
+  inspectRuntimeDependencyPack,
+} from "./src/runtime/bootstrap.js"
+import { startDiagnosticServer } from "./src/runtime/diagnostic-server.js"
+import { createRuntimeDiagnostic } from "./src/runtime/diagnostics.js"
+import {
+  discoverNodeCandidates,
+  REEXEC_ATTEMPT_ENV,
+  reexecuteWithCompatibleNode,
+  selectCompatibleNode,
+} from "./src/runtime/node-selection.js"
 import { expandHome, loadActivationConfig, resolveDeskRootWithSource } from "./src/util/paths.js"
 
 export function parseArgs(argv) {
@@ -110,6 +121,15 @@ export function resolveStartupActivationContext({
   }
 }
 
+export function resolveRuntimeInspector({ runtimeImporter, runtimeInspector }) {
+  if (runtimeInspector !== undefined) {
+    return runtimeInspector
+  }
+  return runtimeImporter === importRuntimeServer
+    ? inspectRuntimeDependencyPack
+    : null
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -117,23 +137,91 @@ export async function main({
   homeDir,
   mcpRoot = path.dirname(fileURLToPath(import.meta.url)),
   runtimeImporter = importRuntimeServer,
+  runtimeInspector,
+  diagnosticServerStarter = startDiagnosticServer,
+  nodeCandidateDiscoverer = discoverNodeCandidates,
+  nodeSelector = selectCompatibleNode,
+  nodeReexecutor = reexecuteWithCompatibleNode,
 } = {}) {
+  runtimeInspector = resolveRuntimeInspector({ runtimeImporter, runtimeInspector })
   const args = parseArgs(argv)
   const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
   const { root: deskRoot } = rootResolution
   const runtimeCacheDir = resolveStartupRuntimeCacheDir({ args, cwd, env, homeDir })
   const activationStatus = resolveStartupActivationContext({ args, cwd, env, homeDir })
-  const runtimeServer = await runtimeImporter({
-    env,
-    mcpRoot,
-    runtimeCacheDir,
-  })
-  const runtimeStatus = runtimeServer._deskRuntime ?? {
+  let inspection = null
+  let runtimeServer
+  if (runtimeInspector !== null) {
+    try {
+      inspection = runtimeInspector({ mcpRoot })
+    } catch {
+      inspection = startupFailureInspection({
+        mcpRoot,
+        reason: "runtime_inspection_failed",
+      })
+      return diagnosticServerStarter({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
+    if (!inspection.ok) {
+      return handleUnavailableRuntime({
+        argv,
+        diagnosticServerStarter,
+        env,
+        homeDir,
+        inspection,
+        mcpRoot,
+        nodeCandidateDiscoverer,
+        nodeReexecutor,
+        nodeSelector,
+        runtimeCacheDir,
+      })
+    }
+    try {
+      runtimeServer = await runtimeImporter({
+        env,
+        mcpRoot,
+        runtimeCacheDir,
+      })
+    } catch {
+      return diagnosticServerStarter({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          reason: "runtime_restore_failed",
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
+  } else {
+    runtimeServer = await runtimeImporter({
+      env,
+      mcpRoot,
+      runtimeCacheDir,
+    })
+  }
+  const importedRuntime = runtimeServer._deskRuntime ?? {
     runtime_cache_dir: runtimeCacheDir,
     source_mirror_path: null,
     target: null,
     loaded_from_source_mirror: false,
   }
+  const runtimeStatus = inspection === null
+    ? importedRuntime
+    : {
+        ...inspection.runtime,
+        ...importedRuntime,
+        state: "ready",
+        current_target: inspection.runtime?.current_target ?? inspection.current_target,
+        shipped_targets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
+        paths_checked: inspection.runtime?.paths_checked ?? inspection.paths_checked ?? [],
+        runtime_cache_path: importedRuntime.runtime_cache_dir ?? runtimeCacheDir,
+        support_matrix_path: inspection.runtime?.support_matrix_path ?? inspection.support_matrix_path,
+      }
   const performanceBudgets = await loadPerformanceBudgets({ mcpRoot })
   const startupStatus = await runStartupEnsureIndex({
     budgetMs: budgetValue(performanceBudgets, "startup", "ensure_index_ms"),
@@ -149,6 +237,126 @@ export async function main({
       runtime: runtimeStatus,
       startup: startupStatus,
     },
+  })
+}
+
+async function handleUnavailableRuntime({
+  argv,
+  diagnosticServerStarter,
+  env,
+  homeDir,
+  inspection,
+  mcpRoot,
+  nodeCandidateDiscoverer,
+  nodeReexecutor,
+  nodeSelector,
+  runtimeCacheDir,
+}) {
+  const shouldSelectNode = inspection.reason === "unsupported_target"
+    || hasText(env[REEXEC_ATTEMPT_ENV])
+  if (!shouldSelectNode) {
+    return diagnosticServerStarter({
+      diagnostic: runtimeDiagnostic({
+        inspection,
+        runtimeCacheDir,
+        env,
+      }),
+    })
+  }
+
+  let selection
+  try {
+    selection = nodeSelector({
+      candidates: nodeCandidateDiscoverer({ env, homeDir }),
+      currentTarget: inspection.runtime?.current_target ?? inspection.current_target,
+      env,
+      shippedTargets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
+    })
+  } catch {
+    return diagnosticServerStarter({
+      diagnostic: runtimeDiagnostic({
+        inspection,
+        reason: "node_selection_failed",
+        runtimeCacheDir,
+        env,
+      }),
+    })
+  }
+  if (selection.mode === "reexec") {
+    try {
+      const result = await nodeReexecutor({
+        argv,
+        entrypointPath: path.join(mcpRoot, "index.js"),
+        env,
+        executable: selection.executable,
+      })
+      if (result.forwardedSignal !== null && result.forwardedSignal !== undefined) {
+        return result
+      }
+      if (result.code !== 0 || result.signal !== null) {
+        throw new Error(`compatible Node exited with ${result.signal ?? result.code}`)
+      }
+      return result
+    } catch {
+      return diagnosticServerStarter({
+        diagnostic: runtimeDiagnostic({
+          inspection,
+          reason: "guarded_reexec_failure",
+          pathsChecked: selection.paths_checked,
+          runtimeCacheDir,
+          env,
+        }),
+      })
+    }
+  }
+  return diagnosticServerStarter({
+    diagnostic: runtimeDiagnostic({
+      inspection,
+      reason: selection.reason,
+      pathsChecked: selection.paths_checked,
+      runtimeCacheDir,
+      env,
+    }),
+  })
+}
+
+function startupFailureInspection({ mcpRoot, reason }) {
+  const currentTarget = {
+    id: `${process.platform}-${process.arch}-node-${process.versions.modules}`,
+    platform: process.platform,
+    arch: process.arch,
+    node_abi: process.versions.modules,
+  }
+  const runtime = {
+    current_target: currentTarget,
+    shipped_targets: [],
+    paths_checked: [mcpRoot],
+    support_matrix_path: null,
+  }
+  return {
+    ok: false,
+    mode: "diagnostic",
+    reason,
+    runtime,
+  }
+}
+
+function runtimeDiagnostic({
+  inspection,
+  reason = inspection.reason,
+  pathsChecked = [],
+  runtimeCacheDir,
+  env,
+}) {
+  const runtime = inspection.runtime ?? inspection
+  return createRuntimeDiagnostic({
+    reason,
+    failureKind: reason === inspection.reason ? inspection.failure_kind : undefined,
+    currentTarget: runtime.current_target,
+    shippedTargets: runtime.shipped_targets ?? [],
+    pathsChecked: [...(runtime.paths_checked ?? []), ...pathsChecked],
+    runtimeCachePath: runtimeCacheDir ?? env.DESK_RUNTIME_CACHE_DIR ?? null,
+    supportMatrixPath: runtime.support_matrix_path ?? null,
   })
 }
 
@@ -270,10 +478,16 @@ export function runIfEntrypoint({
   exit = process.exit,
 } = {}) {
   if (!isEntrypoint({ argv, moduleUrl })) return null
-  return launch().catch((err) => {
+  const handleFatalError = (err) => {
     stderr.write(`[desk-mcp] fatal: ${err.message}\n`)
     exit(1)
-  })
+  }
+  try {
+    return Promise.resolve(launch()).catch(handleFatalError)
+  } catch (err) {
+    handleFatalError(err)
+    return Promise.resolve()
+  }
 }
 
 // Only launch the server when run as the entry point, not when imported

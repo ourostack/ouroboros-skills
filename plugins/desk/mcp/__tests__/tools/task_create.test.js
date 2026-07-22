@@ -78,6 +78,10 @@ test("task_create accepts optional runtime fields and passes them through", asyn
 test("task_create rejects missing required fields", async () => {
   const root = await mkTempDeskRoot()
   await assert.rejects(
+    () => task_create({ deskRoot: root }),
+    /track.*required/,
+  )
+  await assert.rejects(
     () => task_create({ deskRoot: root, input: { slug: "x", title: "y" } }),
     /track.*required/,
   )
@@ -87,6 +91,14 @@ test("task_create rejects missing required fields", async () => {
   )
   await assert.rejects(
     () => task_create({ deskRoot: root, input: { track: "x", slug: "y" } }),
+    /title.*required/,
+  )
+  await assert.rejects(
+    () =>
+      task_create({
+        deskRoot: root,
+        input: { track: "x", slug: "y", title: 123 },
+      }),
     /title.*required/,
   )
 })

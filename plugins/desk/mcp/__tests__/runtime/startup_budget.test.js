@@ -198,6 +198,7 @@ test("startup classifies every bounded fallback mode", async () => {
         return resultOrThrow
       },
     })
+
     await main({
       argv: ["--root", root],
       env: {},

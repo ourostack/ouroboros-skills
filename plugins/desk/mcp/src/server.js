@@ -1,13 +1,13 @@
 // desk MCP server registration.
 //
-// Registers all 14 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
+// Registers all 15 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
 // tool to a real implementation:
 //   - Unit 3: task_create, task_update, task_archive, track_create,
 //             track_update, friction_add, lesson_add
 //   - Unit 5: desk_search, desk_recall, desk_similar, desk_timeline
 //   - Unit 6: desk_thread (refs_graph provenance walk)
 //   - Index mgmt: desk_reindex (wraps ensureIndex + force-rebuild)
-//   - Health/status: desk_status (session-start-safe, non-mutating)
+//   - Health/status: desk_status and desk_doctor (session-start-safe, non-mutating)
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
@@ -34,6 +34,7 @@ import {
 import { desk_thread } from "./tools/thread.js"
 import { desk_reindex } from "./tools/reindex.js"
 import { desk_status } from "./tools/status.js"
+import { doctorRuntime } from "./tools/doctor.js"
 import {
   configureRuntimeArtifacts,
   ensureIndex,
@@ -59,6 +60,7 @@ export const TOOL_IMPLS = {
   desk_thread,
   desk_reindex,
   desk_status,
+  desk_doctor: doctorRuntime,
 }
 
 /**
@@ -74,7 +76,7 @@ export async function callTool({ deskRoot, name, input, person = null, statusCon
   }
   const impl = TOOL_IMPLS[name]
   if (!impl) {
-    // All 14 tools wired; this branch only fires if a name exists in
+    // All 15 tools wired; this branch only fires if a name exists in
     // TOOL_NAMES but is missing from TOOL_IMPLS — i.e. a wiring bug.
     // Return a structured payload that points at the cause.
     return {
@@ -116,7 +118,7 @@ export function createMcpServer() {
   return new Server(
     {
       name: "desk-mcp",
-      version: "1.3.1",
+      version: "1.3.2",
     },
     {
       capabilities: { tools: {} },

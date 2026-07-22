@@ -1197,6 +1197,10 @@ test("artifact script defensive helpers cover filesystem and fallback branches",
       () => __artifactScriptInternalsForTests.optionalProvenanceCommit("not-a-sha"),
       /--provenance-commit/u,
     )
+    assert.throws(
+      () => __artifactScriptInternalsForTests.compressSnapshotBytes(Buffer.alloc(0), {}),
+      /Node\.js 22\.15 or newer/u,
+    )
     assert.equal(
       __artifactScriptInternalsForTests.gitCommit({
         spawn: () => ({ stdout: "not-a-sha\n" }),

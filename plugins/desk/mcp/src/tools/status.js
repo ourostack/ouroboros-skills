@@ -5,6 +5,7 @@ import Database from "better-sqlite3"
 import * as sqliteVec from "sqlite-vec"
 import { indexDbPath } from "../db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
+import { personPrefix } from "../util/paths.js"
 
 const packageJson = JSON.parse(
   readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
@@ -21,7 +22,15 @@ const EMBEDDING_SPEC = {
   normalization_id: ACTIVE_EMBEDDING_SPEC.normalization_id,
 }
 
-export async function desk_status({ deskRoot, statusContext = {} }) {
+export async function desk_status({ deskRoot, person, statusContext = {} }) {
+  const effectiveRoot = personPrefix(deskRoot, person)
+  const writeScope = effectiveRoot === deskRoot
+    ? { mode: "workspace", person: null, relative_path: "." }
+    : {
+        mode: "person",
+        person: path.basename(effectiveRoot),
+        relative_path: path.posix.join("desks", path.basename(effectiveRoot)),
+      }
   const root = rootStatus(deskRoot, statusContext.root)
   const runtime = runtimeStatus(statusContext.runtime ?? {})
   const localDb = root.valid
@@ -60,6 +69,7 @@ export async function desk_status({ deskRoot, statusContext = {} }) {
     lexical_index: localDb.lexical_index,
     startup_fallback: startupFallback,
     degraded_modes: degradedModes,
+    write_scope: writeScope,
     summary: summaryFor({ root, activation, localDb, snapshots, vectorPacks, startupFallback }),
   }
 }

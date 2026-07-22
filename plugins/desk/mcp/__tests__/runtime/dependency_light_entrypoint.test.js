@@ -299,13 +299,18 @@ async function runMcpListToolsSession(fixture, { timeoutMs = 10000 } = {}) {
     stdio: ["pipe", "pipe", "pipe"],
   })
   let stdout = ""
+  let stdoutBuffer = ""
   let stderr = ""
   const responses = []
   let closed
 
   child.stdout.on("data", (chunk) => {
-    stdout += chunk.toString("utf8")
-    for (const line of chunk.toString("utf8").split(/\r?\n/u)) {
+    const text = chunk.toString("utf8")
+    stdout += text
+    stdoutBuffer += text
+    const lines = stdoutBuffer.split(/\r?\n/u)
+    stdoutBuffer = lines.pop() ?? ""
+    for (const line of lines) {
       if (line.trim().length === 0) continue
       try {
         responses.push(JSON.parse(line))
@@ -336,6 +341,7 @@ async function runMcpListToolsSession(fixture, { timeoutMs = 10000 } = {}) {
         reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed)}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       } else if (Date.now() - started > timeoutMs) {
         clearInterval(timer)
+        child.kill("SIGTERM")
         reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       }
     }, 25)
@@ -386,13 +392,18 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
     stdio: ["pipe", "pipe", "pipe"],
   })
   let stdout = ""
+  let stdoutBuffer = ""
   let stderr = ""
   const responses = []
   let closed
 
   child.stdout.on("data", (chunk) => {
-    stdout += chunk.toString("utf8")
-    for (const line of chunk.toString("utf8").split(/\r?\n/u)) {
+    const text = chunk.toString("utf8")
+    stdout += text
+    stdoutBuffer += text
+    const lines = stdoutBuffer.split(/\r?\n/u)
+    stdoutBuffer = lines.pop() ?? ""
+    for (const line of lines) {
       if (line.trim().length === 0) continue
       try {
         responses.push(JSON.parse(line))
@@ -423,6 +434,7 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
         reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed)}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       } else if (Date.now() - started > timeoutMs) {
         clearInterval(timer)
+        child.kill("SIGTERM")
         reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       }
     }, 25)
@@ -461,6 +473,30 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
     },
   }) + "\n")
   const status = await waitForResponse(3)
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: {
+      name: "desk_doctor",
+      arguments: {},
+    },
+  }) + "\n")
+  const doctor = await waitForResponse(4)
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 5,
+    method: "tools/call",
+    params: {
+      name: "task_create",
+      arguments: {
+        track: "diagnostic-probe",
+        slug: "must-not-write",
+        title: "Must not write",
+      },
+    },
+  }) + "\n")
+  const mutation = await waitForResponse(5)
   child.kill("SIGTERM")
   await closePromise
   return {
@@ -468,6 +504,8 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
     initialize,
     tools,
     status,
+    doctor,
+    mutation,
     stdout,
     stderr,
   }
@@ -559,6 +597,20 @@ function escapeRegExp(value) {
 test("MCP entrypoint is dependency-light before bootstrap", async () => {
   const entrypoint = readFileSync(path.join(mcpRoot, "index.js"), "utf8")
   assert.doesNotMatch(entrypoint, /from\s+["']\.\/src\/server\.js["']/u)
+  for (const modulePath of [
+    "./src/runtime/diagnostic-server.js",
+    "./src/runtime/diagnostics.js",
+    "./src/runtime/node-selection.js",
+  ]) {
+    assert.match(entrypoint, new RegExp(escapeRegExp(modulePath), "u"))
+  }
+  for (const launchFunction of [
+    "selectCompatibleNode",
+    "reexecuteWithCompatibleNode",
+    "startDiagnosticServer",
+  ]) {
+    assert.match(entrypoint, new RegExp(`\\b${launchFunction}\\b`, "u"))
+  }
   for (const dependency of productionDependencyNames) {
     assert.doesNotMatch(entrypoint, new RegExp(`["']${dependency.replace("/", "\\/")}(?:\\/|["'])`, "u"))
   }
@@ -622,7 +674,7 @@ test("MCP entrypoint restores runtime dependencies offline and serves list-tools
   }
 })
 
-test("MCP entrypoint serves desk_status from the source mirror after bounded lexical startup fallback", {
+test("MCP entrypoint serves coherent desk_status from the source mirror after bounded startup fallback", {
   skip: hostRuntimePackExists ? false : `no committed runtime dependency pack for ${hostTarget}`,
 }, async () => {
   const fixture = makeFixture()
@@ -638,6 +690,7 @@ test("MCP entrypoint serves desk_status from the source mirror after bounded lex
     assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
     assert.equal(result.tools.error, undefined, result.stderr || result.stdout)
     assert.equal(result.status.error, undefined, result.stderr || result.stdout)
+    assert.equal(result.doctor.error, undefined, result.stderr || result.stdout)
     assert.ok(
       result.tools.result.tools.some((tool) => tool.name === "desk_status"),
       "list-tools response must expose desk_status from the restored runtime server",
@@ -649,8 +702,19 @@ test("MCP entrypoint serves desk_status from the source mirror after bounded lex
     assert.equal(body.local_db.exists, true)
     assert.equal(body.local_db.state, "available")
     assert.equal(body.lexical_index.available, true)
-    assert.equal(body.document_vectors.state, "missing")
-    assert.equal(body.startup_fallback.mode, "lexical_only")
+    assert.ok(
+      ["lexical_only", "startup_deferred"].includes(body.startup_fallback.mode),
+      `expected bounded lexical or deferred fallback, got ${body.startup_fallback.mode}`,
+    )
+    if (body.startup_fallback.mode === "lexical_only") {
+      assert.equal(body.document_vectors.state, "missing")
+      assert.ok(body.document_vectors.chunks_total > 0)
+      assert.ok(body.document_vectors.repairable_missing_vectors > 0)
+    } else {
+      assert.equal(body.document_vectors.state, "available")
+      assert.equal(body.document_vectors.chunks_total, 0)
+      assert.equal(body.document_vectors.vectors_indexed, 0)
+    }
     assert.equal(body.startup_fallback.degraded, true)
     assert.equal(body.runtime.loaded_from_source_mirror, true)
     assert.ok(
@@ -662,13 +726,32 @@ test("MCP entrypoint serves desk_status from the source mirror after bounded lex
       true,
       "bounded session-start fallback should create the lexical local index DB",
     )
+    assert.equal(result.doctor.result.isError, undefined, JSON.stringify(result.doctor.result))
+    const doctor = JSON.parse(result.doctor.result.content[0].text)
+    assert.equal(doctor.status, "ok")
+    assert.equal(doctor.mode, "healthy")
+    assert.equal(doctor.runtime.state, "ready")
+    assert.deepEqual(doctor.remediation, [])
+    assert.equal(result.mutation.result.isError, undefined, JSON.stringify(result.mutation.result))
+    assert.deepEqual(
+      JSON.parse(result.mutation.result.content[0].text),
+      {
+        status: "created",
+        path: "diagnostic-probe/must-not-write/task.md",
+      },
+      "healthy runtime mode must execute valid mutations rather than returning diagnostic errors",
+    )
+    assert.equal(
+      existsSync(path.join(fixture.deskRoot, "diagnostic-probe", "must-not-write", "task.md")),
+      true,
+    )
     assertNoBootstrapSideEffects(fixture)
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
 
-test("MCP entrypoint reports missing or ABI-mismatched runtime packs without npm install or stack traces", async () => {
+test("MCP entrypoint keeps a diagnostic MCP live when the current runtime pack is missing", async () => {
   const fixture = makeFixture()
   try {
     const artifactsRoot = path.join(fixture.mcpRoot, "artifacts", "runtime-deps", packageJson.version)
@@ -690,13 +773,34 @@ test("MCP entrypoint reports missing or ABI-mismatched runtime packs without npm
       rmSync(seedTargetDir, { recursive: true, force: true })
     }
 
-    const result = await runEntrypointExpectingFailure(fixture)
-    assert.notEqual(result.code, 0)
-    assert.match(result.stderr, /runtime dependency pack/i)
-    assert.match(result.stderr, new RegExp(escapeRegExp(hostTarget), "u"))
-    assert.match(result.stderr, new RegExp(escapeRegExp(path.join(artifactsRoot, hostTarget)), "u"))
-    assert.match(result.stderr, new RegExp(`available.+${escapeRegExp(path.basename(wrongTargetDir))}`, "isu"))
-    assert.match(result.stderr, /runtime:deps-pack:build/u)
+    const result = await runMcpStatusSession(fixture)
+    assert.equal(result.initialize.error, undefined, result.stderr || result.stdout)
+    assert.deepEqual(
+      result.tools.result.tools.map((tool) => tool.name),
+      ["desk_status", "desk_doctor"],
+    )
+    assert.equal(result.status.result.isError, undefined)
+    const status = JSON.parse(result.status.result.content[0].text)
+    assert.equal(status.status, "degraded")
+    assert.equal(status.mode, "diagnostic")
+    assert.equal(status.runtime.current_target.id, hostTarget)
+    assert.ok(["missing_pack", "unsupported_target", "no_compatible_node"].includes(status.reason))
+    assert.equal(
+      status.remediation.some((item) => item.action === "refresh_plugin"),
+      true,
+    )
+    assert.match(
+      JSON.stringify(status.runtime.paths_checked),
+      new RegExp(escapeRegExp(path.join(artifactsRoot, hostTarget)), "u"),
+    )
+    assert.equal(result.doctor.result.isError, undefined)
+    const doctor = JSON.parse(result.doctor.result.content[0].text)
+    assert.equal(doctor.mode, "diagnostic")
+    assert.deepEqual(doctor.runtime, status.runtime)
+    assert.deepEqual(doctor.remediation, status.remediation)
+    assert.equal(result.mutation.result.isError, true)
+    assert.match(result.mutation.result.content[0].text, new RegExp(escapeRegExp(hostTarget), "u"))
+    assert.match(result.mutation.result.content[0].text, /"action":\s*"refresh_plugin"/u)
     assert.doesNotMatch(result.stderr, /Cannot find package '@modelcontextprotocol\/sdk'/u)
     assert.doesNotMatch(result.stderr, /\n\s+at\s+/u)
     assertNoBootstrapSideEffects(fixture)

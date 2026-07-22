@@ -80,6 +80,53 @@ test("task_archive throws when neither source nor archive exists", async () => {
   )
 })
 
+test("task_archive refuses an existing archive destination while the source exists", async () => {
+  const root = await mkTempDeskRoot()
+  await task_create({
+    deskRoot: root,
+    input: { track: "t", slug: "s", title: "T" },
+  })
+  await fs.mkdir(path.join(root, "t", "_archive", "s"), { recursive: true })
+
+  await assert.rejects(
+    task_archive({
+      deskRoot: root,
+      input: { track: "t", slug: "s" },
+    }),
+    /archive destination already exists/i,
+  )
+})
+
+test("task_archive requires both task identifiers", async () => {
+  const root = await mkTempDeskRoot()
+  await assert.rejects(
+    task_archive({ deskRoot: root }),
+    /track.*slug.*required/,
+  )
+  await assert.rejects(
+    task_archive({ deskRoot: root, input: { slug: "s" } }),
+    /track.*slug.*required/,
+  )
+  await assert.rejects(
+    task_archive({ deskRoot: root, input: { track: "t" } }),
+    /track.*slug.*required/,
+  )
+})
+
+test("task_archive moves a task directory even when its task card is absent", async () => {
+  const root = await mkTempDeskRoot()
+  await fs.mkdir(path.join(root, "t", "s"), { recursive: true })
+
+  const result = await task_archive({
+    deskRoot: root,
+    input: { track: "t", slug: "s" },
+  })
+
+  assert.equal(result.status, "archived")
+  assert.equal(await exists(path.join(root, "t", "s")), false)
+  assert.equal(await exists(path.join(root, "t", "_archive", "s")), true)
+})
+
 test("task_archive creates _archive/ dir if missing", async () => {
   const root = await mkTempDeskRoot()
   await task_create({

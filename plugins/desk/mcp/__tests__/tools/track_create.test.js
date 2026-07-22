@@ -69,11 +69,23 @@ test("track_create accepts optional predecessor + planning fields", async () => 
 test("track_create rejects missing required fields", async () => {
   const root = await mkTempDeskRoot()
   await assert.rejects(
+    () => track_create({ deskRoot: root }),
+    /slug.*required/,
+  )
+  await assert.rejects(
     () => track_create({ deskRoot: root, input: { title: "x" } }),
     /slug.*required/,
   )
   await assert.rejects(
     () => track_create({ deskRoot: root, input: { slug: "x" } }),
+    /title.*required/,
+  )
+  await assert.rejects(
+    () =>
+      track_create({
+        deskRoot: root,
+        input: { slug: "x", title: 123 },
+      }),
     /title.*required/,
   )
 })
