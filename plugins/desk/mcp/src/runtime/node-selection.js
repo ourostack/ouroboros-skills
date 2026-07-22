@@ -164,6 +164,8 @@ function addExecutable(candidates, candidate) {
 function isFile(candidate) {
   try {
     return existsSync(candidate) && statSync(candidate).isFile()
+  // This only changes when the path disappears or becomes inaccessible between the existence check and stat.
+  /* node:coverage ignore next 3 */
   } catch {
     return false
   }
@@ -172,6 +174,8 @@ function isFile(candidate) {
 function isDirectory(candidate) {
   try {
     return existsSync(candidate) && statSync(candidate).isDirectory()
+  // This only changes when the path disappears or becomes inaccessible between the existence check and stat.
+  /* node:coverage ignore next 3 */
   } catch {
     return false
   }

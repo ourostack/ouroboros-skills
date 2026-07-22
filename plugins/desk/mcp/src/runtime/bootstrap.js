@@ -196,6 +196,7 @@ export function inspectRuntimeDependencyPack({
   arch = process.arch,
   nodeAbi = process.versions.modules,
   supportMatrix,
+  verifyPack = verifyBootstrapRuntimeDependencyPack,
 }) {
   const currentTarget = target ?? `${platform}-${arch}-node-${nodeAbi}`
   const supportMatrixPath = deriveRuntimeSupportMatrixPath({ mcpRoot, packageJson })
@@ -289,7 +290,7 @@ export function inspectRuntimeDependencyPack({
 
   let verification
   try {
-    verification = verifyBootstrapRuntimeDependencyPack({
+    verification = verifyPack({
       packageJson,
       packageLockPath,
       packPaths: resolvedPackPaths,

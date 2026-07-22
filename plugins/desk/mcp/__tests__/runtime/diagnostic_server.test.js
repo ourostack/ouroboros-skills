@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert"
 import { spawnSync } from "node:child_process"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { EventEmitter } from "node:events"
 import { PassThrough } from "node:stream"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -230,9 +231,64 @@ test("diagnostic MCP imports and serves with native and SDK module resolution po
         NODE_OPTIONS: "",
       },
     })
+
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.equal(result.stdout, "diagnostic-ok\n")
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test("diagnostic MCP handles malformed, unknown, trailing, and stream-error input", async () => {
+  const { startDiagnosticServer } = await loadDiagnosticServer()
+  const diagnostic = fixtureDiagnostic()
+  const input = new EventEmitter()
+  const chunks = []
+  const running = startDiagnosticServer({
+    diagnostic,
+    input,
+    output: {
+      write(chunk) {
+        chunks.push(chunk)
+      },
+    },
+    serverVersion: "1.3.2",
+  })
+
+  input.emit("data", Buffer.from([
+    "",
+    "{malformed",
+    JSON.stringify({ jsonrpc: "2.0", method: "notification" }),
+    JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" }),
+    JSON.stringify({ jsonrpc: "2.0", id: 2, method: "unknown/method" }),
+    JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: {} }),
+  ].join("\n") + "\n", "utf8"))
+  input.emit("data", Buffer.from(
+    JSON.stringify({ jsonrpc: "2.0", id: 4, method: "ping" }),
+    "utf8",
+  ))
+  input.emit("end")
+  await running
+
+  const messages = parseMessages(chunks.join(""))
+  assert.equal(messages[0].error.code, -32700)
+  assert.equal(messages[1].result.protocolVersion, "2025-06-18")
+  assert.equal(messages[2].error.code, -32601)
+  assert.match(parseToolPayload(messages[3]).summary, /This tool is unavailable/u)
+  assert.deepEqual(messages[4].result, {})
+  assert.equal(input.listenerCount("data"), 0)
+  assert.equal(input.listenerCount("end"), 0)
+  assert.equal(input.listenerCount("error"), 0)
+
+  const failingInput = new EventEmitter()
+  const failed = startDiagnosticServer({
+    diagnostic,
+    input: failingInput,
+    output: { write() {} },
+  })
+  failingInput.emit("error", new Error("input failed"))
+  await assert.rejects(failed, /input failed/u)
+  assert.equal(failingInput.listenerCount("data"), 0)
+  assert.equal(failingInput.listenerCount("end"), 0)
+  assert.equal(failingInput.listenerCount("error"), 0)
 })

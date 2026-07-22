@@ -299,13 +299,18 @@ async function runMcpListToolsSession(fixture, { timeoutMs = 10000 } = {}) {
     stdio: ["pipe", "pipe", "pipe"],
   })
   let stdout = ""
+  let stdoutBuffer = ""
   let stderr = ""
   const responses = []
   let closed
 
   child.stdout.on("data", (chunk) => {
-    stdout += chunk.toString("utf8")
-    for (const line of chunk.toString("utf8").split(/\r?\n/u)) {
+    const text = chunk.toString("utf8")
+    stdout += text
+    stdoutBuffer += text
+    const lines = stdoutBuffer.split(/\r?\n/u)
+    stdoutBuffer = lines.pop() ?? ""
+    for (const line of lines) {
       if (line.trim().length === 0) continue
       try {
         responses.push(JSON.parse(line))
@@ -336,6 +341,7 @@ async function runMcpListToolsSession(fixture, { timeoutMs = 10000 } = {}) {
         reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed)}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       } else if (Date.now() - started > timeoutMs) {
         clearInterval(timer)
+        child.kill("SIGTERM")
         reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       }
     }, 25)
@@ -386,13 +392,18 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
     stdio: ["pipe", "pipe", "pipe"],
   })
   let stdout = ""
+  let stdoutBuffer = ""
   let stderr = ""
   const responses = []
   let closed
 
   child.stdout.on("data", (chunk) => {
-    stdout += chunk.toString("utf8")
-    for (const line of chunk.toString("utf8").split(/\r?\n/u)) {
+    const text = chunk.toString("utf8")
+    stdout += text
+    stdoutBuffer += text
+    const lines = stdoutBuffer.split(/\r?\n/u)
+    stdoutBuffer = lines.pop() ?? ""
+    for (const line of lines) {
       if (line.trim().length === 0) continue
       try {
         responses.push(JSON.parse(line))
@@ -423,6 +434,7 @@ async function runMcpStatusSession(fixture, { timeoutMs = 10000 } = {}) {
         reject(new Error(`process exited before response ${id}: ${JSON.stringify(closed)}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       } else if (Date.now() - started > timeoutMs) {
         clearInterval(timer)
+        child.kill("SIGTERM")
         reject(new Error(`timed out waiting for response ${id}\nstdout:\n${stdout}\nstderr:\n${stderr}`))
       }
     }, 25)

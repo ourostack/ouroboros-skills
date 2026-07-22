@@ -678,6 +678,17 @@ test("entrypoint guard handles direct launch, import, realpath fallback, and fat
   })
   assert.equal(launched, true)
 
+  let syncLaunches = 0
+  await runIfEntrypoint({
+    argv: ["node", modulePath],
+    moduleUrl,
+    launch: () => {
+      syncLaunches += 1
+      return "started"
+    },
+  })
+  assert.equal(syncLaunches, 1)
+
   const writes = []
   const exits = []
   await runIfEntrypoint({
@@ -691,6 +702,18 @@ test("entrypoint guard handles direct launch, import, realpath fallback, and fat
   })
   assert.match(writes.join(""), /\[desk-mcp\] fatal: bad launch/u)
   assert.deepEqual(exits, [1])
+
+  await runIfEntrypoint({
+    argv: ["node", modulePath],
+    moduleUrl,
+    launch: () => {
+      throw new Error("bad sync launch")
+    },
+    stderr: { write: (text) => writes.push(text) },
+    exit: (code) => exits.push(code),
+  })
+  assert.match(writes.join(""), /\[desk-mcp\] fatal: bad sync launch/u)
+  assert.deepEqual(exits, [1, 1])
 })
 
 test("entrypoint stdio startup uses activation config root for real MCP tool calls", {

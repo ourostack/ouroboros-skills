@@ -167,6 +167,33 @@ test("Node selection falls back diagnostically on no match and never probes afte
   assert.equal(noMatch.reason, "no_compatible_node")
   assert.deepEqual(noMatch.paths_checked, ["/fixture/node-20"])
 
+  const failedProbeThenMatch = selectCompatibleNode({
+    candidates: ["/fixture/missing-node", "/fixture/node-22"],
+    currentTarget,
+    env: {},
+    probe: (executable) => executable.endsWith("missing-node")
+      ? {
+          ok: false,
+          executable,
+          reason: "ENOENT",
+        }
+      : {
+          ok: true,
+          executable,
+          platform: "darwin",
+          arch: "arm64",
+          node_abi: "127",
+          node_version: "v22.23.1",
+        },
+    shippedTargets,
+  })
+  assert.equal(failedProbeThenMatch.mode, "reexec")
+  assert.equal(failedProbeThenMatch.executable, "/fixture/node-22")
+  assert.deepEqual(failedProbeThenMatch.paths_checked, [
+    "/fixture/missing-node",
+    "/fixture/node-22",
+  ])
+
   let probes = 0
   const guarded = selectCompatibleNode({
     candidates: ["/fixture/node-22"],
@@ -231,4 +258,87 @@ test("compatible-Node re-exec forwards stdio once with the guard sentinel", asyn
   assert.equal(calls[0].options.stdio, "inherit")
   assert.equal(calls[0].options.env.HOME, "/Users/unit")
   assert.equal(calls[0].options.env[REEXEC_ATTEMPT_ENV], "1")
+})
+
+test("Node discovery and probes cover Windows, missing PATH, and malformed candidates", async () => {
+  const {
+    discoverNodeCandidates,
+    probeNodeRuntime,
+    selectCompatibleNode,
+  } = await loadNodeSelection()
+  const root = mkdtempSync(path.join(tmpdir(), "desk-node-edge-cases-"))
+  try {
+    const currentExecutable = writeExecutable(path.join(root, "current", "node.exe"))
+    assert.deepEqual(discoverNodeCandidates({
+      currentExecutable,
+      env: {},
+      homeDir: path.join(root, "home"),
+      platform: "win32",
+    }), [currentExecutable])
+    assert.equal(discoverNodeCandidates({
+      currentExecutable,
+      env: {},
+      platform: "win32",
+    })[0], currentExecutable)
+
+    assert.deepEqual(probeNodeRuntime({
+      executable: "/missing/node",
+      env: {},
+      spawnSync: () => ({
+        error: { code: "ENOENT" },
+        status: null,
+      }),
+    }), {
+      ok: false,
+      executable: "/missing/node",
+      reason: "ENOENT",
+    })
+    assert.equal(probeNodeRuntime({
+      executable: "/bad/node",
+      env: {},
+      spawnSync: () => ({ status: 2 }),
+    }).reason, "probe_failed")
+    assert.equal(probeNodeRuntime({
+      executable: "/bad/json",
+      env: {},
+      spawnSync: () => ({ status: 0, stdout: "not-json" }),
+    }).reason, "invalid_probe_response")
+    assert.equal(probeNodeRuntime({
+      executable: "/missing/fields",
+      env: {},
+      spawnSync: () => ({ status: 0, stdout: "{}" }),
+    }).reason, "invalid_probe_response")
+
+    const defaultProbe = selectCompatibleNode({
+      candidates: [process.execPath],
+      currentTarget: { id: "different-target" },
+      env: process.env,
+      shippedTargets: [{
+        id: `${process.platform}-${process.arch}-node-${process.versions.modules}`,
+        platform: process.platform,
+        arch: process.arch,
+        node_abi: process.versions.modules,
+      }],
+    })
+    assert.equal(defaultProbe.mode, "reexec")
+    assert.equal(defaultProbe.executable, process.execPath)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("compatible-Node re-exec rejects child process errors", async () => {
+  const { reexecWithCompatibleNode } = await loadNodeSelection()
+  const failed = reexecWithCompatibleNode({
+    argv: [],
+    entrypointPath: "/plugin/mcp/index.js",
+    env: {},
+    executable: "/fixture/node-22",
+    spawn: () => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit("error", new Error("spawn failed")))
+      return child
+    },
+  })
+  await assert.rejects(failed, /spawn failed/u)
 })

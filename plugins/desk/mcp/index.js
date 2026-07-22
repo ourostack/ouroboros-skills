@@ -121,6 +121,15 @@ export function resolveStartupActivationContext({
   }
 }
 
+export function resolveRuntimeInspector({ runtimeImporter, runtimeInspector }) {
+  if (runtimeInspector !== undefined) {
+    return runtimeInspector
+  }
+  return runtimeImporter === importRuntimeServer
+    ? inspectRuntimeDependencyPack
+    : null
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -128,7 +137,13 @@ export async function main({
   homeDir,
   mcpRoot = path.dirname(fileURLToPath(import.meta.url)),
   runtimeImporter = importRuntimeServer,
+  runtimeInspector,
+  diagnosticServerStarter = startDiagnosticServer,
+  nodeCandidateDiscoverer = discoverNodeCandidates,
+  nodeSelector = selectCompatibleNode,
+  nodeReexecutor = reexecuteWithCompatibleNode,
 } = {}) {
+  runtimeInspector = resolveRuntimeInspector({ runtimeImporter, runtimeInspector })
   const args = parseArgs(argv)
   const rootResolution = resolveStartupDeskRoot({ args, env, homeDir })
   const { root: deskRoot } = rootResolution
@@ -136,15 +151,19 @@ export async function main({
   const activationStatus = resolveStartupActivationContext({ args, cwd, env, homeDir })
   let inspection = null
   let runtimeServer
-  if (runtimeImporter === importRuntimeServer) {
-    inspection = inspectRuntimeDependencyPack({ mcpRoot })
+  if (runtimeInspector !== null) {
+    inspection = runtimeInspector({ mcpRoot })
     if (!inspection.ok) {
       return handleUnavailableRuntime({
         argv,
+        diagnosticServerStarter,
         env,
         homeDir,
         inspection,
         mcpRoot,
+        nodeCandidateDiscoverer,
+        nodeReexecutor,
+        nodeSelector,
         runtimeCacheDir,
       })
     }
@@ -155,7 +174,7 @@ export async function main({
         runtimeCacheDir,
       })
     } catch {
-      return startDiagnosticServer({
+      return diagnosticServerStarter({
         diagnostic: runtimeDiagnostic({
           inspection,
           reason: "runtime_restore_failed",
@@ -209,16 +228,20 @@ export async function main({
 
 async function handleUnavailableRuntime({
   argv,
+  diagnosticServerStarter,
   env,
   homeDir,
   inspection,
   mcpRoot,
+  nodeCandidateDiscoverer,
+  nodeReexecutor,
+  nodeSelector,
   runtimeCacheDir,
 }) {
   const shouldSelectNode = inspection.reason === "unsupported_target"
     || hasText(env[REEXEC_ATTEMPT_ENV])
   if (!shouldSelectNode) {
-    return startDiagnosticServer({
+    return diagnosticServerStarter({
       diagnostic: runtimeDiagnostic({
         inspection,
         runtimeCacheDir,
@@ -227,15 +250,15 @@ async function handleUnavailableRuntime({
     })
   }
 
-  const selection = selectCompatibleNode({
-    candidates: discoverNodeCandidates({ env, homeDir }),
+  const selection = nodeSelector({
+    candidates: nodeCandidateDiscoverer({ env, homeDir }),
     currentTarget: inspection.runtime?.current_target ?? inspection.current_target,
     env,
     shippedTargets: inspection.runtime?.shipped_targets ?? inspection.shipped_targets ?? [],
   })
   if (selection.mode === "reexec") {
     try {
-      const result = await reexecuteWithCompatibleNode({
+      const result = await nodeReexecutor({
         argv,
         entrypointPath: path.join(mcpRoot, "index.js"),
         env,
@@ -246,7 +269,7 @@ async function handleUnavailableRuntime({
       }
       return result
     } catch {
-      return startDiagnosticServer({
+      return diagnosticServerStarter({
         diagnostic: runtimeDiagnostic({
           inspection,
           reason: "guarded_reexec_failure",
@@ -257,7 +280,7 @@ async function handleUnavailableRuntime({
       })
     }
   }
-  return startDiagnosticServer({
+  return diagnosticServerStarter({
     diagnostic: runtimeDiagnostic({
       inspection,
       reason: selection.reason,
@@ -405,10 +428,16 @@ export function runIfEntrypoint({
   exit = process.exit,
 } = {}) {
   if (!isEntrypoint({ argv, moduleUrl })) return null
-  return launch().catch((err) => {
+  const handleFatalError = (err) => {
     stderr.write(`[desk-mcp] fatal: ${err.message}\n`)
     exit(1)
-  })
+  }
+  try {
+    return Promise.resolve(launch()).catch(handleFatalError)
+  } catch (err) {
+    handleFatalError(err)
+    return Promise.resolve()
+  }
 }
 
 // Only launch the server when run as the entry point, not when imported

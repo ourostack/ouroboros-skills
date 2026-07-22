@@ -524,6 +524,7 @@ test("restoreRuntimeDependencies repairs corrupt or incomplete cache markers", a
     const pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
     mkdirSync(runtimeCacheDir, { recursive: true })
     writeText(path.join(runtimeCacheDir, ".desk-runtime-cache.json"), "{not json")
+    writeText(path.join(runtimeCacheDir, ".complete.json"), "{}\n")
     writeText(path.join(runtimeCacheDir, "package.json"), "{}\n")
 
     const restored = restoreRuntimeDependencies({
@@ -1114,8 +1115,112 @@ test("runtime pack inspection classifies unsupported, missing, checksum, manifes
     assert.equal(corruptArchive.mode, "diagnostic")
     assert.equal(corruptArchive.reason, "corrupt_pack")
     assert.equal(corruptArchive.failure_kind, "archive_corrupt")
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    rmSync(pack.packPaths.checksumPath)
+    const missingChecksum = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+    })
+    assert.equal(missingChecksum.reason, "missing_pack")
+    assert.match(missingChecksum.errors.join("\n"), /checksum runtime-deps\.sha256 is missing/u)
+
+    pack = await writeRuntimePack({ mcpRoot: fixture.mcpRoot })
+    writeRuntimeSupportMatrixFixture({ mcpRoot: fixture.mcpRoot, pack })
+    const unreadable = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      verifyPack: () => {
+        throw "fixture verifier failure"
+      },
+    })
+    assert.equal(unreadable.reason, "corrupt_pack")
+    assert.equal(unreadable.failure_kind, "archive_corrupt")
+    assert.deepEqual(unreadable.errors, ["fixture verifier failure"])
+
+    const missingTargets = inspectRuntimeDependencyPack({
+      mcpRoot: fixture.mcpRoot,
+      platform: fixturePlatform,
+      arch: fixtureArch,
+      nodeAbi: fixtureNodeAbi,
+      supportMatrix: null,
+    })
+    assert.equal(missingTargets.reason, "unsupported_target")
+    assert.deepEqual(missingTargets.shipped_targets, [])
   } finally {
     rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("atomic publication rejects invalid staging and rolls back invalid destinations", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const destinationDir = path.join(root, "runtime-cache")
+  const stagingDir = path.join(root, "runtime-cache.stage-unit")
+  try {
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => true,
+      }),
+      /staging directory is missing/u,
+    )
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          throw new Error("validator failed")
+        },
+      }),
+      /staging directory is incomplete/u,
+    )
+    assert.equal(existsSync(stagingDir), false)
+
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    let validationCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          validationCount += 1
+          return validationCount === 1
+        },
+      }),
+      /produced an incomplete directory/u,
+    )
+    assert.equal(existsSync(destinationDir), false)
+
+    writeText(path.join(destinationDir, "marker"), "previous\n")
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    validationCount = 0
+    assert.throws(
+      () => publishDirectoryAtomically({
+        destinationDir,
+        stagingDir,
+        validateDestination: () => {
+          validationCount += 1
+          return validationCount === 1
+        },
+      }),
+      /produced an incomplete directory/u,
+    )
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "previous\n")
+    assert.equal(
+      readdirSync(root).some((entry) => entry.includes(".backup-")),
+      false,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })
 

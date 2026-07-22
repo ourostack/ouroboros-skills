@@ -6,6 +6,7 @@ import * as path from "node:path"
 
 import { callTool, TOOL_IMPLS } from "../../src/server.js"
 import { TOOL_DESCRIPTIONS, TOOL_NAMES } from "../../src/tool-names.js"
+import { doctorRuntime } from "../../src/tools/doctor.js"
 
 function makeRoot() {
   return mkdtempSync(path.join(tmpdir(), "desk-doctor-"))
@@ -73,8 +74,40 @@ test("healthy desk_doctor uses the same dependency-free diagnostic vocabulary", 
       runtime_cache_path: statusContext.runtime.runtime_cache_dir,
       support_matrix_path: statusContext.runtime.support_matrix_path,
     })
+
     assert.deepEqual(body.remediation, [])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test("healthy desk_doctor tolerates empty context and prefers normalized runtime fields", () => {
+  assert.deepEqual(doctorRuntime().runtime, {
+    state: "ready",
+    current_target: undefined,
+    shipped_targets: [],
+    paths_checked: [],
+    runtime_cache_path: undefined,
+    support_matrix_path: undefined,
+  })
+  assert.deepEqual(doctorRuntime({
+    statusContext: {
+      runtime: {
+        current_target: "darwin-arm64-node-127",
+        target: "ignored-target",
+        runtime_cache_path: "/normalized-cache",
+        runtime_cache_dir: "/ignored-cache",
+        shipped_targets: [],
+        paths_checked: [],
+        support_matrix_path: "/matrix",
+      },
+    },
+  }).runtime, {
+    state: "ready",
+    current_target: "darwin-arm64-node-127",
+    shipped_targets: [],
+    paths_checked: [],
+    runtime_cache_path: "/normalized-cache",
+    support_matrix_path: "/matrix",
+  })
 })

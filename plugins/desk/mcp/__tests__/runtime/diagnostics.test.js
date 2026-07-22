@@ -80,10 +80,23 @@ test("corrupt-pack diagnostics retain actionable failure kinds", async () => {
       runtimeCachePath: "/cache",
       supportMatrixPath: "/matrix.json",
     })
+
     assert.equal(diagnostic.failure_kind, failureKind)
     assert.match(
       diagnostic.remediation.map((item) => item.message).join("\n"),
       /refresh|rebuild|pack/iu,
     )
   }
+})
+
+test("runtime diagnostics provide safe defaults for unknown failures", async () => {
+  const { createRuntimeDiagnostic } = await loadDiagnostics()
+  const diagnostic = createRuntimeDiagnostic({ reason: "unexpected_failure" })
+  assert.equal(diagnostic.reason, "unexpected_failure")
+  assert.match(diagnostic.summary, /could not prepare/u)
+  assert.deepEqual(diagnostic.runtime.shipped_targets, [])
+  assert.deepEqual(diagnostic.runtime.paths_checked, [])
+  assert.equal(diagnostic.runtime.runtime_cache_path, null)
+  assert.equal(diagnostic.runtime.support_matrix_path, null)
+  assert.equal(diagnostic.remediation[0].action, "refresh_plugin")
 })
