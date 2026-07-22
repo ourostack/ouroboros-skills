@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.15 — 2026-07-22
+
+**Research-backed recommendations now start from primary evidence.** A new always-on substrate invariant requires workers to verify load-bearing claims against reasonably available first-party sources, keep verified facts, evidence-based inferences, unknowns, and decisions distinct, and continue reading and synthesizing instead of returning control while a material primary-source thread remains open. The rule is repeated across every worker boot surface so it stays active across Claude Code, GitHub Copilot CLI, Codex, and every overlay that inherits Desk. `desk-mcp@1.3.3` remains unchanged.
+
 ## 1.7.14 — 2026-07-22
 
 **Diagnostic mode now reports the installed Desk MCP version.** The dependency-light entrypoint reads package metadata before any degraded path and passes that version through every diagnostic launch, so hosts see the real `desk-mcp@1.3.3` identity instead of `0.0.0`. Invalid or unavailable package metadata still falls back safely without turning diagnostics into another startup failure.

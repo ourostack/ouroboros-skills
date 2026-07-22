@@ -12,7 +12,7 @@ import { deriveRuntimeDependencyPackPaths } from "../../src/runtime/runtime-deps
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const pluginRoot = path.join(repoRoot, "plugins", "desk")
 const mcpRoot = path.join(pluginRoot, "mcp")
-const expectedPluginVersion = "1.7.14"
+const expectedPluginVersion = "1.7.15"
 const expectedMcpVersion = "1.3.3"
 const expectedReleaseDate = "2026-07-22"
 
@@ -30,7 +30,7 @@ function recordMismatch(errors, label, actual, expected) {
   }
 }
 
-test("Desk 1.7.14 and MCP 1.3.3 release surfaces move together", () => {
+test("Desk 1.7.15 and MCP 1.3.3 release surfaces move together", () => {
   const errors = []
   const deskPlugin = readJson("plugins", "desk", "plugin.json")
   const claudePlugin = readJson("plugins", "desk", ".claude-plugin", "plugin.json")

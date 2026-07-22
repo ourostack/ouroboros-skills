@@ -1,8 +1,6 @@
 # Substrate principles
 
-Seven cross-cutting invariants. Every skill and repo-knowledge file
-inherits these. The host agent reads this file first, before
-operating; skills reference it at their top when invoked.
+Nine cross-cutting invariants. Every skill and repo-knowledge file inherits these. The host agent reads this file first, before operating; skills reference it at their top when invoked.
 
 These are invariants, not defaults. Exceptions are called out in the
 specific skill that overrides them; in absence of an explicit
@@ -458,3 +456,20 @@ that state outlives any one session. An artifact that lives only in chat
 defeats that — it makes the next session strictly poorer than this one.
 Durable-by-default keeps the substrate monotonic: each session leaves the
 workspace able to answer more, never less.
+
+---
+
+## Invariant 9 — Primary sources before recommendations
+
+**When a recommendation depends on claims about an external system, product, policy, market, or current behavior, start with the best reasonably available primary evidence — official documentation, source code, first-party telemetry, the live product surface, or the artifact itself — before relying on intuition or secondary commentary.** Do not present a plausible inference as researched fact.
+
+**Keep an evidence ledger.** Separate four things explicitly:
+
+- **Verified fact** — directly supported by primary evidence.
+- **Evidence-based inference** — a reasoned conclusion from verified facts; label it as inference.
+- **Unknown** — the primary evidence does not answer it; absence of documentation is not proof of the opposite.
+- **Decision** — a chosen tradeoff or preference, not a discovered fact.
+
+Secondary sources may locate primary evidence, frame questions, or reveal competing hypotheses; they do not replace a load-bearing firsthand source when one is reasonably available. If no primary source exists or access is blocked, say that plainly and calibrate the recommendation instead of filling the gap with confidence.
+
+**Do not hand back while material evidence remains readable.** Reading, verification, and synthesis are agent work, not decision points. Before returning a research-backed recommendation, pull every reasonably available primary-source thread that could change the answer, verify each load-bearing claim directly, and name the remaining unknowns. The research sweater test passes only when every material claim is sourced or labeled, no unread primary source is likely to change the recommendation, and the human is receiving an actual decision rather than an invitation to authorize more research.
