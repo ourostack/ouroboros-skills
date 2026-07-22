@@ -41,7 +41,7 @@ export async function friction_add({ deskRoot, input, person = null }) {
   }
 
   let filePath
-  if (Object.hasOwn(values, "track")) {
+  if (typeof track === "string" && track.length > 0) {
     const themeSlug = slugify(theme) || "untitled"
     filePath = await resolveWriteTarget({
       deskRoot,

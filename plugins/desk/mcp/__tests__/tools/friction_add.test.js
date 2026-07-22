@@ -22,6 +22,22 @@ test("friction_add (no track) writes to _meta/friction.md", async () => {
   assert.match(content, /onboarding hurts/)
 })
 
+test("friction_add treats null, empty, undefined, and non-string track values as cross-cutting", async () => {
+  for (const track of [null, "", undefined, 42]) {
+    const root = await mkTempDeskRoot()
+    const result = await friction_add({
+      deskRoot: root,
+      input: { track, body: `cross-cutting ${String(track)}` },
+    })
+
+    assert.equal(result.path, path.join("_meta", "friction.md"))
+    assert.match(
+      await fs.readFile(path.join(root, "_meta", "friction.md"), "utf8"),
+      /cross-cutting/,
+    )
+  }
+})
+
 test("friction_add (with track) writes to <track>/_friction/<date>-<theme>.md", async () => {
   const root = await mkTempDeskRoot()
   const result = await friction_add({

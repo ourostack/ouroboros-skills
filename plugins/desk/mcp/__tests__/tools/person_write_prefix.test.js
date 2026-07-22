@@ -185,6 +185,19 @@ test("friction_add cross-cutting person:ari → desks/ari/_meta/friction.md", as
   assert.ok(await exists(path.join(root, "desks", "ari", "_meta", "friction.md")))
 })
 
+test("friction_add omission-compatible track values stay cross-cutting inside the person root", async () => {
+  for (const track of [null, "", undefined, 42]) {
+    const root = await mkTempDeskRoot()
+    const res = await friction_add({
+      deskRoot: root,
+      person: "ari",
+      input: { track, body: "cross-cutting pain" },
+    })
+    assert.equal(res.path, path.join("desks", "ari", "_meta", "friction.md"))
+    assert.ok(await exists(path.join(root, res.path)))
+  }
+})
+
 test("friction_add cross-cutting person:null → byte-identical _meta/friction.md (OFF)", async () => {
   const root = await mkTempDeskRoot()
   const res = await friction_add({
@@ -376,6 +389,9 @@ const segmentCallSites = [
   },
   {
     name: "friction_add track",
+    segments: hostileSegments.filter(
+      ([kind]) => !["null", "non-string", "empty"].includes(kind),
+    ),
     invoke: (root, value) =>
       friction_add({
         deskRoot: root,
@@ -386,7 +402,7 @@ const segmentCallSites = [
 ]
 
 for (const callSite of segmentCallSites) {
-  for (const [kind, value] of hostileSegments) {
+  for (const [kind, value] of callSite.segments ?? hostileSegments) {
     test(`${callSite.name} rejects a ${kind} caller-controlled segment`, async () => {
       const root = await mkTempDeskRoot()
       await assert.rejects(callSite.invoke(root, value), invalidSegmentError())
