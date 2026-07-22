@@ -144,14 +144,14 @@ else
 fi
 cat "$output_file"
 ack_count="$(grep -icE '^[[:space:]]*ack[[:space:]]*$' "$output_file" || true)"
-failure_count="$(grep -icE 'fail(ed|ure|ing)?|error|unauthori[sz]ed|forbidden|permission denied|respawn|retry' "$output_file" || true)"
+failure_count="$(grep -icE 'fail(ed|ure|ing)?|error|authenticat|authori[sz]|forbidden|access denied|permission denied|protocol mismatch|HTTP[[:space:]]+(401|403)|respawn|retry' "$output_file" || true)"
 rm -f "$output_file"
 test "$launch_status" -eq 0 &&
   test "$ack_count" -eq 1 &&
   test "$failure_count" -eq 0
 ```
 
-Expected: exactly one successful `ack`, no startup-failure or respawn lines, and a zero exit status. Inspect the full captured output; do not pipe the live launch through `head`, because a retry loop can appear after the first success-shaped line. Run this check from the least-capable environment the agent is expected to support. If the MCP cannot initialize there, remove the persistent entry and use explicit launch-time enablement instead. If the failure is the `trailing_var_arg` trap, move the npx-distributed MCP from `[mcps.builtins.<alias>] type = "npx"` to `[mcps.servers.<alias>] type = "stdio"`.
+Expected: exactly one successful `ack`, no startup-failure, authentication/authorization, protocol-mismatch, respawn, or retry lines, and a zero exit status. Inspect the full captured output; do not pipe the live launch through `head`, because a retry loop can appear after the first success-shaped line. Run this check from the least-capable environment the agent is expected to support. If the MCP cannot initialize there, remove the persistent entry and use explicit launch-time enablement instead. If the failure is the `trailing_var_arg` trap, move the npx-distributed MCP from `[mcps.builtins.<alias>] type = "npx"` to `[mcps.servers.<alias>] type = "stdio"`.
 
 ### 6. Commit + push to workspace
 
