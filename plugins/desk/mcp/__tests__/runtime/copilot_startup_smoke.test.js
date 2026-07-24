@@ -114,6 +114,9 @@ function createFakeFs({ candidateRoot, failMkdirAt = null, candidateIsDirectory 
         files.set(resolvedDestination, files.get(resolvedSource))
         files.delete(resolvedSource)
       },
+      chmodSync(target, mode) {
+        operations.push({ mode, operation: "chmod", target: path.resolve(target) })
+      },
     },
   }
 }
@@ -624,7 +627,13 @@ test("validateStartupResult rejects absent or unhealthy MCP state with specific 
       },
     },
     {
-      expected: ["desk_mcp_not_connected", "desk_mcp_not_plugin", "github_mcp_not_disabled"],
+      expected: [
+        "desk_mcp_count_mismatch",
+        "desk_mcp_not_connected",
+        "desk_mcp_not_plugin",
+        "github_mcp_count_mismatch",
+        "github_mcp_not_disabled",
+      ],
       mutate(events) {
         for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
           delete event.data.servers
@@ -661,6 +670,36 @@ test("validateStartupResult requires repeated identical MCP snapshots", () => {
     const fixtureState = validationFixture()
     const events = fixtureCase.mutate(clone(fixtureState.events))
     assertFailureCodes(smoke, fixtureState, ["mcp_snapshot_inconsistent"], { events })
+  }
+})
+
+test("validateStartupResult rejects duplicate MCP identities that hide contradictory state", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    {
+      expected: ["desk_mcp_count_mismatch", "desk_mcp_not_connected"],
+      mutate(server) {
+        return { ...server, status: "failed" }
+      },
+      name: "desk",
+    },
+    {
+      expected: ["github_mcp_count_mismatch", "github_mcp_not_disabled"],
+      mutate(server) {
+        return { ...server, status: "connected" }
+      },
+      name: "github-mcp-server",
+    },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
+      const original = event.data.servers.find((server) => server.name === fixtureCase.name)
+      event.data.servers.push(fixtureCase.mutate(original))
+    }
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
   }
 })
 
@@ -786,6 +825,35 @@ test("validateStartupResult requires exactly one matched Desk tool request, star
     const fixtureState = validationFixture()
     const events = fixtureCase.mutate(clone(fixtureState.events))
     assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult requires a well-formed ordered tool lifecycle before the sentinel", () => {
+  const smoke = loadProductionModule()
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.find((event) => event.type === "assistant.message" && event.data.toolRequests.length > 0).data.toolRequests = [null]
+    assertFailureCodes(smoke, fixtureState, ["tool_call_mismatch"], { events })
+  }
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.find((event) => event.type === "assistant.message" && event.data.toolRequests.length > 0).data.toolRequests[0].toolCallId = null
+    events.find((event) => event.type === "tool.execution_start").data.toolCallId = null
+    events.find((event) => event.type === "tool.execution_complete").data.toolCallId = null
+    assertFailureCodes(smoke, fixtureState, ["tool_call_mismatch"], { events })
+  }
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    const sentinel = events.pop()
+    const completionIndex = events.findIndex((event) => event.type === "tool.execution_complete")
+    events.splice(completionIndex, 0, sentinel)
+    assertFailureCodes(smoke, fixtureState, ["tool_event_order_invalid"], { events })
   }
 })
 
@@ -1009,6 +1077,29 @@ test("planSafeArtifacts retains clean bounded sources with deterministic metadat
   })))
 })
 
+test("planSafeArtifacts rejects every source that shares a retained artifact filename", () => {
+  const smoke = loadProductionModule()
+  const sources = [
+    { content: "first source", fileName: "duplicate.log", source: "debug_log" },
+    { content: "second source", fileName: "duplicate.log", source: "generated_diagnostics" },
+  ]
+
+  const result = smoke.planSafeArtifacts({
+    limits: { debug_log: 1024, generated_diagnostics: 1024 },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources,
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_metadata_invalid"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, sources.map((source) => ({
+    bytes: Buffer.byteLength(source.content),
+    file_name: source.fileName,
+    reason: "metadata_invalid",
+    source: source.source,
+  })))
+})
+
 test("planSafeArtifacts omits each secret-bearing source before retention", () => {
   const smoke = loadProductionModule()
   const sourceDefinitions = [
@@ -1114,6 +1205,47 @@ test("planSafeArtifacts applies a fail-closed default bound to unknown source la
   }])
 })
 
+test("planSafeArtifacts withholds unsafe or secret-bearing artifact metadata", () => {
+  const smoke = loadProductionModule()
+  const githubToken = "github-token-in-artifact-metadata"
+  const ghToken = "gh-token-in-artifact-metadata"
+  const sources = [
+    { content: "clean path content", fileName: "../escape.log", source: "debug_log" },
+    { content: "clean name content", fileName: `${githubToken}.log`, source: "jsonl" },
+    { content: "clean source content", fileName: "diagnostics.json", source: ghToken },
+  ]
+
+  const result = smoke.planSafeArtifacts({
+    secrets: { GH_TOKEN: ghToken, GITHUB_TOKEN: githubToken },
+    sources,
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_metadata_invalid", "secret_detected"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, [
+    {
+      bytes: Buffer.byteLength(sources[0].content),
+      file_name: "withheld",
+      reason: "metadata_invalid",
+      source: "debug_log",
+    },
+    {
+      bytes: Buffer.byteLength(sources[1].content),
+      file_name: "withheld",
+      reason: "secret_detected",
+      source: "jsonl",
+    },
+    {
+      bytes: Buffer.byteLength(sources[2].content),
+      file_name: "diagnostics.json",
+      reason: "secret_detected",
+      source: "withheld",
+    },
+  ])
+  assert.equal(JSON.stringify(result).includes(githubToken), false)
+  assert.equal(JSON.stringify(result).includes(ghToken), false)
+})
+
 test("writeSafeArtifacts retains clean diagnostics and atomically replaces the bounded safe summary", () => {
   const smoke = loadProductionModule()
   const safeRoot = "/tmp/safe startup artifacts"
@@ -1159,7 +1291,21 @@ test("writeSafeArtifacts retains clean diagnostics and atomically replaces the b
   }
   assert.deepEqual(JSON.parse(fake.files.get(summaryPath)), summary)
   assert.equal(fake.files.has(`${summaryPath}.tmp`), false)
-  assert.deepEqual(fake.operations.slice(-2).map((operation) => ({
+  assert.deepEqual(fake.operations.filter((operation) => operation.operation === "chmod").map((operation) => ({
+    mode: operation.mode,
+    target: operation.target,
+  })), [
+    ...sources.map((source) => ({
+      mode: 0o600,
+      target: path.join(safeRoot, source.fileName),
+    })),
+    {
+      mode: 0o600,
+      target: `${summaryPath}.tmp`,
+    },
+  ])
+  assert.deepEqual(fake.operations.slice(-3).map((operation) => ({
+    mode: operation.mode,
     operation: operation.operation,
     options: operation.options,
     source: operation.source,
@@ -1168,13 +1314,23 @@ test("writeSafeArtifacts retains clean diagnostics and atomically replaces the b
   })), [
     {
       operation: "write",
+      mode: undefined,
       options: { encoding: "utf8", mode: 0o600 },
       source: undefined,
       target: `${summaryPath}.tmp`,
       destination: undefined,
     },
     {
+      operation: "chmod",
+      mode: 0o600,
+      options: undefined,
+      source: undefined,
+      target: `${summaryPath}.tmp`,
+      destination: undefined,
+    },
+    {
       operation: "rename",
+      mode: undefined,
       options: undefined,
       source: `${summaryPath}.tmp`,
       target: undefined,
@@ -1232,4 +1388,125 @@ test("writeSafeArtifacts always writes summary metadata while withholding secret
   assert.equal(JSON.stringify(summary).includes(githubToken), false)
   assert.equal(JSON.stringify(summary).includes(ghToken), false)
   assert.equal([...fake.files.values()].some((content) => content.includes(githubToken) || content.includes(ghToken)), false)
+})
+
+test("writeSafeArtifacts normalizes process metadata and never writes through an escaping filename", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  const token = "github-token-process-metadata"
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: {
+      exit_code: "not-an-integer",
+      leaked: token,
+      signal: token,
+      timed_out: "yes",
+    },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: token },
+    sources: [{ content: "clean", fileName: "../escaped.log", source: "debug_log" }],
+    validation: { failure_codes: [], ok: false },
+  })
+
+  assert.deepEqual(summary.failure_codes, ["artifact_metadata_invalid", "process_metadata_invalid"])
+  assert.deepEqual(summary.process, {
+    exit_code: null,
+    signal: null,
+    timed_out: false,
+  })
+  assert.deepEqual(summary.retained_files, [])
+  assert.deepEqual(summary.omitted_files, [{
+    bytes: 5,
+    file_name: "withheld",
+    reason: "metadata_invalid",
+    source: "debug_log",
+  }])
+  assert.equal(fake.files.has(path.resolve(safeRoot, "../escaped.log")), false)
+  assert.equal(JSON.stringify(summary).includes(token), false)
+  assert.equal([...fake.files.values()].some((content) => content.includes(token)), false)
+})
+
+test("writeSafeArtifacts scans the complete summary before writing any retained source", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  const token = "sentinel_mismatch"
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: { exit_code: 1, signal: null, timed_out: false },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: token },
+    sources: [{ content: "clean", fileName: "diagnostics.json", source: "generated_diagnostics" }],
+    validation: { failure_codes: [token], ok: false },
+  })
+
+  assert.deepEqual(summary, {
+    failure_codes: ["secret_detected"],
+    omitted_files: [],
+    phase: "complete",
+    process: {
+      exit_code: 1,
+      signal: null,
+      timed_out: false,
+    },
+    retained_files: [],
+    schema_version: 1,
+  })
+  assert.equal(fake.files.has(path.join(safeRoot, "diagnostics.json")), false)
+  assert.equal(JSON.stringify(summary).includes(token), false)
+  assert.deepEqual(fake.operations.filter((operation) => operation.operation === "write").map((operation) => operation.target), [`${summaryPath}.tmp`])
+})
+
+test("writeSafeArtifacts replaces an oversized summary with bounded failure metadata", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: { exit_code: 1, signal: null, timed_out: false },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources: [],
+    validation: { failure_codes: ["x".repeat((256 * 1024) + 1)], ok: false },
+  })
+
+  assert.deepEqual(summary.failure_codes, ["summary_metadata_invalid"])
+  assert.equal(Buffer.byteLength(fake.files.get(summaryPath)) < 1024, true)
+})
+
+test("writeSafeArtifacts refuses to replace the initializing summary when no secret-free complete summary is possible", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  const initializingSummary = "{\"phase\":\"initializing\"}\n"
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, initializingSummary)
+
+  assert.throws(
+    () => smoke.writeSafeArtifacts({
+      fsOps: fake.fsOps,
+      paths: { safeRoot, summaryPath },
+      processMetadata: { exit_code: 1, signal: null, timed_out: false },
+      secrets: { GH_TOKEN: "", GITHUB_TOKEN: "complete" },
+      sources: [],
+      validation: { failure_codes: ["complete"], ok: false },
+    }),
+    /unable to produce secret-free summary/,
+  )
+  assert.equal(fake.files.get(summaryPath), initializingSummary)
+  assert.deepEqual(fake.operations, [])
 })

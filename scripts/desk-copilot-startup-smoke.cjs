@@ -26,6 +26,11 @@ const DEFAULT_ARTIFACT_LIMITS = Object.freeze({
   stderr: 1024 * 1024,
 });
 const DEFAULT_ARTIFACT_LIMIT = 1024 * 1024;
+const MAX_ARTIFACT_FILE_NAME_BYTES = 128;
+const MAX_ARTIFACT_SOURCE_BYTES = 64;
+const MAX_SUMMARY_BYTES = 256 * 1024;
+const SAFE_ARTIFACT_FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const SAFE_ARTIFACT_SOURCE = /^[a-z][a-z0-9_]*$/;
 
 function parseArgs(argv) {
   const result = {};
@@ -146,6 +151,7 @@ function createIsolatedRoots(paths, fsOps) {
     }, null, 2)}\n`,
     { encoding: "utf8", mode: 0o600 },
   );
+  fsOps.chmodSync(paths.summaryPath, 0o600);
 }
 
 function buildEnvironments(paths, env) {
@@ -265,15 +271,27 @@ function addMcpFailures(events, failures) {
   }
   for (const snapshot of snapshots) {
     const servers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
-    const desk = servers.find((server) => server?.name === "desk");
-    const github = servers.find((server) => server?.name === "github-mcp-server");
-    if (desk?.status !== "connected") {
+    const desks = servers.filter((server) => server?.name === "desk");
+    const githubServers = servers.filter((server) => server?.name === "github-mcp-server");
+    if (desks.length !== 1) {
+      failures.add("desk_mcp_count_mismatch");
+    }
+    if (desks.length === 0 || desks.some((server) => server?.status !== "connected")) {
       failures.add("desk_mcp_not_connected");
     }
-    if (desk?.source !== "plugin" || desk?.pluginName !== "desk") {
+    if (
+      desks.length === 0 ||
+      desks.some((server) => server?.source !== "plugin" || server?.pluginName !== "desk")
+    ) {
       failures.add("desk_mcp_not_plugin");
     }
-    if (github?.status !== "disabled") {
+    if (githubServers.length !== 1) {
+      failures.add("github_mcp_count_mismatch");
+    }
+    if (
+      githubServers.length === 0 ||
+      githubServers.some((server) => server?.source !== "builtin" || server?.status !== "disabled")
+    ) {
       failures.add("github_mcp_not_disabled");
     }
   }
@@ -338,14 +356,18 @@ function addPayloadFailures(payload, expected, failures) {
 }
 
 function addToolFailures(events, expected, failures) {
-  const requests = events.flatMap((event) => {
+  const requests = events.flatMap((event, eventIndex) => {
     if (event?.type !== "assistant.message" || !Array.isArray(event?.data?.toolRequests)) {
       return [];
     }
-    return event.data.toolRequests;
+    return event.data.toolRequests.map((request) => ({ eventIndex, request }));
   });
-  const starts = events.filter((event) => event?.type === "tool.execution_start");
-  const completions = events.filter((event) => event?.type === "tool.execution_complete");
+  const starts = events
+    .map((event, eventIndex) => ({ event, eventIndex }))
+    .filter(({ event }) => event?.type === "tool.execution_start");
+  const completions = events
+    .map((event, eventIndex) => ({ event, eventIndex }))
+    .filter(({ event }) => event?.type === "tool.execution_complete");
   if (requests.length !== 1) {
     failures.add("tool_request_count_mismatch");
   }
@@ -356,20 +378,54 @@ function addToolFailures(events, expected, failures) {
     failures.add("tool_complete_count_mismatch");
   }
 
-  const request = requests[0];
-  const start = starts[0];
-  const completion = completions[0];
+  const requestEntry = requests[0];
+  const startEntry = starts[0];
+  const completionEntry = completions[0];
+  const request = requestEntry?.request;
+  const start = startEntry?.event;
+  const completion = completionEntry?.event;
+  const callId = request?.toolCallId;
   if (
-    (request && request.name !== "desk-desk_status") ||
-    (start && (
+    (requestEntry && (
+      request === null ||
+      typeof request !== "object" ||
+      request.name !== "desk-desk_status" ||
+      typeof callId !== "string" ||
+      callId.trim().length === 0
+    )) ||
+    (startEntry && (
       start.data?.mcpServerName !== "desk" ||
       start.data?.mcpToolName !== "desk_status" ||
-      start.data?.toolName !== "desk-desk_status"
+      start.data?.toolName !== "desk-desk_status" ||
+      typeof start.data?.toolCallId !== "string" ||
+      start.data.toolCallId.trim().length === 0
     )) ||
-    (request && start && request.toolCallId !== start.data?.toolCallId) ||
-    (request && completion && request.toolCallId !== completion.data?.toolCallId)
+    (completionEntry && (
+      typeof completion.data?.toolCallId !== "string" ||
+      completion.data.toolCallId.trim().length === 0
+    )) ||
+    (requestEntry && startEntry && callId !== start.data?.toolCallId) ||
+    (requestEntry && completionEntry && callId !== completion.data?.toolCallId)
   ) {
     failures.add("tool_call_mismatch");
+  }
+  const sentinelIndex = events.findLastIndex(
+    (event) => event?.type === "assistant.message" &&
+      typeof event?.data?.content === "string" &&
+      trimAsciiWhitespace(event.data.content).length > 0,
+  );
+  if (
+    requestEntry &&
+    startEntry &&
+    completionEntry &&
+    sentinelIndex >= 0 &&
+    !(
+      requestEntry.eventIndex < startEntry.eventIndex &&
+      startEntry.eventIndex < completionEntry.eventIndex &&
+      completionEntry.eventIndex < sentinelIndex
+    )
+  ) {
+    failures.add("tool_event_order_invalid");
   }
 
   if (!completion) {
@@ -433,28 +489,59 @@ function activeSecrets(secrets) {
   return Object.values(secrets).filter(hasSecret);
 }
 
+function includesSecret(value, secretValues) {
+  return secretValues.some((secret) => value.includes(secret));
+}
+
+function isSafeArtifactFileName(value) {
+  return typeof value === "string" &&
+    Buffer.byteLength(value) <= MAX_ARTIFACT_FILE_NAME_BYTES &&
+    SAFE_ARTIFACT_FILE_NAME.test(value);
+}
+
+function isSafeArtifactSource(value) {
+  return typeof value === "string" &&
+    Buffer.byteLength(value) <= MAX_ARTIFACT_SOURCE_BYTES &&
+    SAFE_ARTIFACT_SOURCE.test(value);
+}
+
 function planSafeArtifacts({ limits = {}, secrets, sources }) {
   const retained = [];
   const omitted = [];
   const failures = new Set();
   const secretValues = activeSecrets(secrets);
+  const fileNameCounts = new Map();
+  for (const source of sources) {
+    fileNameCounts.set(source.fileName, (fileNameCounts.get(source.fileName) ?? 0) + 1);
+  }
   for (const source of sources) {
     const bytes = Buffer.byteLength(source.content);
-    const containsSecret = secretValues.some((secret) => source.content.includes(secret));
+    const fileNameIsSafe = isSafeArtifactFileName(source.fileName);
+    const fileNameIsDuplicate = fileNameCounts.get(source.fileName) > 1;
+    const sourceIsSafe = isSafeArtifactSource(source.source);
+    const fileNameContainsSecret = typeof source.fileName === "string" && includesSecret(source.fileName, secretValues);
+    const sourceContainsSecret = typeof source.source === "string" && includesSecret(source.source, secretValues);
+    const metadataContainsSecret = fileNameContainsSecret || sourceContainsSecret;
+    const metadataIsInvalid = !fileNameIsSafe || fileNameIsDuplicate || !sourceIsSafe;
+    const contentContainsSecret = includesSecret(source.content, secretValues);
+    const containsSecret = contentContainsSecret || metadataContainsSecret;
     const limit = limits[source.source] ?? DEFAULT_ARTIFACT_LIMITS[source.source] ?? DEFAULT_ARTIFACT_LIMIT;
     const exceedsLimit = bytes > limit;
-    if (containsSecret || exceedsLimit) {
+    if (containsSecret || metadataIsInvalid || exceedsLimit) {
       if (containsSecret) {
         failures.add("secret_detected");
+      }
+      if (metadataContainsSecret || metadataIsInvalid) {
+        failures.add("artifact_metadata_invalid");
       }
       if (exceedsLimit) {
         failures.add("artifact_size_limit_exceeded");
       }
       omitted.push({
         bytes,
-        file_name: source.fileName,
-        reason: containsSecret ? "secret_detected" : "size_limit_exceeded",
-        source: source.source,
+        file_name: fileNameIsSafe && !fileNameContainsSecret ? source.fileName : "withheld",
+        reason: containsSecret ? "secret_detected" : metadataIsInvalid ? "metadata_invalid" : "size_limit_exceeded",
+        source: sourceIsSafe && !sourceContainsSecret ? source.source : "withheld",
       });
     } else {
       retained.push({
@@ -472,6 +559,36 @@ function planSafeArtifacts({ limits = {}, secrets, sources }) {
   };
 }
 
+function normalizeProcessMetadata(processMetadata) {
+  const allowedKeys = ["exit_code", "signal", "timed_out"];
+  const keysAreValid = processMetadata !== null &&
+    typeof processMetadata === "object" &&
+    !Array.isArray(processMetadata) &&
+    Object.keys(processMetadata).length === allowedKeys.length &&
+    allowedKeys.every((key) => Object.hasOwn(processMetadata, key));
+  const exitCodeIsValid = keysAreValid &&
+    (processMetadata.exit_code === null ||
+      (Number.isInteger(processMetadata.exit_code) &&
+        processMetadata.exit_code >= 0 &&
+        processMetadata.exit_code <= 255));
+  const signalIsValid = keysAreValid &&
+    (processMetadata.signal === null ||
+      (typeof processMetadata.signal === "string" && /^SIG[A-Z0-9]{1,16}$/.test(processMetadata.signal)));
+  const timedOutIsValid = keysAreValid && typeof processMetadata.timed_out === "boolean";
+  return {
+    invalid: !(keysAreValid && exitCodeIsValid && signalIsValid && timedOutIsValid),
+    metadata: {
+      exit_code: exitCodeIsValid ? processMetadata.exit_code : null,
+      signal: signalIsValid ? processMetadata.signal : null,
+      timed_out: timedOutIsValid ? processMetadata.timed_out : false,
+    },
+  };
+}
+
+function serializeSummary(summary) {
+  return `${JSON.stringify(summary, null, 2)}\n`;
+}
+
 function writeSafeArtifacts({
   fsOps,
   paths,
@@ -481,18 +598,16 @@ function writeSafeArtifacts({
   validation,
 }) {
   const plan = planSafeArtifacts({ secrets, sources });
-  for (const artifact of plan.retained) {
-    fsOps.writeFileSync(
-      path.join(paths.safeRoot, artifact.file_name),
-      artifact.content,
-      { encoding: "utf8", mode: 0o600 },
-    );
+  const normalizedProcess = normalizeProcessMetadata(processMetadata);
+  const failureCodes = new Set([...validation.failure_codes, ...plan.failure_codes]);
+  if (normalizedProcess.invalid) {
+    failureCodes.add("process_metadata_invalid");
   }
-  const summary = {
-    failure_codes: [...new Set([...validation.failure_codes, ...plan.failure_codes])].sort(),
+  let summary = {
+    failure_codes: [...failureCodes].sort(),
     omitted_files: plan.omitted,
     phase: "complete",
-    process: processMetadata,
+    process: normalizedProcess.metadata,
     retained_files: plan.retained.map(({ bytes, file_name, source }) => ({
       bytes,
       file_name,
@@ -500,12 +615,33 @@ function writeSafeArtifacts({
     })),
     schema_version: 1,
   };
+  const secretValues = activeSecrets(secrets);
+  let serializedSummary = serializeSummary(summary);
+  if (includesSecret(serializedSummary, secretValues) || Buffer.byteLength(serializedSummary) > MAX_SUMMARY_BYTES) {
+    summary = {
+      failure_codes: [
+        includesSecret(serializedSummary, secretValues) ? "secret_detected" : "summary_metadata_invalid",
+      ],
+      omitted_files: [],
+      phase: "complete",
+      process: normalizedProcess.metadata,
+      retained_files: [],
+      schema_version: 1,
+    };
+    serializedSummary = serializeSummary(summary);
+  }
+  if (includesSecret(serializedSummary, secretValues)) {
+    throw new Error("unable to produce secret-free summary");
+  }
+  for (const artifact of summary.retained_files) {
+    const plannedArtifact = plan.retained.find((entry) => entry.file_name === artifact.file_name);
+    const artifactPath = path.join(paths.safeRoot, artifact.file_name);
+    fsOps.writeFileSync(artifactPath, plannedArtifact.content, { encoding: "utf8", mode: 0o600 });
+    fsOps.chmodSync(artifactPath, 0o600);
+  }
   const temporarySummaryPath = `${paths.summaryPath}.tmp`;
-  fsOps.writeFileSync(
-    temporarySummaryPath,
-    `${JSON.stringify(summary, null, 2)}\n`,
-    { encoding: "utf8", mode: 0o600 },
-  );
+  fsOps.writeFileSync(temporarySummaryPath, serializedSummary, { encoding: "utf8", mode: 0o600 });
+  fsOps.chmodSync(temporarySummaryPath, 0o600);
   fsOps.renameSync(temporarySummaryPath, paths.summaryPath);
   return summary;
 }
