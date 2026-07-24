@@ -50,6 +50,9 @@ function missingProductionModule(error) {
     validateStartupResult() {
       return {}
     },
+    writeSafeArtifacts() {
+      return {}
+    },
   }
 }
 
@@ -98,6 +101,18 @@ function createFakeFs({ candidateRoot, failMkdirAt = null, candidateIsDirectory 
         const resolved = path.resolve(target)
         operations.push({ content: String(content), operation: "write", options, target: resolved })
         files.set(resolved, String(content))
+      },
+      renameSync(source, destination) {
+        const resolvedSource = path.resolve(source)
+        const resolvedDestination = path.resolve(destination)
+        operations.push({ destination: resolvedDestination, operation: "rename", source: resolvedSource })
+        if (!files.has(resolvedSource)) {
+          const error = new Error(`ENOENT: ${resolvedSource}`)
+          error.code = "ENOENT"
+          throw error
+        }
+        files.set(resolvedDestination, files.get(resolvedSource))
+        files.delete(resolvedSource)
       },
     },
   }
@@ -982,4 +997,148 @@ test("planSafeArtifacts omits each secret-bearing source before retention", () =
     assert.equal(JSON.stringify(result).includes(githubToken), false)
     assert.equal(JSON.stringify(result).includes(ghToken), false)
   }
+})
+
+test("planSafeArtifacts omits oversized sources before retention", () => {
+  const smoke = loadProductionModule()
+  const source = {
+    content: "123456",
+    fileName: "copilot.jsonl",
+    source: "jsonl",
+  }
+
+  const result = smoke.planSafeArtifacts({
+    limits: { jsonl: 5 },
+    secrets: { GH_TOKEN: "clean-gh-token", GITHUB_TOKEN: "clean-github-token" },
+    sources: [source],
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_size_limit_exceeded"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, [{
+    bytes: 6,
+    file_name: "copilot.jsonl",
+    reason: "size_limit_exceeded",
+    source: "jsonl",
+  }])
+})
+
+test("writeSafeArtifacts retains clean diagnostics and atomically replaces the bounded safe summary", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+  const sources = [
+    { content: "{\"type\":\"result\"}\n", fileName: "copilot.jsonl", source: "jsonl" },
+    { content: "", fileName: "copilot.stderr.log", source: "stderr" },
+    { content: "debug line\n", fileName: "copilot.debug.log", source: "debug_log" },
+    { content: "{\"phase\":\"validation\"}\n", fileName: "diagnostics.json", source: "generated_diagnostics" },
+  ]
+  const processMetadata = {
+    exit_code: 0,
+    signal: null,
+    timed_out: false,
+  }
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata,
+    secrets: { GH_TOKEN: "clean-gh-token", GITHUB_TOKEN: "clean-github-token" },
+    sources,
+    validation: { failure_codes: [], ok: true },
+  })
+
+  assert.deepEqual(summary, {
+    failure_codes: [],
+    omitted_files: [],
+    phase: "complete",
+    process: processMetadata,
+    retained_files: sources.map((source) => ({
+      bytes: Buffer.byteLength(source.content),
+      file_name: source.fileName,
+      source: source.source,
+    })),
+    schema_version: 1,
+  })
+  for (const source of sources) {
+    assert.equal(fake.files.get(path.join(safeRoot, source.fileName)), source.content)
+  }
+  assert.deepEqual(JSON.parse(fake.files.get(summaryPath)), summary)
+  assert.equal(fake.files.has(`${summaryPath}.tmp`), false)
+  assert.deepEqual(fake.operations.slice(-2).map((operation) => ({
+    operation: operation.operation,
+    options: operation.options,
+    source: operation.source,
+    target: operation.target,
+    destination: operation.destination,
+  })), [
+    {
+      operation: "write",
+      options: { encoding: "utf8", mode: 0o600 },
+      source: undefined,
+      target: `${summaryPath}.tmp`,
+      destination: undefined,
+    },
+    {
+      operation: "rename",
+      options: undefined,
+      source: `${summaryPath}.tmp`,
+      target: undefined,
+      destination: summaryPath,
+    },
+  ])
+})
+
+test("writeSafeArtifacts always writes summary metadata while withholding secret-bearing content", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  const githubToken = "github-token-write-fixture"
+  const ghToken = "gh-token-write-fixture"
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+  const sources = [
+    {
+      content: `contains ${githubToken} and ${ghToken}`,
+      fileName: "copilot.debug.log",
+      source: "debug_log",
+    },
+    {
+      content: "clean diagnostics",
+      fileName: "diagnostics.json",
+      source: "generated_diagnostics",
+    },
+  ]
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: { exit_code: 1, signal: "SIGTERM", timed_out: true },
+    secrets: { GH_TOKEN: ghToken, GITHUB_TOKEN: githubToken },
+    sources,
+    validation: { failure_codes: ["sentinel_mismatch"], ok: false },
+  })
+
+  assert.deepEqual(summary.failure_codes, ["secret_detected", "sentinel_mismatch"])
+  assert.deepEqual(summary.retained_files, [{
+    bytes: Buffer.byteLength("clean diagnostics"),
+    file_name: "diagnostics.json",
+    source: "generated_diagnostics",
+  }])
+  assert.deepEqual(summary.omitted_files, [{
+    bytes: Buffer.byteLength(sources[0].content),
+    file_name: "copilot.debug.log",
+    reason: "secret_detected",
+    source: "debug_log",
+  }])
+  assert.equal(fake.files.has(path.join(safeRoot, "copilot.debug.log")), false)
+  assert.equal(fake.files.get(path.join(safeRoot, "diagnostics.json")), "clean diagnostics")
+  assert.deepEqual(JSON.parse(fake.files.get(summaryPath)), summary)
+  assert.equal(JSON.stringify(summary).includes(githubToken), false)
+  assert.equal(JSON.stringify(summary).includes(ghToken), false)
+  assert.equal([...fake.files.values()].some((content) => content.includes(githubToken) || content.includes(ghToken)), false)
 })
