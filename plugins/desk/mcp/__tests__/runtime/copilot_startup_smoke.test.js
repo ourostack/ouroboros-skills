@@ -623,12 +623,44 @@ test("validateStartupResult rejects absent or unhealthy MCP state with specific 
         return events
       },
     },
+    {
+      expected: ["desk_mcp_not_connected", "desk_mcp_not_plugin", "github_mcp_not_disabled"],
+      mutate(events) {
+        for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
+          delete event.data.servers
+        }
+        return events
+      },
+    },
   ]
 
   for (const fixtureCase of cases) {
     const fixtureState = validationFixture()
     const events = fixtureCase.mutate(clone(fixtureState.events))
     assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult requires repeated identical MCP snapshots", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    {
+      mutate(events) {
+        return events.filter((event, index) => event.type !== "session.mcp_servers_loaded" || index === 0)
+      },
+    },
+    {
+      mutate(events) {
+        events.findLast((event) => event.type === "session.mcp_servers_loaded").data.sequence = 2
+        return events
+      },
+    },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = fixtureCase.mutate(clone(fixtureState.events))
+    assertFailureCodes(smoke, fixtureState, ["mcp_snapshot_inconsistent"], { events })
   }
 })
 
@@ -773,6 +805,13 @@ test("validateStartupResult rejects failed transport and invalid nested tool con
     events.find((event) => event.type === "tool.execution_complete").data.result.content = "{\"status\":"
     assertFailureCodes(smoke, fixtureState, ["tool_payload_invalid"], { events })
   }
+
+  for (const content of ["null", "[]", "\"text\""]) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.find((event) => event.type === "tool.execution_complete").data.result.content = content
+    assertFailureCodes(smoke, fixtureState, ["tool_payload_invalid"], { events })
+  }
 })
 
 test("validateStartupResult rejects degraded and guarded diagnostic payload reasons", () => {
@@ -810,6 +849,17 @@ test("validateStartupResult rejects missing restoration, runtime mismatch, and w
       expected: ["source_mirror_not_restored"],
       mutate(payload) {
         payload.runtime.loaded_from_source_mirror = false
+      },
+    },
+    {
+      expected: [
+        "runtime_abi_mismatch",
+        "runtime_cache_root_mismatch",
+        "runtime_target_mismatch",
+        "source_mirror_not_restored",
+      ],
+      mutate(payload) {
+        delete payload.runtime
       },
     },
     {
@@ -1020,6 +1070,47 @@ test("planSafeArtifacts omits oversized sources before retention", () => {
     file_name: "copilot.jsonl",
     reason: "size_limit_exceeded",
     source: "jsonl",
+  }])
+})
+
+test("planSafeArtifacts ignores whitespace-only alternate secret values", () => {
+  const smoke = loadProductionModule()
+  const source = {
+    content: "clean diagnostics with spaces",
+    fileName: "diagnostics.json",
+    source: "generated_diagnostics",
+  }
+
+  const result = smoke.planSafeArtifacts({
+    secrets: { GH_TOKEN: " ", GITHUB_TOKEN: "github-token-not-present" },
+    sources: [source],
+  })
+
+  assert.deepEqual(result.failure_codes, [])
+  assert.deepEqual(result.omitted, [])
+  assert.equal(result.retained.length, 1)
+})
+
+test("planSafeArtifacts applies a fail-closed default bound to unknown source labels", () => {
+  const smoke = loadProductionModule()
+  const source = {
+    content: "x".repeat((1024 * 1024) + 1),
+    fileName: "future-diagnostic.log",
+    source: "future_diagnostic",
+  }
+
+  const result = smoke.planSafeArtifacts({
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources: [source],
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_size_limit_exceeded"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, [{
+    bytes: Buffer.byteLength(source.content),
+    file_name: "future-diagnostic.log",
+    reason: "size_limit_exceeded",
+    source: "future_diagnostic",
   }])
 })
 

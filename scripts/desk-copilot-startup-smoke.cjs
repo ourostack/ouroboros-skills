@@ -18,6 +18,14 @@ const ARGUMENT_FIELDS = new Map([
   ["--raw-root", "rawRoot"],
   ["--safe-root", "safeRoot"],
 ]);
+const EXPECTED_REMOTE_WARNING = "could not load remote agents, no GitHub remote found";
+const DEFAULT_ARTIFACT_LIMITS = Object.freeze({
+  debug_log: 8 * 1024 * 1024,
+  generated_diagnostics: 1024 * 1024,
+  jsonl: 1024 * 1024,
+  stderr: 1024 * 1024,
+});
+const DEFAULT_ARTIFACT_LIMIT = 1024 * 1024;
 
 function parseArgs(argv) {
   const result = {};
@@ -223,6 +231,285 @@ function buildSmokePlan(input, { fsOps }) {
   };
 }
 
+function parseJsonl(jsonl) {
+  const events = [];
+  let malformed = false;
+  for (const line of jsonl.split("\n")) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+    try {
+      events.push(JSON.parse(line));
+    } catch {
+      malformed = true;
+    }
+  }
+  return { events, malformed };
+}
+
+function trimAsciiWhitespace(value) {
+  return value.replace(/^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g, "");
+}
+
+function addMcpFailures(events, failures) {
+  const snapshots = events
+    .filter((event) => event?.type === "session.mcp_servers_loaded")
+    .map((event) => event.data);
+  if (snapshots.length === 0) {
+    failures.add("mcp_snapshot_missing");
+    return;
+  }
+  const serializedSnapshots = snapshots.map((snapshot) => JSON.stringify(snapshot));
+  if (snapshots.length < 2 || serializedSnapshots.some((snapshot) => snapshot !== serializedSnapshots[0])) {
+    failures.add("mcp_snapshot_inconsistent");
+  }
+  for (const snapshot of snapshots) {
+    const servers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
+    const desk = servers.find((server) => server?.name === "desk");
+    const github = servers.find((server) => server?.name === "github-mcp-server");
+    if (desk?.status !== "connected") {
+      failures.add("desk_mcp_not_connected");
+    }
+    if (desk?.source !== "plugin" || desk?.pluginName !== "desk") {
+      failures.add("desk_mcp_not_plugin");
+    }
+    if (github?.status !== "disabled") {
+      failures.add("github_mcp_not_disabled");
+    }
+  }
+}
+
+function addModelFailures(events, expectedModel, failures) {
+  const models = events
+    .map((event) => event?.data?.model)
+    .filter((model) => typeof model === "string" && model.length > 0);
+  if (models.length === 0) {
+    failures.add("model_missing");
+  } else if (models.some((model) => model !== expectedModel)) {
+    failures.add("model_mismatch");
+  }
+}
+
+function addDiagnosticFailures(events, failures) {
+  const diagnostics = events.filter((event) => event?.type === "session.custom_agents_updated");
+  const valid = diagnostics.length > 0 && diagnostics.every((event) => {
+    const errors = event?.data?.errors;
+    const warnings = event?.data?.warnings;
+    return Array.isArray(errors) &&
+      errors.length === 0 &&
+      Array.isArray(warnings) &&
+      warnings.length === 1 &&
+      warnings[0] === EXPECTED_REMOTE_WARNING;
+  });
+  if (!valid) {
+    failures.add("unexpected_diagnostic");
+  }
+}
+
+function addPayloadFailures(payload, expected, failures) {
+  if (payload.status !== "ok") {
+    failures.add("payload_status_not_ok");
+  }
+  if (payload.reason === "no_compatible_node") {
+    failures.add("payload_reason_no_compatible_node");
+  }
+  if (payload.reason === "unsupported_target") {
+    failures.add("payload_reason_unsupported_target");
+  }
+  if (payload.reason === "guarded_reexec_failure") {
+    failures.add("payload_reason_guarded_reexec_failure");
+  }
+  const runtime = payload.runtime ?? {};
+  if (runtime.loaded_from_source_mirror !== true) {
+    failures.add("source_mirror_not_restored");
+  }
+  if ((runtime.target ?? runtime.current_target?.id) !== expected.runtimeTarget) {
+    failures.add("runtime_target_mismatch");
+  }
+  if ((runtime.node?.abi ?? runtime.current_target?.node_abi) !== expected.nodeAbi) {
+    failures.add("runtime_abi_mismatch");
+  }
+  if (payload.root?.path !== expected.deskRoot) {
+    failures.add("desk_root_mismatch");
+  }
+  if ((runtime.runtime_cache_dir ?? runtime.runtime_cache_path) !== expected.runtimeCacheRoot) {
+    failures.add("runtime_cache_root_mismatch");
+  }
+}
+
+function addToolFailures(events, expected, failures) {
+  const requests = events.flatMap((event) => {
+    if (event?.type !== "assistant.message" || !Array.isArray(event?.data?.toolRequests)) {
+      return [];
+    }
+    return event.data.toolRequests;
+  });
+  const starts = events.filter((event) => event?.type === "tool.execution_start");
+  const completions = events.filter((event) => event?.type === "tool.execution_complete");
+  if (requests.length !== 1) {
+    failures.add("tool_request_count_mismatch");
+  }
+  if (starts.length !== 1) {
+    failures.add("tool_start_count_mismatch");
+  }
+  if (completions.length !== 1) {
+    failures.add("tool_complete_count_mismatch");
+  }
+
+  const request = requests[0];
+  const start = starts[0];
+  const completion = completions[0];
+  if (
+    (request && request.name !== "desk-desk_status") ||
+    (start && (
+      start.data?.mcpServerName !== "desk" ||
+      start.data?.mcpToolName !== "desk_status" ||
+      start.data?.toolName !== "desk-desk_status"
+    )) ||
+    (request && start && request.toolCallId !== start.data?.toolCallId) ||
+    (request && completion && request.toolCallId !== completion.data?.toolCallId)
+  ) {
+    failures.add("tool_call_mismatch");
+  }
+
+  if (!completion) {
+    return;
+  }
+  if (completion.data?.success !== true) {
+    failures.add("tool_transport_failed");
+  }
+  let payload;
+  try {
+    payload = JSON.parse(completion.data?.result?.content);
+  } catch {
+    failures.add("tool_payload_invalid");
+    return;
+  }
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    failures.add("tool_payload_invalid");
+    return;
+  }
+  addPayloadFailures(payload, expected, failures);
+}
+
+function addSentinelFailure(events, expectedSentinel, failures) {
+  const responses = events
+    .filter((event) => event?.type === "assistant.message" && typeof event?.data?.content === "string")
+    .map((event) => event.data.content)
+    .filter((content) => trimAsciiWhitespace(content).length > 0);
+  if (
+    responses.length === 0 ||
+    trimAsciiWhitespace(responses[responses.length - 1]) !== expectedSentinel
+  ) {
+    failures.add("sentinel_mismatch");
+  }
+}
+
+function validateStartupResult({ exitCode, expected, jsonl, stderr }) {
+  const failures = new Set();
+  const parsed = parseJsonl(jsonl);
+  if (parsed.malformed) {
+    failures.add("jsonl_malformed");
+  }
+  addMcpFailures(parsed.events, failures);
+  addModelFailures(parsed.events, expected.model, failures);
+  addDiagnosticFailures(parsed.events, failures);
+  addToolFailures(parsed.events, expected, failures);
+  addSentinelFailure(parsed.events, expected.sentinel, failures);
+  if (exitCode !== 0) {
+    failures.add("process_exit_nonzero");
+  }
+  if (stderr.length > 0) {
+    failures.add("stderr_nonempty");
+  }
+  const failureCodes = [...failures].sort();
+  return {
+    failure_codes: failureCodes,
+    ok: failureCodes.length === 0,
+  };
+}
+
+function activeSecrets(secrets) {
+  return Object.values(secrets).filter(hasSecret);
+}
+
+function planSafeArtifacts({ limits = {}, secrets, sources }) {
+  const retained = [];
+  const omitted = [];
+  const failures = new Set();
+  const secretValues = activeSecrets(secrets);
+  for (const source of sources) {
+    const bytes = Buffer.byteLength(source.content);
+    const containsSecret = secretValues.some((secret) => source.content.includes(secret));
+    const limit = limits[source.source] ?? DEFAULT_ARTIFACT_LIMITS[source.source] ?? DEFAULT_ARTIFACT_LIMIT;
+    const exceedsLimit = bytes > limit;
+    if (containsSecret || exceedsLimit) {
+      if (containsSecret) {
+        failures.add("secret_detected");
+      }
+      if (exceedsLimit) {
+        failures.add("artifact_size_limit_exceeded");
+      }
+      omitted.push({
+        bytes,
+        file_name: source.fileName,
+        reason: containsSecret ? "secret_detected" : "size_limit_exceeded",
+        source: source.source,
+      });
+    } else {
+      retained.push({
+        bytes,
+        content: source.content,
+        file_name: source.fileName,
+        source: source.source,
+      });
+    }
+  }
+  return {
+    failure_codes: [...failures].sort(),
+    omitted,
+    retained,
+  };
+}
+
+function writeSafeArtifacts({
+  fsOps,
+  paths,
+  processMetadata,
+  secrets,
+  sources,
+  validation,
+}) {
+  const plan = planSafeArtifacts({ secrets, sources });
+  for (const artifact of plan.retained) {
+    fsOps.writeFileSync(
+      path.join(paths.safeRoot, artifact.file_name),
+      artifact.content,
+      { encoding: "utf8", mode: 0o600 },
+    );
+  }
+  const summary = {
+    failure_codes: [...new Set([...validation.failure_codes, ...plan.failure_codes])].sort(),
+    omitted_files: plan.omitted,
+    phase: "complete",
+    process: processMetadata,
+    retained_files: plan.retained.map(({ bytes, file_name, source }) => ({
+      bytes,
+      file_name,
+      source,
+    })),
+    schema_version: 1,
+  };
+  const temporarySummaryPath = `${paths.summaryPath}.tmp`;
+  fsOps.writeFileSync(
+    temporarySummaryPath,
+    `${JSON.stringify(summary, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  fsOps.renameSync(temporarySummaryPath, paths.summaryPath);
+  return summary;
+}
+
 async function startCli({
   argv,
   isMain,
@@ -248,7 +535,10 @@ module.exports = {
   STARTUP_PROMPT,
   buildSmokePlan,
   parseArgs,
+  planSafeArtifacts,
   startCli,
+  validateStartupResult,
+  writeSafeArtifacts,
 };
 
 startCli();
