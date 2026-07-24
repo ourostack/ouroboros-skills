@@ -116,12 +116,12 @@ function hasSecret(value) {
 }
 
 function validateSecrets(env) {
-  if (!hasSecret(env.GITHUB_TOKEN) && !hasSecret(env.GH_TOKEN)) {
+  if (!hasSecret(env?.GITHUB_TOKEN) && !hasSecret(env?.GH_TOKEN)) {
     throw new Error("a non-empty GITHUB_TOKEN or GH_TOKEN is required");
   }
 }
 
-function createIsolatedRoots(paths, fsOps) {
+function createIsolatedRoots(paths, fsOps, secrets) {
   const directories = [
     paths.rawRoot,
     paths.safeRoot,
@@ -142,15 +142,15 @@ function createIsolatedRoots(paths, fsOps) {
       throw new Error(`unable to create isolated root ${directory}: ${error.code}`, { cause: error });
     }
   }
-  fsOps.writeFileSync(
-    paths.summaryPath,
-    `${JSON.stringify({
-      failure_codes: [],
-      phase: "initializing",
-      schema_version: 1,
-    }, null, 2)}\n`,
-    { encoding: "utf8", mode: 0o600 },
-  );
+  const initializingSummary = `${JSON.stringify({
+    failure_codes: [],
+    phase: "initializing",
+    schema_version: 1,
+  }, null, 2)}\n`;
+  if (includesSecret(initializingSummary, activeSecrets(secrets))) {
+    throw new Error("unable to produce secret-free initializing summary");
+  }
+  fsOps.writeFileSync(paths.summaryPath, initializingSummary, { encoding: "utf8", mode: 0o600 });
   fsOps.chmodSync(paths.summaryPath, 0o600);
 }
 
@@ -228,7 +228,7 @@ function buildSmokePlan(input, { fsOps }) {
   const paths = buildPaths(input);
   validateCandidateRoot(paths.candidateRoot, fsOps);
   validateSecrets(input.env);
-  createIsolatedRoots(paths, fsOps);
+  createIsolatedRoots(paths, fsOps, input.env);
   const environments = buildEnvironments(paths, input.env);
   return {
     commands: buildCommands(paths, environments),
@@ -241,11 +241,17 @@ function parseJsonl(jsonl) {
   const events = [];
   let malformed = false;
   for (const line of jsonl.split("\n")) {
-    if (line.trim().length === 0) {
+    if (/^[\t\r ]*$/.test(line)) {
       continue;
     }
     try {
-      events.push(JSON.parse(line));
+      const event = JSON.parse(line);
+      if (event === null || typeof event !== "object" || Array.isArray(event) ||
+          typeof event.type !== "string" || event.type.length === 0) {
+        malformed = true;
+        continue;
+      }
+      events.push(event);
     } catch {
       malformed = true;
     }
@@ -486,7 +492,8 @@ function validateStartupResult({ exitCode, expected, jsonl, stderr }) {
 }
 
 function activeSecrets(secrets) {
-  return Object.values(secrets).filter(hasSecret);
+  validateSecrets(secrets);
+  return [secrets.GITHUB_TOKEN, secrets.GH_TOKEN].filter(hasSecret);
 }
 
 function includesSecret(value, secretValues) {
@@ -505,34 +512,48 @@ function isSafeArtifactSource(value) {
     SAFE_ARTIFACT_SOURCE.test(value);
 }
 
-function planSafeArtifacts({ limits = {}, secrets, sources }) {
+function planSafeArtifacts({ limits = {}, reservedFileNames = [], secrets, sources }) {
   const retained = [];
   const omitted = [];
   const failures = new Set();
   const secretValues = activeSecrets(secrets);
+  const limitsAreValid = limits !== null && typeof limits === "object" && !Array.isArray(limits);
+  const reservedFileNameSet = new Set(reservedFileNames.map((fileName) => fileName.toLowerCase()));
   const fileNameCounts = new Map();
   for (const source of sources) {
-    fileNameCounts.set(source.fileName, (fileNameCounts.get(source.fileName) ?? 0) + 1);
+    const fileNameKey = String(source.fileName).toLowerCase();
+    fileNameCounts.set(fileNameKey, (fileNameCounts.get(fileNameKey) ?? 0) + 1);
   }
   for (const source of sources) {
     const bytes = Buffer.byteLength(source.content);
     const fileNameIsSafe = isSafeArtifactFileName(source.fileName);
-    const fileNameIsDuplicate = fileNameCounts.get(source.fileName) > 1;
+    const fileNameKey = String(source.fileName).toLowerCase();
+    const fileNameIsDuplicate = fileNameCounts.get(fileNameKey) > 1;
+    const fileNameIsReserved = reservedFileNameSet.has(fileNameKey);
     const sourceIsSafe = isSafeArtifactSource(source.source);
     const fileNameContainsSecret = typeof source.fileName === "string" && includesSecret(source.fileName, secretValues);
     const sourceContainsSecret = typeof source.source === "string" && includesSecret(source.source, secretValues);
     const metadataContainsSecret = fileNameContainsSecret || sourceContainsSecret;
-    const metadataIsInvalid = !fileNameIsSafe || fileNameIsDuplicate || !sourceIsSafe;
+    const metadataIsInvalid = !fileNameIsSafe || fileNameIsDuplicate || fileNameIsReserved || !sourceIsSafe;
     const contentContainsSecret = includesSecret(source.content, secretValues);
     const containsSecret = contentContainsSecret || metadataContainsSecret;
-    const limit = limits[source.source] ?? DEFAULT_ARTIFACT_LIMITS[source.source] ?? DEFAULT_ARTIFACT_LIMIT;
-    const exceedsLimit = bytes > limit;
-    if (containsSecret || metadataIsInvalid || exceedsLimit) {
+    const hasExplicitLimit = limitsAreValid && Object.hasOwn(limits, source.source);
+    const limit = hasExplicitLimit
+      ? limits[source.source]
+      : Object.hasOwn(DEFAULT_ARTIFACT_LIMITS, source.source)
+        ? DEFAULT_ARTIFACT_LIMITS[source.source]
+        : DEFAULT_ARTIFACT_LIMIT;
+    const limitIsValid = limitsAreValid && Number.isSafeInteger(limit) && limit >= 0;
+    const exceedsLimit = limitIsValid && bytes > limit;
+    if (containsSecret || metadataIsInvalid || !limitIsValid || exceedsLimit) {
       if (containsSecret) {
         failures.add("secret_detected");
       }
       if (metadataContainsSecret || metadataIsInvalid) {
         failures.add("artifact_metadata_invalid");
+      }
+      if (!limitIsValid) {
+        failures.add("artifact_limit_invalid");
       }
       if (exceedsLimit) {
         failures.add("artifact_size_limit_exceeded");
@@ -540,7 +561,13 @@ function planSafeArtifacts({ limits = {}, secrets, sources }) {
       omitted.push({
         bytes,
         file_name: fileNameIsSafe && !fileNameContainsSecret ? source.fileName : "withheld",
-        reason: containsSecret ? "secret_detected" : metadataIsInvalid ? "metadata_invalid" : "size_limit_exceeded",
+        reason: containsSecret
+          ? "secret_detected"
+          : metadataIsInvalid
+            ? "metadata_invalid"
+            : !limitIsValid
+              ? "limit_invalid"
+              : "size_limit_exceeded",
         source: sourceIsSafe && !sourceContainsSecret ? source.source : "withheld",
       });
     } else {
@@ -597,7 +624,15 @@ function writeSafeArtifacts({
   sources,
   validation,
 }) {
-  const plan = planSafeArtifacts({ secrets, sources });
+  const temporarySummaryPath = `${paths.summaryPath}.tmp`;
+  const plan = planSafeArtifacts({
+    reservedFileNames: [
+      path.basename(paths.summaryPath),
+      path.basename(temporarySummaryPath),
+    ],
+    secrets,
+    sources,
+  });
   const normalizedProcess = normalizeProcessMetadata(processMetadata);
   const failureCodes = new Set([...validation.failure_codes, ...plan.failure_codes]);
   if (normalizedProcess.invalid) {
@@ -639,7 +674,6 @@ function writeSafeArtifacts({
     fsOps.writeFileSync(artifactPath, plannedArtifact.content, { encoding: "utf8", mode: 0o600 });
     fsOps.chmodSync(artifactPath, 0o600);
   }
-  const temporarySummaryPath = `${paths.summaryPath}.tmp`;
   fsOps.writeFileSync(temporarySummaryPath, serializedSummary, { encoding: "utf8", mode: 0o600 });
   fsOps.chmodSync(temporarySummaryPath, 0o600);
   fsOps.renameSync(temporarySummaryPath, paths.summaryPath);

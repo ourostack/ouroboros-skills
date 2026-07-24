@@ -402,6 +402,33 @@ test("buildSmokePlan creates isolated roots and precreates bounded safe metadata
   assert.deepEqual(summaryWrite?.options, { encoding: "utf8", mode: 0o600 })
 })
 
+test("buildSmokePlan refuses to write an initializing summary containing a token value", () => {
+  const smoke = loadProductionModule()
+  const { candidateRoot, env, fake, rawRoot, safeRoot } = fixture()
+  env.GITHUB_TOKEN = "initializing"
+  const summaryPath = path.join(path.resolve(safeRoot), "summary.json")
+
+  assert.throws(
+    () => smoke.buildSmokePlan({ candidateRoot, env, rawRoot, safeRoot }, { fsOps: fake.fsOps }),
+    /unable to produce secret-free initializing summary/,
+  )
+  assert.equal(fake.files.has(summaryPath), false)
+  assert.equal(fake.operations.some((entry) => entry.operation === "write"), false)
+})
+
+test("buildSmokePlan scans only declared token environment variables", () => {
+  const smoke = loadProductionModule()
+  const { candidateRoot, env, fake, rawRoot, safeRoot } = fixture()
+  env.GITHUB_RUN_ATTEMPT = "1"
+
+  const plan = smoke.buildSmokePlan(
+    { candidateRoot, env, rawRoot, safeRoot },
+    { fsOps: fake.fsOps },
+  )
+
+  assert.equal(fake.files.has(plan.paths.summaryPath), true)
+})
+
 test("parseArgs preserves option boundaries and rejects malformed invocation", () => {
   const smoke = loadProductionModule()
   const candidateRoot = "/repo/a candidate --with-looking-option"
@@ -759,6 +786,29 @@ test("validateStartupResult rejects malformed and truncated JSONL without hiding
   }
 })
 
+test("validateStartupResult rejects parseable non-event JSONL records and non-JSON Unicode whitespace", () => {
+  const smoke = loadProductionModule()
+  const malformedRecords = [
+    "null",
+    "0",
+    "\"junk\"",
+    "[]",
+    "{}",
+    "{\"type\":null}",
+    "{\"type\":\"\"}",
+    "\u00a0",
+  ]
+
+  for (const malformedRecord of malformedRecords) {
+    const fixtureState = validationFixture()
+    const input = validationInput(fixtureState)
+    input.jsonl = `${malformedRecord}\n${input.jsonl}`
+    const result = smoke.validateStartupResult(input)
+    assert.equal(result.ok, false)
+    assert.deepEqual(result.failure_codes, ["jsonl_malformed"])
+  }
+})
+
 test("validateStartupResult requires exactly one matched Desk tool request, start, and completion", () => {
   const smoke = loadProductionModule()
   const cases = [
@@ -1077,11 +1127,22 @@ test("planSafeArtifacts retains clean bounded sources with deterministic metadat
   })))
 })
 
+test("planSafeArtifacts refuses missing declared token configuration", () => {
+  const smoke = loadProductionModule()
+
+  assert.throws(
+    () => smoke.planSafeArtifacts({
+      sources: [{ content: "unscanned", fileName: "copilot.jsonl", source: "jsonl" }],
+    }),
+    /a non-empty GITHUB_TOKEN or GH_TOKEN is required/,
+  )
+})
+
 test("planSafeArtifacts rejects every source that shares a retained artifact filename", () => {
   const smoke = loadProductionModule()
   const sources = [
     { content: "first source", fileName: "duplicate.log", source: "debug_log" },
-    { content: "second source", fileName: "duplicate.log", source: "generated_diagnostics" },
+    { content: "second source", fileName: "DUPLICATE.LOG", source: "generated_diagnostics" },
   ]
 
   const result = smoke.planSafeArtifacts({
@@ -1203,6 +1264,76 @@ test("planSafeArtifacts applies a fail-closed default bound to unknown source la
     reason: "size_limit_exceeded",
     source: "future_diagnostic",
   }])
+})
+
+test("planSafeArtifacts does not inherit artifact limits for prototype-named source labels", () => {
+  const smoke = loadProductionModule()
+  const source = {
+    content: "x".repeat((1024 * 1024) + 1),
+    fileName: "constructor.log",
+    source: "constructor",
+  }
+
+  const result = smoke.planSafeArtifacts({
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources: [source],
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_size_limit_exceeded"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, [{
+    bytes: Buffer.byteLength(source.content),
+    file_name: source.fileName,
+    reason: "size_limit_exceeded",
+    source: source.source,
+  }])
+})
+
+test("planSafeArtifacts ignores inherited caller artifact limits", () => {
+  const smoke = loadProductionModule()
+  const limits = Object.create({ future_diagnostic: Number.MAX_SAFE_INTEGER })
+  const source = {
+    content: "x".repeat((1024 * 1024) + 1),
+    fileName: "future-diagnostic.log",
+    source: "future_diagnostic",
+  }
+
+  const result = smoke.planSafeArtifacts({
+    limits,
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources: [source],
+  })
+
+  assert.deepEqual(result.failure_codes, ["artifact_size_limit_exceeded"])
+  assert.deepEqual(result.retained, [])
+  assert.deepEqual(result.omitted, [{
+    bytes: Buffer.byteLength(source.content),
+    file_name: source.fileName,
+    reason: "size_limit_exceeded",
+    source: source.source,
+  }])
+})
+
+test("planSafeArtifacts rejects invalid explicit artifact limits", () => {
+  const smoke = loadProductionModule()
+  const invalidLimits = [-1, 1.5, Number.POSITIVE_INFINITY, Number.NaN, Number.MAX_SAFE_INTEGER + 1, "1024", null, {}]
+
+  for (const limit of invalidLimits) {
+    const result = smoke.planSafeArtifacts({
+      limits: { debug_log: limit },
+      secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+      sources: [{ content: "clean", fileName: "copilot.debug.log", source: "debug_log" }],
+    })
+
+    assert.deepEqual(result.failure_codes, ["artifact_limit_invalid"])
+    assert.deepEqual(result.retained, [])
+    assert.deepEqual(result.omitted, [{
+      bytes: 5,
+      file_name: "copilot.debug.log",
+      reason: "limit_invalid",
+      source: "debug_log",
+    }])
+  }
 })
 
 test("planSafeArtifacts withholds unsafe or secret-bearing artifact metadata", () => {
@@ -1339,6 +1470,27 @@ test("writeSafeArtifacts retains clean diagnostics and atomically replaces the b
   ])
 })
 
+test("writeSafeArtifacts refuses missing declared token configuration before writing", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+
+  assert.throws(
+    () => smoke.writeSafeArtifacts({
+      fsOps: fake.fsOps,
+      paths: { safeRoot, summaryPath },
+      processMetadata: { exit_code: 0, signal: null, timed_out: false },
+      sources: [{ content: "unscanned", fileName: "copilot.jsonl", source: "jsonl" }],
+      validation: { failure_codes: [], ok: true },
+    }),
+    /a non-empty GITHUB_TOKEN or GH_TOKEN is required/,
+  )
+  assert.equal(fake.operations.some((operation) => operation.operation === "write"), false)
+})
+
 test("writeSafeArtifacts always writes summary metadata while withholding secret-bearing content", () => {
   const smoke = loadProductionModule()
   const safeRoot = "/tmp/safe startup artifacts"
@@ -1429,6 +1581,66 @@ test("writeSafeArtifacts normalizes process metadata and never writes through an
   assert.equal(fake.files.has(path.resolve(safeRoot, "../escaped.log")), false)
   assert.equal(JSON.stringify(summary).includes(token), false)
   assert.equal([...fake.files.values()].some((content) => content.includes(token)), false)
+})
+
+test("writeSafeArtifacts rejects sources that collide with summary control filenames", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  fake.directories.add(safeRoot)
+  fake.files.set(summaryPath, "{\"phase\":\"initializing\"}\n")
+  const sources = [
+    { content: "summary collision", fileName: "summary.json", source: "generated_diagnostics" },
+    { content: "temporary collision", fileName: "summary.json.tmp", source: "debug_log" },
+  ]
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: { exit_code: 1, signal: null, timed_out: false },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources,
+    validation: { failure_codes: [], ok: false },
+  })
+
+  assert.deepEqual(summary.failure_codes, ["artifact_metadata_invalid"])
+  assert.deepEqual(summary.retained_files, [])
+  assert.deepEqual(summary.omitted_files, sources.map((source) => ({
+    bytes: Buffer.byteLength(source.content),
+    file_name: source.fileName,
+    reason: "metadata_invalid",
+    source: source.source,
+  })))
+  assert.deepEqual(fake.operations.filter((operation) => operation.operation === "write").map((operation) => operation.target), [`${summaryPath}.tmp`])
+  assert.deepEqual(JSON.parse(fake.files.get(summaryPath)), summary)
+})
+
+test("writeSafeArtifacts rejects case-variant summary collisions on case-insensitive filesystems", () => {
+  const smoke = loadProductionModule()
+  const safeRoot = "/tmp/safe startup artifacts"
+  const summaryPath = path.join(safeRoot, "summary.json")
+  const fake = createFakeFs()
+  fake.directories.add(safeRoot)
+  const sources = [
+    { content: "summary collision", fileName: "SUMMARY.JSON", source: "generated_diagnostics" },
+    { content: "temporary collision", fileName: "SUMMARY.JSON.TMP", source: "debug_log" },
+  ]
+
+  const summary = smoke.writeSafeArtifacts({
+    fsOps: fake.fsOps,
+    paths: { safeRoot, summaryPath },
+    processMetadata: { exit_code: 1, signal: null, timed_out: false },
+    secrets: { GH_TOKEN: "", GITHUB_TOKEN: "github-token-not-present" },
+    sources,
+    validation: { failure_codes: [], ok: false },
+  })
+
+  assert.deepEqual(summary.failure_codes, ["artifact_metadata_invalid"])
+  assert.deepEqual(summary.retained_files, [])
+  assert.deepEqual(summary.omitted_files.map((entry) => entry.reason), ["metadata_invalid", "metadata_invalid"])
+  assert.equal(fake.files.has(path.join(safeRoot, "SUMMARY.JSON")), false)
+  assert.equal(fake.files.has(path.join(safeRoot, "SUMMARY.JSON.TMP")), false)
 })
 
 test("writeSafeArtifacts scans the complete summary before writing any retained source", () => {
