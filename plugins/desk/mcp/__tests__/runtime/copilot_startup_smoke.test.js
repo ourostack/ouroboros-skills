@@ -314,6 +314,30 @@ test("buildSmokePlan rejects empty secrets and non-separate output roots before 
   )
 })
 
+test("buildSmokePlan rejects candidate and output roots that overlap", () => {
+  const smoke = loadProductionModule()
+  const { candidateRoot, env, fake, rawRoot, safeRoot } = fixture()
+
+  assert.throws(
+    () => smoke.buildSmokePlan({
+      candidateRoot,
+      env,
+      rawRoot: candidateRoot,
+      safeRoot,
+    }, { fsOps: fake.fsOps }),
+    /candidate checkout and output roots must be separate non-overlapping directories/,
+  )
+  assert.throws(
+    () => smoke.buildSmokePlan({
+      candidateRoot,
+      env,
+      rawRoot,
+      safeRoot: path.join(candidateRoot, "safe"),
+    }, { fsOps: fake.fsOps }),
+    /candidate checkout and output roots must be separate non-overlapping directories/,
+  )
+})
+
 test("buildSmokePlan surfaces an unwritable isolated root without launching setup", () => {
   const smoke = loadProductionModule()
   const { candidateRoot, env, rawRoot, safeRoot } = fixture()
@@ -372,4 +396,3 @@ test("startCli maps runner errors to a deterministic nonzero CLI outcome", async
   assert.deepEqual(exitCodes, [1])
   assert.deepEqual(stderr, ["desk-copilot-startup-smoke: fixture runner failed\n"])
 })
-
