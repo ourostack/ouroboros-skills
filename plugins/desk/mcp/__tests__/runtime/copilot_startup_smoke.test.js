@@ -18,6 +18,10 @@ const PINNED_COPILOT_PREFIX = [
   "copilot",
   "--no-auto-update",
 ]
+const EXPECTED_REMOTE_WARNING = "could not load remote agents, no GitHub remote found"
+const PINNED_MODEL = "claude-sonnet-5"
+const PINNED_RUNTIME_TARGET = "darwin-arm64-node-127"
+const PINNED_NODE_ABI = "127"
 
 function missingProductionModule(error) {
   const emptyCommand = { command: "", args: [], options: { cwd: "", env: {} } }
@@ -39,7 +43,13 @@ function missingProductionModule(error) {
     parseArgs() {
       return {}
     },
+    planSafeArtifacts() {
+      return {}
+    },
     async startCli() {},
+    validateStartupResult() {
+      return {}
+    },
   }
 }
 
@@ -105,6 +115,146 @@ function fixture() {
     PATH: "/usr/local/bin:/usr/bin",
   }
   return { candidateRoot, env, fake, rawRoot, safeRoot }
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function validationFixture() {
+  const deskRoot = "/tmp/raw startup artifacts/desk"
+  const runtimeCacheRoot = "/tmp/raw startup artifacts/runtime-cache"
+  const toolCallId = "tool-call-1"
+  const mcpSnapshot = {
+    type: "session.mcp_servers_loaded",
+    data: {
+      servers: [
+        {
+          name: "desk",
+          pluginName: "desk",
+          source: "plugin",
+          status: "connected",
+          transport: "stdio",
+        },
+        {
+          name: "github-mcp-server",
+          source: "builtin",
+          status: "disabled",
+          transport: "http",
+        },
+      ],
+    },
+  }
+  const payload = {
+    status: "ok",
+    root: {
+      path: deskRoot,
+      source: "env:DESK",
+    },
+    runtime: {
+      loaded_from_source_mirror: true,
+      node: {
+        abi: PINNED_NODE_ABI,
+        arch: "arm64",
+        platform: "darwin",
+      },
+      runtime_cache_dir: runtimeCacheRoot,
+      target: PINNED_RUNTIME_TARGET,
+    },
+    startup_fallback: {
+      budget_ms: 250,
+      degraded: true,
+      duration_ms: 348,
+      mode: "startup_deferred",
+    },
+  }
+  const events = [
+    clone(mcpSnapshot),
+    clone(mcpSnapshot),
+    clone(mcpSnapshot),
+    {
+      type: "session.custom_agents_updated",
+      data: {
+        agents: [{ id: "desk:worker", source: "plugin" }],
+        errors: [],
+        warnings: [EXPECTED_REMOTE_WARNING],
+      },
+    },
+    {
+      type: "assistant.message",
+      data: {
+        content: "",
+        model: PINNED_MODEL,
+        toolRequests: [{ name: "desk-desk_status", toolCallId }],
+      },
+    },
+    {
+      type: "tool.execution_start",
+      data: {
+        arguments: {},
+        mcpServerName: "desk",
+        mcpToolName: "desk_status",
+        model: PINNED_MODEL,
+        toolCallId,
+        toolName: "desk-desk_status",
+      },
+    },
+    {
+      type: "tool.execution_complete",
+      data: {
+        model: PINNED_MODEL,
+        result: {
+          content: JSON.stringify(payload),
+        },
+        success: true,
+        toolCallId,
+      },
+    },
+    {
+      type: "assistant.message",
+      data: {
+        content: "DESK_STARTUP_READY",
+        model: PINNED_MODEL,
+        toolRequests: [],
+      },
+    },
+  ]
+  const expected = {
+    deskRoot,
+    model: PINNED_MODEL,
+    nodeAbi: PINNED_NODE_ABI,
+    runtimeCacheRoot,
+    runtimeTarget: PINNED_RUNTIME_TARGET,
+    sentinel: "DESK_STARTUP_READY",
+  }
+  return { events, expected, payload, toolCallId }
+}
+
+function validationInput(fixtureState, {
+  events = fixtureState.events,
+  exitCode = 0,
+  stderr = "",
+} = {}) {
+  return {
+    exitCode,
+    expected: fixtureState.expected,
+    jsonl: `${events.map((event) => JSON.stringify(event)).join("\n")}\n`,
+    stderr,
+  }
+}
+
+function updateToolPayload(events, update) {
+  const complete = events.find((event) => event.type === "tool.execution_complete")
+  const payload = JSON.parse(complete.data.result.content)
+  update(payload)
+  complete.data.result.content = JSON.stringify(payload)
+}
+
+function assertFailureCodes(smoke, fixtureState, expectedCodes, overrides = {}) {
+  const result = smoke.validateStartupResult(validationInput(fixtureState, overrides))
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.failure_codes, [...expectedCodes].sort())
+  assert.deepEqual(result.failure_codes, [...result.failure_codes].sort())
 }
 
 test("buildSmokePlan records the exact outbound setup and live command contracts without spawning", () => {
@@ -395,4 +545,441 @@ test("startCli maps runner errors to a deterministic nonzero CLI outcome", async
 
   assert.deepEqual(exitCodes, [1])
   assert.deepEqual(stderr, ["desk-copilot-startup-smoke: fixture runner failed\n"])
+})
+
+test("validateStartupResult accepts the distilled healthy fixture and repeated identical MCP snapshots", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+  fixtureState.events.at(-1).data.content = "\t DESK_STARTUP_READY \r\n"
+
+  const result = smoke.validateStartupResult(validationInput(fixtureState))
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.failure_codes, [])
+})
+
+test("validateStartupResult accepts a healthy degraded startup fallback after source-mirror restoration", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+  updateToolPayload(fixtureState.events, (payload) => {
+    payload.startup_fallback.degraded = true
+    payload.startup_fallback.mode = "startup_deferred"
+  })
+
+  const result = smoke.validateStartupResult(validationInput(fixtureState))
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.failure_codes, [])
+})
+
+test("validateStartupResult rejects absent or unhealthy MCP state with specific codes", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    {
+      expected: ["mcp_snapshot_missing"],
+      mutate(events) {
+        return events.filter((event) => event.type !== "session.mcp_servers_loaded")
+      },
+    },
+    {
+      expected: ["desk_mcp_not_connected"],
+      mutate(events) {
+        for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
+          event.data.servers.find((server) => server.name === "desk").status = "failed"
+        }
+        return events
+      },
+    },
+    {
+      expected: ["desk_mcp_not_plugin"],
+      mutate(events) {
+        for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
+          event.data.servers.find((server) => server.name === "desk").source = "builtin"
+        }
+        return events
+      },
+    },
+    {
+      expected: ["github_mcp_not_disabled"],
+      mutate(events) {
+        for (const event of events.filter((item) => item.type === "session.mcp_servers_loaded")) {
+          event.data.servers.find((server) => server.name === "github-mcp-server").status = "connected"
+        }
+        return events
+      },
+    },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = fixtureCase.mutate(clone(fixtureState.events))
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult requires a present and consistently pinned model", () => {
+  const smoke = loadProductionModule()
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    for (const event of events) {
+      if (event.data && Object.hasOwn(event.data, "model")) {
+        delete event.data.model
+      }
+    }
+    assertFailureCodes(smoke, fixtureState, ["model_missing"], { events })
+  }
+
+  for (const conflictingOnly of [false, true]) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    const modelEvents = events.filter((event) => event.data?.model)
+    for (const event of conflictingOnly ? modelEvents.slice(0, 1) : modelEvents) {
+      event.data.model = "wrong-model"
+    }
+    assertFailureCodes(smoke, fixtureState, ["model_mismatch"], { events })
+  }
+})
+
+test("validateStartupResult accepts only the expected remote-agent warning and no errors", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    { errors: [], warnings: [], expected: ["unexpected_diagnostic"] },
+    { errors: [], warnings: [EXPECTED_REMOTE_WARNING, "extra warning"], expected: ["unexpected_diagnostic"] },
+    { errors: ["agent load failed"], warnings: [EXPECTED_REMOTE_WARNING], expected: ["unexpected_diagnostic"] },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    const diagnostic = events.find((event) => event.type === "session.custom_agents_updated")
+    diagnostic.data.errors = fixtureCase.errors
+    diagnostic.data.warnings = fixtureCase.warnings
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult rejects malformed and truncated JSONL without hiding other valid evidence", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+
+  for (const malformedSuffix of ["not-json\n", "{\"type\":\"truncated\"\n"]) {
+    const input = validationInput(fixtureState)
+    input.jsonl += malformedSuffix
+    const result = smoke.validateStartupResult(input)
+    assert.equal(result.ok, false)
+    assert.deepEqual(result.failure_codes, ["jsonl_malformed"])
+  }
+})
+
+test("validateStartupResult requires exactly one matched Desk tool request, start, and completion", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    {
+      expected: ["tool_request_count_mismatch"],
+      mutate(events) {
+        events.find((event) => event.type === "assistant.message" && event.data.toolRequests.length > 0).data.toolRequests = []
+        return events
+      },
+    },
+    {
+      expected: ["tool_request_count_mismatch"],
+      mutate(events) {
+        events.find((event) => event.type === "assistant.message" && event.data.toolRequests.length > 0).data.toolRequests.push({
+          name: "desk-desk_status",
+          toolCallId: "tool-call-2",
+        })
+        return events
+      },
+    },
+    {
+      expected: ["tool_start_count_mismatch"],
+      mutate(events) {
+        return events.filter((event) => event.type !== "tool.execution_start")
+      },
+    },
+    {
+      expected: ["tool_start_count_mismatch"],
+      mutate(events) {
+        events.push(clone(events.find((event) => event.type === "tool.execution_start")))
+        return events
+      },
+    },
+    {
+      expected: ["tool_complete_count_mismatch"],
+      mutate(events) {
+        return events.filter((event) => event.type !== "tool.execution_complete")
+      },
+    },
+    {
+      expected: ["tool_complete_count_mismatch"],
+      mutate(events) {
+        events.push(clone(events.find((event) => event.type === "tool.execution_complete")))
+        return events
+      },
+    },
+    {
+      expected: ["tool_call_mismatch"],
+      mutate(events) {
+        events.find((event) => event.type === "tool.execution_complete").data.toolCallId = "different-tool-call"
+        return events
+      },
+    },
+    {
+      expected: ["tool_call_mismatch"],
+      mutate(events) {
+        events.find((event) => event.type === "tool.execution_start").data.toolName = "desk-desk_search"
+        return events
+      },
+    },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = fixtureCase.mutate(clone(fixtureState.events))
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult rejects failed transport and invalid nested tool content", () => {
+  const smoke = loadProductionModule()
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.find((event) => event.type === "tool.execution_complete").data.success = false
+    assertFailureCodes(smoke, fixtureState, ["tool_transport_failed"], { events })
+  }
+
+  {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.find((event) => event.type === "tool.execution_complete").data.result.content = "{\"status\":"
+    assertFailureCodes(smoke, fixtureState, ["tool_payload_invalid"], { events })
+  }
+})
+
+test("validateStartupResult rejects degraded and guarded diagnostic payload reasons", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    { reason: undefined, expected: ["payload_status_not_ok"] },
+    { reason: "no_compatible_node", expected: ["payload_reason_no_compatible_node", "payload_status_not_ok"] },
+    { reason: "unsupported_target", expected: ["payload_reason_unsupported_target", "payload_status_not_ok"] },
+    { reason: "guarded_reexec_failure", expected: ["payload_reason_guarded_reexec_failure", "payload_status_not_ok"] },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    updateToolPayload(events, (payload) => {
+      payload.status = "degraded"
+      if (fixtureCase.reason) {
+        payload.reason = fixtureCase.reason
+      }
+    })
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult rejects missing restoration, runtime mismatch, and wrong isolated roots", () => {
+  const smoke = loadProductionModule()
+  const cases = [
+    {
+      expected: ["source_mirror_not_restored"],
+      mutate(payload) {
+        delete payload.runtime.loaded_from_source_mirror
+      },
+    },
+    {
+      expected: ["source_mirror_not_restored"],
+      mutate(payload) {
+        payload.runtime.loaded_from_source_mirror = false
+      },
+    },
+    {
+      expected: ["runtime_target_mismatch"],
+      mutate(payload) {
+        payload.runtime.target = "darwin-arm64-node-115"
+      },
+    },
+    {
+      expected: ["runtime_abi_mismatch"],
+      mutate(payload) {
+        payload.runtime.node.abi = "115"
+      },
+    },
+    {
+      expected: ["desk_root_mismatch", "runtime_cache_root_mismatch"],
+      mutate(payload) {
+        payload.root.path = "/wrong/desk"
+        payload.runtime.runtime_cache_dir = "/wrong/cache"
+      },
+    },
+  ]
+
+  for (const fixtureCase of cases) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    updateToolPayload(events, fixtureCase.mutate)
+    assertFailureCodes(smoke, fixtureState, fixtureCase.expected, { events })
+  }
+})
+
+test("validateStartupResult rejects the distilled ABI-mismatch fixture despite exit zero and sentinel success", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+  const events = clone(fixtureState.events)
+  updateToolPayload(events, (payload) => {
+    delete payload.root
+    payload.status = "degraded"
+    payload.mode = "diagnostic"
+    payload.reason = "no_compatible_node"
+    payload.runtime = {
+      current_target: {
+        arch: "arm64",
+        id: "darwin-arm64-node-115",
+        node_abi: "115",
+        platform: "darwin",
+      },
+      runtime_cache_path: fixtureState.expected.runtimeCacheRoot,
+    }
+  })
+
+  assertFailureCodes(smoke, fixtureState, [
+    "desk_root_mismatch",
+    "payload_reason_no_compatible_node",
+    "payload_status_not_ok",
+    "runtime_abi_mismatch",
+    "runtime_target_mismatch",
+    "source_mirror_not_restored",
+  ], { events })
+})
+
+test("validateStartupResult accepts only surrounding ASCII whitespace around the final sentinel", () => {
+  const smoke = loadProductionModule()
+  const rejected = [
+    "",
+    "DESK_STARTUP_READY extra",
+    "DESK_STARTUP_NOT_READY",
+    "\u00a0DESK_STARTUP_READY\u00a0",
+  ]
+
+  for (const content of rejected) {
+    const fixtureState = validationFixture()
+    const events = clone(fixtureState.events)
+    events.at(-1).data.content = content
+    assertFailureCodes(smoke, fixtureState, ["sentinel_mismatch"], { events })
+  }
+})
+
+test("validateStartupResult rejects nonzero exit and nonempty stderr", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+
+  assertFailureCodes(smoke, fixtureState, ["process_exit_nonzero"], { exitCode: 1 })
+  assertFailureCodes(smoke, fixtureState, ["stderr_nonempty"], { stderr: "unexpected stderr\n" })
+})
+
+test("validateStartupResult returns a deterministic sorted complete multi-failure set", () => {
+  const smoke = loadProductionModule()
+  const fixtureState = validationFixture()
+  const events = clone(fixtureState.events)
+    .filter((event) => event.type !== "session.mcp_servers_loaded" && event.type !== "tool.execution_start")
+  for (const event of events.filter((item) => item.data?.model)) {
+    event.data.model = "wrong-model"
+  }
+  const diagnostic = events.find((event) => event.type === "session.custom_agents_updated")
+  diagnostic.data.errors = ["agent error"]
+  diagnostic.data.warnings = []
+  const completion = events.find((event) => event.type === "tool.execution_complete")
+  completion.data.success = false
+  completion.data.result.content = "{"
+  events.at(-1).data.content = "wrong sentinel"
+  const input = validationInput(fixtureState, {
+    events,
+    exitCode: 9,
+    stderr: "unexpected stderr\n",
+  })
+  input.jsonl += "truncated{\n"
+
+  const result = smoke.validateStartupResult(input)
+
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.failure_codes, [
+    "jsonl_malformed",
+    "mcp_snapshot_missing",
+    "model_mismatch",
+    "process_exit_nonzero",
+    "sentinel_mismatch",
+    "stderr_nonempty",
+    "tool_payload_invalid",
+    "tool_start_count_mismatch",
+    "tool_transport_failed",
+    "unexpected_diagnostic",
+  ])
+})
+
+test("planSafeArtifacts retains clean bounded sources with deterministic metadata", () => {
+  const smoke = loadProductionModule()
+  const sources = [
+    { content: "{\"type\":\"result\"}\n", fileName: "copilot.jsonl", source: "jsonl" },
+    { content: "", fileName: "copilot.stderr.log", source: "stderr" },
+    { content: "debug line\n", fileName: "copilot.debug.log", source: "debug_log" },
+    { content: "{\"phase\":\"validation\"}\n", fileName: "diagnostics.json", source: "generated_diagnostics" },
+  ]
+
+  const result = smoke.planSafeArtifacts({
+    secrets: { GH_TOKEN: "gh-token-clean-fixture", GITHUB_TOKEN: "github-token-clean-fixture" },
+    sources,
+  })
+
+  assert.deepEqual(result.failure_codes, [])
+  assert.deepEqual(result.omitted, [])
+  assert.deepEqual(result.retained, sources.map((source) => ({
+    bytes: Buffer.byteLength(source.content),
+    content: source.content,
+    file_name: source.fileName,
+    source: source.source,
+  })))
+})
+
+test("planSafeArtifacts omits each secret-bearing source before retention", () => {
+  const smoke = loadProductionModule()
+  const sourceDefinitions = [
+    { fileName: "copilot.jsonl", source: "jsonl" },
+    { fileName: "copilot.stderr.log", source: "stderr" },
+    { fileName: "copilot.debug.log", source: "debug_log" },
+    { fileName: "diagnostics.json", source: "generated_diagnostics" },
+  ]
+
+  for (const secretSource of sourceDefinitions) {
+    const githubToken = `github-token-${secretSource.source}`
+    const ghToken = `gh-token-${secretSource.source}`
+    const sources = sourceDefinitions.map((definition) => ({
+      ...definition,
+      content: definition.source === secretSource.source
+        ? `prefix ${githubToken} middle ${ghToken} suffix`
+        : `clean ${definition.source}`,
+    }))
+
+    const result = smoke.planSafeArtifacts({
+      secrets: { GH_TOKEN: ghToken, GITHUB_TOKEN: githubToken },
+      sources,
+    })
+
+    assert.deepEqual(result.failure_codes, ["secret_detected"])
+    assert.deepEqual(result.omitted, [{
+      bytes: Buffer.byteLength(sources.find((source) => source.source === secretSource.source).content),
+      file_name: secretSource.fileName,
+      reason: "secret_detected",
+      source: secretSource.source,
+    }])
+    assert.deepEqual(
+      result.retained.map((entry) => entry.source),
+      sourceDefinitions.filter((definition) => definition.source !== secretSource.source).map((definition) => definition.source),
+    )
+    assert.equal(JSON.stringify(result).includes(githubToken), false)
+    assert.equal(JSON.stringify(result).includes(ghToken), false)
+  }
 })
