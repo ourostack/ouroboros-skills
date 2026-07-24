@@ -48,14 +48,24 @@ function requiredPath(value, label) {
   return path.resolve(value);
 }
 
+function pathsOverlap(left, right) {
+  const leftToRight = path.relative(left, right);
+  const rightToLeft = path.relative(right, left);
+  return !leftToRight.startsWith("..") || !rightToLeft.startsWith("..");
+}
+
 function buildPaths({ candidateRoot, rawRoot, safeRoot }) {
   const resolvedCandidateRoot = requiredPath(candidateRoot, "candidateRoot");
   const resolvedRawRoot = requiredPath(rawRoot, "rawRoot");
   const resolvedSafeRoot = requiredPath(safeRoot, "safeRoot");
-  const rawToSafe = path.relative(resolvedRawRoot, resolvedSafeRoot);
-  const safeToRaw = path.relative(resolvedSafeRoot, resolvedRawRoot);
-  if (!rawToSafe.startsWith("..") || !safeToRaw.startsWith("..")) {
+  if (pathsOverlap(resolvedRawRoot, resolvedSafeRoot)) {
     throw new Error("raw and safe roots must be separate non-overlapping directories");
+  }
+  if (
+    pathsOverlap(resolvedCandidateRoot, resolvedRawRoot) ||
+    pathsOverlap(resolvedCandidateRoot, resolvedSafeRoot)
+  ) {
+    throw new Error("candidate checkout and output roots must be separate non-overlapping directories");
   }
   return {
     candidateRoot: resolvedCandidateRoot,
