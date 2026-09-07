@@ -56,7 +56,7 @@ test("lesson_add normalizes trailing newlines and appends to a file without one"
   const root = await mkTempDeskRoot()
   const filePath = path.join(root, "_meta", "tips", "topic-x.md")
   await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, "# Existing lesson", "utf8")
+  await fs.writeFile(filePath, "# topic-x", "utf8")
 
   await lesson_add({
     deskRoot: root,
@@ -64,7 +64,7 @@ test("lesson_add normalizes trailing newlines and appends to a file without one"
   })
 
   const content = await fs.readFile(filePath, "utf8")
-  assert.match(content, /# Existing lesson\n\n## Update \d{4}-\d{2}-\d{2}\n\nNew lesson\.\n$/)
+  assert.match(content, /# topic-x\n\n## Update \d{4}-\d{2}-\d{2}\n\nNew lesson\.\n$/)
 })
 
 test("lesson_add rejects empty topic or body", async () => {
