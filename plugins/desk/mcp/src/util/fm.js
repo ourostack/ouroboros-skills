@@ -7,6 +7,7 @@
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
 import matter from "gray-matter"
+import { caseFold } from "unicode-case-folding"
 
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
 export function nowIso() {
@@ -66,14 +67,26 @@ export async function pathExists(p) {
 }
 
 /**
- * Slugify a topic / theme to a filesystem-safe token. Normalizes, lowercases,
+ * Reproduce the pre-1.3.4 slug for compatibility lookups.
+ */
+export function legacySlugify(raw) {
+  if (raw == null) return ""
+  return String(raw)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/**
+ * Slugify a topic / theme to a filesystem-safe token. Normalizes, case-folds,
  * replaces non-letter/mark/number runs with `-`, and trims edge separators.
  */
 export function slugify(raw) {
   if (raw == null) return ""
-  return String(raw)
+  const normalized = String(raw)
     .normalize("NFC")
-    .toLowerCase()
+    .replace(/(^|[^\p{L}\p{M}\p{N}])\p{M}+/gu, "$1")
+  return caseFold(normalized)
     .normalize("NFC")
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/(^|-)\p{M}+/gu, "$1")

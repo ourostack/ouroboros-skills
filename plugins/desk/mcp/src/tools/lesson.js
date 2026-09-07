@@ -7,7 +7,7 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { today, slugify, pathExists } from "../util/fm.js"
+import { today, legacySlugify, slugify, pathExists } from "../util/fm.js"
 import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
@@ -43,11 +43,22 @@ export async function lesson_add({ deskRoot, input, person = null }) {
     throw new Error("lesson_add: `topic` slugified to empty string")
   }
 
-  const filePath = await resolveWriteTarget({
+  let filePath = await resolveWriteTarget({
     deskRoot,
     person,
     segments: ["_meta", "tips", `${topicSlug}.md`],
   })
+  const legacyTopicSlug = legacySlugify(topic)
+  if (legacyTopicSlug && legacyTopicSlug !== topicSlug && !(await pathExists(filePath))) {
+    const legacyFilePath = await resolveWriteTarget({
+      deskRoot,
+      person,
+      segments: ["_meta", "tips", `${legacyTopicSlug}.md`],
+    })
+    if (await pathExists(legacyFilePath)) {
+      filePath = legacyFilePath
+    }
+  }
   await fs.mkdir(path.dirname(filePath), { recursive: true })
 
   const trimmedBody = body.endsWith("\n") ? body : `${body}\n`

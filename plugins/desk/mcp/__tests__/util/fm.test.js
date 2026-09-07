@@ -2,7 +2,13 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import * as path from "node:path"
 import { promises as fs } from "node:fs"
-import { readMarkdown, serializeMarkdown, slugify } from "../../src/util/fm.js"
+import {
+  legacySlugify,
+  readMarkdown,
+  serializeMarkdown,
+  slugify,
+  today,
+} from "../../src/util/fm.js"
 import { friction_add } from "../../src/tools/friction.js"
 import { lesson_add } from "../../src/tools/lesson.js"
 import { mkTempDeskRoot } from "../tools/_helpers.js"
@@ -16,10 +22,14 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("H\u0331"), slugify("\u1E96"))
   assert.equal(slugify("J\u030C"), slugify("\u01F0"))
   assert.equal(slugify("H\u0331"), slugify("H\u0331").normalize("NFC"))
+  assert.equal(slugify("Σ"), slugify("ς"))
+  assert.equal(slugify("Straße"), slugify("STRASSE"))
+  assert.notEqual(slugify("ı"), slugify("i"))
   assert.equal(slugify("❤️"), "")
   assert.equal(slugify("☀️"), "")
   assert.equal(slugify("✈️"), "")
   assert.equal(slugify("\u0301"), "")
+  assert.equal(slugify("\u0345"), "")
   assert.equal(slugify("a ❤️ b"), "a-b")
   assert.equal(slugify("!!!"), "")
 })
@@ -41,6 +51,59 @@ test("Unicode slugs reach lesson and track-friction file paths", async () => {
   assert.equal(path.dirname(friction.path), path.join("t1", "_friction"))
   assert.match(path.basename(friction.path), /^\d{4}-\d{2}-\d{2}-安全-路径\.md$/)
   assert.match(await fs.readFile(path.join(root, friction.path), "utf8"), /Friction body/)
+})
+
+test("case-fold-equivalent inputs share lesson and friction paths", async () => {
+  const root = await mkTempDeskRoot()
+
+  const firstLesson = await lesson_add({
+    deskRoot: root,
+    input: { topic: "Σ", body: "First lesson." },
+  })
+  const secondLesson = await lesson_add({
+    deskRoot: root,
+    input: { topic: "ς", body: "Second lesson." },
+  })
+  assert.equal(secondLesson.path, firstLesson.path)
+  assert.match(await fs.readFile(path.join(root, firstLesson.path), "utf8"), /Second lesson/)
+
+  const firstFriction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "Straße", body: "First friction." },
+  })
+  const secondFriction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "STRASSE", body: "Second friction." },
+  })
+  assert.equal(secondFriction.path, firstFriction.path)
+  assert.match(await fs.readFile(path.join(root, firstFriction.path), "utf8"), /Second friction/)
+})
+
+test("lesson and friction updates reuse pre-1.3.4 Unicode slugs", async () => {
+  const root = await mkTempDeskRoot()
+  const lessonSlug = legacySlugify("café")
+  const lessonPath = path.join(root, "_meta", "tips", `${lessonSlug}.md`)
+  await fs.mkdir(path.dirname(lessonPath), { recursive: true })
+  await fs.writeFile(lessonPath, "# café\n\nOriginal lesson.\n", "utf8")
+
+  const lesson = await lesson_add({
+    deskRoot: root,
+    input: { topic: "café", body: "Updated lesson." },
+  })
+  assert.equal(lesson.path, path.join("_meta", "tips", `${lessonSlug}.md`))
+  assert.match(await fs.readFile(lessonPath, "utf8"), /Updated lesson/)
+
+  const frictionSlug = legacySlugify("mañana notes")
+  const frictionPath = path.join(root, "t1", "_friction", `${today()}-${frictionSlug}.md`)
+  await fs.mkdir(path.dirname(frictionPath), { recursive: true })
+  await fs.writeFile(frictionPath, "Original friction.\n", "utf8")
+
+  const friction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "mañana notes", body: "Updated friction." },
+  })
+  assert.equal(friction.path, path.relative(root, frictionPath))
+  assert.match(await fs.readFile(frictionPath, "utf8"), /Updated friction/)
 })
 
 test("readMarkdown reports a missing file clearly", async () => {
