@@ -76,5 +76,7 @@ export function slugify(raw) {
     .toLowerCase()
     .normalize("NFC")
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
+    .replace(/(^|-)\p{M}+/gu, "$1")
+    .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "")
 }

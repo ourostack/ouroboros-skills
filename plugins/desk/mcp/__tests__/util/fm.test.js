@@ -16,6 +16,11 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("H\u0331"), slugify("\u1E96"))
   assert.equal(slugify("J\u030C"), slugify("\u01F0"))
   assert.equal(slugify("H\u0331"), slugify("H\u0331").normalize("NFC"))
+  assert.equal(slugify("❤️"), "")
+  assert.equal(slugify("☀️"), "")
+  assert.equal(slugify("✈️"), "")
+  assert.equal(slugify("\u0301"), "")
+  assert.equal(slugify("a ❤️ b"), "a-b")
   assert.equal(slugify("!!!"), "")
 })
 
