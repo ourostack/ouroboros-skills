@@ -23,6 +23,10 @@ const supportedTargets = [
   { platform: "win32", arch: "x64" },
 ]
 const requiredRuntimeFilesByPackage = new Map([
+  ["@adraffy/ens-normalize", [
+    "dist/index.mjs",
+    "LICENSE",
+  ]],
   ["@modelcontextprotocol/sdk", [
     "dist/esm/server/index.js",
     "dist/esm/server/stdio.js",

@@ -43,6 +43,7 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.notEqual(slugify("ı"), slugify("i"))
   assert.equal(slugify("\u1C89"), "\u1C8A")
   assert.equal(slugify("\u088F"), "")
+  assert.equal(slugify("\u0628\u0897\u0618"), "\u0628\u0618\u0897")
   assert.equal(slugify("❤️"), "")
   assert.equal(slugify("☀️"), "")
   assert.equal(slugify("✈️"), "")

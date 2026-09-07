@@ -37,6 +37,10 @@ const target = supportedTargets.find((supportedTarget) => (
   supportedTarget.platform === process.platform && supportedTarget.arch === process.arch
 )) ?? supportedTargets[0]
 const requiredRuntimeFilesByPackage = new Map([
+  ["@adraffy/ens-normalize", [
+    "dist/index.mjs",
+    "LICENSE",
+  ]],
   ["@modelcontextprotocol/sdk", [
     "dist/esm/server/index.js",
     "dist/esm/server/stdio.js",
@@ -2203,6 +2207,7 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.manifest.json")), true)
       assert.equal(existsSync(path.join(builtPackDir, "runtime-deps.sha256")), true)
       const builtEntries = listTarGzEntries(builtArchivePath)
+      assert.ok(builtEntries.includes("node_modules/@adraffy/ens-normalize/LICENSE"))
       assert.ok(builtEntries.includes("node_modules/section-matter/index.js"))
       assert.ok(builtEntries.includes("node_modules/@hono/node-server/dist/index.js"))
       assert.ok(builtEntries.includes("node_modules/sqlite-vec/index.cjs"))

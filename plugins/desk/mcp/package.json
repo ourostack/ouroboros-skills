@@ -23,6 +23,7 @@
     "artifact:validate": "node scripts/validate-artifacts.js"
   },
   "dependencies": {
+    "@adraffy/ens-normalize": "1.11.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.3.0",
     "gray-matter": "^4.0.3",

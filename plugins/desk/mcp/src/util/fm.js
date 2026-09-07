@@ -6,6 +6,7 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
+import { nfc, safe_str_from_cps } from "@adraffy/ens-normalize"
 import matter from "gray-matter"
 import { caseFold } from "unicode-case-folding"
 import letterRegex from "./unicode-16/letter.cjs"
@@ -13,6 +14,10 @@ import markRegex from "./unicode-16/mark.cjs"
 import numberRegex from "./unicode-16/number.cjs"
 
 const windowsReservedBasename = /^(?:aux|con|nul|prn|com[1-9¹²³]|lpt[1-9¹²³])$/u
+
+function normalizeNfc(value) {
+  return safe_str_from_cps(nfc(Array.from(value, (character) => character.codePointAt(0))))
+}
 
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
 export function nowIso() {
@@ -99,7 +104,7 @@ function retainUnicodeSlugParts(value) {
  */
 export function slugify(raw) {
   if (raw == null) return ""
-  const retained = retainUnicodeSlugParts(String(raw)).normalize("NFC")
-  const slug = retainUnicodeSlugParts(caseFold(retained).normalize("NFC"))
+  const retained = normalizeNfc(retainUnicodeSlugParts(String(raw)))
+  const slug = retainUnicodeSlugParts(normalizeNfc(caseFold(retained)))
   return windowsReservedBasename.test(slug) ? `_${slug}` : slug
 }
