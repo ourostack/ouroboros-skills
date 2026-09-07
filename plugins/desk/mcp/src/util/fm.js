@@ -86,7 +86,10 @@ export async function pathExists(p) {
 }
 
 /** Find the actual directory entry that is canonically case-equivalent to a path. */
-export async function findFilenameEquivalent(filePath) {
+export async function findFilenameEquivalent(filePath, resolveCandidate) {
+  if (typeof resolveCandidate !== "function") {
+    throw new Error("filename-equivalent lookup requires a confined candidate resolver")
+  }
   let names
   try {
     names = await fs.readdir(path.dirname(filePath))
@@ -96,7 +99,7 @@ export async function findFilenameEquivalent(filePath) {
   }
   const targetKey = filenameKey(path.basename(filePath))
   const match = names.sort().find((name) => filenameKey(name) === targetKey)
-  return match ? path.join(path.dirname(filePath), match) : null
+  return match ? resolveCandidate(match) : null
 }
 
 function retainUnicodeSlugParts(value) {

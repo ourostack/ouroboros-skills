@@ -25,13 +25,14 @@ async function resolveTrackFrictionPath({ deskRoot, person, track, themeSlug }) 
   const date = today()
   const identity = trackFrictionIdentity(themeSlug)
   let fileSlug = themeSlug
+  const resolveCandidate = (name) => resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: [track, "_friction", name],
+  })
   while (true) {
-    const filePath = await resolveWriteTarget({
-      deskRoot,
-      person,
-      segments: [track, "_friction", `${date}-${fileSlug}.md`],
-    })
-    const existingPath = await findFilenameEquivalent(filePath)
+    const filePath = await resolveCandidate(`${date}-${fileSlug}.md`)
+    const existingPath = await findFilenameEquivalent(filePath, resolveCandidate)
     if (!existingPath) return { filePath, identity }
     const [firstLine] = (await fs.readFile(existingPath, "utf8")).split(/\r?\n/u)
     if (firstLine === identity) return { filePath: existingPath, identity }

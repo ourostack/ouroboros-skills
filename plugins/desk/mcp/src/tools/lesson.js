@@ -17,7 +17,7 @@ function relPath(deskRoot, absPath) {
 async function availableLessonPath(canonicalName, resolveCandidate) {
   let candidateName = `_${canonicalName}`
   let candidatePath = await resolveCandidate(candidateName)
-  while (await findFilenameEquivalent(candidatePath)) {
+  while (await findFilenameEquivalent(candidatePath, resolveCandidate)) {
     candidateName = `_${candidateName}`
     candidatePath = await resolveCandidate(candidateName)
   }
@@ -31,7 +31,7 @@ async function lessonPathMatches(filePath, topicSlug) {
 
 async function resolveLessonPath({ directory, topicSlug, canonicalPath, resolveCandidate }) {
   const canonicalName = path.basename(canonicalPath)
-  const canonicalExistingPath = await findFilenameEquivalent(canonicalPath)
+  const canonicalExistingPath = await findFilenameEquivalent(canonicalPath, resolveCandidate)
   const canonicalExists = canonicalExistingPath !== null
   if (canonicalExistingPath && await lessonPathMatches(canonicalExistingPath, topicSlug)) {
     return canonicalExistingPath

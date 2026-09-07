@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
 import { promises as fs } from "node:fs"
+import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import {
   findFilenameEquivalent,
@@ -31,22 +32,71 @@ test("vendored Unicode 16 category tables match their pinned source", async () =
 
 test("filename equivalence is pinned across case and normalization", async () => {
   const root = await mkTempDeskRoot()
-  assert.equal(await findFilenameEquivalent(path.join(root, "missing", "file.md")), null)
+  const missing = path.join(root, "missing", "file.md")
+  await assert.rejects(() => findFilenameEquivalent(missing), /confined candidate resolver/)
+  assert.equal(
+    await findFilenameEquivalent(missing, (name) => path.join(path.dirname(missing), name)),
+    null,
+  )
 
   const directory = path.join(root, "files")
   await fs.mkdir(directory, { recursive: true })
+  const resolveCandidate = (name) => path.join(directory, name)
   await fs.writeFile(path.join(directory, "_CON.md"), "case", "utf8")
-  assert.equal(path.basename(await findFilenameEquivalent(path.join(directory, "_con.md"))), "_CON.md")
+  assert.equal(
+    path.basename(await findFilenameEquivalent(path.join(directory, "_con.md"), resolveCandidate)),
+    "_CON.md",
+  )
   await fs.writeFile(path.join(directory, "cafe\u0301.md"), "normalization", "utf8")
-  assert.match(await fs.readFile(await findFilenameEquivalent(path.join(directory, "café.md")), "utf8"), /normalization/)
-  assert.equal(await findFilenameEquivalent(path.join(directory, "absent.md")), null)
+  assert.match(
+    await fs.readFile(await findFilenameEquivalent(path.join(directory, "café.md"), resolveCandidate), "utf8"),
+    /normalization/,
+  )
+  assert.equal(await findFilenameEquivalent(path.join(directory, "absent.md"), resolveCandidate), null)
 
   const nonDirectory = path.join(root, "not-a-directory")
   await fs.writeFile(nonDirectory, "file", "utf8")
   await assert.rejects(
-    () => findFilenameEquivalent(path.join(nonDirectory, "child.md")),
+    () => findFilenameEquivalent(
+      path.join(nonDirectory, "child.md"),
+      (name) => path.join(nonDirectory, name),
+    ),
     (error) => error.code === "ENOTDIR",
   )
+})
+
+test("equivalent-name symlinks cannot escape lesson or friction roots", async () => {
+  const root = await mkTempDeskRoot()
+  const outside = await fs.mkdtemp(path.join(tmpdir(), "desk-slug-symlink-"))
+  try {
+    const outsideLesson = path.join(outside, "lesson.md")
+    await fs.writeFile(outsideLesson, "# CON\n\nOutside.\n", "utf8")
+    const tips = path.join(root, "_meta", "tips")
+    await fs.mkdir(tips, { recursive: true })
+    await fs.symlink(outsideLesson, path.join(tips, "_CON.md"))
+    await assert.rejects(
+      () => lesson_add({
+        deskRoot: root,
+        input: { topic: "CON", body: "Must stay confined." },
+      }),
+      /resolves outside effective write root/,
+    )
+
+    const outsideFriction = path.join(outside, "friction.md")
+    await fs.writeFile(outsideFriction, "<!-- desk-friction:v2 theme=caf -->\n\nOutside.\n", "utf8")
+    const frictionDirectory = path.join(root, "t1", "_friction")
+    await fs.mkdir(frictionDirectory, { recursive: true })
+    await fs.symlink(outsideFriction, path.join(frictionDirectory, `${today()}-CAF.md`))
+    await assert.rejects(
+      () => friction_add({
+        deskRoot: root,
+        input: { track: "t1", theme: "caf", body: "Must stay confined." },
+      }),
+      /resolves outside effective write root/,
+    )
+  } finally {
+    await fs.rm(outside, { recursive: true, force: true })
+  }
 })
 
 test("slugify preserves Unicode letters, marks, and numbers", () => {
