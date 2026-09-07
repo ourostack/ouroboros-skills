@@ -5,6 +5,7 @@ import * as path from "node:path"
 import { promises as fs } from "node:fs"
 import { fileURLToPath } from "node:url"
 import {
+  findFilenameEquivalent,
   readMarkdown,
   serializeMarkdown,
   slugify,
@@ -28,6 +29,26 @@ test("vendored Unicode 16 category tables match their pinned source", async () =
   }
 })
 
+test("filename equivalence is pinned across case and normalization", async () => {
+  const root = await mkTempDeskRoot()
+  assert.equal(await findFilenameEquivalent(path.join(root, "missing", "file.md")), null)
+
+  const directory = path.join(root, "files")
+  await fs.mkdir(directory, { recursive: true })
+  await fs.writeFile(path.join(directory, "_CON.md"), "case", "utf8")
+  assert.equal(path.basename(await findFilenameEquivalent(path.join(directory, "_con.md"))), "_CON.md")
+  await fs.writeFile(path.join(directory, "cafe\u0301.md"), "normalization", "utf8")
+  assert.match(await fs.readFile(await findFilenameEquivalent(path.join(directory, "café.md")), "utf8"), /normalization/)
+  assert.equal(await findFilenameEquivalent(path.join(directory, "absent.md")), null)
+
+  const nonDirectory = path.join(root, "not-a-directory")
+  await fs.writeFile(nonDirectory, "file", "utf8")
+  await assert.rejects(
+    () => findFilenameEquivalent(path.join(nonDirectory, "child.md")),
+    (error) => error.code === "ENOTDIR",
+  )
+})
+
 test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify(null), "")
   assert.equal(slugify("Working with gh CLI on EMU"), "working-with-gh-cli-on-emu")
@@ -44,6 +65,11 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("\u1C89"), "\u1C8A")
   assert.equal(slugify("\u088F"), "")
   assert.equal(slugify("\u0628\u0897\u0618"), "\u0628\u0618\u0897")
+  assert.equal(slugify("\u115F"), "\u115F")
+  assert.equal(slugify("一\uFE00"), "一\uFE00")
+  assert.equal(slugify("一\u{E0100}"), "一\u{E0100}")
+  assert.notEqual(slugify("一\uFE00"), slugify("一 fe00"))
+  assert.equal(slugify("A".repeat(5000)), "a".repeat(5000))
   assert.equal(slugify("❤️"), "")
   assert.equal(slugify("☀️"), "")
   assert.equal(slugify("✈️"), "")
@@ -178,13 +204,16 @@ test("legacy paths are reused only when their identity is provable", async () =>
   const reservedLegacyPath = path.join(reservedRoot, "_meta", "tips", "con.md")
   await fs.mkdir(path.dirname(reservedLegacyPath), { recursive: true })
   await fs.writeFile(reservedLegacyPath, "# CON\n\nOriginal reserved lesson.\n", "utf8")
+  const occupiedReservedPath = path.join(path.dirname(reservedLegacyPath), "_CON.md")
+  await fs.writeFile(occupiedReservedPath, "# Different topic\n\nMust survive.\n", "utf8")
   const reserved = await lesson_add({
     deskRoot: reservedRoot,
     input: { topic: "CON", body: "Updated reserved lesson." },
   })
-  assert.equal(reserved.path, path.join("_meta", "tips", "_con.md"))
+  assert.equal(reserved.path, path.join("_meta", "tips", "__con.md"))
   await assert.rejects(() => fs.access(reservedLegacyPath), { code: "ENOENT" })
   assert.match(await fs.readFile(path.join(reservedRoot, reserved.path), "utf8"), /Original reserved lesson/)
+  assert.equal(await fs.readFile(occupiedReservedPath, "utf8"), "# Different topic\n\nMust survive.\n")
 
   const frictionSlug = "ma-ana-notes"
   const frictionPath = path.join(root, "t1", "_friction", `${today()}-${frictionSlug}.md`)
@@ -226,7 +255,7 @@ test("legacy paths are reused only when their identity is provable", async () =>
   assert.equal(await fs.readFile(ambiguousPath, "utf8"), "Ambiguous legacy friction.\n")
 
   const exactLegacyPath = path.join(root, "t1", "_friction", `${today()}-caf.md`)
-  const occupiedNamespacePath = path.join(root, "t1", "_friction", `${today()}-_caf.md`)
+  const occupiedNamespacePath = path.join(root, "t1", "_friction", `${today()}-_CAF.md`)
   await fs.writeFile(exactLegacyPath, "Legacy café friction.\n", "utf8")
   await fs.writeFile(occupiedNamespacePath, "Unverified namespace collision.\n", "utf8")
   const exactCollision = await friction_add({

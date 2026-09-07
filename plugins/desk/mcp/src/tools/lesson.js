@@ -7,54 +7,61 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { today, slugify, pathExists } from "../util/fm.js"
+import { findFilenameEquivalent, today, slugify, pathExists } from "../util/fm.js"
 import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
-function availableLessonName(existingNames, canonicalName) {
-  let candidate = `_${canonicalName}`
-  while (existingNames.has(candidate)) {
-    candidate = `_${candidate}`
+async function availableLessonPath(canonicalName, resolveCandidate) {
+  let candidateName = `_${canonicalName}`
+  let candidatePath = await resolveCandidate(candidateName)
+  while (await findFilenameEquivalent(candidatePath)) {
+    candidateName = `_${candidateName}`
+    candidatePath = await resolveCandidate(candidateName)
   }
-  return candidate
+  return candidatePath
 }
 
-async function resolveLessonPath(directory, topicSlug, canonicalPath) {
+async function lessonPathMatches(filePath, topicSlug) {
+  const [firstLine] = (await fs.readFile(filePath, "utf8")).split(/\r?\n/u)
+  return firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug
+}
+
+async function resolveLessonPath({ directory, topicSlug, canonicalPath, resolveCandidate }) {
+  const canonicalName = path.basename(canonicalPath)
+  const canonicalExistingPath = await findFilenameEquivalent(canonicalPath)
+  const canonicalExists = canonicalExistingPath !== null
+  if (canonicalExistingPath && await lessonPathMatches(canonicalExistingPath, topicSlug)) {
+    return canonicalExistingPath
+  }
   const names = (await fs.readdir(directory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
     .sort()
-  const existingNames = new Set(names)
-  const canonicalName = path.basename(canonicalPath)
   const matches = []
   for (const name of names) {
     const candidate = path.join(directory, name)
-    const [firstLine] = (await fs.readFile(candidate, "utf8")).split(/\r?\n/u)
-    if (firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug) {
+    if (await lessonPathMatches(candidate, topicSlug)) {
       matches.push(name)
     }
   }
-  if (matches.includes(canonicalName)) return canonicalPath
   if (matches.length > 0) {
     const match = matches[0]
     const matchedPath = path.join(directory, match)
     if (!match.startsWith("_") && slugify(path.basename(match, ".md")) === topicSlug) {
-      const destinationName = existingNames.has(canonicalName)
-        ? availableLessonName(existingNames, canonicalName)
-        : canonicalName
-      const destination = path.join(directory, destinationName)
+      const destination = canonicalExists
+        ? await availableLessonPath(canonicalName, resolveCandidate)
+        : canonicalPath
       await fs.rename(matchedPath, destination)
       return destination
     }
     return matchedPath
   }
-  const destinationName = existingNames.has(canonicalName)
-    ? availableLessonName(existingNames, canonicalName)
-    : canonicalName
-  return path.join(directory, destinationName)
+  return canonicalExists
+    ? availableLessonPath(canonicalName, resolveCandidate)
+    : canonicalPath
 }
 
 /**
@@ -92,8 +99,18 @@ export async function lesson_add({ deskRoot, input, person = null }) {
     segments: ["_meta", "tips", `${topicSlug}.md`],
   })
   const directory = path.dirname(filePath)
+  const resolveCandidate = (name) => resolveWriteTarget({
+    deskRoot,
+    person,
+    segments: ["_meta", "tips", name],
+  })
   await fs.mkdir(directory, { recursive: true })
-  filePath = await resolveLessonPath(directory, topicSlug, filePath)
+  filePath = await resolveLessonPath({
+    directory,
+    topicSlug,
+    canonicalPath: filePath,
+    resolveCandidate,
+  })
 
   const trimmedBody = body.endsWith("\n") ? body : `${body}\n`
   if (await pathExists(filePath)) {

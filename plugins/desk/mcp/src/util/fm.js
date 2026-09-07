@@ -6,7 +6,7 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { nfc, safe_str_from_cps } from "@adraffy/ens-normalize"
+import { nfc } from "@adraffy/ens-normalize"
 import matter from "gray-matter"
 import { caseFold } from "unicode-case-folding"
 import letterRegex from "./unicode-16/letter.cjs"
@@ -16,7 +16,16 @@ import numberRegex from "./unicode-16/number.cjs"
 const windowsReservedBasename = /^(?:aux|con|nul|prn|com[1-9¹²³]|lpt[1-9¹²³])$/u
 
 function normalizeNfc(value) {
-  return safe_str_from_cps(nfc(Array.from(value, (character) => character.codePointAt(0))))
+  const codePoints = nfc(Array.from(value, (character) => character.codePointAt(0)))
+  let result = ""
+  for (let offset = 0; offset < codePoints.length; offset += 4096) {
+    result += String.fromCodePoint(...codePoints.slice(offset, offset + 4096))
+  }
+  return result
+}
+
+function filenameKey(value) {
+  return normalizeNfc(caseFold(normalizeNfc(String(value))))
 }
 
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
@@ -74,6 +83,20 @@ export async function pathExists(p) {
   } catch {
     return false
   }
+}
+
+/** Find the actual directory entry that is canonically case-equivalent to a path. */
+export async function findFilenameEquivalent(filePath) {
+  let names
+  try {
+    names = await fs.readdir(path.dirname(filePath))
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw error
+  }
+  const targetKey = filenameKey(path.basename(filePath))
+  const match = names.sort().find((name) => filenameKey(name) === targetKey)
+  return match ? path.join(path.dirname(filePath), match) : null
 }
 
 function retainUnicodeSlugParts(value) {

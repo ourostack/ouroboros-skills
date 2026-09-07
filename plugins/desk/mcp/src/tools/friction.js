@@ -10,7 +10,7 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { today, slugify, pathExists } from "../util/fm.js"
+import { findFilenameEquivalent, today, slugify, pathExists } from "../util/fm.js"
 import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
@@ -31,9 +31,10 @@ async function resolveTrackFrictionPath({ deskRoot, person, track, themeSlug }) 
       person,
       segments: [track, "_friction", `${date}-${fileSlug}.md`],
     })
-    if (!(await pathExists(filePath))) return { filePath, identity }
-    const [firstLine] = (await fs.readFile(filePath, "utf8")).split(/\r?\n/u)
-    if (firstLine === identity) return { filePath, identity }
+    const existingPath = await findFilenameEquivalent(filePath)
+    if (!existingPath) return { filePath, identity }
+    const [firstLine] = (await fs.readFile(existingPath, "utf8")).split(/\r?\n/u)
+    if (firstLine === identity) return { filePath: existingPath, identity }
     fileSlug = `_${fileSlug}`
   }
 }
