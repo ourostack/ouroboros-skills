@@ -17,6 +17,27 @@ function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
+function trackFrictionIdentity(themeSlug) {
+  return `<!-- desk-friction:v2 theme=${themeSlug} -->`
+}
+
+async function resolveTrackFrictionPath({ deskRoot, person, track, themeSlug }) {
+  const date = today()
+  const identity = trackFrictionIdentity(themeSlug)
+  let fileSlug = themeSlug
+  while (true) {
+    const filePath = await resolveWriteTarget({
+      deskRoot,
+      person,
+      segments: [track, "_friction", `${date}-${fileSlug}.md`],
+    })
+    if (!(await pathExists(filePath))) return { filePath, identity }
+    const [firstLine] = (await fs.readFile(filePath, "utf8")).split(/\r?\n/u)
+    if (firstLine === identity) return { filePath, identity }
+    fileSlug = `_${fileSlug}`
+  }
+}
+
 /**
  * friction_add
  *
@@ -27,9 +48,11 @@ function relPath(deskRoot, absPath) {
  *     body: string,      // the entry body (without surrounding `---` separators)
  *   }
  *
- * Side effects: appends to the resolved friction file. Creates parent dirs +
- * the file itself if missing. Adds a leading `---` separator between entries
- * (and a trailing newline) so future entries land cleanly.
+ * Side effects: appends to the resolved friction file. Track-local files begin
+ * with an identity comment so lossy legacy filenames cannot absorb unrelated
+ * entries. Creates parent dirs + the file itself if missing. Adds a leading
+ * `---` separator between entries (and a trailing newline) so future entries
+ * land cleanly.
  *
  * Returns: { status: "added", path }
  */
@@ -41,13 +64,17 @@ export async function friction_add({ deskRoot, input, person = null }) {
   }
 
   let filePath
+  let identity = null
   if (typeof track === "string" && track.length > 0) {
     const themeSlug = slugify(theme) || "untitled"
-    filePath = await resolveWriteTarget({
+    const resolved = await resolveTrackFrictionPath({
       deskRoot,
       person,
-      segments: [track, "_friction", `${today()}-${themeSlug}.md`],
+      track,
+      themeSlug,
     })
+    filePath = resolved.filePath
+    identity = resolved.identity
   } else {
     filePath = await resolveWriteTarget({
       deskRoot,
@@ -69,7 +96,8 @@ export async function friction_add({ deskRoot, input, person = null }) {
       "utf8",
     )
   } else {
-    await fs.writeFile(filePath, trimmedBody, "utf8")
+    const initial = identity ? `${identity}\n\n${trimmedBody}` : trimmedBody
+    await fs.writeFile(filePath, initial, "utf8")
   }
 
   return { status: "added", path: relPath(deskRoot, filePath) }

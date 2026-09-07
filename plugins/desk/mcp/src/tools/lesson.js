@@ -14,23 +14,47 @@ function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
-async function findMatchingLessonPath(directory, topicSlug, canonicalPath) {
+function availableLessonName(existingNames, canonicalName) {
+  let candidate = `_${canonicalName}`
+  while (existingNames.has(candidate)) {
+    candidate = `_${candidate}`
+  }
+  return candidate
+}
+
+async function resolveLessonPath(directory, topicSlug, canonicalPath) {
   const names = (await fs.readdir(directory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
     .sort()
+  const existingNames = new Set(names)
+  const canonicalName = path.basename(canonicalPath)
+  const matches = []
   for (const name of names) {
     const candidate = path.join(directory, name)
     const [firstLine] = (await fs.readFile(candidate, "utf8")).split(/\r?\n/u)
     if (firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug) {
-      if (slugify(path.basename(name, ".md")) === topicSlug) {
-        await fs.rename(candidate, canonicalPath)
-        return canonicalPath
-      }
-      return candidate
+      matches.push(name)
     }
   }
-  return null
+  if (matches.includes(canonicalName)) return canonicalPath
+  if (matches.length > 0) {
+    const match = matches[0]
+    const matchedPath = path.join(directory, match)
+    if (!match.startsWith("_") && slugify(path.basename(match, ".md")) === topicSlug) {
+      const destinationName = existingNames.has(canonicalName)
+        ? availableLessonName(existingNames, canonicalName)
+        : canonicalName
+      const destination = path.join(directory, destinationName)
+      await fs.rename(matchedPath, destination)
+      return destination
+    }
+    return matchedPath
+  }
+  const destinationName = existingNames.has(canonicalName)
+    ? availableLessonName(existingNames, canonicalName)
+    : canonicalName
+  return path.join(directory, destinationName)
 }
 
 /**
@@ -69,9 +93,7 @@ export async function lesson_add({ deskRoot, input, person = null }) {
   })
   const directory = path.dirname(filePath)
   await fs.mkdir(directory, { recursive: true })
-  if (!(await pathExists(filePath))) {
-    filePath = await findMatchingLessonPath(directory, topicSlug, filePath) ?? filePath
-  }
+  filePath = await resolveLessonPath(directory, topicSlug, filePath)
 
   const trimmedBody = body.endsWith("\n") ? body : `${body}\n`
   if (await pathExists(filePath)) {

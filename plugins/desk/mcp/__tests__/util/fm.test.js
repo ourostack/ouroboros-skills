@@ -157,6 +157,22 @@ test("legacy paths are reused only when their identity is provable", async () =>
   assert.equal(collision.path, path.join("_meta", "tips", "café.md"))
   assert.equal(await fs.readFile(collisionPath, "utf8"), "# caf\n\nDifferent lesson.\n")
 
+  const occupiedRoot = await mkTempDeskRoot()
+  const occupiedDirectory = path.join(occupiedRoot, "_meta", "tips")
+  await fs.mkdir(occupiedDirectory, { recursive: true })
+  await fs.writeFile(path.join(occupiedDirectory, "caf.md"), "# café\n\nLegacy collision.\n", "utf8")
+  await fs.writeFile(path.join(occupiedDirectory, "_caf.md"), "# café\n\nSecond collision.\n", "utf8")
+  const occupied = await lesson_add({
+    deskRoot: occupiedRoot,
+    input: { topic: "caf", body: "Distinct ASCII lesson." },
+  })
+  assert.equal(occupied.path, path.join("_meta", "tips", "__caf.md"))
+  const occupiedAgain = await lesson_add({
+    deskRoot: occupiedRoot,
+    input: { topic: "caf", body: "Second ASCII update." },
+  })
+  assert.equal(occupiedAgain.path, occupied.path)
+
   const reservedRoot = await mkTempDeskRoot()
   const reservedLegacyPath = path.join(reservedRoot, "_meta", "tips", "con.md")
   await fs.mkdir(path.dirname(reservedLegacyPath), { recursive: true })
@@ -200,6 +216,30 @@ test("legacy paths are reused only when their identity is provable", async () =>
   })
   assert.match(reservedFriction.path, /-_con\.md$/)
   assert.equal(await fs.readFile(collidingLegacyPath, "utf8"), "Legacy x-con friction.\n")
+
+  const defaultFriction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", body: "New unthemed friction." },
+  })
+  assert.match(defaultFriction.path, /-_untitled\.md$/)
+  assert.equal(await fs.readFile(ambiguousPath, "utf8"), "Ambiguous legacy friction.\n")
+
+  const exactLegacyPath = path.join(root, "t1", "_friction", `${today()}-caf.md`)
+  const occupiedNamespacePath = path.join(root, "t1", "_friction", `${today()}-_caf.md`)
+  await fs.writeFile(exactLegacyPath, "Legacy café friction.\n", "utf8")
+  await fs.writeFile(occupiedNamespacePath, "Unverified namespace collision.\n", "utf8")
+  const exactCollision = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "caf", body: "Distinct caf friction." },
+  })
+  assert.match(exactCollision.path, /-__caf\.md$/)
+  const exactCollisionAgain = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "caf", body: "Second caf update." },
+  })
+  assert.equal(exactCollisionAgain.path, exactCollision.path)
+  assert.equal(await fs.readFile(exactLegacyPath, "utf8"), "Legacy café friction.\n")
+  assert.equal(await fs.readFile(occupiedNamespacePath, "utf8"), "Unverified namespace collision.\n")
 })
 
 test("readMarkdown reports a missing file clearly", async () => {
