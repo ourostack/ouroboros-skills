@@ -5,7 +5,6 @@ import * as path from "node:path"
 import { promises as fs } from "node:fs"
 import { fileURLToPath } from "node:url"
 import {
-  legacySlugify,
   readMarkdown,
   serializeMarkdown,
   slugify,
@@ -31,7 +30,6 @@ test("vendored Unicode 16 category tables match their pinned source", async () =
 
 test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify(null), "")
-  assert.equal(legacySlugify(undefined), "")
   assert.equal(slugify("Working with gh CLI on EMU"), "working-with-gh-cli-on-emu")
   assert.equal(slugify("日本語の教訓"), "日本語の教訓")
   assert.equal(slugify("安全/路径"), "安全-路径")
@@ -111,14 +109,18 @@ test("case-fold-equivalent inputs share lesson and friction paths", async () => 
 
 test("legacy paths are reused only when their identity is provable", async () => {
   const root = await mkTempDeskRoot()
-  const lessonSlug = legacySlugify("café")
+  const lessonSlug = "caf"
   const lessonPath = path.join(root, "_meta", "tips", `${lessonSlug}.md`)
   await fs.mkdir(path.dirname(lessonPath), { recursive: true })
+  await fs.mkdir(path.join(path.dirname(lessonPath), "a-directory.md"))
+  await fs.writeFile(path.join(path.dirname(lessonPath), "a-note.txt"), "Ignored.\n", "utf8")
+  await fs.writeFile(path.join(path.dirname(lessonPath), "a-no-heading.md"), "Ignored.\n", "utf8")
+  await fs.writeFile(path.join(path.dirname(lessonPath), "b-other.md"), "# caf\n\nOther.\n", "utf8")
   await fs.writeFile(lessonPath, "# café\n\nOriginal lesson.\n", "utf8")
 
   const lesson = await lesson_add({
     deskRoot: root,
-    input: { topic: "café", body: "Updated lesson." },
+    input: { topic: "cafe\u0301", body: "Updated lesson." },
   })
   assert.equal(lesson.path, path.join("_meta", "tips", `${lessonSlug}.md`))
   assert.match(await fs.readFile(lessonPath, "utf8"), /Updated lesson/)
@@ -134,7 +136,7 @@ test("legacy paths are reused only when their identity is provable", async () =>
   assert.equal(collision.path, path.join("_meta", "tips", "café.md"))
   assert.equal(await fs.readFile(collisionPath, "utf8"), "# caf\n\nDifferent lesson.\n")
 
-  const frictionSlug = legacySlugify("mañana notes")
+  const frictionSlug = "ma-ana-notes"
   const frictionPath = path.join(root, "t1", "_friction", `${today()}-${frictionSlug}.md`)
   await fs.mkdir(path.dirname(frictionPath), { recursive: true })
   await fs.writeFile(frictionPath, "Original friction.\n", "utf8")

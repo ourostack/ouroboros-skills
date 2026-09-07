@@ -71,17 +71,6 @@ export async function pathExists(p) {
   }
 }
 
-/**
- * Reproduce the pre-1.3.4 slug for compatibility lookups.
- */
-export function legacySlugify(raw) {
-  if (raw == null) return ""
-  return String(raw)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-}
-
 function retainUnicodeSlugParts(value) {
   let result = ""
   let separatorPending = false

@@ -7,17 +7,26 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { today, legacySlugify, slugify, pathExists } from "../util/fm.js"
+import { today, slugify, pathExists } from "../util/fm.js"
 import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
-async function legacyLessonMatches(filePath, topicSlug) {
-  const existing = await fs.readFile(filePath, "utf8")
-  const [firstLine] = existing.split(/\r?\n/u)
-  return firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug
+async function findMatchingLessonPath(directory, topicSlug) {
+  const names = (await fs.readdir(directory, { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => entry.name)
+    .sort()
+  for (const name of names) {
+    const candidate = path.join(directory, name)
+    const [firstLine] = (await fs.readFile(candidate, "utf8")).split(/\r?\n/u)
+    if (firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug) {
+      return candidate
+    }
+  }
+  return null
 }
 
 /**
@@ -54,18 +63,11 @@ export async function lesson_add({ deskRoot, input, person = null }) {
     person,
     segments: ["_meta", "tips", `${topicSlug}.md`],
   })
-  const legacyTopicSlug = legacySlugify(topic)
-  if (legacyTopicSlug && legacyTopicSlug !== topicSlug && !(await pathExists(filePath))) {
-    const legacyFilePath = await resolveWriteTarget({
-      deskRoot,
-      person,
-      segments: ["_meta", "tips", `${legacyTopicSlug}.md`],
-    })
-    if (await pathExists(legacyFilePath) && await legacyLessonMatches(legacyFilePath, topicSlug)) {
-      filePath = legacyFilePath
-    }
+  const directory = path.dirname(filePath)
+  await fs.mkdir(directory, { recursive: true })
+  if (!(await pathExists(filePath))) {
+    filePath = await findMatchingLessonPath(directory, topicSlug) ?? filePath
   }
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
 
   const trimmedBody = body.endsWith("\n") ? body : `${body}\n`
   if (await pathExists(filePath)) {
