@@ -14,7 +14,7 @@ function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
-async function findMatchingLessonPath(directory, topicSlug) {
+async function findMatchingLessonPath(directory, topicSlug, canonicalPath) {
   const names = (await fs.readdir(directory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
@@ -23,6 +23,10 @@ async function findMatchingLessonPath(directory, topicSlug) {
     const candidate = path.join(directory, name)
     const [firstLine] = (await fs.readFile(candidate, "utf8")).split(/\r?\n/u)
     if (firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug) {
+      if (slugify(path.basename(name, ".md")) === topicSlug) {
+        await fs.rename(candidate, canonicalPath)
+        return canonicalPath
+      }
       return candidate
     }
   }
@@ -66,7 +70,7 @@ export async function lesson_add({ deskRoot, input, person = null }) {
   const directory = path.dirname(filePath)
   await fs.mkdir(directory, { recursive: true })
   if (!(await pathExists(filePath))) {
-    filePath = await findMatchingLessonPath(directory, topicSlug) ?? filePath
+    filePath = await findMatchingLessonPath(directory, topicSlug, filePath) ?? filePath
   }
 
   const trimmedBody = body.endsWith("\n") ? body : `${body}\n`

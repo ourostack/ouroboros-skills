@@ -136,6 +136,18 @@ test("legacy paths are reused only when their identity is provable", async () =>
   assert.equal(collision.path, path.join("_meta", "tips", "café.md"))
   assert.equal(await fs.readFile(collisionPath, "utf8"), "# caf\n\nDifferent lesson.\n")
 
+  const reservedRoot = await mkTempDeskRoot()
+  const reservedLegacyPath = path.join(reservedRoot, "_meta", "tips", "con.md")
+  await fs.mkdir(path.dirname(reservedLegacyPath), { recursive: true })
+  await fs.writeFile(reservedLegacyPath, "# CON\n\nOriginal reserved lesson.\n", "utf8")
+  const reserved = await lesson_add({
+    deskRoot: reservedRoot,
+    input: { topic: "CON", body: "Updated reserved lesson." },
+  })
+  assert.equal(reserved.path, path.join("_meta", "tips", "x-con.md"))
+  await assert.rejects(() => fs.access(reservedLegacyPath), { code: "ENOENT" })
+  assert.match(await fs.readFile(path.join(reservedRoot, reserved.path), "utf8"), /Original reserved lesson/)
+
   const frictionSlug = "ma-ana-notes"
   const frictionPath = path.join(root, "t1", "_friction", `${today()}-${frictionSlug}.md`)
   await fs.mkdir(path.dirname(frictionPath), { recursive: true })
