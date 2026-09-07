@@ -34,7 +34,7 @@ export async function readMarkdown(filePath) {
     throw err
   }
   const parsed = matter(raw)
-  return { data: parsed.data ?? {}, content: parsed.content ?? "" }
+  return { data: parsed.data, content: parsed.content }
 }
 
 /**
@@ -66,13 +66,14 @@ export async function pathExists(p) {
 }
 
 /**
- * Slugify a topic / theme to a filesystem-safe token. Lowercases, replaces
- * non-alphanumerics with `-`, collapses repeats, trims leading/trailing `-`.
+ * Slugify a topic / theme to a filesystem-safe token. Normalizes, lowercases,
+ * replaces non-letter/mark/number runs with `-`, and trims edge separators.
  */
 export function slugify(raw) {
   if (raw == null) return ""
   return String(raw)
+    .normalize("NFC")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
 }
