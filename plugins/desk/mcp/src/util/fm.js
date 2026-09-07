@@ -6,6 +6,9 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
+import letterRegex from "@unicode/unicode-16.0.0/General_Category/Letter/regex.js"
+import markRegex from "@unicode/unicode-16.0.0/General_Category/Mark/regex.js"
+import numberRegex from "@unicode/unicode-16.0.0/General_Category/Number/regex.js"
 import matter from "gray-matter"
 import { caseFold } from "unicode-case-folding"
 
@@ -77,19 +80,34 @@ export function legacySlugify(raw) {
     .replace(/^-+|-+$/g, "")
 }
 
+function retainUnicodeSlugParts(value) {
+  let result = ""
+  let separatorPending = false
+  let hasBase = false
+
+  for (const character of value) {
+    if (letterRegex.test(character) || numberRegex.test(character)) {
+      if (separatorPending && result) result += "-"
+      result += character
+      separatorPending = false
+      hasBase = true
+    } else if (markRegex.test(character) && hasBase && !separatorPending) {
+      result += character
+    } else {
+      separatorPending = result.length > 0
+      hasBase = false
+    }
+  }
+
+  return result
+}
+
 /**
- * Slugify a topic / theme to a filesystem-safe token. Normalizes, case-folds,
- * replaces non-letter/mark/number runs with `-`, and trims edge separators.
+ * Slugify a topic / theme to a filesystem-safe token using pinned Unicode 16
+ * categories, full case folding, and canonical normalization.
  */
 export function slugify(raw) {
   if (raw == null) return ""
-  const normalized = String(raw)
-    .normalize("NFC")
-    .replace(/(^|[^\p{L}\p{M}\p{N}])\p{M}+/gu, "$1")
-  return caseFold(normalized)
-    .normalize("NFC")
-    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
-    .replace(/(^|-)\p{M}+/gu, "$1")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
+  const retained = retainUnicodeSlugParts(String(raw)).normalize("NFC")
+  return retainUnicodeSlugParts(caseFold(retained).normalize("NFC"))
 }

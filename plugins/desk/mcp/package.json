@@ -24,10 +24,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@unicode/unicode-16.0.0": "2.0.2",
     "better-sqlite3": "^11.3.0",
     "gray-matter": "^4.0.3",
     "sqlite-vec": "^0.1.6",
-    "unicode-case-folding": "^1.1.1"
+    "unicode-case-folding": "1.1.1"
   },
   "engines": {
     "node": ">=20.0.0"

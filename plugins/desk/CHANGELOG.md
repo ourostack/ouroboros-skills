@@ -2,7 +2,7 @@
 
 ## 3.1.2 — 2026-09-07
 
-**Lesson and friction filenames now preserve Unicode text without filesystem-dependent collisions.** The shared slug helper uses standards-based Unicode case folding, canonical normalization, attached combining marks, and Unicode letters and numbers while replacing path separators and punctuation with `-`; existing pre-1.3.4 lossy slug files are reused for subsequent updates instead of being orphaned. Existing ASCII and punctuation-only behavior remains unchanged. Unreachable `gray-matter` fallbacks were removed under characterization so the changed runtime stays fully covered. Desk moves to 3.1.2 and `desk-mcp@1.3.4`; Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
+**Lesson and friction filenames now preserve Unicode text without filesystem-dependent collisions.** The shared slug helper uses pinned Unicode 16 character categories, standards-based full case folding, canonical normalization, attached combining marks, and Unicode letters and numbers while replacing path separators and punctuation with `-`; unambiguous pre-1.3.4 lossy slug files are reused for subsequent updates instead of being orphaned. Existing ASCII and punctuation-only behavior remains unchanged. Unreachable `gray-matter` fallbacks were removed under characterization so the changed runtime stays fully covered. Desk moves to 3.1.2 and `desk-mcp@1.3.4`; Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
 
 ## 3.1.1 — 2026-09-02
 

@@ -25,6 +25,8 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("Σ"), slugify("ς"))
   assert.equal(slugify("Straße"), slugify("STRASSE"))
   assert.notEqual(slugify("ı"), slugify("i"))
+  assert.equal(slugify("\u1C89"), "\u1C8A")
+  assert.equal(slugify("\u088F"), "")
   assert.equal(slugify("❤️"), "")
   assert.equal(slugify("☀️"), "")
   assert.equal(slugify("✈️"), "")
@@ -104,6 +106,16 @@ test("lesson and friction updates reuse pre-1.3.4 Unicode slugs", async () => {
   })
   assert.equal(friction.path, path.relative(root, frictionPath))
   assert.match(await fs.readFile(frictionPath, "utf8"), /Updated friction/)
+
+  const ambiguousPath = path.join(root, "t1", "_friction", `${today()}-untitled.md`)
+  await fs.writeFile(ambiguousPath, "Ambiguous legacy friction.\n", "utf8")
+  const unicodeFriction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "日本語の教訓", body: "Specific friction." },
+  })
+  assert.notEqual(unicodeFriction.path, path.relative(root, ambiguousPath))
+  assert.match(unicodeFriction.path, /日本語の教訓\.md$/)
+  assert.equal(await fs.readFile(ambiguousPath, "utf8"), "Ambiguous legacy friction.\n")
 })
 
 test("readMarkdown reports a missing file clearly", async () => {
