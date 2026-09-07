@@ -6,11 +6,11 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import letterRegex from "@unicode/unicode-16.0.0/General_Category/Letter/regex.js"
-import markRegex from "@unicode/unicode-16.0.0/General_Category/Mark/regex.js"
-import numberRegex from "@unicode/unicode-16.0.0/General_Category/Number/regex.js"
 import matter from "gray-matter"
 import { caseFold } from "unicode-case-folding"
+import letterRegex from "./unicode-16/letter.cjs"
+import markRegex from "./unicode-16/mark.cjs"
+import numberRegex from "./unicode-16/number.cjs"
 
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
 export function nowIso() {

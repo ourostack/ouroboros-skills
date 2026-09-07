@@ -1,7 +1,9 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
+import { createHash } from "node:crypto"
 import * as path from "node:path"
 import { promises as fs } from "node:fs"
+import { fileURLToPath } from "node:url"
 import {
   legacySlugify,
   readMarkdown,
@@ -12,6 +14,20 @@ import {
 import { friction_add } from "../../src/tools/friction.js"
 import { lesson_add } from "../../src/tools/lesson.js"
 import { mkTempDeskRoot } from "../tools/_helpers.js"
+
+test("vendored Unicode 16 category tables match their pinned source", async () => {
+  const root = fileURLToPath(new URL("../../src/util/unicode-16/", import.meta.url))
+  const expected = {
+    "letter.cjs": "57b42eb5efb05e70fd7378a7998cd4502516ecffaa6ab1119255e45a49077ad4",
+    "mark.cjs": "bcd99fa2bda1cc7b38be4a6d3f4713c96701bb42bfd7066b91d305e11eb3b48d",
+    "number.cjs": "c9ed76f5842d76210411b7e46162a7b3c4b47196469d5c014a887bba762263f2",
+  }
+
+  for (const [file, hash] of Object.entries(expected)) {
+    const bytes = await fs.readFile(path.join(root, file))
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), hash)
+  }
+})
 
 test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("Working with gh CLI on EMU"), "working-with-gh-cli-on-emu")
