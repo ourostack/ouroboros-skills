@@ -30,6 +30,8 @@ test("vendored Unicode 16 category tables match their pinned source", async () =
 })
 
 test("slugify preserves Unicode letters, marks, and numbers", () => {
+  assert.equal(slugify(null), "")
+  assert.equal(legacySlugify(undefined), "")
   assert.equal(slugify("Working with gh CLI on EMU"), "working-with-gh-cli-on-emu")
   assert.equal(slugify("日本語の教訓"), "日本語の教訓")
   assert.equal(slugify("安全/路径"), "安全-路径")
