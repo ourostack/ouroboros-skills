@@ -10,7 +10,7 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
-import { today, legacySlugify, slugify, pathExists } from "../util/fm.js"
+import { today, slugify, pathExists } from "../util/fm.js"
 import { resolveWriteTarget } from "../util/paths.js"
 
 function relPath(deskRoot, absPath) {
@@ -42,24 +42,12 @@ export async function friction_add({ deskRoot, input, person = null }) {
 
   let filePath
   if (typeof track === "string" && track.length > 0) {
-    const entryDate = today()
     const themeSlug = slugify(theme) || "untitled"
     filePath = await resolveWriteTarget({
       deskRoot,
       person,
-      segments: [track, "_friction", `${entryDate}-${themeSlug}.md`],
+      segments: [track, "_friction", `${today()}-${themeSlug}.md`],
     })
-    const legacyThemeSlug = legacySlugify(theme)
-    if (legacyThemeSlug && legacyThemeSlug !== themeSlug && !(await pathExists(filePath))) {
-      const legacyFilePath = await resolveWriteTarget({
-        deskRoot,
-        person,
-        segments: [track, "_friction", `${entryDate}-${legacyThemeSlug}.md`],
-      })
-      if (await pathExists(legacyFilePath)) {
-        filePath = legacyFilePath
-      }
-    }
   } else {
     filePath = await resolveWriteTarget({
       deskRoot,

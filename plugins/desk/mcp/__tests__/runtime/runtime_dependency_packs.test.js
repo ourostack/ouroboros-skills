@@ -65,6 +65,10 @@ const requiredRuntimeFilesByPackage = new Map([
   ["sqlite-vec-linux-arm64", ["vec0.so"]],
   ["sqlite-vec-linux-x64", ["vec0.so"]],
   ["sqlite-vec-windows-x64", ["vec0.dll"]],
+  ["unicode-case-folding", [
+    "index.js",
+    "LICENSE",
+  ]],
   ["zod", [
     "index.cjs",
     "index.js",
@@ -2202,6 +2206,7 @@ test("package declares CI/release scripts for runtime dependency packs", async (
       assert.ok(builtEntries.includes("node_modules/section-matter/index.js"))
       assert.ok(builtEntries.includes("node_modules/@hono/node-server/dist/index.js"))
       assert.ok(builtEntries.includes("node_modules/sqlite-vec/index.cjs"))
+      assert.ok(builtEntries.includes("node_modules/unicode-case-folding/LICENSE"))
       assert.ok(builtEntries.includes("node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js"))
       assert.ok(builtEntries.includes("node_modules/express/lib/express.js"))
       assert.equal(requiredRuntimeFilesByPackage.has("section-matter"), false)

@@ -49,6 +49,10 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("\u0301"), "")
   assert.equal(slugify("\u0345"), "")
   assert.equal(slugify("a ❤️ b"), "a-b")
+  assert.equal(slugify("CON"), "x-con")
+  assert.equal(slugify("COM¹"), "x-com¹")
+  assert.equal(slugify("LPT³"), "x-lpt³")
+  assert.equal(slugify("COM0"), "com0")
   assert.equal(slugify("!!!"), "")
 })
 
@@ -69,6 +73,12 @@ test("Unicode slugs reach lesson and track-friction file paths", async () => {
   assert.equal(path.dirname(friction.path), path.join("t1", "_friction"))
   assert.match(path.basename(friction.path), /^\d{4}-\d{2}-\d{2}-安全-路径\.md$/)
   assert.match(await fs.readFile(path.join(root, friction.path), "utf8"), /Friction body/)
+
+  const reservedLesson = await lesson_add({
+    deskRoot: root,
+    input: { topic: "COM¹", body: "Windows-safe lesson." },
+  })
+  assert.equal(reservedLesson.path, path.join("_meta", "tips", "x-com¹.md"))
 })
 
 test("case-fold-equivalent inputs share lesson and friction paths", async () => {
@@ -97,7 +107,7 @@ test("case-fold-equivalent inputs share lesson and friction paths", async () => 
   assert.match(await fs.readFile(path.join(root, firstFriction.path), "utf8"), /Second friction/)
 })
 
-test("lesson and friction updates reuse pre-1.3.4 Unicode slugs", async () => {
+test("legacy paths are reused only when their identity is provable", async () => {
   const root = await mkTempDeskRoot()
   const lessonSlug = legacySlugify("café")
   const lessonPath = path.join(root, "_meta", "tips", `${lessonSlug}.md`)
@@ -111,6 +121,17 @@ test("lesson and friction updates reuse pre-1.3.4 Unicode slugs", async () => {
   assert.equal(lesson.path, path.join("_meta", "tips", `${lessonSlug}.md`))
   assert.match(await fs.readFile(lessonPath, "utf8"), /Updated lesson/)
 
+  const collisionRoot = await mkTempDeskRoot()
+  const collisionPath = path.join(collisionRoot, "_meta", "tips", `${lessonSlug}.md`)
+  await fs.mkdir(path.dirname(collisionPath), { recursive: true })
+  await fs.writeFile(collisionPath, "# caf\n\nDifferent lesson.\n", "utf8")
+  const collision = await lesson_add({
+    deskRoot: collisionRoot,
+    input: { topic: "café", body: "Specific lesson." },
+  })
+  assert.equal(collision.path, path.join("_meta", "tips", "café.md"))
+  assert.equal(await fs.readFile(collisionPath, "utf8"), "# caf\n\nDifferent lesson.\n")
+
   const frictionSlug = legacySlugify("mañana notes")
   const frictionPath = path.join(root, "t1", "_friction", `${today()}-${frictionSlug}.md`)
   await fs.mkdir(path.dirname(frictionPath), { recursive: true })
@@ -120,8 +141,9 @@ test("lesson and friction updates reuse pre-1.3.4 Unicode slugs", async () => {
     deskRoot: root,
     input: { track: "t1", theme: "mañana notes", body: "Updated friction." },
   })
-  assert.equal(friction.path, path.relative(root, frictionPath))
-  assert.match(await fs.readFile(frictionPath, "utf8"), /Updated friction/)
+  assert.equal(friction.path, path.join("t1", "_friction", `${today()}-mañana-notes.md`))
+  assert.equal(await fs.readFile(frictionPath, "utf8"), "Original friction.\n")
+  assert.match(await fs.readFile(path.join(root, friction.path), "utf8"), /Updated friction/)
 
   const ambiguousPath = path.join(root, "t1", "_friction", `${today()}-untitled.md`)
   await fs.writeFile(ambiguousPath, "Ambiguous legacy friction.\n", "utf8")

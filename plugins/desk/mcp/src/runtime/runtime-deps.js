@@ -51,6 +51,10 @@ const requiredRuntimeFilesByPackage = new Map([
   ["sqlite-vec-linux-arm64", ["vec0.so"]],
   ["sqlite-vec-linux-x64", ["vec0.so"]],
   ["sqlite-vec-windows-x64", ["vec0.dll"]],
+  ["unicode-case-folding", [
+    "index.js",
+    "LICENSE",
+  ]],
   ["zod", [
     "index.cjs",
     "index.js",

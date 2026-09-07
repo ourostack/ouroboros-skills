@@ -12,6 +12,8 @@ import letterRegex from "./unicode-16/letter.cjs"
 import markRegex from "./unicode-16/mark.cjs"
 import numberRegex from "./unicode-16/number.cjs"
 
+const windowsReservedBasename = /^(?:aux|con|nul|prn|com[1-9¹²³]|lpt[1-9¹²³])$/u
+
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
 export function nowIso() {
   // Trim milliseconds — the schema example uses second precision.
@@ -109,5 +111,6 @@ function retainUnicodeSlugParts(value) {
 export function slugify(raw) {
   if (raw == null) return ""
   const retained = retainUnicodeSlugParts(String(raw)).normalize("NFC")
-  return retainUnicodeSlugParts(caseFold(retained).normalize("NFC"))
+  const slug = retainUnicodeSlugParts(caseFold(retained).normalize("NFC"))
+  return windowsReservedBasename.test(slug) ? `x-${slug}` : slug
 }

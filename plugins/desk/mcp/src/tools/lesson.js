@@ -14,6 +14,12 @@ function relPath(deskRoot, absPath) {
   return path.relative(deskRoot, absPath)
 }
 
+async function legacyLessonMatches(filePath, topicSlug) {
+  const existing = await fs.readFile(filePath, "utf8")
+  const [firstLine] = existing.split(/\r?\n/u)
+  return firstLine.startsWith("# ") && slugify(firstLine.slice(2)) === topicSlug
+}
+
 /**
  * lesson_add
  *
@@ -55,7 +61,7 @@ export async function lesson_add({ deskRoot, input, person = null }) {
       person,
       segments: ["_meta", "tips", `${legacyTopicSlug}.md`],
     })
-    if (await pathExists(legacyFilePath)) {
+    if (await pathExists(legacyFilePath) && await legacyLessonMatches(legacyFilePath, topicSlug)) {
       filePath = legacyFilePath
     }
   }
