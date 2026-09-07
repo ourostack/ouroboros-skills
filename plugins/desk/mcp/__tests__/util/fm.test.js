@@ -49,9 +49,10 @@ test("slugify preserves Unicode letters, marks, and numbers", () => {
   assert.equal(slugify("\u0301"), "")
   assert.equal(slugify("\u0345"), "")
   assert.equal(slugify("a ❤️ b"), "a-b")
-  assert.equal(slugify("CON"), "x-con")
-  assert.equal(slugify("COM¹"), "x-com¹")
-  assert.equal(slugify("LPT³"), "x-lpt³")
+  assert.equal(slugify("CON"), "_con")
+  assert.equal(slugify("COM¹"), "_com¹")
+  assert.equal(slugify("LPT³"), "_lpt³")
+  assert.notEqual(slugify("CON"), slugify("x con"))
   assert.equal(slugify("COM0"), "com0")
   assert.equal(slugify("!!!"), "")
 })
@@ -78,7 +79,27 @@ test("Unicode slugs reach lesson and track-friction file paths", async () => {
     deskRoot: root,
     input: { topic: "COM¹", body: "Windows-safe lesson." },
   })
-  assert.equal(reservedLesson.path, path.join("_meta", "tips", "x-com¹.md"))
+  assert.equal(reservedLesson.path, path.join("_meta", "tips", "_com¹.md"))
+})
+
+test("reserved-name escaping stays distinct for both write orders", async () => {
+  for (const topics of [["CON", "x con"], ["x con", "CON"]]) {
+    const root = await mkTempDeskRoot()
+    const lessonPaths = []
+    const frictionPaths = []
+    for (const topic of topics) {
+      lessonPaths.push((await lesson_add({
+        deskRoot: root,
+        input: { topic, body: `Lesson for ${topic}.` },
+      })).path)
+      frictionPaths.push((await friction_add({
+        deskRoot: root,
+        input: { track: "t1", theme: topic, body: `Friction for ${topic}.` },
+      })).path)
+    }
+    assert.notEqual(lessonPaths[0], lessonPaths[1])
+    assert.notEqual(frictionPaths[0], frictionPaths[1])
+  }
 })
 
 test("case-fold-equivalent inputs share lesson and friction paths", async () => {
@@ -144,7 +165,7 @@ test("legacy paths are reused only when their identity is provable", async () =>
     deskRoot: reservedRoot,
     input: { topic: "CON", body: "Updated reserved lesson." },
   })
-  assert.equal(reserved.path, path.join("_meta", "tips", "x-con.md"))
+  assert.equal(reserved.path, path.join("_meta", "tips", "_con.md"))
   await assert.rejects(() => fs.access(reservedLegacyPath), { code: "ENOENT" })
   assert.match(await fs.readFile(path.join(reservedRoot, reserved.path), "utf8"), /Original reserved lesson/)
 
@@ -170,6 +191,15 @@ test("legacy paths are reused only when their identity is provable", async () =>
   assert.notEqual(unicodeFriction.path, path.relative(root, ambiguousPath))
   assert.match(unicodeFriction.path, /日本語の教訓\.md$/)
   assert.equal(await fs.readFile(ambiguousPath, "utf8"), "Ambiguous legacy friction.\n")
+
+  const collidingLegacyPath = path.join(root, "t1", "_friction", `${today()}-x-con.md`)
+  await fs.writeFile(collidingLegacyPath, "Legacy x-con friction.\n", "utf8")
+  const reservedFriction = await friction_add({
+    deskRoot: root,
+    input: { track: "t1", theme: "CON", body: "Reserved friction." },
+  })
+  assert.match(reservedFriction.path, /-_con\.md$/)
+  assert.equal(await fs.readFile(collidingLegacyPath, "utf8"), "Legacy x-con friction.\n")
 })
 
 test("readMarkdown reports a missing file clearly", async () => {

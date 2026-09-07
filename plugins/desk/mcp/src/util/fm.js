@@ -101,5 +101,5 @@ export function slugify(raw) {
   if (raw == null) return ""
   const retained = retainUnicodeSlugParts(String(raw)).normalize("NFC")
   const slug = retainUnicodeSlugParts(caseFold(retained).normalize("NFC"))
-  return windowsReservedBasename.test(slug) ? `x-${slug}` : slug
+  return windowsReservedBasename.test(slug) ? `_${slug}` : slug
 }
