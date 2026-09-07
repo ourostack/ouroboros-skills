@@ -1,6 +1,6 @@
 {
   "name": "@ourostack/desk-mcp",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "private": true,
   "type": "module",
   "description": "MCP server for the desk plugin — task/track/friction/lesson CRUD + hybrid lexical+semantic search over the desk workspace. Spawned by the consumer (Claude Code, Copilot CLI, ouroboros daemon) pointed at a desk root via --root.",
@@ -23,12 +23,17 @@
     "artifact:validate": "node scripts/validate-artifacts.js"
   },
   "dependencies": {
+    "@adraffy/ens-normalize": "1.11.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.3.0",
     "gray-matter": "^4.0.3",
-    "sqlite-vec": "^0.1.6"
+    "sqlite-vec": "^0.1.6",
+    "unicode-case-folding": "1.1.1"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@unicode/unicode-16.0.0": "2.0.2"
   }
 }

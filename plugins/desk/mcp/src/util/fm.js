@@ -6,7 +6,27 @@
 
 import { promises as fs } from "node:fs"
 import * as path from "node:path"
+import { nfc } from "@adraffy/ens-normalize"
 import matter from "gray-matter"
+import { caseFold } from "unicode-case-folding"
+import letterRegex from "./unicode-16/letter.cjs"
+import markRegex from "./unicode-16/mark.cjs"
+import numberRegex from "./unicode-16/number.cjs"
+
+const windowsReservedBasename = /^(?:aux|con|nul|prn|com[1-9¹²³]|lpt[1-9¹²³])$/u
+
+function normalizeNfc(value) {
+  const codePoints = nfc(Array.from(value, (character) => character.codePointAt(0)))
+  let result = ""
+  for (let offset = 0; offset < codePoints.length; offset += 4096) {
+    result += String.fromCodePoint(...codePoints.slice(offset, offset + 4096))
+  }
+  return result
+}
+
+function filenameKey(value) {
+  return normalizeNfc(caseFold(normalizeNfc(String(value))))
+}
 
 /** Current UTC time in the canonical `YYYY-MM-DDTHH:MM:SSZ` shape. */
 export function nowIso() {
@@ -34,7 +54,7 @@ export async function readMarkdown(filePath) {
     throw err
   }
   const parsed = matter(raw)
-  return { data: parsed.data ?? {}, content: parsed.content ?? "" }
+  return { data: parsed.data, content: parsed.content }
 }
 
 /**
@@ -65,14 +85,52 @@ export async function pathExists(p) {
   }
 }
 
+/** Find the actual directory entry that is canonically case-equivalent to a path. */
+export async function findFilenameEquivalent(filePath, resolveCandidate) {
+  if (typeof resolveCandidate !== "function") {
+    throw new Error("filename-equivalent lookup requires a confined candidate resolver")
+  }
+  let names
+  try {
+    names = await fs.readdir(path.dirname(filePath))
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw error
+  }
+  const targetKey = filenameKey(path.basename(filePath))
+  const match = names.sort().find((name) => filenameKey(name) === targetKey)
+  return match ? resolveCandidate(match) : null
+}
+
+function retainUnicodeSlugParts(value) {
+  let result = ""
+  let separatorPending = false
+  let hasBase = false
+
+  for (const character of value) {
+    if (letterRegex.test(character) || numberRegex.test(character)) {
+      if (separatorPending && result) result += "-"
+      result += character
+      separatorPending = false
+      hasBase = true
+    } else if (markRegex.test(character) && hasBase && !separatorPending) {
+      result += character
+    } else {
+      separatorPending = result.length > 0
+      hasBase = false
+    }
+  }
+
+  return result
+}
+
 /**
- * Slugify a topic / theme to a filesystem-safe token. Lowercases, replaces
- * non-alphanumerics with `-`, collapses repeats, trims leading/trailing `-`.
+ * Slugify a topic / theme to a filesystem-safe token using pinned Unicode 16
+ * categories, full case folding, and canonical normalization.
  */
 export function slugify(raw) {
   if (raw == null) return ""
-  return String(raw)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+  const retained = normalizeNfc(retainUnicodeSlugParts(String(raw)))
+  const slug = retainUnicodeSlugParts(normalizeNfc(caseFold(retained)))
+  return windowsReservedBasename.test(slug) ? `_${slug}` : slug
 }

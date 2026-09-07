@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 3.1.2 — 2026-09-07
+
+**Lesson and friction filenames now preserve Unicode text without filesystem-dependent collisions.** The shared slug helper uses pinned Unicode 16 character categories, standards-based full case folding, pinned Unicode 17 canonical normalization, attached combining marks, and Unicode letters and numbers while replacing path separators and punctuation with `-`; Windows-reserved device basenames are prefixed safely on every platform. Existing pre-1.3.4 lesson files are reused only when their heading proves the same normalized topic, verified legacy device-name files are moved to the canonical safe path before appending, and track-local friction uses an identity marker plus an underscore collision namespace so unverified legacy files remain separate. Existing ASCII and punctuation-only behavior remains unchanged. Redistributed normalization and case-folding code carries its required MIT notices. Unreachable `gray-matter` fallbacks were removed under characterization so the changed runtime stays fully covered. Desk moves to 3.1.2 and `desk-mcp@1.3.4`; Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
+
 ## 3.1.1 — 2026-09-02
 
 **CDP-attached browser automation now preserves the operator's foreground application.** New pages use background `Target.createTarget` targets; `/json/new`, `/json/activate`, `Target.activateTarget`, and `page.bringToFront()` are forbidden during unattended work; direct APIs remain preferred when they cover the task. `desk-mcp@1.3.3`, Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
