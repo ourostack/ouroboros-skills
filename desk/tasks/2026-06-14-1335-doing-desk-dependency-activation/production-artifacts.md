@@ -40,7 +40,7 @@ Published vector pack:
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `de513916b2dc3c49d286323db2beb55f10c8db90`
+- Provenance commit: `5a1ec823c06d5fec3f2b8951e1e2035be6dad910`
 
 Published snapshot:
 
@@ -53,9 +53,9 @@ Published snapshot:
 - `included_pack_ids`: `repo-public-bootstrap-2026-06-15`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Artifact sha256: `sha256:e867159c2d63a5c6f2edbed5e78f26581f3f5e3c0895e5b4a2644a22c8d41ea4`
+- Artifact sha256: `sha256:8bf2baf3f3bbbe11c592e3ca50cb8e6536f0f16cdaa5e02737b5ebe49621e5df`
 - Runtime: `portable-portable-portable`
-- Provenance commit: `de513916b2dc3c49d286323db2beb55f10c8db90`
+- Provenance commit: `5a1ec823c06d5fec3f2b8951e1e2035be6dad910`
 
 Approval state:
 
