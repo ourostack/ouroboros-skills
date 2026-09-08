@@ -87,8 +87,8 @@ no-op — proceed to Step 3.
 
 | Status | Resume action |
 |--------|---------------|
-| `drafting` (default) | Check for existing planning/doing docs. Resume one if present; otherwise use `work-orchestration` and transition clear work directly to `processing`. |
-| `drafting` + `planning_complete: true` | Adoption case — skip ideator/planner. Transition directly to `processing` and dispatch `work-doer`. Preserve the flag through the transition for audit trail. |
+| `drafting` (default) | Read the existing alignment receipt and planning/doing docs. Use `work-orchestration` and transition clear work directly to `processing` only with an agreed definition of done and explicit go-ahead; otherwise resume alignment, not implementation. |
+| `drafting` + `planning_complete: true` | Adoption case: reuse the plan, but do not treat the flag as go-ahead. With an existing alignment receipt, transition directly to `processing` and dispatch `work-doer` without reopening agreement. Preserve the flag for audit trail. |
 | `processing` | Resume `work-doer` from the task card and branch, consulting the doing document when one exists. |
 | `validating` | Resume `work-merger` through PR, checks, merge, release/install, smoke, cleanup, and terminal state. |
 | `collaborating` | Show what was waiting on the operator. Ask for the specific input needed and wait. |

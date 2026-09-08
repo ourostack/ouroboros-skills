@@ -15,3 +15,13 @@ The pilot fingerprints each declared owner as a whole file; do not add section o
 Run `node scripts/skill-evals.cjs validate`, `node scripts/skill-evals.cjs fingerprint evals/investigation-boundaries.json`, or `node scripts/skill-evals.cjs verify path/to/result.json`. The fingerprint command prints both hashes a receipt must carry; use its output instead of reserializing the contract.
 
 Add scenarios from observed regressions, not to inflate counts.
+
+## Engineering V2 preview
+
+`engineering-v2-kernel.json` preserves three model-facing contracts: first-step alignment, already-approved local implementation, and primary-source status in the presence of a green proxy. The writable fixture and available tools must make premature implementation possible; a denied write capability is containment evidence, not voluntary restraint.
+
+Use a fresh subject and independent judge, and retain the actual prompt, model and runtime identity, exact plugin/source pins, complete available tool trace, committed and uncommitted state, deterministic results, and semantic findings. Record the invocation mode: an unattended/autopilot run is a pressure test, not a substitute for a real multi-turn alignment conversation. Source-contract validation does not establish that a skill was consumed; inspect the trace.
+
+Keep valid failures and incomplete setup attempts. Do not rerun a valid failure to improve its score, convert passing-criterion counts into quality points, or treat runtime API duration as task elapsed time or employee productivity. A source-current complete receipt is necessary for a behavior claim, not sufficient evidence that the judge was right.
+
+The preview's feedback storage, installation, and rollback have separate runtime tests. This method-slice suite does not certify those surfaces or the full worker startup path. New production regressions should become small, independently falsifiable cases rather than another evaluation framework.
