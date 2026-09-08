@@ -2,7 +2,7 @@
 
 **The delivery method is not qualified.** The comparisons support an opt-in proposal that keeps Desk/Crew and makes the workflow smaller; they do not establish superiority over native execution. The latest method round preserves the alignment boundary in its recorded subjects but still loses required Unicode combining marks during GPT delivery, despite actual fresh review and an executed challenge.
 
-This is the outcome ledger for the initial synthetic coding calibration, bounded review trials and two method rounds. It deliberately retains failures, invalid judgments and consumption limits. It is separate from native installation and feedback-surface qualification.
+This is the outcome ledger for the initial synthetic coding calibration, bounded review trials and two method rounds. The [experiment design, source pins and arm definitions](engineering-v2-experiments.md) include the original task and rubric. The ledger deliberately retains failures, invalid judgments and consumption limits. It is separate from native installation and feedback-surface qualification.
 
 ## What was compared
 
@@ -24,7 +24,7 @@ Each table row is one fixed subject or review, not a population estimate. Source
 | Superpowers Opus | Pass | Completes the coding contract in this run. |
 | Stock Opus with pinned Ponytail | Pass | Explicitly consumes the pinned posture and delivers a smaller change without losing the coding contract. |
 
-Ponytail earned an experimental place, not a universal savings claim. Mixed outcomes do not justify treating Superpowers as a proven replacement or claiming that V1 caused its configured subjects' failures. Two Ponytail setup attempts stopped before inference; neither is a scored coding result.
+Ponytail earned an experimental place, not a universal savings claim. Mixed outcomes do not justify treating Superpowers as a proven replacement or claiming that V1 caused its configured subjects' failures. An earlier stock-GPT setup attempt stopped before Copilot launched because fixture ownership setup failed; two Ponytail setup attempts also stopped before inference. These are preserved setup outcomes, not scored coding results.
 
 ## Bounded review and boundary probes
 
@@ -67,6 +67,8 @@ The revision that followed made implementation an action boundary, including scr
 | 7 | Primary-source status / Opus | Pass | 1 / 1 | Correct broad conclusion, but overstates the failure of one baseline command |
 
 Seven distinct subjects and seven fresh opposite-family judges completed without compaction or session errors. The driver accepted exactly one complete report per cell, but three judges made eleven malformed report attempts in total before their complete reports. Its adapter counts complete reports while its instruction says to call once. This is a visible protocol discrepancy, not seven clean single-call judgments or permission to choose a favorable report. The deterministic delivery failure does not depend on that discrepancy.
+
+The pinned judge package/configuration and result report CLI `1.0.83`, while each raw judge `session.start.copilotVersion` field is `0.0.0`. The archive retains both values; they were not normalized to agree.
 
 The GPT reviewer challenged supplementary-plane casing, additional number categories and idempotence. Those were real different-input-class probes, but they did not cover the missing marks. Fresh review and executed falsification are useful actions, not completeness guarantees.
 

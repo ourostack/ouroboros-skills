@@ -2,7 +2,7 @@
 
 This branch is an opt-in, interactive RFC for people who already use Desk and want to try a smaller engineering workflow with current frontier models. Use it on real work, tell the agent what helped or got in the way, and choose what feedback to share. It does not replace the main-branch default.
 
-**Candidate status:** This is an installable experiment, not a qualified replacement for V1. Both method rounds are complete, and delivery qualification still fails. Native Mac feedback, restart and rollback work; the repaired Windows runtime awaits its native CI result. The [outcome ledger](evals/engineering-v2-results.md) retains the failures and measurement limits. Installation success is not a method-reliability claim.
+**Candidate status:** This is an installable experiment, not a qualified replacement for V1. Both method rounds are complete, and delivery qualification still fails. Native Mac feedback, restart and rollback work; native Windows protection, feedback persistence and source-mirror attribution now pass their CI scenarios. The [outcome ledger](evals/engineering-v2-results.md) retains the failures and measurement limits. These scoped runtime results are not a method-reliability claim.
 
 ## The proposal
 
@@ -38,7 +38,7 @@ Choose one active workflow version for your work. Retaining an inactive checkout
 
 **The commands below are the standalone native Copilot CLI route.** They were exercised with CLI `1.0.84-1` on an ARM Mac. If a managed host or overlay already owns your plugin installation, use that host's supported source-selection mechanism instead. Do not layer these native registrations over a managed installation, replace its worker with the standalone worker, or assume that this guide qualifies an untested host route.
 
-The supplied offline runtime packs target ARM macOS with Node 22 and x64 Windows with Node 24. Use the matching Node version on the CLI's `PATH`; native Windows qualification is still pending. A different Node/architecture combination is not qualified by those packs.
+The supplied offline runtime packs target ARM macOS with Node 22 and x64 Windows with Node 24. Use the matching Node version on the CLI's `PATH`. The [native Windows CI](https://github.com/ourostack/ouroboros-skills/actions/runs/34266621708) exercises actual NTFS protection, feedback CRUD/reopen and offline source-mirror attribution on that Windows target; it does not qualify a full Windows CLI installation, skill-discovery or rollback flow. A different Node/architecture combination is not qualified by those packs.
 
 Before changing the marketplace, record `copilot plugin marketplace list`, `copilot plugin list`, your current source revision, and any existing workspace/person binding. The replacement command removes every plugin installed from this marketplace. If your enabled set includes Crew or another companion, preserve that set and re-enable it too; the four commands below show the standalone closure, not permission to drop an overlay.
 
@@ -118,6 +118,8 @@ Restore any other previously enabled companion and repeat the skill-source prefl
 ## What qualifies the proposal
 
 The [permanent engineering kernel](evals/engineering-v2-kernel.json) covers new-work alignment, approved local delivery, and primary-source status. It binds results to complete source and contract fingerprints. Structural validation does not run a model or establish behavior.
+
+The [experiment design and historical arm definitions](evals/engineering-v2-experiments.md) publish the original coding task, rubric, source pins and invocation modes. They distinguish what was executed from what a new run of the published fixture would test.
 
 The first alpha failed despite green-looking intermediate evidence: one subject implemented and deleted scratch prototypes before go, and another passed its authored tests and review while losing required input characters. The second round preserved alignment in its recorded subjects, but GPT delivery still lost combining marks after consuming the method, obtaining fresh review and executing its challenge. Opus delivered a correct result without demonstrating delivery-method consumption, fresh review or strict test-first execution. Three judges also made malformed report attempts before their accepted reports. The [complete outcome ledger](evals/engineering-v2-results.md) separates these results rather than treating driver passes as proof of every floor.
 
