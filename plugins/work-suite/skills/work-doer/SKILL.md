@@ -47,6 +47,8 @@ Meet repository-required coverage for new and modified production logic, includi
 
 Test the agreed primary outcome at its real owner and consuming boundary. Challenge the most consequential input-domain or compatibility assumption with a counterexample beyond the examples that drove implementation. Derive the expected behavior from the agreed contract and pre-change behavior, not from what the new code happens to do.
 
+Make this falsification observable. Give the fresh reviewer the intended behavior and compatibility contract before the author's test summary, and ask for a runnable probe from a materially different input class or state transition, not another example of the class already tested. Execute the proposed probe through the real owner or consuming route and retain its expectation, result, and limits in the existing confidence packet. An approving review without such a challenge cannot stand in for semantic evidence. If the primary claim remains untested, report that gap rather than declaring it complete.
+
 Passing tests, a coverage number, a clean commit, and an approving review are not proof of complete behavior. Keep deterministic results, semantic review, and consuming-surface evidence distinct. A regression in the quality or compatibility contract fails the change regardless of reduced code, tokens, or runtime. Do not fix an adjacent concern by silently expanding the agreed scope.
 
 Never simplify away requested scope, error handling, validation, accessibility, evidence, or terminal delivery. Never create an abstraction for one implementation or a dependency for a few clear lines. Commit meaningful behavior changes, not process-only or no-change checkpoints.

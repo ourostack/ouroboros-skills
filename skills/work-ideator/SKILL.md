@@ -9,6 +9,8 @@ New engineering work needs substantive alignment and an explicit go-ahead before
 
 For already-approved work, read its existing alignment receipt and resume from the current task state without another workshop or go-ahead. The receipt can be the relevant conversation plus a short pointer in the existing task card; it is not a new state store or mandatory planning document.
 
+The boundary follows the action, not its eventual filename. Before go, do not write or execute a candidate implementation or new tests, including disposable prototypes in scratch, uncommitted changes, and code you intend to delete. Reading source, running existing tests, and probing existing behavior without substituting replacement logic are discovery. A useful implementation spike needs its own explicitly approved scope; calling it research does not supply that approval.
+
 ## Align
 
 1. Read the request, prior agreement, and the code, product, or evidence it touches. Read-only discovery can precede go-ahead; implementation cannot.
