@@ -12,20 +12,20 @@ test("lesson_add creates _meta/tips/<topic-slug>.md with header on first write",
   const result = await lesson_add({
     deskRoot: root,
     input: {
-      topic: "Working with gh CLI on EMU",
-      body: "Use `gh auth switch -u <alias>_microsoft`.",
+      topic: "Working with gh CLI",
+      body: "Use `gh auth switch -u <alias>`.",
     },
   })
   assert.equal(result.status, "added")
   assert.equal(
     result.path,
-    path.join("_meta", "tips", "working-with-gh-cli-on-emu.md"),
+    path.join("_meta", "tips", "working-with-gh-cli.md"),
   )
   const filePath = path.join(root, result.path)
   assert.ok(await exists(filePath))
 
   const content = await fs.readFile(filePath, "utf8")
-  assert.match(content, /^# Working with gh CLI on EMU/, "h1 header derived from topic")
+  assert.match(content, /^# Working with gh CLI/, "h1 header derived from topic")
   assert.match(content, /gh auth switch/)
 })
 

@@ -6,15 +6,18 @@ import {
 } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 
 import { deriveRuntimeDependencyPackPaths } from "../../src/runtime/runtime-deps.js"
+import { createMcpServer } from "../../src/server.js"
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const pluginRoot = path.join(repoRoot, "plugins", "desk")
 const mcpRoot = path.join(pluginRoot, "mcp")
-const expectedPluginVersion = "3.1.2"
-const expectedMcpVersion = "1.3.4"
-const expectedReleaseDate = "2026-09-07"
+const expectedPluginVersion = "3.2.0-alpha.1"
+const expectedMcpVersion = "1.4.0-alpha.1"
+const expectedReleaseDate = "2026-09-08"
 
 function readJson(...segments) {
   return JSON.parse(readFileSync(path.join(repoRoot, ...segments), "utf8"))
@@ -30,7 +33,7 @@ function recordMismatch(errors, label, actual, expected) {
   }
 }
 
-test("Desk 3.1.2 and MCP 1.3.4 release surfaces move together", () => {
+test("Desk 3.2.0-alpha.1 and MCP 1.4.0-alpha.1 release surfaces move together", async () => {
   const errors = []
   const deskPlugin = readJson("plugins", "desk", "plugin.json")
   const claudePlugin = readJson("plugins", "desk", ".claude-plugin", "plugin.json")
@@ -70,11 +73,17 @@ test("Desk 3.1.2 and MCP 1.3.4 release surfaces move together", () => {
     recordMismatch(errors, label, version, expectedMcpVersion)
   }
 
-  const serverSource = readText("plugins", "desk", "mcp", "src", "server.js")
-  const serverVersion = serverSource.match(
-    /name:\s*"desk-mcp",\s*version:\s*"(?<version>[^"]+)"/su,
-  )?.groups?.version
-  recordMismatch(errors, "plugins/desk/mcp/src/server.js", serverVersion, expectedMcpVersion)
+  const server = createMcpServer()
+  const client = new Client({ name: "release-coupling", version: "1.0.0" })
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
+  try {
+    await server.connect(serverTransport)
+    await client.connect(clientTransport)
+    recordMismatch(errors, "MCP initialize handshake", client.getServerVersion().version, expectedMcpVersion)
+  } finally {
+    await client.close()
+    await server.close()
+  }
 
   const changelog = readText("plugins", "desk", "CHANGELOG.md")
   const expectedHeading = `## ${expectedPluginVersion} — ${expectedReleaseDate}`

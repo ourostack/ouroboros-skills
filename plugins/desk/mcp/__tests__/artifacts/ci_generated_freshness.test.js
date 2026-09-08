@@ -971,6 +971,15 @@ test("root host-manifest verifier catches cross-host plugin version drift", asyn
       },
     },
     {
+      label: "claude-work-suite-activation",
+      errorPattern: /claude-plugin Work Suite activation dependency version drift/u,
+      mutate: (fixtureRoot) => {
+        const activation = loadJson("plugins", "desk", "activation", "desk.activation.json")
+        activation.host_activation.claude.dependencies["work-suite"].version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/activation/desk.activation.json", activation)
+      },
+    },
+    {
       label: "copilot-work-suite-lock",
       errorPattern: /Copilot root Work Suite version must match activation lock/u,
       mutate: (fixtureRoot) => {

@@ -4,6 +4,8 @@ Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable i
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
+This preview branch hosts **[Agentic Engineering V2: rebasing the inner loop](AGENTIC-ENGINEERING-V2.md)**, an opt-in interactive RFC. The guide covers the proposed stack, version selection, private feedback, evidence limits, and rollback. It is not the main-branch default.
+
 ## Repository Structure
 
 ```
@@ -74,6 +76,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **work-planner** | Plan coordinated or risky work; skip when the task description is sufficient. |
 | **work-doer** | Implement the smallest complete change test-first, with repository-required coverage and primary outcome evidence. |
 | **work-merger** | Drive a branch through PR, merge, release/install, smoke, cleanup, and continuation. |
+| **preview-feedback** | Keep explicit preview feedback private, inspect or correct it, and share only a confirmed excerpt and destination. |
 | **visual-qa-dogfood** | Screenshot-backed dogfooding for UI/rendering work so visual absurdity cannot hide behind passing metrics. |
 | **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |

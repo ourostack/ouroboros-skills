@@ -151,3 +151,30 @@ jobs:
       - name: Validate Desk shared artifacts
         working-directory: plugins/desk/mcp
         run: npm run artifact:validate -- --desk-root ../../.. --plugin-root ..
+
+  desk-feedback-windows:
+    name: desk private feedback on native Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up the shipped Windows Node ABI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: plugins/desk/mcp/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: plugins/desk/mcp
+        run: npm ci
+
+      - name: Exercise real NTFS protection, feedback CRUD and the offline source mirror
+        working-directory: plugins/desk/mcp
+        run: node --test --test-name-pattern "^native[: ]" __tests__/feedback/windows_acl.test.js __tests__/feedback/windows_store.test.js __tests__/feedback/source_mirror.test.js

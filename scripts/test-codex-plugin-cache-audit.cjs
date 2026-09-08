@@ -109,6 +109,8 @@ function testCurrentFixture() {
     assert.equal(report.active_session.status, "not_checked");
     assert.equal(report.active_session.provided, false);
     assert.ok(report.active_session.required.includes("desk_status"));
+    assert.ok(report.active_session.required.includes("desk_feedback"));
+    assert.ok(report.active_session.required.includes("desk_doctor"));
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

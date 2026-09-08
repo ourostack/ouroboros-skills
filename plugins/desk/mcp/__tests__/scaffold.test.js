@@ -23,6 +23,8 @@ const EXPECTED_TOOLS = [
   "track_update",
   "friction_add",
   "lesson_add",
+  // Private, non-Git qualitative feedback about the preview build
+  "desk_feedback",
   // Search (Units 4-6)
   "desk_search",
   "desk_recall",
@@ -36,7 +38,7 @@ const EXPECTED_TOOLS = [
   "desk_doctor",
 ]
 
-test("server scaffolds all 15 expected tool names", () => {
+test("server scaffolds all 16 expected tool names", () => {
   for (const name of EXPECTED_TOOLS) {
     assert.ok(
       TOOL_NAMES.includes(name),

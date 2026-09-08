@@ -162,6 +162,17 @@
       ]
     },
     {
+      "name": "preview-feedback",
+      "path": "skills/preview-feedback/SKILL.md",
+      "description": "Capture, inspect, correct, delete, or explicitly share a participant's qualitative feedback about an installed engineering preview. Use only for preview feedback, not ordinary task discussion, code review, telemetry, or automatic friction logging. Requires Desk MCP.",
+      "tags": [
+        "workflow",
+        "preview",
+        "feedback",
+        "privacy"
+      ]
+    },
+    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",

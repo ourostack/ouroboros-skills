@@ -280,6 +280,9 @@ function checkClaudePlugin({ repoRoot, errors, checked }) {
   if (deskPlugin.dependencies?.[0]?.name !== "work-suite" || deskPlugin.dependencies?.[0]?.version !== findActivationDependency(activation, "work-suite")?.version_range) {
     errors.push("claude-plugin Work Suite dependency drift");
   }
+  if (claudeActivation?.dependencies?.["work-suite"]?.version !== workSuitePlugin.version) {
+    errors.push("claude-plugin Work Suite activation dependency version drift");
+  }
   if (workSuitePlugin.version !== workSuiteLock) {
     errors.push("claude-plugin Work Suite provider lock drift");
   }

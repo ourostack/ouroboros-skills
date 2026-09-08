@@ -67,6 +67,68 @@ function parseToolPayload(message) {
   return JSON.parse(message.result.content[0].text)
 }
 
+test("diagnostic mode offers the same non-identifying preview snapshot and fails closed on a bad format", async () => {
+  const { startDiagnosticServer } = await loadDiagnosticServer()
+  const input = new PassThrough()
+  const output = new PassThrough()
+  const chunks = []
+  output.on("data", (chunk) => chunks.push(chunk))
+  const running = startDiagnosticServer({ diagnostic: fixtureDiagnostic(), input, output })
+  input.end([
+    { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "desk_doctor", arguments: { format: "preview" } } },
+    { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "desk_doctor", arguments: { format: "prevew" } } },
+    { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "desk_doctor", arguments: { format: "full" } } },
+  ].map((message) => JSON.stringify(message)).join("\n") + "\n")
+  await running
+  const messages = parseMessages(Buffer.concat(chunks).toString("utf8"))
+  const doctor = messages[0].result.tools.find((tool) => tool.name === "desk_doctor")
+  assert.deepEqual(doctor.inputSchema.properties.format.enum, ["full", "preview"])
+  const snapshot = parseToolPayload(messages[1])
+  assert.equal(snapshot.collection, "local-on-demand")
+  assert.equal(snapshot.runtime_state, "diagnostic")
+  assert.match(snapshot.mcp_version, /^\d+\.\d+\.\d+/u)
+  assert.deepEqual(Object.keys(snapshot).sort(), [
+    "architecture", "collection", "mcp_version", "node_abi", "node_major",
+    "platform", "purpose", "runtime_state", "schema_version",
+  ])
+  assert.doesNotMatch(JSON.stringify(snapshot), /Users|unit|cache|path|remediation/u)
+  assert.equal(messages[2].result.isError, true)
+  assert.match(messages[2].result.content[0].text, /unsupported diagnostic format/u)
+  assert.doesNotMatch(messages[2].result.content[0].text, /Users|cache/u)
+  assert.deepEqual(parseToolPayload(messages[3]), fixtureDiagnostic())
+})
+
+test("diagnostic format handling does not disguise an unexpected validator failure as an input error", async (t) => {
+  const { startDiagnosticServer } = await loadDiagnosticServer()
+  const input = new EventEmitter()
+  const output = new PassThrough()
+  const chunks = []
+  output.on("data", (chunk) => chunks.push(chunk))
+  const running = startDiagnosticServer({ diagnostic: fixtureDiagnostic(), input, output })
+  const failure = new Error("unexpected validator failure")
+  const parse = JSON.parse
+  const mocked = t.mock.method(JSON, "parse", (text) => {
+    const request = parse(text)
+    Object.defineProperty(request.params.arguments, "format", {
+      get() { throw failure },
+    })
+    return request
+  })
+  try {
+    const request = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "desk_doctor", arguments: {} } }
+    assert.throws(
+      () => input.emit("data", Buffer.from(JSON.stringify(request) + "\n")),
+      (error) => error === failure,
+    )
+    assert.equal(chunks.length, 0)
+  } finally {
+    mocked.mock.restore()
+    input.emit("end")
+    await running
+  }
+})
+
 test("diagnostic MCP completes the core handshake and keeps remediation coherent across tool calls", async () => {
   const { startDiagnosticServer } = await loadDiagnosticServer()
   const input = new PassThrough()

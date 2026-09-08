@@ -448,7 +448,7 @@ contract("coverage exclusion list has no campaign additions", () => {
 
 assert.equal(json("plugins/plain-language/plugin.json").version, "0.2.0");
 assert.equal(json("plugins/ponytail-upstream/plugin.json").version, "4.9.0");
-assert.equal(json("plugins/desk/mcp/package.json").version, "1.3.4");
+assert.equal(json("plugins/desk/mcp/package.json").version, "1.4.0-alpha.1");
 
 const hookData = fs.mkdtempSync(path.join(os.tmpdir(), "ponytail-provider-"));
 try {
@@ -484,6 +484,15 @@ for (const file of [
   assert.doesNotMatch(body, /four-phase doing skills|Phase 1.4 dispatch|strict TDD|after signoff/iu);
   assert.doesNotMatch(body, /proof proportional to risk/iu);
 }
+
+contract("preview feedback is canonically copied with explicit capture and confirmed sharing", () => {
+  const skill = text("skills/preview-feedback/SKILL.md");
+  assert.equal(skill, text("plugins/desk/skills/preview-feedback/SKILL.md"));
+  for (const required of ["explicit capture", "exact excerpt", "exact destination", "confirmation", "tombstone", "next_offset"]) {
+    assert.ok(skill.includes(required), `missing preview-feedback boundary: ${required}`);
+  }
+  assert.match(skill, /Never fall back/u);
+});
 
 assert.equal(
   contractFailures.length,

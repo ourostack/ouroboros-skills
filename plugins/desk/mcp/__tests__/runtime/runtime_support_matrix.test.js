@@ -56,7 +56,7 @@ test("committed runtime support matrix equals the physically shipped runtime pac
     schema_version: 1,
     plugin: {
       name: "@ourostack/desk-mcp",
-      version: "1.3.4",
+      version: "1.4.0-alpha.1",
     },
     targets: [
       {
@@ -65,7 +65,7 @@ test("committed runtime support matrix equals the physically shipped runtime pac
         arch: "arm64",
         node_abi: "127",
         prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
-        archive_sha256: "2c39a4906c87dacc659a7c0947c0ec81193f2e5a123e26249c65adf8afc7716d",
+        archive_sha256: "2d029aecf88f0540943f5e5150c30a9dea3525164e0e17db690b6abb4bfa3981",
         artifact_path: "darwin-arm64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
       },
       {
@@ -74,7 +74,7 @@ test("committed runtime support matrix equals the physically shipped runtime pac
         arch: "x64",
         node_abi: "137",
         prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
-        archive_sha256: "4b58ba26da83ae296bdc492766707465ec2aeac203cc1db40cfc5791a28128f3",
+        archive_sha256: "c8133702205cbdf4b0303495f03e2850131be6e50cae61b451f68f10e018da09",
         artifact_path: "win32-x64-node-137/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
       },
     ],
