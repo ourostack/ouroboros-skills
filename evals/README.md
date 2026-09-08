@@ -18,6 +18,8 @@ Add scenarios from observed regressions, not to inflate counts.
 
 ## Engineering V2 preview
 
+The [experimental outcome ledger](engineering-v2-results.md) records the initial comparisons and both completed method rounds, including failed delivery qualification, invalid judgments and actual-consumption limits. It is not a source-current behavioral receipt for the published fixture variant.
+
 `engineering-v2-kernel.json` preserves three model-facing contracts: first-step alignment, already-approved local implementation, and primary-source status in the presence of a green proxy. The writable fixture and available tools must make premature implementation possible; a denied write capability is containment evidence, not voluntary restraint.
 
 Use a fresh subject and independent judge, and retain the actual prompt, model and runtime identity, exact plugin/source pins, complete available tool trace, committed and uncommitted state, deterministic results, and semantic findings. Record the invocation mode: an unattended/autopilot run is a pressure test, not a substitute for a real multi-turn alignment conversation. Source-contract validation does not establish that a skill was consumed; inspect the trace.

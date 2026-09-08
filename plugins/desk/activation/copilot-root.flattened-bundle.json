@@ -16,7 +16,7 @@
   "dependency_closure": [
     {
       "id": "desk",
-      "version": "3.2.0-alpha.1",
+      "version": "3.2.0-alpha.2",
       "plugin": "plugins/desk/plugin.json",
       "skills": "plugins/desk/skills/",
       "agents": "plugins/desk/agents/",

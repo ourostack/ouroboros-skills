@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { createRequire } from "node:module"
-import { tmpdir } from "node:os"
+import { devNull, tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 import matter from "gray-matter"
@@ -38,6 +38,7 @@ const requiredPackageScripts = {
 }
 
 const requiredHostFreshnessPathFilters = [
+  ".gitattributes",
   "plugins/desk/activation/**",
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
@@ -1092,6 +1093,43 @@ test("root validation delegates host manifest freshness and artifact availabilit
       new RegExp(scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"),
       `validate-skills.cjs must verify package script ${scriptName}`,
     )
+  }
+})
+
+test("fingerprinted source bytes survive a Windows-style Git checkout", () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-canonical-checkout-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  const checkoutRoot = path.join(tempRoot, "checkout")
+  const files = [
+    ...loadJson("evals", "engineering-v2-kernel.json").sources,
+    "plugins/desk/mcp/package.json",
+    "plugins/desk/mcp/package-lock.json",
+  ]
+  const git = (...args) => {
+    const result = spawnSync("git", args, {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: devNull },
+    })
+    assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`)
+  }
+  try {
+    for (const file of files) copyRepoFile(file, fixtureRoot)
+    if (existsSync(path.join(repoRoot, ".gitattributes"))) copyRepoFile(".gitattributes", fixtureRoot)
+    const binary = Buffer.from([0, 13, 10, 65, 13, 10, 0])
+    writeFileSync(path.join(fixtureRoot, "opaque.bin"), binary)
+    mkdirSync(checkoutRoot)
+    git("init", "--quiet")
+    git("-c", "core.autocrlf=false", "add", "--all")
+    git("-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index", "--all", `--prefix=${checkoutRoot}${path.sep}`)
+    for (const file of files) {
+      const expected = readFileSync(path.join(repoRoot, file))
+      const actual = readFileSync(path.join(checkoutRoot, file))
+      assert.equal(actual.equals(expected), true, `${file} changed during checkout`)
+    }
+    assert.deepEqual(readFileSync(path.join(checkoutRoot, "opaque.bin")), binary)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
   }
 })
 

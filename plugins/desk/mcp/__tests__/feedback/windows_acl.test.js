@@ -298,6 +298,35 @@ test("protectWindowsPaths drives a real child process over stdin by default", po
   }
 })
 
+test("the provider isolates Windows PowerShell module discovery from its parent", posixProvider, async () => {
+  const base = await mkBase()
+  const keys = ["PSModulePath", "PSMODULEPATH"]
+  const previous = keys.map((key) => process.env[key])
+  try {
+    for (const key of keys) process.env[key] = "incompatible-parent-modules"
+    const modules = path.join(base, ...PROVIDER_SEGMENTS.slice(0, -1), "Modules")
+    await mkProvider(base, `
+const keys = Object.keys(process.env).filter(key => key.toLowerCase() === "psmodulepath");
+if (keys.length !== 1 || keys[0] !== "PSModulePath" || process.env.PSModulePath !== ${JSON.stringify(modules)}) {
+  process.stdin.resume();
+  process.stdout.write(JSON.stringify({status:"error",message:"module discovery was inherited"}));
+  process.exitCode = 1;
+} else {
+  ${ECHO_PROVIDER}
+}
+`)
+    const result = await protectWindowsPaths([DIR_ENTRY], { env: { SystemRoot: base } })
+    assert.equal(result[0].path, DIR_ENTRY.path)
+    assert.ok(keys.every((key) => process.env[key] === "incompatible-parent-modules"), "the parent's environment must remain unchanged")
+  } finally {
+    keys.forEach((key, index) => {
+      if (previous[index] === undefined) delete process.env[key]
+      else process.env[key] = previous[index]
+    })
+    await fs.rm(base, { recursive: true, force: true })
+  }
+})
+
 test("the default runner bounds how long it waits and how much it reads", posixProvider, async () => {
   const base = await mkBase()
   try {
@@ -457,6 +486,7 @@ test(
 
 function nativeProbe(program, input) {
   const prefix = "$ErrorActionPreference='Stop';" +
+    "$env:PSModulePath=Join-Path $PSHOME 'Modules';" +
     "[Console]::InputEncoding=New-Object System.Text.UTF8Encoding($false);" +
     "[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false);" +
     "$request=[Console]::In.ReadToEnd()|ConvertFrom-Json;"
@@ -539,27 +569,16 @@ test(
       ])
       assert.equal(result.length, 2)
 
-      const provider = assertWindowsAclAvailable()
       for (const target of [dir, file]) {
-        const raw = execFileSync(
-          provider,
-          [
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "[Console]::InputEncoding=New-Object System.Text.UTF8Encoding($false);" +
-              "[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false);" +
-              "$p=[Console]::In.ReadToEnd().Trim();" +
-              "$a=Get-Acl -LiteralPath $p;" +
-              "$r=@($a.GetAccessRules($true,$false,[System.Security.Principal.SecurityIdentifier]));" +
-              "ConvertTo-Json -Compress -InputObject ([pscustomobject]@{" +
-              "owner=$a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value;" +
-              "protected=$a.AreAccessRulesProtected;count=$r.Count;" +
-              "identity=$r[0].IdentityReference.Value;rights=$r[0].FileSystemRights.ToString()})",
-          ],
-          { input: target, encoding: "utf8", windowsHide: true },
+        const acl = nativeProbe(
+          "$a=Get-Acl -LiteralPath $request.path;" +
+            "$r=@($a.GetAccessRules($true,$false,[System.Security.Principal.SecurityIdentifier]));" +
+            "ConvertTo-Json -Compress -InputObject ([pscustomobject]@{" +
+            "owner=$a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value;" +
+            "protected=$a.AreAccessRulesProtected;count=$r.Count;" +
+            "identity=$r[0].IdentityReference.Value;rights=$r[0].FileSystemRights.ToString()})",
+          { path: target },
         )
-        const acl = JSON.parse(raw)
         const self = result[0].owner_sid
         assert.equal(acl.owner, self, `${target} must be owned by the current user`)
         assert.equal(acl.protected, true, `${target} must not inherit rules`)

@@ -192,7 +192,13 @@ function validateBatch(paths) {
 
 function defaultRunner({ executable, args, payload, timeoutMs, maxOutputBytes }) {
   return new Promise((resolve, reject) => {
+    // Windows PowerShell cannot safely autoload PowerShell Core modules inherited from the host.
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "psmodulepath"),
+    )
+    env.PSModulePath = path.join(path.dirname(executable), "Modules")
     const child = nodeSpawn(executable, args, {
+      env,
       shell: false,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],

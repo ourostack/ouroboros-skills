@@ -11,6 +11,7 @@ name: desk MCP tests
 on:
   pull_request:
     paths:
+      - ".gitattributes"
       - "plugins/desk/mcp/**"
       - "plugins/desk/activation/**"
       - "plugins/desk/.claude-plugin/plugin.json"
@@ -55,6 +56,7 @@ on:
     branches:
       - main
     paths:
+      - ".gitattributes"
       - "plugins/desk/mcp/**"
       - "plugins/desk/activation/**"
       - "plugins/desk/.claude-plugin/plugin.json"
@@ -175,47 +177,8 @@ jobs:
         working-directory: plugins/desk/mcp
         run: npm ci
 
-      - name: Inspect native module and checkout identity (temporary)
-        working-directory: plugins/desk/mcp
-        run: |
-          @'
-          const fs = require("node:fs");
-          const path = require("node:path");
-          const { createHash } = require("node:crypto");
-          const { spawnSync } = require("node:child_process");
-          const provider = path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-          const probe = "$ErrorActionPreference='Stop';try {Import-Module Microsoft.PowerShell.Security;" +
-            "$null=Get-Acl -LiteralPath $env:TEMP;" +
-            "[Console]::Out.Write((ConvertTo-Json -Compress -InputObject ([pscustomobject]@{" +
-            "status='ok';home=$PSHOME;edition=$PSVersionTable.PSEdition;" +
-            "module=(Get-Module Microsoft.PowerShell.Security).Path})))" +
-            "} catch {[Console]::Out.Write($_.Exception.ToString());exit 1}";
-          const systemModules = path.join(path.dirname(provider), "Modules");
-          for (const [name, env] of [
-            ["inherited-before", process.env],
-            ["system-only", { ...process.env, PSModulePath: systemModules }],
-            ["inherited-after", process.env],
-          ]) {
-            const result = spawnSync(provider, ["-NoProfile", "-NonInteractive", "-Command", probe], {
-              env, encoding: "utf8", timeout: 20000, maxBuffer: 65536,
-            });
-            if (result.error) throw result.error;
-            console.log(JSON.stringify({ name, modulePath: env.PSModulePath, code: result.status,
-              stdout: result.stdout, stderr: result.stderr }));
-          }
-          const hash = value => createHash("sha256").update(value).digest("hex");
-          const lock = fs.readFileSync("package-lock.json");
-          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-          const target = path.join("artifacts", "runtime-deps", pkg.version, `win32-x64-node-${process.versions.modules}`);
-          const entries = fs.readdirSync(target).filter(name => /^[a-f0-9]{64}$/.test(name));
-          if (entries.length !== 1) throw new Error("Expected exactly one current dependency pack");
-          const manifest = JSON.parse(fs.readFileSync(path.join(target, entries[0], "runtime-deps.manifest.json"), "utf8"));
-          const committed = spawnSync("git", ["show", "HEAD:plugins/desk/mcp/package-lock.json"], { maxBuffer: 1048576 });
-          if (committed.error || committed.status !== 0) throw new Error("Could not read the committed lock");
-          console.log(JSON.stringify({ kind: "lock-identity", raw: hash(lock),
-            lf: hash(lock.toString("utf8").replace(/\r\n/g, "\n")), committed: hash(committed.stdout),
-            expected: manifest.package_lock.sha256, crlf: (lock.toString("utf8").match(/\r\n/g) || []).length }));
-          '@ | node
+      - name: Verify source-bound evaluation contracts on Windows
+        run: node scripts/skill-evals.cjs validate
 
       - name: Exercise real NTFS protection, feedback CRUD and the offline source mirror
         working-directory: plugins/desk/mcp

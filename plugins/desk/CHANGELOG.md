@@ -1,5 +1,11 @@
 # desk plugin — changelog
 
+## 3.2.0-alpha.2 — 2026-09-08
+
+**The second opt-in preview fixes two native Windows failures without changing the Work Suite method.** The ACL provider constrains its Windows PowerShell child's module search to that provider's system modules, avoiding incompatible PowerShell Core modules inherited from the host. Canonical LF text checkouts preserve the bytes used by runtime-lock and source fingerprints; binary files remain binary. The temporary CI diagnostic is removed, and the native Windows job also validates source-bound evaluation contracts.
+
+Desk `3.2.0-alpha.2` and `desk-mcp@1.4.0-alpha.2` couple the repairs to regenerated activation files, runtime support metadata and offline packs. Both packs reuse the verified native binary bytes and unchanged production dependency closure. Vector and snapshot payloads remain byte-identical; their metadata was regenerated because its source scope includes the MCP package identity. No new embedding request was made. Native Windows qualification remains pending until the repaired CI passes. Work Suite `4.0.0-alpha.1`, Plain Language `0.2.0` and Ponytail `4.9.0` stay pinned; existing installations are not switched automatically.
+
 ## 3.2.0-alpha.1 — 2026-09-08
 
 **Agentic Engineering V2 is an opt-in executable RFC, not a main-channel promotion.** Work Suite `4.0.0-alpha.1` requires substantive alignment and explicit go before new implementation, resumes approved work without another approval round, and ends at the agreed delivery boundary. Primary outcome and counterexample evidence replace a universal coverage percentage without weakening repository-required coverage, test-first execution, or independent review. A permanent three-case kernel covers alignment, complete local delivery, and source-backed status. Desk adds explicit private preview-feedback capture, inspection, correction, and deletion, with separately confirmed sharing, plus a minimal local-on-demand diagnostic snapshot. Desk moves to `3.2.0-alpha.1` and `desk-mcp@1.4.0-alpha.1`; Plain Language `0.2.0` and Ponytail `4.9.0` remain pinned. Existing installations are not switched automatically.

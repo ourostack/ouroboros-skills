@@ -2,7 +2,7 @@
 
 This branch is an opt-in, interactive RFC for people who already use Desk and want to try a smaller engineering workflow with current frontier models. Use it on real work, tell the agent what helped or got in the way, and choose what feedback to share. It does not replace the main-branch default.
 
-**Candidate status:** The preview is being qualified. The first method candidate failed two requirements; a revised candidate is under evaluation. Do not read source-contract checks, installation checks, or a single successful task as a reliability claim.
+**Candidate status:** This is an installable experiment, not a qualified replacement for V1. Both method rounds are complete, and delivery qualification still fails. Native Mac feedback, restart and rollback work; the repaired Windows runtime awaits its native CI result. The [outcome ledger](evals/engineering-v2-results.md) retains the failures and measurement limits. Installation success is not a method-reliability claim.
 
 ## The proposal
 
@@ -32,7 +32,7 @@ The maintained instructions are [Work Ideator](skills/work-ideator/SKILL.md), [W
 
 ## Opt in without mixing versions
 
-The preview closure is Desk `3.2.0-alpha.1`, Work Suite `4.0.0-alpha.1`, Desk MCP `1.4.0-alpha.1`, Plain Language `0.2.0`, and Ponytail `4.9.0`. A prerelease source revision before publication is not a second released version. After publication, changes to the shipped behavior need a new preview version.
+The preview closure is Desk `3.2.0-alpha.2`, Work Suite `4.0.0-alpha.1`, Desk MCP `1.4.0-alpha.2`, Plain Language `0.2.0`, and Ponytail `4.9.0`. Alpha.2 fixes Windows PowerShell module discovery and preserves canonical checkout bytes for source and runtime fingerprints. Its versions, activation files and offline dependency packs move together; Work Suite's method is unchanged. Changes to shipped behavior after publication require a new preview version.
 
 Choose one active workflow version for your work. Retaining an inactive checkout for rollback is fine; enabling V1 and V2 methods together is not. Keep your existing Desk location, Crew person binding, selected overlay, and repository permissions.
 
@@ -83,6 +83,8 @@ The agent uses [Preview Feedback](skills/preview-feedback/SKILL.md) and the `des
 
 You can then say "show me my preview feedback", "correct this entry to ...", or "delete this entry". Listing supports pagination; correction uses the revision you actually read so it cannot silently overwrite a concurrent change.
 
+Two fixed native Mac scenarios exercised this surface on alpha.2: ordinary discussion with feedback capability available made no capture attempt, and explicitly authorized capture, inspection, same-record correction and deletion completed with an empty final store. The discussion case also attempted an unrelated read that the fixed tool policy denied. These are bounded functional observations, not a general privacy reliability estimate.
+
 Capture is not consent to share. Before sending or publishing identifiable feedback, the agent shows the exact excerpt and destination and waits for your confirmation. A publication in Git belongs in your own desk and remains attributed to you. Withdrawing something already published in Git means a tombstone, not erasing its history.
 
 ### The privacy boundary
@@ -117,6 +119,10 @@ Restore any other previously enabled companion and repeat the skill-source prefl
 
 The [permanent engineering kernel](evals/engineering-v2-kernel.json) covers new-work alignment, approved local delivery, and primary-source status. It binds results to complete source and contract fingerprints. Structural validation does not run a model or establish behavior.
 
-The first alpha failed despite green-looking intermediate evidence: one subject implemented and deleted scratch prototypes before go, and another passed its authored tests and review while losing required input characters. The revised method addresses those observed failures without a fixture-specific hint. Controlled single-prompt method slices, default skill discovery, native installation, and participant experience remain separate evidence categories. The published fixture genericizes one descriptive ASCII example; historical runs keep their original source and contract identities rather than being relabeled as runs of the publication variant.
+The first alpha failed despite green-looking intermediate evidence: one subject implemented and deleted scratch prototypes before go, and another passed its authored tests and review while losing required input characters. The second round preserved alignment in its recorded subjects, but GPT delivery still lost combining marks after consuming the method, obtaining fresh review and executing its challenge. Opus delivered a correct result without demonstrating delivery-method consumption, fresh review or strict test-first execution. Three judges also made malformed report attempts before their accepted reports. The [complete outcome ledger](evals/engineering-v2-results.md) separates these results rather than treating driver passes as proof of every floor.
+
+Before another method comparison, close the measurement gaps: map each claimed floor to observable evidence, distinguish configured method from actual consumption, and make the judge's report rule agree with the adapter's admission rule. Another reminder or unchanged-candidate rerun is not the next step. Independent acceptance authorship is a hypothesis to investigate, not an established fix.
+
+Controlled single-prompt method slices, native installation, actual skill discovery and participant experience remain separate evidence categories. The published fixture genericizes one descriptive ASCII example; historical runs keep their original source and contract identities. No historical receipt is relabeled as a coding-method run of this publication variant.
 
 This branch is the place to challenge the proposal, not proof that the challenge is over. Promotion to main remains a separate owner decision after existing V1 users have a genuine opportunity to give feedback.

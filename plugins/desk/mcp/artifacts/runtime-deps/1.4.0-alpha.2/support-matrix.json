@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "plugin": {
+    "name": "@ourostack/desk-mcp",
+    "version": "1.4.0-alpha.2"
+  },
+  "targets": [
+    {
+      "id": "darwin-arm64-node-127",
+      "platform": "darwin",
+      "arch": "arm64",
+      "node_abi": "127",
+      "prod_dependency_lock_hash": "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+      "archive_sha256": "2830c5e9a3bc235ca05da93eea5e69444da1a6ae82fc58939edccaa292e88d96",
+      "artifact_path": "darwin-arm64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e"
+    },
+    {
+      "id": "win32-x64-node-137",
+      "platform": "win32",
+      "arch": "x64",
+      "node_abi": "137",
+      "prod_dependency_lock_hash": "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+      "archive_sha256": "d91a03886e2eb3799f31ee32adb7f80add176e28224b2800d7b79bcde0f3ea75",
+      "artifact_path": "win32-x64-node-137/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e"
+    }
+  ]
+}
