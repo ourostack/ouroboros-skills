@@ -177,4 +177,5 @@ jobs:
 
       - name: Exercise real NTFS protection, feedback CRUD and the offline source mirror
         working-directory: plugins/desk/mcp
-        run: node --test --test-name-pattern "^native[: ]" __tests__/feedback/windows_acl.test.js __tests__/feedback/windows_store.test.js __tests__/feedback/source_mirror.test.js
+        run: |
+          node --test --test-name-pattern "^native[: ]" __tests__/feedback/windows_acl.test.js __tests__/feedback/windows_store.test.js __tests__/feedback/source_mirror.test.js

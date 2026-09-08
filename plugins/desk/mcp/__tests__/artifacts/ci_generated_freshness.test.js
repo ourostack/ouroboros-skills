@@ -16,6 +16,7 @@ import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import matter from "gray-matter"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -1091,6 +1092,15 @@ test("root validation delegates host manifest freshness and artifact availabilit
       new RegExp(scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"),
       `validate-skills.cjs must verify package script ${scriptName}`,
     )
+  }
+})
+
+test("CI workflow YAML parses before its commands are inspected", () => {
+  for (const filename of ["desk-mcp-tests.yml", "validate-skills.yml"]) {
+    const source = loadText(".github", "workflows", filename)
+    const { data } = matter(`---\n${source}\n---\n`)
+    assert.equal(typeof data.jobs, "object", `${filename} must declare jobs`)
+    assert.ok(Object.keys(data.jobs).length > 0, `${filename} must contain a job`)
   }
 })
 
