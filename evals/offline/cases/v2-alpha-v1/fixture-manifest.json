@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "alpha-workflow-v1",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "fixtures": [
     {
       "id": "retry-policy-v1",
@@ -159,6 +159,12 @@
       "files": [
         {
           "role": "subject",
+          "sourcePath": "fixtures/capability-probe-v1/subject/approved-copy/challenge.mjs",
+          "targetPath": "approved-copy/challenge.mjs",
+          "sha256": "e12ace17292cc455f01eda350d0f352c84cc35325625e40a536ac374c42e585e"
+        },
+        {
+          "role": "subject",
           "sourcePath": "fixtures/capability-probe-v1/subject/approved-copy/capability.mjs",
           "targetPath": "approved-copy/capability.mjs",
           "sha256": "33a04e626a60d6abce3b80d19092cb164466ee02c965211b3720b660395e1e2c"
@@ -179,7 +185,7 @@
           "role": "subject",
           "sourcePath": "fixtures/capability-probe-v1/subject/handoff.json",
           "targetPath": "handoff.json",
-          "sha256": "1d19df2ea4f5367169d1dcbb144d0a0e3e6a3ddf81a10ee445ffdaf89051f0ac"
+          "sha256": "9294af6f1273fecd08a0264afe9de0bfdcf5c1cc9db393e8ba887b20d3bff9ca"
         },
         {
           "role": "held_out",

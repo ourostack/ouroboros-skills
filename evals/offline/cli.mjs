@@ -5,7 +5,7 @@ import { checkComparisonCompatibility, validateRunSetInventory } from "./compari
 import { readCommittedRun } from "./output.mjs";
 import { parseRawJson, readRegular, requireCondition, textBytes } from "./core.mjs";
 
-const usage = "offline validate --dataset <dataset.json> --fixtures <fixture-manifest.json>\noffline compare --left <run-set.json> --right <run-set.json>\noffline run --plan <plan.json> --output <fresh-output-root>\n";
+const usage = "offline validate --dataset <dataset.json> --fixtures <fixture-manifest.json>\noffline compare --left <run-set.json> --right <run-set.json>\noffline run --plan <plan.json> --output <fresh-output-root>\noffline qualify-runtime --plan <runtime-qualification.json> --output <fresh-output-root>\n";
 function argumentsFor(args, required) {
   requireCondition(args.length === required.length * 2, "INVALID_OFFLINE_ARGUMENTS", usage);
   const values = {};
@@ -66,6 +66,20 @@ export async function main(args, io = process) {
     const filename = path.resolve(options["--plan"]);
     validatePlan(parseRawJson(readRegular(path.dirname(filename), path.basename(filename)).bytes));
     throw Object.assign(new Error("Native source/agent activation, both-model terminal semantics and owned-runtime cleanup have not been qualified. No subject or judge was started."), { code: "NATIVE_QUALIFICATION_REQUIRED", exitCode: 3, status: "unavailable", artifacts: null });
+  }
+  if (command === "qualify-runtime") {
+    const options = argumentsFor(rest, ["--plan", "--output"]);
+    const filename = path.resolve(options["--plan"]);
+    const rawPlanBytes = readRegular(path.dirname(filename), path.basename(filename)).bytes;
+    const { runRuntimeQualification } = await import("./native-runtime.mjs");
+    const result = await runRuntimeQualification({
+      plan: parseRawJson(rawPlanBytes), rawPlanBytes,
+      outputRoot: path.resolve(options["--output"]),
+      authorizedRoot: path.dirname(path.resolve(options["--output"])),
+      protectedRoots: [path.dirname(filename)],
+    });
+    io.stdout.write(`${JSON.stringify(result)}\n`);
+    return result.exitCode;
   }
   requireCondition(false, "INVALID_OFFLINE_ARGUMENTS", usage);
 }

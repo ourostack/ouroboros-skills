@@ -11,13 +11,14 @@ node scripts/skill-evals.cjs offline help
 node scripts/skill-evals.cjs offline validate --dataset evals/offline/cases/v2-alpha-v1/dataset.json --fixtures evals/offline/cases/v2-alpha-v1/fixture-manifest.json
 node scripts/skill-evals.cjs offline compare --left /absolute/left/run-set.json --right /absolute/right/run-set.json
 node scripts/skill-evals.cjs offline run --plan /absolute/plan.json --output /absolute/fresh-output-root
+node scripts/skill-evals.cjs offline qualify-runtime --plan /absolute/runtime-qualification.json --output /separate/authorized/fresh-output-root
 ```
 
 The legacy `validate`, `fingerprint`, `verify` and synchronous library exports remain separate and SDK-free. Offline static commands also require no Copilot SDK installation or inference credentials. The filesystem mechanisms target POSIX filesystems; they are not an OS sandbox.
 
 | Exit | Meaning |
 | --- | --- |
-| 0 | Static validation or complete compatible inventories. Not an evaluation pass. |
+| 0 | Static validation, complete compatible inventories or the labelled unscored runtime control. Not an evaluation pass. |
 | 1 | Reserved for an admitted product failure from the qualified producer. |
 | 2 | Incomplete or incompatible comparison. No winner is selected. |
 | 3 | Unavailable native qualification or infrastructure/protocol failure. |
@@ -29,11 +30,21 @@ Errors from the executable entry point are JSON on stderr with `kind: "offline_e
 
 `compare` verifies the referenced plan, exact expected-cell matrix, every journaled attempt and published receipt inventory. It retains failed, pending, unpublished and unstarted cells. It also uses the committed-artifact reader, rejects duplicated comparison inputs and rejects receipts re-labelled against another plan. Output is explicitly `scored: false`; retained statuses are not fresh model judgments.
 
+`qualify-runtime` is the fixed, unscored Docker/SDK control route, not an arbitrary shell-command interface. It consumes an explicitly available immutable Linux/amd64 image containing Node 22.23.2, CLI 1.0.84-1 and SDK 1.0.13. The [example plan](runtime-qualification.example.json) requires an authorized named account and the actual locally available image identity. The output parent must already exist and be separate from the plan root. The initial envelope binds every controller archive member, the host/bootstrap hashes and the predeclared ownership name before invoking the named provider. The validated plan is snapshotted before callbacks run. The credential remains in memory and travels separately from file members through the controller's private stdin. No host bind mount, automatic image pull, identity switch or default installation change is performed.
+
+This command currently checks one narrowly labelled control: delivered execution success for a semantically failing report, with root-idle/history/raw-event and owned-exit evidence. Exit zero means that component's evidence was observed, not that the runtime or product was admitted; `qualified`, `scored` and `grade` remain false, false and null. Success/failure/correction/batch/cancellation contrasts, effective-model/effort qualification, subject process-state protection, installed composition and the actual independent-review route are still separate obligations. A constant successful JSON record without the matching SDK/schema/history/process records is refused. Provider failure, a timed-out pending container name, unavailable cleanup and capture/publication failures remain explicit non-success receipts.
+
+Failed RPC delivery and truncated output retain complete, hash-verified observed root requests, their call IDs, schema dispatch and validator counts without a grade. `verified_observed_prefix` is not a completeness claim. Raw SDK records are SDK capture, not raw provider HTTP data. Decoded strings cannot substitute for raw transport buffers. Schema replay is deduplicated by actual event identity; conflicting payloads remain a capture failure. Callback records preserve their actual invocation session and whether the work window was still open.
+
+Native capture checks the 48 MiB aggregate and 240-file budget before each new write, with a separate 16 MiB/single-file reserve for final failure metadata inside the publisher's 128 MiB/256-file limit. Owned cleanup commands remain bounded and continue after capture failure, but missing raw cleanup evidence remains unavailable and prevents a final commit marker. Timeout stays primary when cleanup or publication also fails. Transport children use a bounded hard-stop signal; that is not proof of the separate SDK/container process tree's exit.
+
 ## Six ordinary fixed cases
 
 The versioned [dataset](cases/v2-alpha-v1/dataset.json) covers discussion followed by explicit implementation authority, actual enforcement by a maintained checker, an installed package consumed outside its source tree, independent review/rework/restart with a scope update, truthful status against the approved target without mutation authority, and protected recording boundaries.
 
 These are public, fixed generic cases, not a statistical benchmark or unseen training data. Subject-visible baseline tests are not held out. The maintained-checker canary and installed-package omitted/positive/zero matrix have distinct expectations; a deliberately red capability oracle must remain red when mutation is forbidden. Do not turn every oracle into “repair to green,” substitute keyword checks, expand the rubric after seeing an outcome or rerun a valid failure for a better result.
+
+Dataset and fixture version 1.0.1 correct the capability witness before scored use: the plausible sibling has a genuinely successful challenge, while the handoff names only the authorized target and does not disclose the sibling's oracle role. The exact authorized target still fails its held-out zero-value check without mutation. The six-case rubric is unchanged.
 
 ## Producer and role boundary
 
@@ -42,6 +53,8 @@ These are public, fixed generic cases, not a statistical benchmark or unseen tra
 The native integration must enforce those views at the OS boundary, assign the actual role identities, demonstrate that the subject can write its intended workspace and keep controller/evidence roots inaccessible. It must not place the complete fixture source tree or held-out payload in the actor-readable installation. Privileged checker inputs and canary injection belong to checks after the actor and its writers have stopped. Directory policy tests alone do not prove isolation.
 
 The review/rework and protected-recording cases require real admitted producers. An absent reviewer or recording route is unavailable, never a passing mock. The native path must exercise actual source-bound review, repair and re-review. Reviewer credentials must be supplied explicitly for that phase; ambient host/keychain discovery is not a credential route. Copilot CLI's `--secret-env-vars` strips listed values from shell and MCP environments, so hiding a token that way does not automatically authenticate a reviewer child.
+
+An explicitly authorized named `gh auth token --hostname <host> --user <account>` provider may be invoked at the trusted controller's initial launch boundary, before any subject starts. Clear `GH_TOKEN` and `GITHUB_TOKEN` for that provider call, keep its result in memory and pass it only to the phase-scoped child/callback environment. This is not account discovery, cache copying, subject-side secret recovery or permission to disable stripping. Provider failure remains a failed attempt; credential values and hashes never belong in artifacts.
 
 Native source/agent activation, both-model terminal success/failure/correction/batch/cancellation behavior, the outer startup/send/work deadline and complete owned-runtime cleanup remain qualification requirements. Only the real Copilot CLI/SDK with the pinned `gpt-6-astra` and `claude-opus-5` configurations is in scope. No direct provider API, replacement conversation loop or arbitrary caller-supplied shell runner is provided.
 
