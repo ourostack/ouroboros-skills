@@ -7,6 +7,7 @@ const REQUIRED_WORKFLOW_EVENTS = ["pull_request", "push"]
 const REQUIRED_ROOT_VALIDATION_SCRIPTS = new Set([
   "scripts/test-desk-docs.cjs",
   "scripts/test-desk-generated-artifacts.cjs",
+  "scripts/test-desk-host-manifests.cjs",
 ])
 const DEFAULT_THRESHOLDS = {
   lines: 100,

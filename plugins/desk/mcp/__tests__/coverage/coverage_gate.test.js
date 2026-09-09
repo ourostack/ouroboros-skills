@@ -907,6 +907,7 @@ test("coverage required-file discovery includes production targets and excludes 
       "plugins/desk/mcp/scripts/activation-support-matrix.js",
       "scripts/test-desk-docs.cjs",
       "scripts/test-desk-generated-artifacts.cjs",
+      "scripts/test-desk-host-manifests.cjs",
       "scripts/validate-desk-activation.cjs",
     ]
     const excluded = [
@@ -916,6 +917,8 @@ test("coverage required-file discovery includes production targets and excludes 
       "plugins/desk/mcp/scripts/test-helper.js",
       "scripts/test-desk-activation.cjs",
       "scripts/test-desk-generated-artifacts.test.cjs",
+      "scripts/test-desk-host-manifests.test.cjs",
+      "scripts/test-work-suite-runtime-audit.cjs",
     ]
 
     for (const file of [...included, ...excluded]) {
