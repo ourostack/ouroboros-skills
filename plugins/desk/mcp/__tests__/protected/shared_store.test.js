@@ -18,6 +18,17 @@ import { resolvePrivateStore, withPrivateStore } from "../../src/feedback/store.
 import { resolveProtectedStore, withProtectedStore } from "../../src/protected/store.js"
 import { mkLedgerFixture, cleanup } from "../measurement/_helpers.js"
 
+// These cases are about POSIX store layout, refusals, journalling and message
+// parity — not about macOS extended-ACL mechanics, which no assertion here
+// inspects. Pinning "darwin" therefore claimed a platform rather than choosing
+// one: on a Linux runner the primitive still took the macOS branch and shelled
+// out to `/bin/chmod -N`, a flag that exists only on macOS, so these passed on
+// a developer Mac and failed on CI. Following the host keeps the non-Windows
+// branch deterministic without asserting darwin behaviour on a machine that is
+// not one. Windows maps to a POSIX value because the real Windows provider is
+// exercised by the native cases, not from here.
+const POSIX_PLATFORM = process.platform === "win32" ? "linux" : process.platform
+
 // A store descriptor. `label` prefixes a message; `subject` names the thing in
 // its body. Both are module-internal constants in production — never tool input
 // — and both must be parameterised, because a prefix alone would leave the work
@@ -50,13 +61,13 @@ test("the extracted primitive keeps the feedback store exactly where it already 
       deskRoot: fixture.deskRoot,
       person: "rowan",
       env,
-      platform: "darwin",
+      platform: POSIX_PLATFORM,
     })
     const viaPrimitive = await resolveProtectedStore({
       deskRoot: fixture.deskRoot,
       person: "rowan",
       env,
-      platform: "darwin",
+      platform: POSIX_PLATFORM,
       ...FEEDBACK,
     })
     assert.deepEqual(viaPrimitive, viaFeedback)
@@ -83,7 +94,7 @@ test("the work ledger gets its own namespace, never the feedback database", asyn
   const fixture = await mkLedgerFixture()
   try {
     const env = { HOME: fixture.base, XDG_STATE_HOME: fixture.stateHome }
-    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: "darwin" }
+    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: POSIX_PLATFORM }
     const feedback = await resolveProtectedStore({ ...binding, ...FEEDBACK })
     const ledger = await resolveProtectedStore({ ...binding, ...LEDGER })
 
@@ -100,7 +111,7 @@ test("each binding gets its own partition and one binding cannot address another
   const fixture = await mkLedgerFixture()
   try {
     const env = { HOME: fixture.base, XDG_STATE_HOME: fixture.stateHome }
-    const base = { deskRoot: fixture.deskRoot, env, platform: "darwin", ...LEDGER }
+    const base = { deskRoot: fixture.deskRoot, env, platform: POSIX_PLATFORM, ...LEDGER }
     const rowan = await resolveProtectedStore({ ...base, person: "rowan" })
     const quinn = await resolveProtectedStore({ ...base, person: "quinn" })
     const unbound = await resolveProtectedStore({ ...base, person: null })
@@ -151,7 +162,7 @@ test("the primitive refuses a state home inside a Git checkout", async () => {
           deskRoot: fixture.deskRoot,
           person: "rowan",
           env: { HOME: fixture.base, XDG_STATE_HOME: fixture.stateHome },
-          platform: "darwin",
+          platform: POSIX_PLATFORM,
           ...LEDGER,
         }),
       /desk_work_ledger: refusing to write private work measurement inside the Git checkout/u,
@@ -170,7 +181,7 @@ test("the primitive refuses to write the private ledger inside the desk workspac
           deskRoot: fixture.deskRoot,
           person: "rowan",
           env: { HOME: fixture.base, XDG_STATE_HOME: path.join(fixture.deskRoot, "state") },
-          platform: "darwin",
+          platform: POSIX_PLATFORM,
           ...LEDGER,
         }),
       /desk_work_ledger: refusing to write private work measurement inside the desk workspace/u,
@@ -184,7 +195,7 @@ test("the primitive refuses a symlinked path component and a hard-linked databas
   const fixture = await mkLedgerFixture()
   try {
     const env = { HOME: fixture.base, XDG_STATE_HOME: fixture.stateHome }
-    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: "darwin", ...LEDGER }
+    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: POSIX_PLATFORM, ...LEDGER }
     const { storeDir, dbPath } = await resolveProtectedStore(binding)
 
     const decoy = path.join(fixture.base, "decoy.sqlite")
@@ -298,7 +309,7 @@ test("extraction leaves every desk_feedback protection message byte-for-byte unc
   const fixture = await mkLedgerFixture()
   try {
     const env = { HOME: fixture.base, XDG_STATE_HOME: fixture.stateHome }
-    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: "darwin" }
+    const binding = { deskRoot: fixture.deskRoot, person: "rowan", env, platform: POSIX_PLATFORM }
     const { storeDir, dbPath } = await resolvePrivateStore(binding)
 
     const decoy = path.join(fixture.base, "decoy-feedback.sqlite")
@@ -350,7 +361,7 @@ test("extraction leaves the desk_feedback Git and workspace refusals byte-for-by
           deskRoot: fixture.deskRoot,
           person: "rowan",
           env: { HOME: fixture.base, XDG_STATE_HOME: insideWorkspace },
-          platform: "darwin",
+          platform: POSIX_PLATFORM,
         }),
       (error) => {
         assert.equal(error.message.startsWith("desk_feedback: refusing to write private feedback inside the desk workspace: "), true)
@@ -371,7 +382,7 @@ test("extraction leaves the desk_feedback Git and workspace refusals byte-for-by
             deskRoot: gitFixture.deskRoot,
             person: "rowan",
             env: { HOME: gitFixture.base, XDG_STATE_HOME: gitFixture.stateHome },
-            platform: "darwin",
+            platform: POSIX_PLATFORM,
           }),
         (error) => {
           assert.equal(error.message, FEEDBACK_MESSAGES.gitCheckout(realBase))
