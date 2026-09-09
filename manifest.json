@@ -162,6 +162,17 @@
       ]
     },
     {
+      "name": "preview-feedback",
+      "path": "skills/preview-feedback/SKILL.md",
+      "description": "Capture, inspect, correct, delete, or explicitly share a participant's qualitative feedback about an installed engineering preview. Use only for preview feedback, not ordinary task discussion, code review, telemetry, or automatic friction logging. Requires Desk MCP.",
+      "tags": [
+        "workflow",
+        "preview",
+        "feedback",
+        "privacy"
+      ]
+    },
+    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
@@ -251,7 +262,7 @@
     {
       "name": "work-doer",
       "path": "skills/work-doer/SKILL.md",
-      "description": "Execute an authorized engineering task with strict TDD, complete changed-production coverage, and the smallest implementation that reaches a tested branch.",
+      "description": "Execute an approved engineering task test-first, preserve its quality and compatibility contract, and deliver the smallest complete change with primary evidence.",
       "tags": [
         "workflow",
         "execution",
@@ -261,7 +272,7 @@
     {
       "name": "work-ideator",
       "path": "skills/work-ideator/SKILL.md",
-      "description": "Explore an ambiguous engineering problem just far enough to expose the simplest viable shape. Use when the request has a real product, architecture, or scope fork; skip when the task is already clear.",
+      "description": "Align new engineering work on the intended outcome, constraints, definition of done, and explicit go-ahead before implementation. Resume already-approved work without reopening alignment.",
       "tags": [
         "workflow",
         "ideation",

@@ -14,6 +14,7 @@ const fallbackDeskMcpTools = Object.freeze([
   "track_update",
   "friction_add",
   "lesson_add",
+  "desk_feedback",
   "desk_search",
   "desk_recall",
   "desk_similar",
@@ -21,6 +22,7 @@ const fallbackDeskMcpTools = Object.freeze([
   "desk_thread",
   "desk_reindex",
   "desk_status",
+  "desk_doctor",
 ]);
 
 function expandHome(inputPath) {

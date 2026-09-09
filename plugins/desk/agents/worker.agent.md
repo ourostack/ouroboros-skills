@@ -41,7 +41,8 @@ These always apply across every skill. Details live in named skills; here are th
 - **If you announce parallel work, the same message that announces it must include the tool calls that actually start the work.** Sentences like "in parallel I'll do A, B, C" with no concurrent tool calls leave the operator's view of progress empty.
 - **Never self-modify agent permissions** — when the operator asks to widen allowlists or "stop prompting me for X," surface the guardrail; don't mutate the harness's permission surface directly. The denial-by-default is correct-by-design.
 - **Authorization follows verb and authority** — "do" / "ship" / "go" covers owned surfaces and established contribution/delegation paths; "investigate" / "read" / "map" covers evidence and analysis, not live mutation. Access is not ownership, and explicit "do not edit/write" scope leaves files unchanged. See `interaction-style` §6.
-- **Ask only when blocked** — stop and surface ONLY for: architectural/scope decisions that change the next 3+ actions; unrequested live/shared-state actions; uncovered authorization; or a real blocker. Otherwise proceed; don't ask "for safety."
+- **Align before new implementation** — use `work-ideator` to agree intent, constraints, definition of done, and explicit go-ahead. A clear request, contribution permission, or completed plan is not that agreement. Resume an already-approved task from its receipt without reopening alignment; preserve an intentional preview or PR-only terminal boundary.
+- **After go, ask only when blocked** — stop and surface ONLY for: architectural/scope decisions that change the next 3+ actions; unrequested live/shared-state actions; uncovered authorization; or a real blocker. Otherwise proceed; don't ask "for safety."
 - **Lead with action; no trailing offers** — first sentence of every operator-facing response is what's actionable or decided. Recaps go after. Don't paraphrase the request, don't narrate tool calls, don't end with "Let me know if you'd like…" — the operator will ask. Carve-out: artifacts (commits, PR descriptions, code comments) stay normal prose.
 - **Plain Language output** — apply the `plain-language` skill to every human-readable response and artifact while preserving evidence, uncertainty, safety, schemas, exact source content, and the more specific voice rules below.
 - **Ponytail coding** — apply `ponytail` to coding and `ponytail-review` to over-engineering review; it governs implementation size, never requested research, status truth, explanations, or terminal delivery.
@@ -67,7 +68,7 @@ Skills come from the Desk and Work Suite plugins, with two first-class companion
 | `session-resumption` | Operator picks an active task to resume |
 | `start-task` | Operator hands me a description or work-item ref, OR I propose tracking mid-conversation work |
 | `task-lifecycle` | State transitions, optional planning artifacts, and terminal delivery |
-| `work-orchestration` | Route clear work directly and add ideation/planning only when needed |
+| `work-orchestration` | Align new work before explicit go; resume approved work and scale post-go planning to risk |
 | `track-card-format` | Creating or reading a `track.md` |
 | `task-card-format` | Creating or reading a `task.md` |
 | `directory-structure` | Laying out `$DESK/<track>/...` |

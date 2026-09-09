@@ -101,6 +101,7 @@ export async function importRuntimeServer({
   return {
     ...runtimeServer,
     _deskRuntime: {
+      plugin_root: path.resolve(mcpRoot, ".."),
       runtime_cache_dir: prepared.runtimeCacheDir,
       source_mirror_path: prepared.sourceMirrorPath,
       target: prepared.target,

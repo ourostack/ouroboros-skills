@@ -57,6 +57,27 @@ for (const skill of changedSkills) {
   assert.equal(json("manifest.json").skills.find((entry) => entry.name === skill)?.description, description);
 }
 
+for (const file of ["skills/work-ideator/SKILL.md", "plugins/work-suite/skills/work-ideator/SKILL.md"]) {
+  requires(file, "new work aligns before implementation", /new engineering work[\s\S]+explicit go-ahead[\s\S]+before implementation/iu);
+  requires(file, "alignment records a real outcome and terminal contract", /outcome[\s\S]+constraints[\s\S]+definition of done[\s\S]+go-ahead/iu);
+  requires(file, "approved work resumes without another workshop", /already-approved[\s\S]+resume[\s\S]+without/iu);
+}
+requires(
+  "plugins/desk/skills/work-orchestration/SKILL.md",
+  "routing cannot bypass the alignment boundary",
+  /before choosing[\s\S]+lane[\s\S]+work-ideator[\s\S]+explicit go/iu,
+);
+requires(
+  "skills/work-doer/SKILL.md",
+  "execution consumes the alignment receipt",
+  /alignment receipt[\s\S]+definition of done[\s\S]+explicit go/iu,
+);
+requires(
+  "skills/work-merger/SKILL.md",
+  "an intentional preview does not become a main-branch promotion",
+  /agreed terminal state[\s\S]+preview[\s\S]+do not merge[\s\S]+preserve/iu,
+);
+
 assert.match(text("skills/work-doer/SKILL.md"), /Apply Ponytail's ladder/u);
 assert.match(text("skills/work-planner/SKILL.md"), /skip planning and implement/u);
 assert.match(text("skills/work-merger/SKILL.md"), /release or install refresh/u);
@@ -126,7 +147,7 @@ for (const file of [
   requires(file, "planner grades review by lane", /doing-only[\s\S]+one[\s\S]+review|one[\s\S]+review[\s\S]+doing-only/iu);
   requires(file, "planner returns nested review to its parent", /nested[\s\S]+parent/iu);
   requires(file, "planner requires strict TDD", /strict TDD[\s\S]+observed red/iu);
-  requires(file, "planner requires complete changed-production coverage", /100%[\s\S]+statements[\s\S]+branches[\s\S]+functions/iu);
+  requires(file, "planner preserves repository coverage and semantic acceptance", /repository-required coverage[\s\S]+semantic acceptance[\s\S]+counterexample/iu);
   requires(file, "planner composes visual QA", /visual-qa-dogfood/u);
   contract(`planner preserves confirmed customer decisions in ${file}`, () => {
     assert.match(
@@ -190,7 +211,9 @@ for (const file of [
   requires(file, "doer checks authority before writes", /before[\s\S]{0,100}(write|edit)[\s\S]{0,120}(authority|contribution path)|authority[\s\S]{0,120}before[\s\S]{0,80}(write|edit)/iu);
   requires(file, "doer applies strict TDD to every behavior change", /every behavior change[\s\S]+observed red[\s\S]+minimal green/iu);
   requires(file, "doer freezes tests after red", /freeze|frozen/iu);
-  requires(file, "doer requires complete changed-production coverage", /100%[\s\S]+statements[\s\S]+branches[\s\S]+functions/iu);
+  requires(file, "doer preserves repository coverage instead of inventing a universal quota", /repository-required coverage[\s\S]+universal percentage/iu);
+  requires(file, "doer separates primary outcomes from green proxies", /primary outcome[\s\S]+counterexample[\s\S]+passing tests[\s\S]+review[\s\S]+not proof/iu);
+  requires(file, "doer retains inspectable confidence evidence", /confidence packet[\s\S]+intent[\s\S]+source[\s\S]+model[\s\S]+known gaps/iu);
   requires(file, "doer covers negative and boundary paths", /error[\s\S]+null[\s\S]+empty[\s\S]+boundar[\s\S]+negative/iu);
   requires(file, "doer forbids changed-file coverage exclusions", /no (?:changed-file )?coverage exclusion|do not exclude/iu);
   requires(file, "doer asserts outbound request shape", /request shape/iu);
@@ -348,7 +371,7 @@ for (const file of [
 
 contract("Work Suite root manifest omits inert dependency metadata", () => {
   const plugin = json("plugins/work-suite/plugin.json");
-  assert.equal(plugin.version, "3.0.0");
+  assert.equal(plugin.version, "4.0.0-alpha.1");
   assert.equal(Object.hasOwn(plugin, "dependencies"), false);
   assert.equal(Object.hasOwn(plugin, "activation"), false);
 });
@@ -357,8 +380,8 @@ for (const file of [
   "plugins/work-suite/.claude-plugin/plugin.json",
   "plugins/work-suite/.codex-plugin/plugin.json",
 ]) {
-  contract(`${file} releases Work Suite 3.0.0`, () => {
-    assert.equal(json(file).version, "3.0.0");
+  contract(`${file} releases Work Suite 4.0.0-alpha.1`, () => {
+    assert.equal(json(file).version, "4.0.0-alpha.1");
   });
 }
 
@@ -367,8 +390,8 @@ for (const file of [
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
 ]) {
-  contract(`${file} releases Desk 3.1.2`, () => {
-    assert.equal(json(file).version, "3.1.2");
+  contract(`${file} releases Desk 3.2.0-alpha.2`, () => {
+    assert.equal(json(file).version, "3.2.0-alpha.2");
   });
 }
 
@@ -408,7 +431,7 @@ contract("marketplace metadata no longer advertises Work Suite 2", () => {
 requires(
   "README.md",
   "README documents complete Doer proof",
-  /work-doer[\s\S]{0,160}test-first[\s\S]{0,120}complete coverage/iu,
+  /work-doer[\s\S]{0,160}test-first[\s\S]{0,120}repository-required coverage[\s\S]{0,120}primary outcome/iu,
 );
 requires(
   "README.md",
@@ -425,7 +448,7 @@ contract("coverage exclusion list has no campaign additions", () => {
 
 assert.equal(json("plugins/plain-language/plugin.json").version, "0.2.0");
 assert.equal(json("plugins/ponytail-upstream/plugin.json").version, "4.9.0");
-assert.equal(json("plugins/desk/mcp/package.json").version, "1.3.4");
+assert.equal(json("plugins/desk/mcp/package.json").version, "1.4.0-alpha.2");
 
 const hookData = fs.mkdtempSync(path.join(os.tmpdir(), "ponytail-provider-"));
 try {
@@ -461,6 +484,15 @@ for (const file of [
   assert.doesNotMatch(body, /four-phase doing skills|Phase 1.4 dispatch|strict TDD|after signoff/iu);
   assert.doesNotMatch(body, /proof proportional to risk/iu);
 }
+
+contract("preview feedback is canonically copied with explicit capture and confirmed sharing", () => {
+  const skill = text("skills/preview-feedback/SKILL.md");
+  assert.equal(skill, text("plugins/desk/skills/preview-feedback/SKILL.md"));
+  for (const required of ["explicit capture", "exact excerpt", "exact destination", "confirmation", "tombstone", "next_offset"]) {
+    assert.ok(skill.includes(required), `missing preview-feedback boundary: ${required}`);
+  }
+  assert.match(skill, /Never fall back/u);
+});
 
 assert.equal(
   contractFailures.length,

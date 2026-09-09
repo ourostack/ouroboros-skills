@@ -1,6 +1,6 @@
 # Production Shared Artifacts
 
-Status: published in Unit 22e.
+Status: published in Unit 22e; regenerated for the engineering V2 preview on 2026-09-08, then re-anchored for the second preview version (`desk-mcp@1.4.0-alpha.2`) without re-embedding.
 
 This note records the expected verification shape for the first committed Desk production vector pack and snapshot. The artifacts must live under the active embedding-spec directories:
 
@@ -25,7 +25,7 @@ Commands run:
 
 Current freshness anchors:
 
-- current_artifact_source_scope_hash: sha256:a1de29c388f284e46956aafc9afe03e3bfa00a594a8e9dac410d17f3eea3c9bd
+- current_artifact_source_scope_hash: sha256:40ebac7d21fdac434c79db366af29bd2533e0161056ec9fa83756067ff6dd69f
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
 
 Published vector pack:
@@ -36,11 +36,11 @@ Published vector pack:
 - `pack_id`: `repo-public-bootstrap-2026-06-15`
 - `row_count`: 2
 - `rows_sha256`: `974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c`
-- `artifact_source_scope_hash`: `sha256:a1de29c388f284e46956aafc9afe03e3bfa00a594a8e9dac410d17f3eea3c9bd`
+- `artifact_source_scope_hash`: `sha256:40ebac7d21fdac434c79db366af29bd2533e0161056ec9fa83756067ff6dd69f`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Provenance commit: `5a1ec823c06d5fec3f2b8951e1e2035be6dad910`
+- Provenance commit: `a0669758a0b6d8aedcb15ea44f048dfc158c07f6`
 
 Published snapshot:
 
@@ -48,14 +48,18 @@ Published snapshot:
 - Manifest: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.manifest.json`
 - Checksum: `plugins/desk/artifacts/snapshots/nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768/repo-public-bootstrap-2026-06-15.sha256`
 - `snapshot_id`: `repo-public-bootstrap-2026-06-15`
-- `artifact_source_scope_hash`: `sha256:a1de29c388f284e46956aafc9afe03e3bfa00a594a8e9dac410d17f3eea3c9bd`
+- `artifact_source_scope_hash`: `sha256:40ebac7d21fdac434c79db366af29bd2533e0161056ec9fa83756067ff6dd69f`
 - `document_tree_hash`: `sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8`
 - `included_pack_ids`: `repo-public-bootstrap-2026-06-15`
 - `represented_document_count`: 1
 - Represented document: `tasks/dependency-activation/task.md` at `sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59`
-- Artifact sha256: `sha256:8bf2baf3f3bbbe11c592e3ca50cb8e6536f0f16cdaa5e02737b5ebe49621e5df`
+- Artifact sha256: `sha256:9297e95739eea360d988a3a459d3ac5dac70dca39596304d7a8bdfb48fbe241a`
 - Runtime: `portable-portable-portable`
-- Provenance commit: `5a1ec823c06d5fec3f2b8951e1e2035be6dad910`
+- Provenance commit: `a0669758a0b6d8aedcb15ea44f048dfc158c07f6`
+
+The preview regeneration used the maintained stale-snapshot reconciliation and artifact builders against the same approved document. Both existing vectors were retained; no new embedding request or publication scope was introduced. The document checkout is identified by the provenance commit, while the artifact-source hash binds the updated MCP package metadata used for regeneration.
+
+The `1.4.0-alpha.2` re-anchor repeated only the metadata step: the already-published snapshot was decompressed back into a scratch desk index with the maintained snapshot helper, and the two builders above were re-run from that index with the same `--pack-id`, `--snapshot-id`, and provenance commit. No indexing or embedding request was made. The pack `.jsonl`, its checksum, the snapshot `.sqlite.zst`, and its checksum are byte-identical to the previous version; only `artifact_source_scope_hash` and `created_at` moved, because the source scope covers `plugins/desk/mcp/package.json` and `package-lock.json`.
 
 Approval state:
 

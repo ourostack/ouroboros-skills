@@ -1,4 +1,9 @@
-export function doctorRuntime({ statusContext = {} } = {}) {
+import { diagnosticFormat, previewRuntimeSnapshot } from "../runtime/preview-snapshot.js"
+
+export function doctorRuntime({ input, statusContext = {} } = {}) {
+  if (diagnosticFormat(input) === "preview") {
+    return previewRuntimeSnapshot("ready")
+  }
   const runtime = statusContext.runtime ?? {}
   return {
     status: "ok",

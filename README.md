@@ -4,6 +4,8 @@ Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable i
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
+This preview branch preserves the earlier **[Agentic Engineering V2 technical preview (Work Suite)](AGENTIC-ENGINEERING-V2.md)**. The guide covers that experiment's stack, version selection, private feedback, recorded evidence limits, and rollback. It is not the internal V2 RFC, a qualified replacement for V1, or the main-branch default.
+
 ## Repository Structure
 
 ```
@@ -15,7 +17,7 @@ ouroboros-skills/
       SKILL.md
     autopilot/               # Full-delivery execution doctrine
       SKILL.md
-    work-ideator/            # Resolve material ambiguity only when needed
+    work-ideator/            # Align new work before explicit implementation go
       SKILL.md
     work-planner/            # Risk-scaled planner for coordinated work
       SKILL.md
@@ -70,10 +72,11 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
 | **autopilot** | Keep authorized long-horizon work moving through terminal delivery and the continuation scan. |
 | **stay-in-turn** | Keep long-running work in the same turn with a native notification path or bounded foreground fallback. |
-| **work-ideator** | Resolve material ambiguity and choose the smallest viable shape; skip when the task is clear. |
+| **work-ideator** | Align new engineering work before explicit go; resume an already-approved contract without reopening it. |
 | **work-planner** | Plan coordinated or risky work; skip when the task description is sufficient. |
-| **work-doer** | Implement the smallest complete vertical change test-first, with complete coverage of changed production paths. |
+| **work-doer** | Implement the smallest complete change test-first, with repository-required coverage and primary outcome evidence. |
 | **work-merger** | Drive a branch through PR, merge, release/install, smoke, cleanup, and continuation. |
+| **preview-feedback** | Keep explicit preview feedback private, inspect or correct it, and share only a confirmed excerpt and destination. |
 | **visual-qa-dogfood** | Screenshot-backed dogfooding for UI/rendering work so visual absurdity cannot hide behind passing metrics. |
 | **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |

@@ -9,6 +9,8 @@ Authorization covers the complete stated outcome and its obvious continuation. D
 
 ## Authority
 
+The existing alignment receipt defines the outcome, explicit go-ahead, and terminal boundary. Resume approved work without another alignment round. A sustained-autonomy mandate is not permission to turn an intentional preview or PR-only outcome into a merge or deployment.
+
 First-person future wording such as "I'll send it" preserves operator ownership of the live send; it is not delegation. Partner-operated or destructive shared-state mutation requires an owner SOP or explicit authority.
 
 ## Durable state
@@ -30,7 +32,7 @@ Revalidate persisted terminal, source, and installed claims against live state b
 2. Revalidate the recorded source, remote, release or install, and smoke evidence.
 3. Choose the next ready action.
 4. Execute it with the relevant skill and update durable state after material transitions.
-5. Drive code through `work-merger`; merged without release/install/smoke/cleanup is not terminal.
+5. Drive code through `work-merger` to the agreed terminal state; for merge-and-deliver work, merged without release/install/smoke/cleanup is not terminal. Preserve an intentional preview branch instead of promoting it or deleting its rollback path.
 6. Scan again. If ready work remains inside scope, start it.
 
 Prefer direct progress over status narration.

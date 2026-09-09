@@ -111,3 +111,47 @@ test("healthy desk_doctor tolerates empty context and prefers normalized runtime
     support_matrix_path: "/matrix",
   })
 })
+
+test("preview doctor emits only a versioned local snapshot without workspace or personal data", async () => {
+  const root = makeRoot()
+  try {
+    const body = parseToolResult(await callTool({
+      deskRoot: root,
+      name: "desk_doctor",
+      input: { format: "preview", feedback: "private text must not enter diagnostics" },
+      person: "private-person",
+      statusContext: { runtime: { runtime_cache_path: "/private/cache" }, secret: "private-token" },
+    }))
+    assert.deepEqual(Object.keys(body).sort(), [
+      "architecture", "collection", "mcp_version", "node_abi", "node_major",
+      "platform", "purpose", "runtime_state", "schema_version",
+    ])
+    assert.equal(body.schema_version, 1)
+    assert.equal(body.purpose, "preview-runtime-diagnostics")
+    assert.equal(body.collection, "local-on-demand")
+    assert.equal(body.runtime_state, "ready")
+    assert.match(body.mcp_version, /^\d+\.\d+\.\d+/u)
+    assert.equal(body.platform, process.platform)
+    assert.equal(body.architecture, process.arch)
+    assert.equal(body.node_major, Number(process.versions.node.split(".")[0]))
+    assert.equal(body.node_abi, process.versions.modules)
+    assert.doesNotMatch(JSON.stringify(body), /private|desk-doctor-/u)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("doctor rejects a misspelled preview format instead of falling back to identifying output", async () => {
+  for (const format of [null, "", "prevew", {}, []]) {
+    const response = await callTool({
+      deskRoot: "/private/workspace",
+      name: "desk_doctor",
+      input: { format },
+      statusContext: { runtime: { runtime_cache_path: "/private/cache" } },
+    })
+    assert.equal(response.isError, true)
+    assert.match(response.content[0].text, /unsupported diagnostic format/u)
+    assert.doesNotMatch(response.content[0].text, /private/u)
+  }
+  assert.equal(doctorRuntime({ input: { format: "full" } }).mode, "healthy")
+})

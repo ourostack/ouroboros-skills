@@ -13,9 +13,10 @@ import {
   writeFileSync,
 } from "node:fs"
 import { createRequire } from "node:module"
-import { tmpdir } from "node:os"
+import { devNull, tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import matter from "gray-matter"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -37,6 +38,7 @@ const requiredPackageScripts = {
 }
 
 const requiredHostFreshnessPathFilters = [
+  ".gitattributes",
   "plugins/desk/activation/**",
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
@@ -971,6 +973,15 @@ test("root host-manifest verifier catches cross-host plugin version drift", asyn
       },
     },
     {
+      label: "claude-work-suite-activation",
+      errorPattern: /claude-plugin Work Suite activation dependency version drift/u,
+      mutate: (fixtureRoot) => {
+        const activation = loadJson("plugins", "desk", "activation", "desk.activation.json")
+        activation.host_activation.claude.dependencies["work-suite"].version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/activation/desk.activation.json", activation)
+      },
+    },
+    {
       label: "copilot-work-suite-lock",
       errorPattern: /Copilot root Work Suite version must match activation lock/u,
       mutate: (fixtureRoot) => {
@@ -1082,6 +1093,52 @@ test("root validation delegates host manifest freshness and artifact availabilit
       new RegExp(scriptName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"),
       `validate-skills.cjs must verify package script ${scriptName}`,
     )
+  }
+})
+
+test("fingerprinted source bytes survive a Windows-style Git checkout", () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-canonical-checkout-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  const checkoutRoot = path.join(tempRoot, "checkout")
+  const files = [
+    ...loadJson("evals", "engineering-v2-kernel.json").sources,
+    "plugins/desk/mcp/package.json",
+    "plugins/desk/mcp/package-lock.json",
+  ]
+  const git = (...args) => {
+    const result = spawnSync("git", args, {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: devNull },
+    })
+    assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`)
+  }
+  try {
+    for (const file of files) copyRepoFile(file, fixtureRoot)
+    if (existsSync(path.join(repoRoot, ".gitattributes"))) copyRepoFile(".gitattributes", fixtureRoot)
+    const binary = Buffer.from([0, 13, 10, 65, 13, 10, 0])
+    writeFileSync(path.join(fixtureRoot, "opaque.bin"), binary)
+    mkdirSync(checkoutRoot)
+    git("init", "--quiet")
+    git("-c", "core.autocrlf=false", "add", "--all")
+    git("-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index", "--all", `--prefix=${checkoutRoot}${path.sep}`)
+    for (const file of files) {
+      const expected = readFileSync(path.join(repoRoot, file))
+      const actual = readFileSync(path.join(checkoutRoot, file))
+      assert.equal(actual.equals(expected), true, `${file} changed during checkout`)
+    }
+    assert.deepEqual(readFileSync(path.join(checkoutRoot, "opaque.bin")), binary)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("CI workflow YAML parses before its commands are inspected", () => {
+  for (const filename of ["desk-mcp-tests.yml", "validate-skills.yml"]) {
+    const source = loadText(".github", "workflows", filename)
+    const { data } = matter(`---\n${source}\n---\n`)
+    assert.equal(typeof data.jobs, "object", `${filename} must declare jobs`)
+    assert.ok(Object.keys(data.jobs).length > 0, `${filename} must contain a job`)
   }
 })
 
