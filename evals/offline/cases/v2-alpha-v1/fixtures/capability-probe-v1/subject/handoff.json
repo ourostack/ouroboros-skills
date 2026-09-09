@@ -1,0 +1,6 @@
+{
+  "approvedTarget": "approved",
+  "entryPoint": "challenge.mjs",
+  "claim": "Zero retries is supported and returns zero.",
+  "nearbyNonTarget": "approved-copy"
+}

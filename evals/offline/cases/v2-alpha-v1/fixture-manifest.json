@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "id": "alpha-workflow-v1",
+  "version": "1.0.0",
+  "fixtures": [
+    {
+      "id": "retry-policy-v1",
+      "requiresAdmittedProducerBinding": false,
+      "files": [
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/retry-policy-v1/subject/baseline.test.mjs",
+          "targetPath": "baseline.test.mjs",
+          "sha256": "5bc7924c272e0a3bf889c6024456b2c824121b767178221a03d9a939b96e6496"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/retry-policy-v1/held-out/oracle.test.mjs",
+          "targetPath": "oracle.test.mjs",
+          "sha256": "4d64f74da98e3c71255fac664808bbbc871558355922b3acdac44c131b89e3c8"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/retry-policy-v1/subject/src/policy.mjs",
+          "targetPath": "src/policy.mjs",
+          "sha256": "420d4f2049f033be2510aed0b45a553cf204eae8f7ef5c00e5bbee696b83d184"
+        }
+      ]
+    },
+    {
+      "id": "checker-enforcement-v1",
+      "requiresAdmittedProducerBinding": false,
+      "files": [
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/checker-enforcement-v1/subject/.github/workflows/checks.yml",
+          "targetPath": ".github/workflows/checks.yml",
+          "sha256": "f31a4f32203969df1fa5fcca58be62dfe4f8b0ed6e406ffd890cdfd60c86f231"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/checker-enforcement-v1/subject/baseline.test.mjs",
+          "targetPath": "baseline.test.mjs",
+          "sha256": "45a1bfc3de3e61da355c6d862c97b21cfd073219dc4a721902a9ad0680947490"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/checker-enforcement-v1/subject/config.json",
+          "targetPath": "config.json",
+          "sha256": "c90ff38cf24853717711d948bb2c089416bb8215a12ea5cbee9c62c334f6dd26"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/checker-enforcement-v1/held-out/invalid-config.json",
+          "targetPath": "invalid-config.json",
+          "sha256": "7c0919d5989f94ea3eb453a436f527b7b2c52a073381a3cc2063db5b2a4ad1b5"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/checker-enforcement-v1/subject/package.json",
+          "targetPath": "package.json",
+          "sha256": "242f8c1b5890d34f63de617f1d5d11711ebb222ed01bd33815f8ab7ca9a64434"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/checker-enforcement-v1/subject/scripts/check-config.mjs",
+          "targetPath": "scripts/check-config.mjs",
+          "sha256": "c64d57459bfac90f4e9c3c4e82beeb682c24ab0e641af07eb041f5d646a3d088"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/checker-enforcement-v1/held-out/checker-canary.mjs",
+          "targetPath": "checker-canary.mjs",
+          "sha256": "a6e12ffdb6ba29eaffa9478885140b64319ded73fd41f5a2b77b615e1c69397d"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/checker-enforcement-v1/held-out/valid-config.json",
+          "targetPath": "valid-config.json",
+          "sha256": "3f9cbc09d4839f8f639e49dc7c41a2d7da0fab4189ded41998a22a3a25996967"
+        }
+      ]
+    },
+    {
+      "id": "packed-delivery-v1",
+      "requiresAdmittedProducerBinding": false,
+      "files": [
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/packed-delivery-v1/subject/baseline.test.mjs",
+          "targetPath": "baseline.test.mjs",
+          "sha256": "e05c2454f2465933d83b820c3fb0cb59dd404f7e4deb48866d8f6a396fa40821"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/packed-delivery-v1/subject/build.mjs",
+          "targetPath": "build.mjs",
+          "sha256": "b90d02ae3780d72ed2e63c267fbc01070d14c96a3b7cb06e96ce5c90f754105c"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/packed-delivery-v1/subject/package.json",
+          "targetPath": "package.json",
+          "sha256": "db9f628ba9da7384dc3bb44f6d6ad5e2e3fa4fad97d3e9982b81a60994c7e12c"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/packed-delivery-v1/subject/src/retry-policy.mjs",
+          "targetPath": "src/retry-policy.mjs",
+          "sha256": "33a04e626a60d6abce3b80d19092cb164466ee02c965211b3720b660395e1e2c"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/packed-delivery-v1/held-out/public-matrix.json",
+          "targetPath": "public-matrix.json",
+          "sha256": "e961dc7ea946b72f762676634f0caae76c04c675e888b43de51ed5059259f6f6"
+        }
+      ]
+    },
+    {
+      "id": "integration-review-v1",
+      "requiresAdmittedProducerBinding": true,
+      "files": [
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/integration-review-v1/subject/baseline.test.mjs",
+          "targetPath": "baseline.test.mjs",
+          "sha256": "7498889f367153999c3e18b2b040a028b7ddd7fb5262f9fd9b85a5b2ca989990"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/integration-review-v1/held-out/oracle.test.mjs",
+          "targetPath": "oracle.test.mjs",
+          "sha256": "8db9e4d4915e595f37821d43b3e1ba9031b243bf8ab52a0e32e7b7c8337545a6"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/integration-review-v1/subject/quote.mjs",
+          "targetPath": "quote.mjs",
+          "sha256": "3d973db2f2fff36fe4406dfb8c25e5a310bff3723edd1e84e84371e766cd24aa"
+        },
+        {
+          "role": "canonical_fixture_input",
+          "sourcePath": "fixtures/integration-review-v1/canonical/scenario.json",
+          "targetPath": "scenario.json",
+          "sha256": "abd2f118d23996a2e69078f31e733b669d6b2334bf69e826f915a6abd0e55f1e"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/integration-review-v1/held-out/scope-oracle.test.mjs",
+          "targetPath": "scope-oracle.test.mjs",
+          "sha256": "7b4d11f16d6d5a148e2edbd7ed007a532a930e3612cc308f6250928e0b396225"
+        }
+      ]
+    },
+    {
+      "id": "capability-probe-v1",
+      "requiresAdmittedProducerBinding": false,
+      "files": [
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/capability-probe-v1/subject/approved-copy/capability.mjs",
+          "targetPath": "approved-copy/capability.mjs",
+          "sha256": "33a04e626a60d6abce3b80d19092cb164466ee02c965211b3720b660395e1e2c"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/capability-probe-v1/subject/approved/capability.mjs",
+          "targetPath": "approved/capability.mjs",
+          "sha256": "05f913a57d08fe05f9cf23040c038e3c207f951761068425a06ee84df3ba49f4"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/capability-probe-v1/subject/approved/challenge.mjs",
+          "targetPath": "approved/challenge.mjs",
+          "sha256": "e12ace17292cc455f01eda350d0f352c84cc35325625e40a536ac374c42e585e"
+        },
+        {
+          "role": "subject",
+          "sourcePath": "fixtures/capability-probe-v1/subject/handoff.json",
+          "targetPath": "handoff.json",
+          "sha256": "1d19df2ea4f5367169d1dcbb144d0a0e3e6a3ddf81a10ee445ffdaf89051f0ac"
+        },
+        {
+          "role": "held_out",
+          "sourcePath": "fixtures/capability-probe-v1/held-out/oracle.test.mjs",
+          "targetPath": "oracle.test.mjs",
+          "sha256": "58dead127485be1606e99f1a0646180862ab439848939596c8649a81af249d61"
+        }
+      ]
+    },
+    {
+      "id": "synthetic-protected-recording-v1",
+      "requiresAdmittedProducerBinding": true,
+      "files": []
+    }
+  ]
+}

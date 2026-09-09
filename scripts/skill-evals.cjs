@@ -269,11 +269,24 @@ function main(args) {
 }
 
 if (require.main === module) {
-  try {
-    main(process.argv.slice(2));
-  } catch (error) {
-    console.error(`skill-evals: ${error.message}`);
-    process.exitCode = 1;
+  if (process.argv[2] === "offline") {
+    const offline = require("node:url").pathToFileURL(path.join(__dirname, "..", "evals", "offline", "cli.mjs"));
+    import(offline).then(module => module.main(process.argv.slice(3))).then(code => {
+      if (!Number.isInteger(code) || code < 0 || code > 4) throw Object.assign(new Error("Offline entry must return an explicit exit status from zero through four"), { code: "INVALID_OFFLINE_EXIT", exitCode: 3 });
+      process.exitCode = code;
+    }).catch(reason => {
+      const error = reason ?? { message: String(reason) };
+      const exitCode = Number.isInteger(error.exitCode) && error.exitCode >= 1 && error.exitCode <= 4 ? error.exitCode : 3;
+      console.error(JSON.stringify({ kind: "offline_error", status: error.status ?? (exitCode === 4 ? "invalid_input" : "infrastructure_failure"), code: error.code ?? "OFFLINE_FAILURE", message: String(error.message ?? error), artifacts: error.artifacts ?? null }));
+      process.exitCode = exitCode;
+    });
+  } else {
+    try {
+      main(process.argv.slice(2));
+    } catch (error) {
+      console.error(`skill-evals: ${error.message}`);
+      process.exitCode = 1;
+    }
   }
 }
 
