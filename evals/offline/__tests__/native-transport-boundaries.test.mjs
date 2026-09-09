@@ -87,7 +87,8 @@ test("a final write fault does not erase a work timeout or publish a completion 
   });
   const result = await runRuntimeQualification({ plan: value, outputRoot, execute: fake.execute });
   assert.equal(result.status, "timed_out");
-  assert.equal(result.publicationFailure.code, "EEXIST");
+  assert.equal(result.publicationFailure.code, "OUTPUT_WRITE_FAILED");
+  assert.match(result.publicationFailure.message, /EEXIST/);
   assert.equal(existsSync(path.join(outputRoot, "COMMITTED.json")), false);
 });
 

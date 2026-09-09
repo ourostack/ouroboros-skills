@@ -77,7 +77,7 @@ function inventoryFixture(started = 2, { sameCaseDifferentRoles = false, duplica
   const attempts = expectedCells.cells.slice(0, started).map((entry, index) => {
     const attemptId = `attempt-${index + 1}`;
     const status = index === 0 ? "passed" : "product_failure";
-    const receipt = put(`${attemptId}/receipt.json`, { schemaVersion: 1, runId: attemptId, caseId: entry.caseId, cellId: entry.id, status });
+    const receipt = put(`${attemptId}/receipt.json`, { schemaVersion: 1, runId: attemptId, caseId: entry.caseId, cellId: entry.id, executionKind: entry.executionKind, status });
     const inventory = put(`${attemptId}/inventory.json`, { schemaVersion: 1, files: [{ path: "receipt.json", mode: 384, bytes: artifacts.get(receipt.path).length, sha256: receipt.sha256 }] });
     const commitMarker = put(`${attemptId}/COMMITTED.json`, { schemaVersion: 1, kind: "offline_commit", runId: attemptId, inventory: { path: "inventory.json", sha256: inventory.sha256 }, receipt: { path: "receipt.json", sha256: receipt.sha256 } });
     const common = { schemaVersion: 1, runSetId: "set-a", attemptId, cellId: entry.id, timestamp: "2026-01-01T00:00:00Z" };

@@ -64,6 +64,7 @@ export function readRegular(root, name, maxBytes = MAX_FILE_BYTES) {
   try {
     const before = fs.fstatSync(fd, { bigint: true });
     requireCondition(before.isFile() && before.nlink === 1n, "REGULAR_FILE_REQUIRED", "Expected a single-link regular file");
+    requireCondition(before.dev === lexical.dev && before.ino === lexical.ino, "FILE_CHANGED", "Opened descriptor differs from the confined pre-open file");
     requireCondition(before.size <= BigInt(maxBytes), "FILE_TOO_LARGE", "Regular file exceeds its byte limit");
     const buffer = Buffer.alloc(Number(before.size) + 1);
     let length = 0;

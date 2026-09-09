@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { canonicalJson, jsonBytes, requireCondition, sha256 } from "./core.mjs";
-import { normalizeJudgeObservations, validateTerminalReport } from "./admission.mjs";
+import { normalizeJudgeObservations, reconcileJudgeHistory, validateTerminalReport } from "./admission.mjs";
 import { cleanupOwnedRuntime } from "./copilot-runner.mjs";
 
 const criterion = "The approved zero-value API returns zero.";
@@ -220,13 +220,7 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   const correlatedHandlers = handlers.filter(handler => handler.scoped && requests.some(request => request.toolCallId === handler.toolCallId && sha256(JSON.stringify(request.arguments)) === handler.argumentsSha256));
   const counts = { observedRequests: requests.length, schemaAcceptedHandlers: correlatedHandlers.length, validatorAcceptedReports: valid.length, admittedGrades: 0 };
   const completions = [...new Map(sdkRecords.map(record => [record.ref.eventId, JSON.parse(record.rawRecord)])).values()].filter(event => event.type === "tool.execution_complete" && !event.agentId && requests.some(request => request.toolCallId === event.data?.toolCallId));
-  let historyWindow = null;
-  const historical = [];
-  for (const event of Array.isArray(history) ? history.filter(event => !event.agentId) : []) {
-    if (event.type === "assistant.turn_start") historyWindow = event.id;
-    if (event.type === "assistant.message") for (const request of event.data.toolRequests ?? []) if (request.name === "report_result") historical.push([request.toolCallId, historyWindow, request.arguments]);
-  }
-  const historicalMatches = canonicalJson(historical) === canonicalJson(requests.map(request => [request.toolCallId, request.scopeStartEventId, request.arguments]));
+  const historicalMatches = reconcileJudgeHistory({ history, observed: observation, sessionId, rootAgentId: null, expectedMode: "interactive" });
   const delivered = completions.length === 1 && completions[0].data.success === true;
   const ok = !failure && captureErrors.length === 0 && endReason === "idle" && observation.admissionEligible && historicalMatches && counts.observedRequests === 1 && counts.schemaAcceptedHandlers === 1 && counts.validatorAcceptedReports === 1 && correlatedHandlers[0].resultType === "success" && valid[0].arguments.status === "fail" && delivered && cleanup.complete;
   const result = { kind: "probe-finished", runId, sessionId, ok, qualified: false, scored: false, grade: null, counts, cleanup, admissionStatus: completions.some(event => event.data.success === false) ? "infrastructure_failure" : "unavailable", observation, historicalMatches, failure: failure ?? null, captureErrors, elapsedMs: clock() - startedAt };

@@ -52,6 +52,7 @@ export function validateRunSetInventory({ runSet, expectedCells, journalRecords,
       receipt = readJson(attempt.receipt, readArtifact);
       const cell = expected.cells.find(entry => entry.id === attempt.cellId);
       requireCondition(receipt.schemaVersion === 1 && receipt.runId === attempt.attemptId && receipt.cellId === attempt.cellId && receipt.caseId === cell.caseId && receipt.status === attempt.status, "ATTEMPT_RECEIPT_MISMATCH", "Receipt identity or status differs from its expected attempt");
+      requireCondition(receipt.executionKind === cell.executionKind, "RECEIPT_EXECUTION_KIND_MISMATCH", "Receipt grading route differs from its frozen expected cell");
       if (Object.hasOwn(receipt, "planSha256")) requireCondition(receipt.planSha256 === runSet.plan.sha256, "RECEIPT_PLAN_MISMATCH", "A receipt cannot be reassigned to a different frozen plan");
     }
     if (attempt.commitMarker !== null) {

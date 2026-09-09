@@ -105,6 +105,16 @@ export function normalizeJudgeObservations({ sessionId, rootAgentId, expectedMod
   const result = rootRequests(records, sessionId, rootAgentId, expectedMode);
   return { ...result, captureErrors, availability: captureErrors.length ? "unavailable" : result.availability, admissionEligible: captureErrors.length === 0 && result.admissionEligible };
 }
+export function reconcileJudgeHistory({ history, observed, sessionId, rootAgentId, expectedMode }) {
+  try {
+    if (!Array.isArray(history)) return false;
+    const historical = rootRequests(history.map(event => ({ event, sessionId, ref: null })), sessionId, rootAgentId, expectedMode);
+    const signature = value => [...value.completeRootRequests, ...value.partialRootRequests, ...value.unobservedRootRequests].map(request => payload([request.toolCallId, request.scopeStartEventId, request.turnId, request.argumentsState, request.arguments])).sort();
+    const starts = value => [...new Set(value.rootStarts.map(start => payload([start.eventId, start.turnId ?? null])))];
+    const terminal = value => [value.rootIdle.eventId, value.rootIdle.mode, value.rootIdle.aborted];
+    return historical.admissionEligible === true && observed.admissionEligible === true && payload(signature(historical)) === payload(signature(observed)) && payload(starts(historical)) === payload(starts(observed)) && payload(terminal(historical)) === payload(terminal(observed)) && payload(historical.supportedTurnIds) === payload(observed.supportedTurnIds);
+  } catch { return false; }
+}
 export function validateTerminalReport(value, { criteria, evidenceIndex } = {}) {
   try {
     if (!Array.isArray(criteria) || criteria.length === 0 || !criteria.every(nonblank) || new Set(criteria).size !== criteria.length || !Array.isArray(evidenceIndex?.files)) return badReport("A nonempty frozen rubric and evidence index are required");
@@ -137,9 +147,7 @@ function coverageMatches(coverage, sdk, schema, observed, sessionId, rootAgentId
     requireCondition(coverage.historyResponseRef.byteLength === historyBytes.length, "HISTORY_REFERENCE_MISMATCH", "History response length differs from its raw reference");
     const history = parseRawJson(historyBytes);
     requireCondition(Array.isArray(history), "INVALID_HISTORY_RESPONSE", "Expected the actual SDK event-history response");
-    const historical = rootRequests(history.map(event => ({ event, sessionId, ref: null })), sessionId, rootAgentId, observed.rootIdle.mode);
-    const signature = requests => requests.map(request => [request.toolCallId, request.scopeStartEventId, request.turnId, request.argumentsState, request.arguments]).sort((a, b) => a[0].localeCompare(b[0]));
-    requireCondition(historical.conflictingCalls.length === 0 && historical.eventConflicts.length === 0 && payload(signature(historical.completeRootRequests)) === payload(signature(observed.completeRootRequests)), "HISTORY_RECONCILIATION_FAILED", "History and observed complete root requests disagree");
+    requireCondition(reconcileJudgeHistory({ history, observed, sessionId, rootAgentId, expectedMode: observed.rootIdle.mode }), "HISTORY_RECONCILIATION_FAILED", "History and observed root attempts, windows or terminal state disagree");
     return true;
   } catch { return false; }
 }

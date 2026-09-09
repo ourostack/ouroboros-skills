@@ -125,6 +125,26 @@ async function setup() {
   return { admission, sdk, message, schema, handle, complete, coverage, finish, one, cleanupReceipt, artifacts: cleanupArtifacts, setNow: (value) => { now = value; } };
 }
 
+for (const mutation of ["unobserved-request", "partial-request", "aborted-terminal", "wrong-terminal-mode", "complete-control"]) test(`I2 full historical root coverage: ${mutation}`, async () => {
+  const state = await setup();
+  assert.equal(state.one().returned.resultType, "success");
+  state.complete("one");
+  state.sdk({ id: "idle", type: "session.idle", data: { mode: "interactive", aborted: false } });
+  const coverage = state.coverage();
+  const history = JSON.parse(state.artifacts.get("history-response.json"));
+  if (mutation === "unobserved-request") history.splice(-1, 0, { id: "historical-unobserved", type: "assistant.message", data: { turnId: "supported-turn", toolRequests: [{ toolCallId: "extra", name: "report_result" }] } });
+  if (mutation === "partial-request") history.splice(-1, 0, { id: "historical-partial", type: "assistant.tool_call_delta", data: { turnId: "supported-turn", toolCallId: "extra", toolName: "report_result" } });
+  if (mutation === "aborted-terminal") history.at(-1).data.aborted = true;
+  if (mutation === "wrong-terminal-mode") history.at(-1).data.mode = "autopilot";
+  const bytes = Buffer.from(`${JSON.stringify(history)}\n`);
+  state.artifacts.set("history-response.json", bytes);
+  coverage.historyResponseRef = { path: "history-response.json", sha256: hash(bytes), byteLength: bytes.length };
+  const result = state.admission.finish({ endReason: "idle", attemptCoverage: coverage, sourceVerified: true, evidenceVerified: true, runtimeVerified: true, cleanupReceipt: state.cleanupReceipt });
+  assert.equal(result.status, mutation === "complete-control" ? "passed" : "unavailable");
+  assert.equal(result.counts.admittedGrades, Number(mutation === "complete-control"));
+  assert.equal(result.modelProtocolViolation, false);
+});
+
 test("handler success without actual SDK completion cannot admit", async () => {
   const state = await setup();
   assert.equal(state.one().returned.resultType, "success");

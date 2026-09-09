@@ -69,9 +69,10 @@ export function diskRunSet(parent, { id, dimension = "candidate", started = true
     let receiptRef = null;
     let markerRef = null;
     if (closed) {
-      const semantic = { passed: "pass", product_failure: "fail", inconclusive: "investigate" }[status];
-      const receipt = { schemaVersion: 1, runId: attemptId, cellId: "cell", caseId: "case", planSha256: planRef.sha256, status, grade: semantic ? { status: semantic } : null, counts: { observedRequests: semantic ? 1 : 0, schemaAcceptedHandlers: semantic ? 1 : 0, validatorAcceptedReports: semantic ? 1 : 0, admittedGrades: semantic ? 1 : 0 } };
-      const output = openRunOutput({ outputRoot: path.join(root, "attempt"), authorizedRoot: root, protectedRoots: [path.join(root, "plan.json"), path.join(root, "expected-cells.json")], runContext: { runId: attemptId, cellId: "cell", planSha256: planRef.sha256 }, limits });
+      const semantic = deterministic ? null : { passed: "pass", product_failure: "fail", inconclusive: "investigate" }[status];
+      const executionKind = expectedCells.cells[0].executionKind;
+      const receipt = { schemaVersion: 1, runId: attemptId, cellId: "cell", caseId: "case", executionKind, planSha256: planRef.sha256, status, grade: semantic ? { status: semantic } : null, counts: { observedRequests: semantic ? 1 : 0, schemaAcceptedHandlers: semantic ? 1 : 0, validatorAcceptedReports: semantic ? 1 : 0, admittedGrades: semantic ? 1 : 0 } };
+      const output = openRunOutput({ outputRoot: path.join(root, "attempt"), authorizedRoot: root, protectedRoots: [path.join(root, "plan.json"), path.join(root, "expected-cells.json")], runContext: { runId: attemptId, cellId: "cell", planSha256: planRef.sha256, executionKind }, limits });
       if (published) {
         output.commit(receipt);
         markerRef = { path: "attempt/COMMITTED.json", sha256: sha256(fs.readFileSync(path.join(root, "attempt/COMMITTED.json"))) };

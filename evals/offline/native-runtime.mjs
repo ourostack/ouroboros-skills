@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalJson, exactKeys, jsonBytes, parseRawJson, readRegular, relativeName, requireCondition, sha256, textBytes } from "./core.mjs";
 import { openRunOutput } from "./output.mjs";
-import { normalizeJudgeObservations, validateTerminalReport } from "./admission.mjs";
+import { normalizeJudgeObservations, reconcileJudgeHistory, validateTerminalReport } from "./admission.mjs";
 import { validateCleanupReceipt } from "./copilot-runner.mjs";
 import { reportSchema } from "./native-protocol.mjs";
 
@@ -105,13 +105,7 @@ export function verifyProtocolEvidence(rows, plan) {
   requireCondition(attempts[0].schemaAcceptedHandlerCount === 1 && attempts[0].executionCompletionRefs.length === 1 && attempts[0].executionSucceeded, "NATIVE_EXECUTION_UNAVAILABLE", "Schema dispatch and delivered success must match the actual root request");
   const history = parseRawJson(files.get("history-response.json"));
   requireCondition(Array.isArray(history), "NATIVE_HISTORY_UNAVAILABLE", "The actual SDK history response is required");
-  let rootWindow = null;
-  const historical = [];
-  for (const event of history.filter(event => !event.agentId)) {
-    if (event.type === "assistant.turn_start") rootWindow = event.id;
-    if (event.type === "assistant.message") for (const call of event.data.toolRequests ?? []) if (call.name === "report_result") historical.push([call.toolCallId, rootWindow, call.arguments]);
-  }
-  requireCondition(canonicalJson(historical) === canonicalJson([[request.toolCallId, request.scopeStartEventId, request.arguments]]), "NATIVE_HISTORY_MISMATCH", "History and observed request windows disagree");
+  requireCondition(reconcileJudgeHistory({ history, observed, sessionId: configuration.sessionId, rootAgentId: null, expectedMode: "interactive" }), "NATIVE_HISTORY_MISMATCH", "History and observed root attempts, windows or terminal state disagree");
   const cleanup = terminal.cleanup;
   requireCondition(cleanup?.complete === true && cleanup.errors.length === 0 && validateCleanupReceipt(cleanup.receipt, { runId: configuration.runId, readArtifact: name => files.get(name) }).ok, "NATIVE_CLEANUP_UNVERIFIED", "Hashed owned-process exits are required");
   const counts = { observedRequests: 1, schemaAcceptedHandlers: 1, validatorAcceptedReports: 1, admittedGrades: 0 };
@@ -162,7 +156,8 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
     const bytes = safeBytes(value);
     requireCondition(bytes.length <= 16777216, "NATIVE_CAPTURE_LIMIT", "Native capture exceeds the regular-file limit");
     reserve(name, bytes.length, final);
-    writeFileSync(path.join(outputRoot, name), bytes, { flag: "wx", mode: 0o600 });
+    if (final && captureFailed) writeFileSync(path.join(outputRoot, name), bytes, { flag: "wx", mode: 0o600 });
+    else output.writeArtifact(name, bytes);
     return { path: name, sha256: sha256(bytes), bytes: bytes.length };
   }
   function run(command, argv, options) {
