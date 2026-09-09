@@ -37,6 +37,10 @@ const FIXTURE_OWNERS = [
   ["__tests__/artifacts/redaction_cleanup.test.js", "desk-redaction-cleanup-plugin-"],
   ["__tests__/artifacts/publication_policy.test.js", "desk-publication-policy-desk-"],
   ["__tests__/integration/dependency_activation_flow.test.js", "desk-dependency-flow-snapshot-"],
+  ["__tests__/indexer/vector_packs.test.js", "desk-vector-pack-"],
+  ["__tests__/snapshots/manifest.test.js", "desk-snapshot-manifest-"],
+  ["__tests__/snapshots/restore.test.js", "desk-snapshot-restore-plugin-"],
+  ["__tests__/snapshots/fallback_reconcile.test.js", "desk-snapshot-fallback-desk-"],
 ]
 
 function runInPrivateTemp(args, sandbox, timeout) {

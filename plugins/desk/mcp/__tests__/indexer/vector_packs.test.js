@@ -4,11 +4,11 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { closeDb, openDb } from "../../src/db/init.js"
+import { mkTempRoot } from "../_temp_roots.js"
 import {
   ACTIVE_EMBEDDING_SPEC,
   chunkIdentity,
@@ -23,7 +23,7 @@ async function loadVectorPackModule() {
 }
 
 async function tmpRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-vector-pack-"))
+  return mkTempRoot("desk-vector-pack-")
 }
 
 function sha256(value) {
