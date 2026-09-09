@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert"
 import { test } from "node:test"
+import { spawnSync } from "node:child_process"
 import { createRequire } from "node:module"
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,6 +10,40 @@ import { fileURLToPath } from "node:url"
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const require = createRequire(import.meta.url)
 const validator = require(path.join(repoRoot, "scripts", "validate-skills.cjs"))
+
+for (const missingGit of [false, true]) {
+  test(`the actual runtime audit test cleans its fixtures after ${missingGit ? "a dependency failure" : "success"}`, t => {
+    const root = mkdtempSync(path.join(tmpdir(), "audit-cleanup-witness-"))
+    t.after(() => rmSync(root, { recursive: true, force: true }))
+    const scratch = path.join(root, "scratch")
+    const emptyBin = path.join(root, "empty-bin")
+    mkdirSync(scratch)
+    mkdirSync(emptyBin)
+    const result = spawnSync(process.execPath, [
+      path.join(repoRoot, "scripts", "test-work-suite-runtime-audit.cjs"),
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 60000,
+      env: {
+        ...process.env,
+        TMPDIR: scratch,
+        TMP: scratch,
+        TEMP: scratch,
+        ...(missingGit ? { PATH: emptyBin } : {}),
+      },
+    })
+    assert.equal(result.error, undefined)
+    if (missingGit) {
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /latestCommit/)
+    } else {
+      assert.equal(result.status, 0, result.stderr)
+      assert.equal(result.stdout, "work-suite runtime audit tests passed.\n")
+    }
+    assert.deepEqual(readdirSync(scratch), [], "the test must reap only its own temporary fixtures")
+  })
+}
 
 const expectedSkillNames = [
   "autopilot",
