@@ -941,6 +941,42 @@ test("coverage required-file discovery includes production targets and excludes 
   }
 })
 
+test("coverage required-file discovery admits the offline evaluation implementation the root CI must exercise", async () => {
+  const { collectCoverageRequiredFiles } = await loadGate()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    // The maintained offline selection is evals/offline/*.mjs plus the pinned gauntlet TypeScript, alongside the changed scripts/skill-evals.cjs bridge that routes to it.
+    const included = [
+      "evals/offline/admission.mjs",
+      "evals/offline/cli.mjs",
+      "evals/offline/vendor/gauntlet/src/agent/validators.ts",
+      "evals/offline/vendor/gauntlet/src/types.ts",
+      "scripts/skill-evals.cjs",
+    ]
+    // Offline tests and their helpers are not production, a nested .mjs is outside the top-level selection, and TypeScript outside the pinned vendor tree is not part of the qualified set.
+    const excluded = [
+      "evals/offline/__tests__/admission.test.mjs",
+      "evals/offline/__tests__/coverage.mjs",
+      "evals/offline/__tests__/helpers/paths.mjs",
+      "evals/offline/vendor/gauntlet/src/context/helper.mjs",
+      "evals/offline/vendor/other/types.ts",
+    ]
+
+    for (const file of [...included, ...excluded]) {
+      writeFixture(fixtureRoot, file, "export {}\n")
+    }
+    writeFixture(fixtureRoot, "evals/offline/cases/v2-alpha-v1/dataset.json", "{}\n")
+
+    assert.deepEqual(
+      normalizePaths(collectCoverageRequiredFiles({ repoRoot: fixtureRoot })),
+      included.sort(),
+    )
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
 test("coverage runner exists and delegates to the coverage gate", () => {
   const runnerPath = path.join(mcpRoot, "scripts", "run-coverage.js")
   const runnerModulePath = path.join(mcpRoot, "src", "coverage", "runner.js")
