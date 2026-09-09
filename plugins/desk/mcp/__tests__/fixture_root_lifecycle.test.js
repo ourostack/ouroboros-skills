@@ -19,8 +19,8 @@ import { fileURLToPath } from "node:url"
 // A file that dies before it loads reports `# tests 1` / `# fail 1` and creates no
 // fixture at all, so residue-free is vacuously true for it. Every case below
 // therefore demands positive evidence that real tests executed — at least one
-// passing test — and then either an unambiguously clean outcome or, for a consumer
-// declared red below, that exact declared cause.
+// passing test — and then an unambiguously clean run, or the exact declared
+// alternative for a consumer that is red for a separately owned reason.
 
 const mcpRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
@@ -45,15 +45,20 @@ const FIXTURE_OWNERS = [
 ]
 
 // A consumer that is red for a separately owned reason stays in the lifecycle
-// witness — lifecycle has to hold on the failure path too — but it is declared by
-// its exact cause so this case can never absorb a different or earlier failure.
-// The pack failure itself belongs to its own consumer gate, not to this one.
+// witness — lifecycle has to hold on the failure path too — but a clean run is
+// always accepted first, so repairing the declared defect can never turn this
+// witness red. The declaration is only an alternative to a clean run, and it is
+// matched exactly: the failure count, the failing subtests, the cancellation state
+// and the cause. Anything beyond what is declared is somebody's regression, not a
+// known defect, and is rejected here. The pack failure itself belongs to its own
+// consumer gate, not to this one.
 const DECLARED_FAILURES = new Map([
   [
     "__tests__/integration/dependency_activation_flow.test.js",
     {
       owner: "runtime pack pinned behind its lock, owned separately",
-      subtest: "cold start restores the committed production snapshot without rebuild or embeddings",
+      subtests: ["cold start restores the committed production snapshot without rebuild or embeddings"],
+      cancelled: 0,
       cause: /stale_snapshot_reconciled/u,
     },
   ],
@@ -64,8 +69,8 @@ function tapCount(stdout, key) {
   return found ? Number(found[1]) : undefined
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+function failingSubtests(stdout) {
+  return [...stdout.matchAll(/^\s*not ok \d+ - (.+?)\s*$/gmu)].map((match) => match[1])
 }
 
 function runInPrivateTemp(args, sandbox, timeout) {
@@ -100,27 +105,32 @@ for (const [relPath, prefix] of FIXTURE_OWNERS) {
       const evidence = result.stderr || result.stdout
       const passed = tapCount(result.stdout, "pass")
       const failed = tapCount(result.stdout, "fail")
+      const cancelled = tapCount(result.stdout, "cancelled")
       assert.ok(
         passed >= 1,
         `${relPath} never ran a passing test, so an empty temp dir proves nothing: ${evidence}`,
       )
 
       const declared = DECLARED_FAILURES.get(relPath)
-      if (declared) {
-        assert.ok(failed >= 1, `${relPath} is declared red (${declared.owner}) but reported no failure`)
-        assert.match(
-          result.stdout,
-          new RegExp(`^not ok \\d+ - ${escapeRegExp(declared.subtest)}$`, "mu"),
-          `${relPath} failed somewhere other than its declared subtest: ${evidence}`,
+      if (result.status === 0 && failed === 0) {
+        // Clean is accepted for every consumer, declared or not — a declared defect
+        // that has since been repaired lands here and stays green.
+      } else {
+        assert.ok(declared, `${relPath} reported failures: ${evidence}`)
+
+        const failing = failingSubtests(result.stdout)
+        assert.equal(failing.length, failed, `${relPath} failure count and TAP lines disagree: ${evidence}`)
+        assert.deepEqual(
+          [...failing].sort(),
+          [...declared.subtests].sort(),
+          `${relPath} failed beyond its declaration (${declared.owner}): ${evidence}`,
         )
+        assert.equal(cancelled, declared.cancelled, `${relPath} cancellation state is undeclared: ${evidence}`)
         assert.match(
           result.stdout,
           declared.cause,
           `${relPath} failed for a cause other than the declared one: ${evidence}`,
         )
-      } else {
-        assert.equal(failed, 0, `${relPath} reported failures: ${evidence}`)
-        assert.equal(result.status, 0, evidence)
       }
 
       const kept = new Set([sameKind, unrelated].map((dir) => path.basename(dir)))
