@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "One raw coordinator attempt-journal record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sequence", "type", "runSetId", "attemptId", "cellId", "timestamp", "previousRecordSha256", "status", "receipt", "commitMarker"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 512},
+    "type": {"enum": ["attempt_start", "attempt_close"]},
+    "runSetId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "attemptId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "cellId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "previousRecordSha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "status": {"enum": [null, "passed", "product_failure", "inconclusive", "protocol_failure", "infrastructure_failure", "timed_out", "cancelled", "unavailable"]},
+    "receipt": {"anyOf": [{"$ref": "#/$defs/ref"}, {"type": "null"}]},
+    "commitMarker": {"anyOf": [{"$ref": "#/$defs/ref"}, {"type": "null"}]}
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"const": "attempt_start"}}}, "then": {"properties": {"status": {"type": "null"}, "receipt": {"type": "null"}, "commitMarker": {"type": "null"}}}},
+    {"if": {"properties": {"type": {"const": "attempt_close"}}}, "then": {"properties": {"status": {"type": "string"}, "receipt": {"$ref": "#/$defs/ref"}}}}
+  ],
+  "$defs": {
+    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}
+  }
+}

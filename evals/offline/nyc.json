@@ -1,0 +1,21 @@
+{
+  "all": true,
+  "include": [
+    "evals/offline/*.mjs",
+    "evals/offline/vendor/gauntlet/**/*.ts",
+    "scripts/skill-evals.cjs"
+  ],
+  "exclude": [],
+  "extension": [".js", ".cjs", ".mjs", ".ts"],
+  "parserPlugins": ["typescript"],
+  "reporter": ["text", "json-summary", "json"],
+  "reportDir": "evals/offline/.test-work/coverage",
+  "tempDir": "evals/offline/.test-work/coverage/raw",
+  "cache": false,
+  "checkCoverage": true,
+  "perFile": true,
+  "statements": 100,
+  "branches": 100,
+  "functions": 100,
+  "lines": 100
+}

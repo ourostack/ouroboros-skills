@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Complete or explicitly incomplete offline run set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "runSetId", "state", "plan", "expectedCells", "attemptJournal", "attempts", "unstartedCellIds", "createdAt", "closedAt"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "offline_run_set"},
+    "runSetId": {"$ref": "#/$defs/id"},
+    "state": {"enum": ["complete", "incomplete"]},
+    "plan": {"$ref": "#/$defs/ref"},
+    "expectedCells": {"$ref": "#/$defs/ref"},
+    "attemptJournal": {"$ref": "#/$defs/ref"},
+    "attempts": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/attempt"}},
+    "unstartedCellIds": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "closedAt": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "complete"}}},
+      "then": {"properties": {"attempts": {"minItems": 1}, "unstartedCellIds": {"maxItems": 0}, "closedAt": {"type": "string"}}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"},
+    "sha": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"$ref": "#/$defs/sha"}}},
+    "attempt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attemptId", "cellId", "sequence", "status", "receipt", "commitMarker"],
+      "properties": {
+        "attemptId": {"$ref": "#/$defs/id"},
+        "cellId": {"$ref": "#/$defs/id"},
+        "sequence": {"const": 1},
+        "status": {"enum": ["passed", "product_failure", "inconclusive", "protocol_failure", "infrastructure_failure", "timed_out", "cancelled", "unavailable"]},
+        "receipt": {"$ref": "#/$defs/ref"},
+        "commitMarker": {"anyOf": [{"$ref": "#/$defs/ref"}, {"type": "null"}]}
+      }
+    }
+  }
+}

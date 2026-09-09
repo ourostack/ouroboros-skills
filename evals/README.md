@@ -29,3 +29,7 @@ Use a fresh subject and independent judge, and retain the actual prompt, model a
 Keep valid failures and incomplete setup attempts. Do not rerun a valid failure to improve its score, convert passing-criterion counts into quality points, or treat runtime API duration as task elapsed time or employee productivity. A source-current complete receipt is necessary for a behavior claim, not sufficient evidence that the judge was right.
 
 The preview's feedback storage, installation, and rollback have separate runtime tests. This method-slice suite does not certify those surfaces or the full worker startup path. New production regressions should become small, independently falsifiable cases rather than another evaluation framework.
+
+## Fixed offline alpha tooling
+
+The [offline tooling](offline/README.md) adds versioned generic fixtures, role-separated materialization, bounded sealed evidence, pure report admission, committed artifact inventories and an executable `offline validate` / `offline compare` interface. Those static commands remain SDK-free and do not claim a scored evaluation. The native subject/judge producer is not yet admitted: `offline run` returns an explicit unavailable qualification result rather than using a mock or arbitrary shell runner. Historical preview receipts and the legacy CLI/library contracts remain unchanged.

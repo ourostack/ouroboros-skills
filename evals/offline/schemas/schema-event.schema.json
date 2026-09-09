@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Retained report schema-gate observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "sessionId", "toolCallId", "origin", "schemaSha256", "argumentsSha256", "decision", "reason"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "type": {"const": "report.schema_decision"},
+    "sessionId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "toolCallId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "origin": {"const": "handler"},
+    "schemaSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "argumentsSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "decision": {"enum": ["accepted", "rejected"]},
+    "reason": {"type": ["string", "null"], "maxLength": 4096}
+  }
+}

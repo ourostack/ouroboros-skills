@@ -1,0 +1,12 @@
+{
+  "name": "packed-delivery-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./dist/public-entry.mjs",
+  "files": ["dist"],
+  "scripts": {
+    "test": "node --test baseline.test.mjs",
+    "build": "node build.mjs"
+  }
+}

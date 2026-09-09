@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "offline_runtime_qualification",
+  "id": "terminal-semantic-fail-gpt",
+  "model": "gpt-6-astra",
+  "reasoningEffort": "high",
+  "contextTier": "default",
+  "scenario": "terminal-semantic-fail",
+  "runtime": {
+    "imageId": "sha256:REPLACE_WITH_THE_VERIFIED_LOCAL_IMAGE_DIGEST",
+    "platform": "linux/amd64",
+    "nodeVersion": "22.23.2",
+    "cliVersion": "1.0.84-1",
+    "sdkVersion": "1.0.13"
+  },
+  "credentialProvider": {
+    "kind": "gh-named-entitlement",
+    "hostname": "github.com",
+    "account": "YOUR_AUTHORIZED_GITHUB_ACCOUNT"
+  },
+  "limits": {
+    "startupSendWorkMs": 210000,
+    "commandMs": 10000,
+    "cleanupMs": 25000,
+    "maxStreamBytes": 16777216
+  }
+}

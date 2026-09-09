@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frozen offline run plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "runSetId", "sourceHashScheme", "comparison", "candidate", "dataset", "fixtureManifestSha256", "checkerManifestSha256", "admissionContractSha256", "toolingSourceManifestSha256", "runtime", "expectedCells", "attemptPolicy", "bindingSha256", "activation", "gitSeeds", "limits"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "offline_run_plan"},
+    "runSetId": {"$ref": "#/$defs/id"},
+    "sourceHashScheme": {"const": "sha256/raw-bytes"},
+    "comparison": {
+      "type": "object", "additionalProperties": false,
+      "required": ["groupId", "dimension", "treatmentId", "policySha256"],
+      "properties": {"groupId": {"$ref": "#/$defs/id"}, "dimension": {"enum": ["candidate", "method"]}, "treatmentId": {"$ref": "#/$defs/id"}, "policySha256": {"$ref": "#/$defs/sha"}}
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "repository", "sourceCommit", "sourceManifestSha256", "nonMethodSourceManifestSha256", "method", "installationReceiptSha256"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "repository": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sourceCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "sourceManifestSha256": {"$ref": "#/$defs/sha"},
+        "nonMethodSourceManifestSha256": {"$ref": "#/$defs/sha"},
+        "method": {
+          "type": "object", "additionalProperties": false, "required": ["id", "version", "payloadManifest"],
+          "properties": {"id": {"$ref": "#/$defs/id"}, "version": {"type": "string", "minLength": 1, "maxLength": 128}, "payloadManifest": {"$ref": "#/$defs/ref"}}
+        },
+        "installationReceiptSha256": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "dataset": {
+      "type": "object", "additionalProperties": false, "required": ["id", "version", "sha256"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "version": {"type": "string", "minLength": 1, "maxLength": 128}, "sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "fixtureManifestSha256": {"$ref": "#/$defs/sha"},
+    "checkerManifestSha256": {"$ref": "#/$defs/sha"},
+    "admissionContractSha256": {"$ref": "#/$defs/sha"},
+    "toolingSourceManifestSha256": {"$ref": "#/$defs/sha"},
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["nodeVersion", "sdkVersion", "sdkLockSha256", "cliVersion", "cliSha256", "qualificationReceiptSha256", "sessionMode"],
+      "properties": {
+        "nodeVersion": {"type": "string", "minLength": 1, "maxLength": 64},
+        "sdkVersion": {"const": "1.0.13"},
+        "sdkLockSha256": {"$ref": "#/$defs/sha"},
+        "cliVersion": {"const": "1.0.84-1"},
+        "cliSha256": {"$ref": "#/$defs/sha"},
+        "qualificationReceiptSha256": {"$ref": "#/$defs/sha"},
+        "sessionMode": {"const": "interactive"}
+      }
+    },
+    "expectedCells": {"$ref": "#/$defs/ref"},
+    "attemptPolicy": {
+      "type": "object", "additionalProperties": false, "required": ["maxAttemptsPerCell", "automaticRetry"],
+      "properties": {"maxAttemptsPerCell": {"const": 1}, "automaticRetry": {"const": false}}
+    },
+    "bindingSha256": {"$ref": "#/$defs/sha"},
+    "activation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["subjectAgent", "compositionSeam", "requestedConfigurationSha256", "qualificationReceipt"],
+      "properties": {
+        "subjectAgent": {"type": "string", "minLength": 1, "maxLength": 256},
+        "compositionSeam": {"type": "string", "minLength": 1, "maxLength": 256},
+        "requestedConfigurationSha256": {"$ref": "#/$defs/sha"},
+        "qualificationReceipt": {"anyOf": [{"$ref": "#/$defs/ref"}, {"type": "null"}]}
+      }
+    },
+    "gitSeeds": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["cellId", "fixtureId", "subjectFilesManifestSha256", "baseCommit", "initialBranch", "identity", "seedReceipt"],
+        "properties": {
+        "cellId": {"$ref": "#/$defs/id"},
+        "fixtureId": {"$ref": "#/$defs/id"},
+        "subjectFilesManifestSha256": {"$ref": "#/$defs/sha"},
+        "baseCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "initialBranch": {"type": "string", "minLength": 1, "maxLength": 256},
+        "identity": {
+          "type": "object", "additionalProperties": false, "required": ["authorName", "authorEmail", "committerName", "committerEmail"],
+          "properties": {
+            "authorName": {"type": "string", "minLength": 1, "maxLength": 256},
+            "authorEmail": {"type": "string", "minLength": 1, "maxLength": 256},
+            "committerName": {"type": "string", "minLength": 1, "maxLength": 256},
+            "committerEmail": {"type": "string", "minLength": 1, "maxLength": 256}
+          }
+        },
+        "seedReceipt": {"$ref": "#/$defs/ref"}
+        }
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["startupSendWorkMs", "cleanup", "maxStreamBytes", "maxFileBytes", "maxTotalBytes", "maxFiles"],
+      "properties": {
+        "startupSendWorkMs": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "cleanup": {
+          "type": "object", "additionalProperties": false, "required": ["totalMs", "abortMs", "stopMs"],
+          "properties": {"totalMs": {"type": "integer", "minimum": 3, "maximum": 2147483647}, "abortMs": {"type": "integer", "minimum": 1, "maximum": 2147483647}, "stopMs": {"type": "integer", "minimum": 1, "maximum": 2147483647}}
+        },
+        "maxStreamBytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "maxFileBytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "maxTotalBytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "maxFiles": {"type": "integer", "minimum": 1, "maximum": 4096}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"},
+    "sha": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"$ref": "#/$defs/sha"}}}
+  }
+}
