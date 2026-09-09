@@ -12,21 +12,22 @@
 // transmitted, or shared by this module — every read returns to the caller that
 // asked, and nothing else.
 
-import { createHash, randomUUID } from "node:crypto"
-import childProcess from "node:child_process"
-import { promises as fs, readFileSync } from "node:fs"
-import * as os from "node:os"
+import { randomUUID } from "node:crypto"
+import { readFileSync } from "node:fs"
 import * as path from "node:path"
 
-import Database from "better-sqlite3"
+import { resolveProtectedStore, withProtectedStore } from "../protected/store.js"
 
-import { expandHome, isPathContained, personPrefix } from "../util/paths.js"
-import { assertWindowsAclAvailable, protectWindowsPaths } from "./windows-acl.js"
-
-const OWNER_ONLY_DIR_MODE = 0o700
-const OWNER_ONLY_FILE_MODE = 0o600
-const STORE_SEGMENTS = ["ouroboros-skills", "desk", "feedback"]
-const DB_FILENAME = "feedback.sqlite"
+// This store's identity within the shared primitive. Module-internal constants,
+// never tool input: no caller can name another store's namespace, file or
+// schema. `subject` is what the protection messages call this data, so those
+// sentences stay exactly as callers already read them.
+const FEEDBACK_STORE = {
+  namespace: "feedback",
+  filename: "feedback.sqlite",
+  label: "desk_feedback",
+  subject: "feedback",
+}
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS feedback_entries (
@@ -62,40 +63,7 @@ export async function resolvePrivateStore({
   env = process.env,
   platform = process.platform,
 }) {
-  if (platform === "win32") {
-    assertWindowsAclAvailable({ env })
-  }
-
-  const alias = bindingAlias(deskRoot, person)
-  const realDeskRoot = await realPathOrThrow(
-    deskRoot,
-    "desk root could not be resolved",
-  )
-
-  const stateHome = resolveStateHome(env)
-  await fs.mkdir(stateHome, { recursive: true, mode: OWNER_ONLY_DIR_MODE })
-  const realStateHome = await realPathOrThrow(
-    stateHome,
-    "state home could not be resolved",
-  )
-
-  const partition = partitionId(realDeskRoot, alias)
-  const storeDir = path.join(realStateHome, ...STORE_SEGMENTS, partition)
-  await assertOutsideGitWorkspace({ realStateHome, storeDir, realDeskRoot })
-
-  let cursor = realStateHome
-  const ownedDirectories = []
-  for (const segment of [...STORE_SEGMENTS, partition]) {
-    cursor = path.join(cursor, segment)
-    const created = await ensureOwnerOnlyDirectory(cursor, platform)
-    await assertNotGitCheckout(cursor)
-    ownedDirectories.push({ path: cursor, kind: "directory", created })
-  }
-  if (platform === "win32") {
-    await protectWindowsPaths(ownedDirectories, { env })
-  }
-
-  return { storeDir, dbPath: path.join(storeDir, DB_FILENAME) }
+  return resolveProtectedStore({ deskRoot, person, env, platform, ...FEEDBACK_STORE })
 }
 
 /**
@@ -103,14 +71,12 @@ export async function resolvePrivateStore({
  * `body` receives a small operation surface — the DB handle never escapes.
  */
 export async function withPrivateStore(binding, body) {
-  const { dbPath } = await resolvePrivateStore(binding)
-  const { platform = process.platform, env = process.env } = binding
-  const db = await openPrivateDb(dbPath, { platform, env })
-  try {
-    return await body(storeOperations(db, binding.pluginRoot))
-  } finally {
-    db.close()
-  }
+  // The DB handle stays inside the primitive's bounded callback; feedback
+  // callers keep the narrow operation surface they already had.
+  return withProtectedStore(
+    { ...binding, ...FEEDBACK_STORE, schemaSql: SCHEMA_SQL },
+    (store) => body(storeOperations(store.db, binding.pluginRoot)),
+  )
 }
 
 function storeOperations(db, pluginRoot) {
@@ -178,160 +144,8 @@ function storeOperations(db, pluginRoot) {
   }
 }
 
-async function openPrivateDb(dbPath, { platform, env }) {
-  let created = false
-  try {
-    await fs.writeFile(dbPath, "", { flag: "wx", mode: OWNER_ONLY_FILE_MODE })
-    created = true
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error
-  }
-  const existing = await lstatIfPresent(dbPath)
-  if (existing !== null && existing.isSymbolicLink()) {
-    throw new Error(
-      `desk_feedback: private feedback DB path is a symlink and will not be used: ${dbPath}`,
-    )
-  }
-  if (existing === null || !existing.isFile()) {
-    throw new Error(`desk_feedback: private feedback store at ${dbPath} could not be opened: not a regular file`)
-  }
-  if (existing.nlink !== 1) {
-    throw new Error(`desk_feedback: private feedback DB is hard-linked and will not be used: ${dbPath}`)
-  }
-  if (platform === "win32") {
-    await protectWindowsPaths([{ path: dbPath, kind: "file", created }], { env })
-  } else {
-    clearExtendedAcl(dbPath, platform)
-    await fs.chmod(dbPath, OWNER_ONLY_FILE_MODE)
-  }
-  let db
-  try {
-    db = new Database(dbPath)
-    // DELETE journalling keeps the words in one file instead of leaving copies
-    // in a -wal sidecar; secure_delete zeroes freed pages so a deletion removes
-    // the text rather than unlinking a still-readable page.
-    db.pragma("journal_mode = DELETE")
-    db.pragma("secure_delete = ON")
-    db.exec(SCHEMA_SQL)
-  } catch (error) {
-    if (db !== undefined) db.close()
-    throw new Error(
-      `desk_feedback: private feedback store at ${dbPath} could not be opened: ${error.message}`,
-    )
-  }
-  return db
-}
-
 function unknownEntry(entryId) {
   return new Error(`desk_feedback: no feedback entry with entry_id ${entryId}`)
-}
-
-function bindingAlias(deskRoot, person) {
-  // personPrefix owns alias validation (rejects traversal and multi-segment
-  // aliases); reuse it here so the private store and the desk write paths agree
-  // on what a person binding may be.
-  const prefix = personPrefix(deskRoot, person)
-  return prefix === deskRoot ? null : path.basename(prefix)
-}
-
-function partitionId(realDeskRoot, alias) {
-  return createHash("sha256")
-    .update(JSON.stringify({ desk_root: realDeskRoot, person: alias }))
-    .digest("hex")
-    .slice(0, 32)
-}
-
-function resolveStateHome(env) {
-  const home = env.HOME ?? os.homedir()
-  const configured = env.XDG_STATE_HOME
-  if (typeof configured === "string" && configured.trim() !== "") {
-    return path.resolve(expandHome(configured, home))
-  }
-  return path.join(home, ".local", "state")
-}
-
-async function assertOutsideGitWorkspace({ realStateHome, storeDir, realDeskRoot }) {
-  if (isPathContained(realDeskRoot, storeDir)) {
-    throw new Error(
-      `desk_feedback: refusing to write private feedback inside the desk workspace: ${storeDir}. ` +
-        "The desk workspace is a Git checkout; private feedback must stay out of it.",
-    )
-  }
-  let cursor = realStateHome
-  while (true) {
-    await assertNotGitCheckout(cursor)
-    const parent = path.dirname(cursor)
-    if (parent === cursor) return
-    cursor = parent
-  }
-}
-
-async function assertNotGitCheckout(dir) {
-  if ((await lstatIfPresent(path.join(dir, ".git"))) !== null) {
-    throw new Error(
-      `desk_feedback: refusing to write private feedback inside the Git checkout at ${dir}. ` +
-        "Point XDG_STATE_HOME at a directory that is not under version control.",
-    )
-  }
-}
-
-async function ensureOwnerOnlyDirectory(dir, platform) {
-  let existing = await lstatIfPresent(dir)
-  let created = false
-  if (existing === null) {
-    try {
-      await fs.mkdir(dir, { mode: OWNER_ONLY_DIR_MODE })
-      created = true
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error
-    }
-    existing = await fs.lstat(dir)
-  }
-  if (existing.isSymbolicLink()) {
-    throw new Error(
-      `desk_feedback: private feedback path component is a symlink and will not be used: ${dir}`,
-    )
-  }
-  if (!existing.isDirectory()) {
-    throw new Error(`desk_feedback: private feedback path component is not a directory: ${dir}`)
-  }
-  if (platform !== "win32") {
-    clearExtendedAcl(dir, platform)
-    if ((existing.mode & 0o777) !== OWNER_ONLY_DIR_MODE) {
-      await fs.chmod(dir, OWNER_ONLY_DIR_MODE)
-    }
-  }
-  return created
-}
-
-function clearExtendedAcl(target, platform) {
-  if (platform !== "darwin") return
-  const options = { encoding: "utf8", timeout: 5000, maxBuffer: 65536 }
-  // macOS ACL grants can survive chmod 0700/0600. Restrict only our own paths.
-  childProcess.execFileSync("/bin/chmod", ["-N", target], options)
-  const listing = childProcess.execFileSync("/bin/ls", ["-ldeq", target], options)
-  if (/^\s*\d+:/mu.test(listing)) {
-    throw new Error(`desk_feedback: private feedback path retains an extended ACL: ${target}`)
-  }
-}
-
-async function realPathOrThrow(candidate, reason) {
-  try {
-    return await fs.realpath(candidate)
-  } catch (error) {
-    throw new Error(`desk_feedback: ${reason}: ${candidate} (${error.code})`)
-  }
-}
-
-async function lstatIfPresent(candidate) {
-  try {
-    return await fs.lstat(candidate)
-  } catch (error) {
-    if (error.code === "ENOENT") return null
-    throw new Error(
-      `desk_feedback: private feedback path ${candidate} could not be inspected (${error.code})`,
-    )
-  }
 }
 
 function nowIso() {

@@ -25,6 +25,8 @@ const EXPECTED_TOOLS = [
   "lesson_add",
   // Private, non-Git qualitative feedback about the preview build
   "desk_feedback",
+  // Private, non-Git work measurement the owner keeps about their own work
+  "desk_work_ledger",
   // Search (Units 4-6)
   "desk_search",
   "desk_recall",
