@@ -185,6 +185,7 @@ function readNativeAcl(target) {
     "ConvertTo-Json -Compress -InputObject ([pscustomobject]@{" +
     "owner=$a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value;" +
     "protected=$a.AreAccessRulesProtected;count=$r.Count;" +
+    "self=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value;" +
     "identity=$r[0].IdentityReference.Value;rights=$r[0].FileSystemRights.ToString()})"
   return JSON.parse(execFileSync(
     assertWindowsAclAvailable(),
@@ -274,9 +275,16 @@ test("native: Windows work ledger protects its own namespace and clears deleted 
 
     for (const target of [storeDir, dbPath]) {
       const acl = readNativeAcl(target)
+      // Pinning to the current user's own SID is the substantive claim. Asserting
+      // only that the granted identity equals the owner would also be satisfied by
+      // a directory owned by and granted to Administrators, which is not owner-only
+      // for this account. The `S-1-5-21-` prefix is what distinguishes a real
+      // machine-local user from a builtin group such as S-1-5-32-544.
+      assert.match(acl.self, /^S-1-5-21-/u, "the probe must resolve a real user SID")
+      assert.equal(acl.owner, acl.self, `${target} must be owned by the current user`)
       assert.equal(acl.protected, true, `${target} must not inherit rules`)
       assert.equal(acl.count, 1, `${target} must carry exactly one access rule`)
-      assert.equal(acl.identity, acl.owner, `${target} must grant its owner and nobody else`)
+      assert.equal(acl.identity, acl.self, `${target} must grant that user and nobody else`)
       assert.match(acl.rights, /FullControl/u)
     }
 
