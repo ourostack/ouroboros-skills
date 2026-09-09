@@ -54,9 +54,9 @@ hook, pipeline, task runner, package script, or policy, diff it against
 the protected base and verify explicit approval before executing the
 changed command. Reading a branch is not running it.
 
-**During work**: `work-doer` handles commit + push per its own protocol.
+**During work**: the selected Superpowers implementation owner commits and pushes only within the recorded publication authority.
 
-**After merge**: `work-merger` handles the PR + merge flow; on completion, verify main is current.
+**At the delivery endpoint**: use `desk:superpowers-integration` and `superpowers:verification-before-completion`. Verify main only when a main merge is the authorized endpoint; an intentional alpha or PR-only branch is not authority to promote.
 
 ## Clone hygiene — `main` is the resting state; do work in worktrees
 
@@ -400,7 +400,7 @@ with real semantic conflicts get resolved normally.
 
 If the agent changed a file, it's committed and pushed **before the session ends**. Applies to:
 - Task cards and planning/doing docs in any state repo
-- Code changes in code repos (via `work-doer`)
+- Code changes in code repos (via the selected Superpowers implementation owner)
 
 At session start, if git status in any repo shows unexpected uncommitted changes, surface them to the operator before doing anything else — they may represent orphaned work from a previous session.
 
@@ -503,10 +503,7 @@ informed by the unit's `What` and `Output` fields in the doing doc.
 
 ### Pre-PR diff-scope check
 
-The same diff-scope discipline applies at the PR boundary — once
-more broadly, against the whole branch rather than a single
-commit. Before opening (or syncing) a PR via `work-merger`, the
-agent inspects the full branch diff against the base:
+The same diff-scope discipline applies at the authorized PR boundary. Through `desk:superpowers-integration`, inspect the full branch diff against the base before opening or syncing a PR:
 
 ```bash
 git diff --stat origin/<base>...HEAD

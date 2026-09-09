@@ -45,7 +45,7 @@ const TOPIC_REQUIREMENTS = Object.freeze([
     terms: Object.freeze([
       "claude",
       "dependency",
-      "desk + work suite",
+      "desk + superpowers",
       "flattened",
     ]),
   }),
@@ -57,7 +57,7 @@ const TOPIC_REQUIREMENTS = Object.freeze([
     ]),
     terms: Object.freeze([
       "copilot",
-      "flattened work suite metadata",
+      "flattened superpowers metadata",
       "worker",
     ]),
   }),
@@ -447,7 +447,7 @@ function assertFixtureFails(errors, text, expected) {
   }
 }
 
-function assertFixturePasses(errors, text, headingPath = []) {
+function assertFixturePasses(errors, text, headingPath) {
   const found = fixtureErrors(text, headingPath);
   if (found.length > 0) {
     errors.push(`docs validator self-test failed: expected ${JSON.stringify(text)} to pass, got ${found.join("; ")}`);

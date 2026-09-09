@@ -1,6 +1,6 @@
 # Production Shared Artifacts
 
-Status: published in Unit 22e; regenerated for the engineering V2 preview on 2026-09-08, then re-anchored for the second preview version (`desk-mcp@1.4.0-alpha.2`) without re-embedding.
+Historical status: published in Unit 22e; regenerated for the engineering V2 preview on 2026-09-08, then re-anchored for the second preview version (`desk-mcp@1.4.0-alpha.2`) without re-embedding.
 
 This note records the expected verification shape for the first committed Desk production vector pack and snapshot. The artifacts must live under the active embedding-spec directories:
 
@@ -23,10 +23,12 @@ Commands run:
 - `npm --prefix plugins/desk/mcp run artifact:snapshot:verify -- --snapshot-id repo-public-bootstrap-2026-06-15`
 - `node scripts/test-desk-generated-artifacts.cjs`
 
-Current freshness anchors:
+Current alpha.3 candidate freshness anchors (not historical run identities):
 
-- current_artifact_source_scope_hash: sha256:40ebac7d21fdac434c79db366af29bd2533e0161056ec9fa83756067ff6dd69f
+- current_artifact_source_scope_hash: sha256:5ecdd7fab712b6a05c750a1269b5cc738ff1cd71d962d0bd7d13f7e7acd22fe2
 - current_document_tree_hash: sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8
+
+The local `desk-mcp@1.4.0-alpha.3` candidate was re-anchored through the maintained vector-pack and snapshot builders from the approved public snapshot in a scratch desk, including the reviewed dev-only AST coverage dependency lock. No indexing or embedding call was made. Both payloads are byte-identical to alpha.2; current manifest source hashes and timestamps changed. The published sections below retain the historical hashes and source provenance, not a claim that the alpha.3 composition was published or passed native admission.
 
 Published vector pack:
 

@@ -1,6 +1,6 @@
 ---
 name: pr-surface-hygiene
-description: Authoring rules for long-lived PR surfaces — the PR description body, top-level PR comments, and reply comments that aren't bound to a reviewer thread. Use before drafting any such content, and when auditing a draft handed off from an upstream tool (typically work-doer's `artifacts/pr-description.md`) before work-merger opens the PR. Keeps content from rotting against the pipeline it claims to describe.
+description: Authoring and audit rules for PR descriptions and comments. Use before drafting or publishing a PR surface, including a draft from the selected Superpowers implementation owner.
 ---
 
 # PR surface hygiene
@@ -388,11 +388,7 @@ the line.
 
 ## Applying after something else wrote it (audit mode)
 
-When `work-doer` drafts a PR description to
-`artifacts/pr-description.md` before `work-merger` opens the PR,
-audit the draft before handing it on — `work-doer` is general-
-purpose and doesn't know which pipelines are required in this org.
-Worker bridges that gap.
+When the selected Superpowers owner drafts `artifacts/pr-description.md`, audit it against the actual repository pipelines before authorized publication through `desk:superpowers-integration`. A generic implementation method does not establish which checks are required.
 
 Read the draft top-to-bottom and run the four-question checklist
 against every line. Edit the draft in place; this is the cheap

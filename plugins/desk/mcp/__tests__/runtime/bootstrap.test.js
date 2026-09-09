@@ -1706,3 +1706,199 @@ test("source mirror stages a complete tree before replacing a stale mirror", asy
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
+
+test("omitted bootstrap options fail before any runtime path is resolved", async () => {
+  const { importRuntimeServer, prepareRuntime } = await loadBootstrap()
+  const message = "desk-mcp: mcpRoot is required for runtime dependency bootstrap"
+  assert.throws(() => prepareRuntime(), { message })
+  await assert.rejects(() => importRuntimeServer(), { message })
+})
+
+test("omitted cache options use the ambient override without creating a cache", async () => {
+  const { resolveRuntimeCacheDir } = await loadBootstrap()
+  const root = makeTempDir()
+  const cache = path.join(root, "ambient-cache")
+  const previous = process.env.DESK_RUNTIME_CACHE_DIR
+  process.env.DESK_RUNTIME_CACHE_DIR = cache
+  try {
+    assert.equal(resolveRuntimeCacheDir(), cache)
+    assert.equal(existsSync(cache), false)
+    assert.deepEqual(readdirSync(root), [])
+  } finally {
+    if (previous === undefined) delete process.env.DESK_RUNTIME_CACHE_DIR
+    else process.env.DESK_RUNTIME_CACHE_DIR = previous
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("default host inspection and restoration preserve exact missing-matrix and missing-pack diagnostics", async (t) => {
+  const { inspectRuntimeDependencyPack, restoreRuntimeDependencies, sourceFilesForHash } = await loadBootstrap()
+  const { deriveRuntimeDependencyPackPaths, deriveRuntimeSupportMatrixPath } = await loadRuntimeDeps()
+  const { default: fs } = await import("node:fs")
+  const { syncBuiltinESMExports } = await import("node:module")
+  const fixture = makeMcpFixture()
+  const target = `${process.platform}-${process.arch}-node-${process.versions.modules}`
+  const matrixPath = deriveRuntimeSupportMatrixPath(fixture)
+  const packPaths = deriveRuntimeDependencyPackPaths({
+    ...fixture, platform: process.platform, arch: process.arch, nodeAbi: process.versions.modules,
+  })
+  const filesBefore = sourceFilesForHash(fixture.mcpRoot)
+  try {
+    const absent = inspectRuntimeDependencyPack({ mcpRoot: fixture.mcpRoot })
+    assert.equal(absent.reason, "corrupt_pack")
+    assert.equal(absent.failure_kind, "manifest_mismatch")
+    assert.equal(absent.runtime.current_target.id, target)
+    assert.equal(absent.runtime.current_target.platform, process.platform)
+    assert.equal(absent.runtime.current_target.arch, process.arch)
+    assert.equal(absent.runtime.current_target.node_abi, process.versions.modules)
+    assert.ok(absent.errors[0].includes(matrixPath))
+    assert.ok(absent.errors[0].includes("ENOENT"))
+    const read = fs.readFileSync
+    const mocked = t.mock.method(fs, "readFileSync", (file, ...args) => {
+      if (file === matrixPath) throw "fixture matrix read failure"
+      return read(file, ...args)
+    })
+    syncBuiltinESMExports()
+    let fault
+    try {
+      fault = inspectRuntimeDependencyPack({ mcpRoot: fixture.mcpRoot, packPaths })
+    } finally {
+      mocked.mock.restore()
+      syncBuiltinESMExports()
+    }
+    assert.equal(fault.failure_kind, "manifest_mismatch")
+    assert.deepEqual(fault.errors, ["fixture matrix read failure"])
+    assert.deepEqual(fault.runtime.paths_checked, [
+      matrixPath, packPaths.packDir, packPaths.manifestPath, packPaths.checksumPath, packPaths.archivePath,
+    ])
+    const runtimeCacheDir = path.join(fixture.root, "uncreated-cache")
+    assert.throws(
+      () => restoreRuntimeDependencies({
+        mcpRoot: fixture.mcpRoot, packageJson: fixture.packageJson,
+        packageLockPath: fixture.packageLockPath, packPaths, runtimeCacheDir, target,
+      }),
+      (error) => {
+        assert.ok(error.message.startsWith(`desk-mcp: runtime dependency pack is unavailable for ${target}.`))
+        assert.ok(error.message.includes("runtime dependency pack manifest runtime-deps.manifest.json is missing"))
+        assert.ok(error.message.includes("runtime dependency pack checksum runtime-deps.sha256 is missing"))
+        assert.ok(error.message.includes("runtime dependency pack archive runtime-deps.tgz is missing"))
+        return true
+      },
+    )
+    assert.equal(existsSync(runtimeCacheDir), false)
+    assert.equal(existsSync(path.join(fixture.mcpRoot, "artifacts")), false)
+    assert.deepEqual(sourceFilesForHash(fixture.mcpRoot), filesBefore)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("process liveness's default signal-zero operation observes the current test process", async () => {
+  const { processIsAlive } = await loadBootstrap()
+  assert.equal(processIsAlive(process.pid), true)
+})
+
+test("source hashing ignores real directory links and their changing external content", async () => {
+  const { hashCurrentSource, sourceFilesForHash } = await loadBootstrap()
+  const { symlinkSync } = await import("node:fs")
+  const fixture = makeMcpFixture()
+  try {
+    const files = sourceFilesForHash(fixture.mcpRoot)
+    const hash = hashCurrentSource(fixture.mcpRoot)
+    const external = path.join(fixture.root, "external-source")
+    writeText(path.join(external, "not-owned.js"), "first external content\n")
+    symlinkSync(external, path.join(fixture.mcpRoot, "src", "external-link"), process.platform === "win32" ? "junction" : "dir")
+    assert.deepEqual(sourceFilesForHash(fixture.mcpRoot), files)
+    assert.equal(hashCurrentSource(fixture.mcpRoot), hash)
+    writeText(path.join(external, "not-owned.js"), "changed external content\n")
+    assert.equal(hashCurrentSource(fixture.mcpRoot), hash)
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("publication recovers when a competing lock vanishes before metadata inspection", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const stagingDir = path.join(root, "stage")
+  const destinationDir = path.join(root, "destination")
+  const lockDir = `${destinationDir}.publish-lock`
+  let collided = false
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    const result = publishDirectoryAtomically({
+      stagingDir, destinationDir,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      createLockDirectory: (candidate) => {
+        mkdirSync(candidate)
+        if (candidate === lockDir && !collided) {
+          collided = true
+          rmSync(candidate, { recursive: true })
+          throw Object.assign(new Error("a competing lock vanished"), { code: "EEXIST" })
+        }
+      },
+    })
+    assert.equal(collided, true)
+    assert.deepEqual(result, { destinationDir, published: true, reused: false })
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+    assert.deepEqual(readdirSync(root), ["destination"])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("publication does not fail or remove payload when its lock disappears before release", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const stagingDir = path.join(root, "stage")
+  const destinationDir = path.join(root, "destination")
+  const lockDir = `${destinationDir}.publish-lock`
+  let removed = false
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    const result = publishDirectoryAtomically({
+      stagingDir, destinationDir,
+      validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+      rename: (from, to) => {
+        assert.equal(from, stagingDir)
+        assert.equal(to, destinationDir)
+        assert.equal(readJson(path.join(lockDir, "owner.json")).pid, process.pid)
+        renameSync(from, to)
+        rmSync(lockDir, { recursive: true })
+        removed = true
+      },
+    })
+    assert.equal(removed, true)
+    assert.deepEqual(result, { destinationDir, published: true, reused: false })
+    assert.equal(readFileSync(path.join(destinationDir, "marker"), "utf8"), "candidate\n")
+    assert.deepEqual(readdirSync(root), ["destination"])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("a first publication rename failure propagates its error with no previous destination to restore", async () => {
+  const { publishDirectoryAtomically } = await loadBootstrap()
+  const root = makeTempDir()
+  const stagingDir = path.join(root, "stage")
+  const destinationDir = path.join(root, "destination")
+  const failure = Object.assign(new Error("initial publication rename denied"), { code: "EACCES" })
+  try {
+    writeText(path.join(stagingDir, "marker"), "candidate\n")
+    assert.throws(
+      () => publishDirectoryAtomically({
+        stagingDir, destinationDir,
+        validateDestination: (candidate) => existsSync(path.join(candidate, "marker")),
+        rename: (from, to) => {
+          assert.equal(from, stagingDir)
+          assert.equal(to, destinationDir)
+          throw failure
+        },
+      }),
+      (error) => error === failure,
+    )
+    assert.deepEqual(readdirSync(root), [])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

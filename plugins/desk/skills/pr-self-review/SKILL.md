@@ -1,20 +1,11 @@
 ---
 name: pr-self-review
-description: >-
-  Final pre-open fresh-eyes pass on a PR after operator-worker collab review
-  cycles. Invoke only when the operator explicitly signals ready for a
-  self-review convergence pass, phrased as run self-review, polish this PR,
-  ready to share, final gate, or pr-self-review. Worker runs a thorough
-  evaluation against the diff, fact-checks findings, classifies each as auto
-  (the agent can fix it mechanically) or human (requires operator judgment), and
-  enters a convergence loop that auto-addresses the auto findings via
-  pr-feedback-on-own-pr, re-reviewing after each pass until no auto-addressable
-  findings remain. Do NOT invoke during initial implementation (work-doer's
-  job), during manual human-agent review cycles, or as a substitute for real
-  reviewer sign-off; this is a final polish pass, not a replacement for humans.
+description: Read-only PR evaluation when the operator requests a self-review or final polish pass. Fact-check and classify findings, then hand them to the single independent-review cycle and existing Superpowers implementation owner. Not a substitute for required reviewer approval.
 ---
 
 # pr-self-review
+
+Invoke `desk:superpowers-integration` and `desk:independent-review`. The evaluation phases below supply the PR-specific rubric. Remediation and re-review belong to that one independent-review cycle; any convergence instructions below are details of that same cycle, not authority to create a second fix owner or loop.
 
 ## Invariants
 
@@ -22,14 +13,7 @@ These seven properties define what pr-self-review IS and IS NOT. They
 are not preferences. Any change that violates one of these is a
 redesign, not a tweak.
 
-1. **Workflow owned, content borrowed.** Worker owns the pipeline —
-   preflight, evaluate, fact-check, report, and the convergence loop
-   around them. Worker does NOT author rule content. Rules come from
-   the repo's own `AGENTS.md` / `CLAUDE.md`, from
-   `repo-knowledge/<repo>/code-standards.md`, from
-   `.vscode/copilot/personas/*.instructions.md`, or from worker's
-   minimal language-agnostic baseline. The skill is a harness for
-   whichever rule set the repo provides.
+1. **Review content is borrowed, not a second method.** Read the repository's `AGENTS.md` / `CLAUDE.md`, code standards and personas, falling back to the language-agnostic rubric below. Preflight, evaluation, fact-checking and reporting feed `desk:independent-review`; the same selected Superpowers owner applies any authorized changes.
 
 2. **Best model throughout.** No multi-model cost optimization. A
    cheap stage contaminates every downstream stage that depends on
@@ -62,17 +46,7 @@ redesign, not a tweak.
    for future per-rule effectiveness tracking and for stable cross-
    references from findings back to the rule that produced them.
 
-6. **Overall PR lifecycle not encoded; within-invocation convergence
-   IS encoded.** How worker composes `work-ideator`, `work-planner`,
-   `work-doer`, and `work-merger` across a task is flexible — the
-   operator decides when pr-self-review runs vs. doesn't, first-open
-   vs. re-review, one pass vs. many. This skill does NOT dictate
-   those lifecycle decisions. BUT once the operator signals "ready"
-   and the skill is invoked, the within-invocation behavior *is*
-   encoded: run the pass, auto-address what can be auto-addressed
-   via `pr-feedback-on-own-pr`'s auto-apply path, re-review, loop until stable
-   or only human-judgment items remain. See the convergence-loop
-   section for the full spec.
+6. **One convergence owner.** `desk:independent-review` owns disposition and re-review, with one Superpowers implementation owner for all remediation. The operator or approved mandate selects when review runs. PR-specific intake and the convergence details below are invoked within that cycle, never beside it; they cannot enlarge delegation or replace an intentional alpha endpoint with main promotion.
 
 7. **Collab before convergence.** Do not invoke pr-self-review before
    the operator-worker collab of step 3 in the broader PR lifecycle

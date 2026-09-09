@@ -5,7 +5,7 @@ import * as path from "node:path"
 
 import { resolvePrivateStore, withPrivateStore } from "../../src/feedback/store.js"
 import { callTool } from "../../src/server.js"
-import { mkFeedbackFixture, useStateHome, cleanup } from "./_helpers.js"
+import { mkFeedbackFixture, useStateHome, cleanup, writePosixNodeProvider } from "./_helpers.js"
 
 const isWindows = process.platform === "win32"
 const standIn = { skip: isWindows ? "POSIX adapter stand-in; native Windows cases below use the real provider" : false }
@@ -15,7 +15,7 @@ async function makeProvider(fixture, failKind = null) {
   const directory = path.join(root, "System32", "WindowsPowerShell", "v1.0")
   const trace = path.join(fixture.base, "provider-calls.jsonl")
   await fs.mkdir(directory, { recursive: true })
-  await fs.writeFile(path.join(directory, "powershell.exe"), `#!/usr/bin/env node
+  await writePosixNodeProvider(path.join(directory, "powershell.exe"), `
 const fs = require("node:fs");
 let raw = "";
 process.stdin.on("data", chunk => raw += chunk);
@@ -30,7 +30,7 @@ process.stdin.on("end", () => {
     ...entry, owner_sid:"S-1-5-21-1-2-3-1001", owner_reassigned:false, protected:true, rule_count:1
   }))}));
 });
-`, { mode: 0o755 })
+`)
   return {
     binding: { deskRoot: fixture.deskRoot, platform: "win32", env: { SystemRoot: root, XDG_STATE_HOME: fixture.stateHome } },
     trace,

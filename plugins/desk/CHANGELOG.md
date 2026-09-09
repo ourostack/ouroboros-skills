@@ -1,5 +1,13 @@
 # desk plugin — changelog
 
+## 3.2.0-alpha.3 — 2026-09-09
+
+**Opt-in Superpowers source candidate, not a default installation change or native-admission claim.** Desk selects pinned Superpowers 6.3.0 as the sole engineering method. Desk/Crew retain state, existing approvals, delegation limits and intentional alpha/PR-only delivery boundaries. The independent-review contract makes RoboRev a first-class host-provided reviewer with one implementation owner for remediation and re-review. Work Suite remains available as a legacy standalone provider.
+
+Desk `3.2.0-alpha.3` couples to `desk-mcp@1.4.0-alpha.3`, current activation metadata and generated host fixtures. The read-only context adapter requires existing canonical task, plan and doing files; no-create path resolution preserves its default write behavior, and the existing segment validator is exported unchanged. Copilot uses the authored hook adapter while pristine upstream hooks and all selected skill payloads retain their lock hashes.
+
+Both runtime dependency targets are repackaged for the candidate. The Windows dependency payload is reused with verified provenance, not executed on this Mac. Approved public vector/snapshot payloads remain byte-identical while current source metadata is re-anchored. Historical preview results and runtime limitations remain historical; full native and consumer-composition qualification is separate.
+
 ## 3.2.0-alpha.2 — 2026-09-08
 
 **The second opt-in preview fixes two native Windows failures without changing the Work Suite method.** The ACL provider constrains its Windows PowerShell child's module search to that provider's system modules, avoiding incompatible PowerShell Core modules inherited from the host. Canonical LF text checkouts preserve the bytes used by runtime-lock and source fingerprints; binary files remain binary. The temporary CI diagnostic is removed, and the native Windows job also validates source-bound evaluation contracts.

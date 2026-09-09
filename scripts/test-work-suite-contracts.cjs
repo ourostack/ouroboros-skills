@@ -64,8 +64,8 @@ for (const file of ["skills/work-ideator/SKILL.md", "plugins/work-suite/skills/w
 }
 requires(
   "plugins/desk/skills/work-orchestration/SKILL.md",
-  "routing cannot bypass the alignment boundary",
-  /before choosing[\s\S]+lane[\s\S]+work-ideator[\s\S]+explicit go/iu,
+  "Desk alpha delegates engineering without repeating approval",
+  /desk:superpowers-integration[\s\S]+existing task[\s\S]+prior approval without reopening/iu,
 );
 requires(
   "skills/work-doer/SKILL.md",
@@ -82,11 +82,11 @@ assert.match(text("skills/work-doer/SKILL.md"), /Apply Ponytail's ladder/u);
 assert.match(text("skills/work-planner/SKILL.md"), /skip planning and implement/u);
 assert.match(text("skills/work-merger/SKILL.md"), /release or install refresh/u);
 assert.match(text("skills/autopilot/SKILL.md"), /needs-human-approval/u);
-assert.match(text("plugins/desk/skills/work-orchestration/SKILL.md"), /Clear, local, low risk/u);
+assert.match(text("plugins/desk/skills/work-orchestration/SKILL.md"), /Superpowers owns discovery, planning, execution and verification/u);
 assert.match(text("plugins/desk/skills/task-lifecycle/SKILL.md"), /clear task can remain task-card-only/u);
 assert.match(text("plugins/desk/skills/task-lifecycle/SKILL.md"), /release\/install, consuming-surface smoke, cleanup/u);
 assert.doesNotMatch(text("plugins/desk/skills/task-lifecycle/SKILL.md"), /Operator approves the planning doc/u);
-assert.match(text("plugins/desk/skills/start-task/SKILL.md"), /Hand off to `work-orchestration`/u);
+assert.match(text("plugins/desk/skills/start-task/SKILL.md"), /Hand off through `desk:superpowers-integration`/u);
 assert.match(text("plugins/desk/skills/session-resumption/SKILL.md"), /transition clear work directly to `processing`/u);
 assert.match(
   text("plugins/desk/skills/git-hygiene/SKILL.md").split("---", 3)[1],
@@ -390,8 +390,8 @@ for (const file of [
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
 ]) {
-  contract(`${file} releases Desk 3.2.0-alpha.2`, () => {
-    assert.equal(json(file).version, "3.2.0-alpha.2");
+  contract(`${file} releases Desk 3.2.0-alpha.3`, () => {
+    assert.equal(json(file).version, "3.2.0-alpha.3");
   });
 }
 
@@ -448,7 +448,7 @@ contract("coverage exclusion list has no campaign additions", () => {
 
 assert.equal(json("plugins/plain-language/plugin.json").version, "0.2.0");
 assert.equal(json("plugins/ponytail-upstream/plugin.json").version, "4.9.0");
-assert.equal(json("plugins/desk/mcp/package.json").version, "1.4.0-alpha.2");
+assert.equal(json("plugins/desk/mcp/package.json").version, "1.4.0-alpha.3");
 
 const hookData = fs.mkdtempSync(path.join(os.tmpdir(), "ponytail-provider-"));
 try {

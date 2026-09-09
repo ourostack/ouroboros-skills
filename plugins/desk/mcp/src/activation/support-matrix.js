@@ -37,7 +37,7 @@ const UNSUPPORTED_PRIMITIVES = new Set([
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const defaultRepoRoot = path.resolve(moduleDir, "..", "..", "..", "..", "..")
 const defaultManifestPath = "plugins/desk/activation/desk.activation.json"
-const defaultEvidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const defaultEvidencePath = "plugins/desk/activation/host-capability-evidence.md"
 const defaultOutputPath = "plugins/desk/activation/support-matrix.json"
 
 export function parseHostCapabilityEvidence({ content, sourcePath }) {

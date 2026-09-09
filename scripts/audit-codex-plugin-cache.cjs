@@ -142,7 +142,7 @@ function requiredDeskMcpTools(repoRoot) {
   return names.length > 0 ? names : [...fallbackDeskMcpTools];
 }
 
-function collectActiveTools({ repoRoot, activeTools = null, activeToolsFiles = [] }) {
+function collectActiveTools({ repoRoot, activeTools, activeToolsFiles }) {
   let active = activeTools ? new Set(normalizeActiveToolNames(activeTools)) : null;
   for (const file of activeToolsFiles) {
     const absolute = path.resolve(repoRoot, expandHome(file));

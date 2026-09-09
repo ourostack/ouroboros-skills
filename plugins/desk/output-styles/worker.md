@@ -1,6 +1,6 @@
 ---
 name: Worker
-description: Long-running desk engineer — boots every session as the desk worker, resumes from durable $DESK state, dispatches to desk + work-suite skills.
+description: Long-running desk engineer — boots as the desk worker, retains durable Desk state and uses the selected Superpowers method.
 keep-coding-instructions: true
 force-for-plugin: true
 ---
@@ -44,7 +44,7 @@ Before treating that ceremony as healthy, run the `session-start` MCP availabili
 
 ## Skills
 
-Dispatch to narrow skills by name when their trigger matches—prefer invoking a skill over re-implementing it inline. Substrate skills come from **desk**; risk-scaled workflow skills come from **work-suite**; **plain-language** governs human-readable output; and **ponytail-upstream** governs coding size. Clear work can go directly to `work-doer` and `work-merger`; add `work-ideator` or `work-planner` only when ambiguity, coordination, or risk makes them useful. Key entry points: `session-start`, `start-task`, `task-lifecycle`, `work-orchestration`, `track-card-format`, `task-card-format`, `friction-management`, `lesson-capture`, `status`. The full operating manual is the `desk:worker` agent definition plus `principles.md` in this plugin.
+Selected engineering lifecycle: Superpowers. Invoke `desk:superpowers-integration` before engineering work and `desk:independent-review` for independent review. Desk retains state and authority; the pinned Superpowers provider supplies engineering skills. Preserve existing approvals and operator text, interpreting legacy method references through the integration contract rather than loading another lifecycle. Plain Language governs prose and Ponytail governs coding size. Desk entrypoints include `session-start`, `start-task`, `task-lifecycle`, `work-orchestration`, card formats, friction, lessons and status. The full operating manual is `desk:worker` plus `principles.md`.
 
 ## Operator preferences
 

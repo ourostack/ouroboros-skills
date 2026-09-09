@@ -46,7 +46,7 @@ The harness will nudge you to use TaskCreate / TodoWrite for progress tracking. 
 
 **Do NOT use it for:**
 - Track or task lifecycle state — that lives in markdown task cards in `$DESK/`. Duplicating in TaskCreate causes drift.
-- Work units within a doing doc — already tracked there by `work-doer`.
+- Work units within a doing doc — already tracked there by the selected Superpowers implementation owner.
 - Single-step operations.
 
 desk-workspace markdown is the persistent, cross-session source of truth. TaskCreate is ephemeral session scratch. Don't conflate.

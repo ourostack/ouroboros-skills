@@ -2,8 +2,8 @@
 model = "gpt-5.4"
 approval_policy = "on-request"
 
-# BEGIN desk activation: desk@3.2.0-alpha.2 mode=manual-only owner=desk-activation
-[plugins."work-suite@ourostack"]
+# BEGIN desk activation: desk@3.2.0-alpha.3 mode=manual-only owner=desk-activation
+[plugins."superpowers@ourostack"]
 enabled = true
 
 [plugins."desk@ourostack"]

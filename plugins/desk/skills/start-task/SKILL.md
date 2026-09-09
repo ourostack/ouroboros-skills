@@ -12,6 +12,8 @@ description: >-
 
 # Start a task
 
+Invoke `desk:superpowers-integration` for the engineering handoff. Desk retains outcome identity, scope and the explicit go; Superpowers consumes them without another intake or lifecycle.
+
 A task enters the workspace through one of two paths. Both end in the same
 place: a new `task.md` under a track directory in `$DESK/`.
 
@@ -42,7 +44,7 @@ Triggers: "start a new task: …", "work on …", "I need to add X to Y",
    - `repos: []` — populate only if the description names code repos;
      otherwise ask, or leave empty for non-coding tasks.
 4. **Commit + push** the new task card to the workspace repo.
-5. Hand off to `work-orchestration`. New work must first establish the alignment receipt and explicit go-ahead through `work-ideator`. Already-approved clear work can transition directly to `processing`; create planning/doing documents only when coordination, novelty, or risk makes them useful.
+5. Hand off through `desk:superpowers-integration`. Consume the existing approval or use `superpowers:brainstorming` to resolve missing agreement. Already-approved work can transition directly to `processing`; keep any required plan and doing record at the existing Desk paths.
 
 ## Path B — agent-initiated
 

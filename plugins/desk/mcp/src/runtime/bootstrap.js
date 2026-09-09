@@ -64,7 +64,7 @@ function corruptPackInspection({
   failureKind,
   summary,
   runtime,
-  errors = [],
+  errors,
 }) {
   return {
     ok: false,
@@ -997,7 +997,7 @@ export function runtimeDependencyPackError({
   ].join("\n"))
 }
 
-function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin, requiredCacheEntries = [] }) {
+function runtimeCacheIsCurrent({ runtimeCacheDir, archiveSha, target, expectedPlugin, requiredCacheEntries }) {
   const markerPath = path.join(runtimeCacheDir, cacheMarkerFile)
   const completeMarkerPath = path.join(runtimeCacheDir, ".complete.json")
   if (!existsSync(markerPath) || !existsSync(completeMarkerPath)) {

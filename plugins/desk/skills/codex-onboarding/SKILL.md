@@ -1,20 +1,22 @@
 ---
 name: codex-onboarding
-description: Verify and repair Codex host-native Desk activation, including plugin source/marketplace exposure, Desk + Work Suite enablement, the activation-owned Desk MCP bridge, runtime dependency pack health, `$DESK` binding, and owned worker-default activation blocks.
+description: Verify Codex Desk alpha activation, including the selected Superpowers provider, owned MCP bridge and instruction block, runtime dependencies and Desk binding.
 ---
 
 # Codex onboarding
+
+Invoke `desk:superpowers-integration` for the selected method and compatibility boundary. Preserve operator-owned instructions; reject an enabled competing lifecycle instead of rewriting the operator's configuration. Manual-only remains an intentional opt-out.
 
 Use this when a Codex agent needs to verify or repair Desk activation on a machine.
 
 ## Target shape
 
 - Local workspace: `$DESK`, commonly `~/desk` for a personal Codex workspace.
-- Desk and Work Suite are installed or exposed through the host's plugin loading surface.
+- Desk and Superpowers are installed or exposed through the host's plugin loading surface.
 - Codex config has:
-  - a marketplace/plugin source that exposes Desk and Work Suite.
+  - an admitted alpha plugin source that exposes Desk and Superpowers.
   - `desk@<marketplace-name>` enabled.
-  - `work-suite@<marketplace-name>` enabled.
+  - `superpowers@<marketplace-name>` enabled, with no active Work Suite lifecycle.
   - an activation-owned Desk MCP bridge that launches Desk's bundled MCP entrypoint with the activation config.
 - The `worker` agent layer is materialized by an owned activation block:
   - **global-personal** (default): every Codex session reads the desk substrate as always-on context.
@@ -33,7 +35,7 @@ Do this before treating `session-start` as healthy:
 
 ## Verify or repair
 
-1. If this is a local development install, make the host marketplace point at the canonical `ouroboros-skills` checkout, not a long-lived `~/plugins` snapshot. The common Codex implicit marketplace is `~/.agents/plugins/marketplace.json`; its source paths are resolved relative to `$HOME`, so local repo paths should look like:
+1. For an authorized alpha repair, use the host's admitted source checkout, not a canonical main checkout or stale plugin snapshot. Keep existing profiles unchanged unless repairing them is in scope. The common Codex implicit marketplace is `~/.agents/plugins/marketplace.json`; local paths are resolved relative to `$HOME`. The source-shape example below must refer to the admitted alpha checkout:
 
 ```json
 {
@@ -44,8 +46,8 @@ Do this before treating `session-start` as healthy:
       "source": { "source": "local", "path": "./Projects/ouroboros-skills/plugins/desk" }
     },
     {
-      "name": "work-suite",
-      "source": { "source": "local", "path": "./Projects/ouroboros-skills/plugins/work-suite" }
+      "name": "superpowers",
+      "source": { "source": "local", "path": "./Projects/ouroboros-skills/plugins/superpowers" }
     },
     {
       "name": "plain-language",
@@ -59,17 +61,17 @@ Do this before treating `session-start` as healthy:
 }
 ```
 
-Avoid keeping `~/plugins/desk`, `~/plugins/work-suite`, `~/plugins/plain-language`, and `~/plugins/ponytail-upstream` as the steady-state source unless a separate sync job and audit prove they are fresh. Stale snapshots can keep Codex installing old plugin versions even after the repo and cache look healthy.
+Avoid stale copies of Desk, Superpowers and companion plugins. A cache or source label alone does not prove the active artifact; inspect the selected loaded roots and content identity.
 
-2. Ensure the plugin source/marketplace includes `desk`, `work-suite`, `plain-language`, and `ponytail-upstream`. Use the marketplace `name` as the namespace in config (`desk@<marketplace-name>`), not a hard-coded `ourostack` value. Local development installs may use `ourostack`; older installs may still say `ourostack-local`, but the source path must still resolve to the canonical plugin files.
+2. Ensure the selected source includes `desk`, `superpowers`, `plain-language` and `ponytail-upstream`. Use its actual marketplace namespace, not a hard-coded label. The selected source must be the admitted alpha artifact, not a canonical main checkout substituted because it is convenient.
 
 Run the source/cache/implicit-marketplace audit after repairs:
 
 ```bash
-node scripts/audit-codex-plugin-cache.cjs --strict
+node "${ALPHA_SOURCE:?Select the admitted alpha source}/scripts/audit-codex-plugin-cache.cjs" --repo-root "$ALPHA_SOURCE" --plugins desk,superpowers,plain-language,ponytail-upstream --strict
 ```
 
-This checks the repo marketplace, installed `~/.codex/plugins/cache` manifests, and the host implicit `~/.agents/plugins/marketplace.json` when present. A current repo/cache report with a stale host marketplace still means future Codex sessions can reinstall old plugins.
+This read-only audit explicitly selects the alpha plugin set; its omitted-option default remains the legacy set. It checks source, cache and host-marketplace metadata, not method-following behavior. Add the selected consumer plugins to that explicit list when auditing an overlay. Cache metadata alone does not establish active-session source identity.
 
 3. Ensure `~/.codex/config.toml` has an owned Desk activation block equivalent to the adapter output for the selected mode:
 
@@ -81,7 +83,7 @@ source = "/Users/<operator>"
 [plugins."desk@ourostack-local"]
 enabled = true
 
-[plugins."work-suite@ourostack-local"]
+[plugins."superpowers@ourostack-local"]
 enabled = true
 
 [plugins."plain-language@ourostack-local"]
@@ -171,7 +173,7 @@ child.kill("SIGTERM")
 EOF
 ```
 
-The active Codex session will not gain new plugin skills retroactively. Restart Codex or open a fresh session to confirm that `desk`, `work-suite`, `plain-language`, and `ponytail-upstream` appear in the available plugins/skills list.
+The active Codex session will not gain new plugin skills retroactively. Restart Codex or open a fresh session to confirm that `desk`, `superpowers`, `plain-language`, and `ponytail-upstream` appear in the available plugins/skills list.
 
 6. If you can capture the active tool list, prove MCP visibility separately from cache freshness:
 

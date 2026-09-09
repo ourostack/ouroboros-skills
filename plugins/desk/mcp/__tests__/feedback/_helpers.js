@@ -15,6 +15,12 @@ export async function mkFeedbackFixture() {
   return { base, deskRoot, stateHome }
 }
 
+export async function writePosixNodeProvider(providerPath, body) {
+  // Keep the required .exe launch path, but give Node's loader a recognized payload extension.
+  await fs.writeFile(`${providerPath}.cjs`, `${body}\n`)
+  await fs.writeFile(providerPath, '#!/bin/sh\nexec /usr/bin/env node "$0.cjs" "$@"\n', { mode: 0o755 })
+}
+
 export function useStateHome(stateHome) {
   const previous = process.env.XDG_STATE_HOME
   process.env.XDG_STATE_HOME = stateHome

@@ -4,7 +4,7 @@ Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable i
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
-This preview branch hosts **[Agentic Engineering V2: rebasing the inner loop](AGENTIC-ENGINEERING-V2.md)**, an opt-in interactive RFC. The guide covers the proposed stack, version selection, private feedback, evidence limits, and rollback. It is not the main-branch default.
+This branch hosts the **[Agentic Engineering V2 technical alpha](AGENTIC-ENGINEERING-V2.md)**: pinned Superpowers with Desk/Crew state and authority, independent review, and explicit opt-in source selection. It is not the main-branch default or a qualified V1 replacement. Historical preview results remain historical.
 
 ## Repository Structure
 
@@ -99,7 +99,7 @@ For skill or plugin changes, "done" also requires runtime refresh and dogfooding
 
 ### Runtime Visibility Audit
 
-Use `scripts/audit-work-suite-runtime.cjs` to prove the work-suite contract across source, installed roots, and the active host menu snapshot:
+For the retained legacy standalone Work Suite provider, `scripts/audit-work-suite-runtime.cjs` checks source, installed roots and a captured menu snapshot. It is not the selected Superpowers alpha's admission check:
 
 ```bash
 node scripts/audit-work-suite-runtime.cjs --repo-root .

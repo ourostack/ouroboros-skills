@@ -31,6 +31,16 @@ const GENERATED_ARTIFACTS = new Set(["owned-host-config", "activation-ledger"])
 const NEVER_DELETE = new Set(["desk-root-data"])
 const ENTRYPOINT_HOSTS = new Set(["claude", "codex", "copilot"])
 
+export function selectEngineeringMethod(dependencyIds) {
+  if (dependencyIds.includes("superpowers")) {
+    if (dependencyIds.includes("work-suite")) {
+      throw new Error("activation must select exactly one engineering lifecycle")
+    }
+    return "superpowers"
+  }
+  return "work-suite"
+}
+
 export function validateActivationManifest(manifest) {
   const errors = []
 
@@ -473,10 +483,8 @@ function orderOverlayNodes(manifest) {
       if (inherited?.kind === "overlay-agent") visit(inherited)
     }
     visiting.pop()
-    if (node.kind === "overlay-agent") {
-      emitted.add(node.id)
-      ordered.push(node)
-    }
+    emitted.add(node.id)
+    ordered.push(node)
   }
 
   for (const node of [...graph.nodes.values()]

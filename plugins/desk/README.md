@@ -22,27 +22,23 @@ desk substrate -> desk:worker -> ms-desk:worker -> area overlay
 
 ### Under Copilot CLI
 
-```bash
-copilot plugin install ourostack/ouroboros-skills:plugins/desk
-```
+The alpha source is `ourostack/ouroboros-skills:plugins/desk@v2-alpha`. Use the host's admitted, explicit alpha composition instead of changing a live default installation.
 
-The root package carries generated flattened Work Suite, Plain Language, and Ponytail metadata for Copilot-compatible hosts, so the normal path activates Desk as the worker substrate and launches `worker`.
+The root package declares a flattened closure of Desk, Superpowers, Plain Language and Ponytail. Metadata is not runtime loading proof: the host must load every selected root and prove the actual skill/MCP source identity before admission.
 
 ### Under Ouroboros
 
-```bash
-ouro plugin install ourostack/ouroboros-skills:plugins/desk --agent <agent-name>
-```
+Select `ourostack/ouroboros-skills:plugins/desk@v2-alpha` through the host's supported opt-in bundle path, not an ambient main-branch installation.
 
 The agent's `bundle.json` gains a `plugins[]` entry; the agent's preamble declares `Your desk: ~/AgentBundles/<agent>.ouro/desk/`.
 
-Ouroboros treats Desk as bundled substrate instead of a separate user setup step. The agent bundle carries Desk, Work Suite, Plain Language, and the pinned Ponytail provider together:
+The source bundle carries Desk, Superpowers, Plain Language and Ponytail together. Its packaging contract does not establish full alpha runtime qualification:
 
 ```json
 {
   "plugins": [
     "desk",
-    "work-suite",
+    "superpowers",
     "plain-language",
     "ponytail-upstream"
   ]
@@ -58,9 +54,9 @@ Your desk: ~/AgentBundles/<agent>.ouro/desk/
 
 ### Under Claude Code
 
-The `ourostack/ouroboros-skills` repo ships Claude plugin metadata for Desk, Work Suite, Plain Language, and the pinned Ponytail provider. Desk declares all three companion plugins as dependencies, so the healthy path is a host-native marketplace activation or flattened bundle that brings the complete worker surface together.
+The alpha ships Claude metadata for Desk, Superpowers, Plain Language and Ponytail. Desk declares the companion closure; use a deliberately selected alpha package rather than updating a live default.
 
-When transitive plugin dependencies are available, the host resolves them from Desk's `.claude-plugin/plugin.json`. When a Claude-compatible host does not resolve dependencies, release packaging should ship a flattened Desk + Work Suite + Plain Language + Ponytail bundle instead of asking the operator to assemble the dependency chain by hand.
+When transitive dependencies are supported, the host resolves Desk's `.claude-plugin/plugin.json`. Otherwise the host's admitted composition supplies the full selected closure. Background and Agent View inheritance remain unqualified; historical help output is not alpha consumption evidence.
 
 Once the host has activated the plugin package, launch the default worker agent:
 
@@ -72,11 +68,11 @@ Or inside an existing Claude session: `@desk:worker say hi`. The agent's preambl
 
 ### Under Codex
 
-The plugin ships a `.codex-plugin/plugin.json` manifest plus companion Work Suite, Plain Language, and Ponytail provider manifests. The healthy path is host-native activation: enable the declared dependency closure through Codex's plugin loading surface, then let Desk's activation metadata materialize the owned config/instruction block for the selected mode.
+The plugin ships Codex manifests for Desk and its Superpowers, Plain Language and Ponytail closure. Explicit alpha activation materializes only the owned config/instruction region for the selected mode.
 
-The default mode is `global-personal`: Desk and Work Suite are enabled together, Codex receives an activation-owned Desk MCP bridge plus an owned `AGENTS.md` worker-default block, and `desk_status` reports the selected worker/overlay activation. `project-local` and `manual-only` are opt-outs for repos or sessions that should not inherit the global worker default.
+Within explicit alpha activation, the default mode is `global-personal`: Desk and Superpowers are selected together with the owned MCP bridge and instruction block. `project-local` and `manual-only` remain opt-outs. Enabled competing lifecycle configuration is refused, not silently rewritten; operator-owned text and prior approvals remain intact through `desk:superpowers-integration`.
 
-Codex plugin ids are rendered with the active marketplace namespace, for example `desk@ourostack` or `desk@ourostack-local`. Local development installs should use the marketplace `name` from `.agents/plugins/marketplace.json` consistently for Desk, Work Suite, and downstream overlay plugins.
+Codex plugin ids use the actual marketplace namespace consistently for Desk, Superpowers and downstream overlays. A namespace or cache version alone does not prove the selected loaded source.
 
 Do not run `codex mcp add` or `npm install` inside the Desk plugin for the healthy path. The MCP entrypoint restores verified production runtime dependencies from the committed runtime pack into a writable cache, then launches from a source mirror. See `desk:codex-onboarding` for repair checks when a local development install, stale host config, or missing active Desk MCP tool surface needs inspection.
 
@@ -118,7 +114,7 @@ See [`docs/agent-files.md`](./docs/agent-files.md) for the per-harness agent fil
 
 Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 
-For deeper stacks, depend on the most specific layer you need. An org-flavored overlay plugin can depend on `desk` and provide its own `worker` variant; an area plugin can depend on that overlay and provide its own area layer. The Codex adapter enables the selected overlay's plugin dependencies alongside Desk and Work Suite, while still enabling only one Desk MCP. The active chain is visible in generated instructions and in `desk_status` when the host passes activation context.
+For deeper stacks, depend on the most specific layer you need. The adapter enables the selected overlay chain alongside Desk and Superpowers, with one Desk MCP. Generated instructions and `desk_status` report the declared chain; actual host loading still needs verification.
 
 ## what desk gives an agent
 
@@ -136,7 +132,7 @@ a furnished room, ready to settle into. the layout, the lifecycle, the small cer
 - session start / resumption / archival workflow
 
 ### dispatch
-- `work-orchestration` routes tasks through only the Work Suite phases they need
+- `work-orchestration` invokes `desk:superpowers-integration`; Superpowers is the sole engineering method, while Desk preserves state and authority
 - non-coding workflow paths supported (execution + completion alternatives for non-code work)
 
 ### engineering posture
@@ -167,7 +163,7 @@ The agent does textual substitution when interpreting skill instructions or runn
 the substrate stays general. the overlay handles everything situational.
 
 - **org-specific agent identity** — `worker` is the substrate default; consumer overlays (corporate-engineering, autonomous-agent, personal-coding) can ship their own agent with extended skills, invariants, and tooling on top.
-- **doing-phase mechanics** — those live in `work-suite` (work-doer, work-merger, etc.)
+- **engineering implementation mechanics** — those live in the pinned Superpowers provider, not a second Desk lifecycle
 - **organization-specific concerns** — auth systems, work-item trackers, internal portals, etc. live in a consumer overlay (one of several possible overlays — others can be built the same way)
 
 ## versioning

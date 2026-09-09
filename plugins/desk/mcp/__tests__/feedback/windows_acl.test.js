@@ -22,6 +22,7 @@ import {
   assertWindowsAclAvailable,
   protectWindowsPaths,
 } from "../../src/feedback/windows-acl.js"
+import { writePosixNodeProvider } from "./_helpers.js"
 
 const PROVIDER_SEGMENTS = ["System32", "WindowsPowerShell", "v1.0", "powershell.exe"]
 const isWindows = process.platform === "win32"
@@ -40,7 +41,7 @@ async function mkProvider(base, body) {
   const dir = path.join(base, ...PROVIDER_SEGMENTS.slice(0, -1))
   await fs.mkdir(dir, { recursive: true })
   const providerPath = path.join(dir, PROVIDER_SEGMENTS.at(-1))
-  await fs.writeFile(providerPath, `#!/usr/bin/env node\n${body}\n`, { mode: 0o755 })
+  await writePosixNodeProvider(providerPath, body)
   return providerPath
 }
 

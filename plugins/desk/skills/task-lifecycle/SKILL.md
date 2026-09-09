@@ -5,6 +5,8 @@ description: The 8-state task lifecycle machine — states, valid transitions, t
 
 # Task lifecycle
 
+Invoke `desk:superpowers-integration` for engineering. This skill owns Desk state transitions, not a second implementation lifecycle; Superpowers consumes the existing task, approval, plan and terminal boundary.
+
 Every task moves through a state machine with 8 states. The `status` field in `task.md` tracks the current state.
 
 ## States
@@ -12,8 +14,8 @@ Every task moves through a state machine with 8 states. The `status` field in `t
 | State | Description | Workflow phase |
 |-------|-------------|----------------|
 | `drafting` | Clarifying scope and choosing the route; a clear task can remain task-card-only | `work-orchestration` |
-| `processing` | Writing code, running tests, implementing | `work-doer` |
-| `validating` | Driving PR, required checks, merge, release/install, smoke, and cleanup | `work-merger` |
+| `processing` | Writing code, running tests, implementing | Selected Superpowers execution skill |
+| `validating` | Verifying the approved delivery endpoint, including authorized PR/release/smoke work | `superpowers:verification-before-completion` through the Desk integration |
 | `collaborating` | Human gate — waiting for operator input/review/approval | Paused for human |
 | `paused` | Temporarily suspended by operator | No active work |
 | `blocked` | External dependency, unclear requirement | No active work |
@@ -76,7 +78,7 @@ Every transition writes the applicable durable surfaces in order. Commit-message
 Clear tasks can execute from the task card without a doing document. When a doing document exists, keep it current. At minimum:
 
 - Check off unit checkboxes (`- [ ]` → `- [x]`) for units completed.
-- If work-doer produced a "progress log" at the top, append the current transition.
+- If the implementation owner produced a progress log at the top, append the current transition.
 - On `validating`: record the PR URL at the top of the doing doc.
 
 ### 3. Track card (`track.md`)
@@ -107,7 +109,7 @@ Commit messages are not a handoff format. A new session reading the task card mu
 
 ## Adopted tasks with completed planning
 
-When a task comes in from an external bundle with planning + doing docs already written, it still starts in `drafting` (consistent with the state machine). But the planning work is NOT re-done — worker jumps directly to `work-doer`.
+When a task comes in from an external bundle with planning and doing docs already written, it still starts in `drafting`. Reuse that work through `desk:superpowers-integration`; do not recreate plans or approval already supplied by the mandate.
 
 Signal via task card frontmatter:
 
@@ -116,8 +118,8 @@ status: drafting
 planning_complete: true
 ```
 
-When resuming a task with `planning_complete: true` and `status: drafting`, reuse its planning work. The flag is not an alignment receipt or an explicit go-ahead. If the agreed outcome, definition of done, and go-ahead are already recorded, transition straight to `processing` without reopening ideation or planning; otherwise establish the missing agreement through `work-ideator`. Preserve the flag for audit trail. An already-approved clear task without planning documents follows the same direct transition without needing this adoption flag.
+When resuming a task with `planning_complete: true` and `status: drafting`, reuse its planning work. The flag is not an approval receipt. If the outcome, definition of done and go are recorded, transition to `processing` without reopening them; otherwise resolve the missing agreement through `superpowers:brainstorming`. Preserve the flag for audit history. An already-approved clear task without planning documents follows the same direct transition.
 
-## Dispatch is work-doer's call
+## Dispatch belongs to the selected implementation owner
 
-Work-doer decides its own dispatch shape per unit based on task content — sequential vs sub-agent fan-out vs operator-gated. There is no pre-declared `Execution Mode` header on the doing doc; that field was removed because it was over-prescriptive and rarely matched the dispatch shape work-doer would actually pick. Adopted doing docs may still carry historical mode headers — work-doer ignores them.
+The selected Superpowers implementation owner chooses a sequential or delegated execution shape within the recorded authority. Historical `Execution Mode` headers do not grant delegation or override current instructions. The canonical doing record remains the same Desk file.

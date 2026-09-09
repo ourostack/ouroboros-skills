@@ -61,10 +61,7 @@ is that the board is clearer when it ends than when it began.
    message with a clear table (entry → disposition → target). wait
    for signoff. per `../../principles.md` Invariant 1, don't walk the
    operator through one card at a time.
-5. **encode in a single PR** against the plugin repo, one unit per
-   card, with per-unit acceptance checks (grep-presence + engine-
-   agnostic audit). worker uses the `work-planner` → `work-doer`
-   skills for the planning/doing/execution pipeline.
+5. **Encode in a single authorized PR** against the plugin repo, one unit per card with acceptance checks. Invoke `desk:superpowers-integration` for the needed Superpowers planning and implementation skills.
 6. **take landed cards down** in the same motion they shipped: update
    the `Status:` line to name the PR and merge SHA, move the entry to
    `_friction/_archive/`. see the `friction-management` skill.
@@ -151,9 +148,7 @@ seeing the proposal.
 
 after all dispositions are decided and operator has signed off:
 
-- encoded entries become units of a single PR against the plugin
-  repo. worker uses `work-planner` → `work-doer` for planning and
-  execution.
+- Encoded entries become units of a single authorized PR. Use the existing approval and selected method through `desk:superpowers-integration`.
 - no-op entries get their `Status:` line updated in-place. they stay
   pinned because the ask is not resolved, just redirected out of
   plugin scope — they do not move to `_archive/`.

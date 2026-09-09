@@ -1372,7 +1372,7 @@ test("canonical Desk activation manifest exists and validates", async () => {
     true,
   )
   assert.equal(
-    result.value.dependencies.some((dependency) => dependency.id === "work-suite"),
+    result.value.dependencies.some((dependency) => dependency.id === "superpowers"),
     true,
   )
 })

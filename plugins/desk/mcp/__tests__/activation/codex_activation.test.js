@@ -127,7 +127,7 @@ function overlayChainManifest() {
       overlay_agents: [
         overlayAgent({
           id: "ms-desk:worker",
-          dependsOn: ["desk", "work-suite", "ms-desk"],
+          dependsOn: ["desk", "superpowers", "ms-desk"],
           inherits: ["desk:worker"],
           identity: "Microsoft Desk worker",
           addendum: "Use Microsoft employee context without copying Desk setup.",
@@ -162,7 +162,7 @@ function assertDeskMcpHealthGuard(content) {
 
 test("Codex plugin metadata declares host-native Desk activation surfaces", () => {
   const deskPlugin = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
-  const workSuitePlugin = loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json")
+  const superpowersPlugin = loadJson("plugins", "superpowers", ".codex-plugin", "plugin.json")
 
   assert.equal(deskPlugin.skills, "./skills/")
   assert.equal(deskPlugin.mcpServers, "./.mcp.json")
@@ -181,9 +181,9 @@ test("Codex plugin metadata declares host-native Desk activation surfaces", () =
   ])
   assert.equal(deskPlugin.activation?.codex?.mcpServers?.desk?.launch, "plugin-bundled")
   assert.equal(deskPlugin.activation?.codex?.mcpServers?.desk?.manualRegistration, false)
-  assert.deepEqual(deskPlugin.activation?.codex?.dependencies?.["work-suite"], {
-    path: "../work-suite",
-    version: workSuitePlugin.version,
+  assert.deepEqual(deskPlugin.activation?.codex?.dependencies?.superpowers, {
+    path: "../superpowers",
+    version: superpowersPlugin.version,
     resolution: "flattened",
   })
   assert.deepEqual(deskPlugin.activation?.codex?.manualSetupSteps ?? [], [])
@@ -271,7 +271,7 @@ test("global personal activation can select a downstream Desk overlay worker", a
     "ms-desk:worker",
     "ms-area:worker",
   ])
-  assert.match(result.generatedConfig, /\[plugins\."work-suite@ourostack"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."superpowers@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."ms-area-desk@ourostack"\]/)
@@ -294,7 +294,7 @@ test("Codex activation respects non-default marketplace namespaces", async () =>
     marketplaceNamespace: "ourostack-local",
   }))
 
-  assert.match(result.generatedConfig, /\[plugins\."work-suite@ourostack-local"\]/)
+  assert.match(result.generatedConfig, /\[plugins\."superpowers@ourostack-local"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack-local"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack-local"\.mcp_servers\.desk\]/)
   assert.doesNotMatch(result.generatedConfig, /desk@ourostack"/u)
@@ -379,7 +379,7 @@ this line has no equals
 bad key = true
 plugins."unknown@ourostack".enabled = ["maybe"]
 
-[plugins."work-suite@ourostack"]
+[plugins."superpowers@ourostack"]
 enabled = true
 
 [plugins."desk@ourostack"]
@@ -394,7 +394,7 @@ enabled = true
     existingConfig: existingInstalledConfig,
   }))
 
-  assert.equal(result.generatedConfig.match(/\[plugins\."work-suite@ourostack"\]/gu).length, 1)
+  assert.equal(result.generatedConfig.match(/\[plugins\."superpowers@ourostack"\]/gu).length, 1)
   assert.equal(result.generatedConfig.match(/\[plugins\."desk@ourostack"\]/gu).length, 1)
   assert.doesNotMatch(result.generatedConfig, /\[plugins\."ms-desk@ourostack"\]/u)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/u)

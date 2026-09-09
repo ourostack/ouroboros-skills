@@ -1,6 +1,6 @@
 ---
 name: pr-feedback-on-own-pr
-description: Invoke ONLY when the operator explicitly asks to iterate on a PR's reviewer feedback — addressing reviewer comments on an open PR. Triggered by phrases like "comments", "iterate", "address feedback", "review pass", "reviewer comments". Do NOT invoke for opening a new PR, authoring a PR description (that's `pr-surface-hygiene` + work-merger), discussing a PR abstractly, reviewing another author's PR, or pre-merge checks without explicit reviewer input.
+description: Process explicitly requested feedback on the operator's PR, retain thread/state evidence and send remediation to the selected implementation owner. Not for another author's PR or unrequested feedback loops.
 ---
 
 # pr-feedback-on-own-pr
@@ -21,7 +21,7 @@ duplication across layers. Each artifact is reviewable in isolation.
 | File | Granularity | Owns |
 |------|-------------|------|
 | `feedback.md` | per-thread, per-design-decision | Source of truth for WHAT was agreed. Bucketed thread table, shape-view, per-item `proposed_action`, phase 5a sweep table, phase 8 pipeline iteration log, phase 9 per-thread disposition + Resolved-status. |
-| `planning.md` | per-iteration | Scope + completion-criteria contract. `Scope` in/out, `Completion criteria` checkboxes that work-doer syncs, `Context`, `Architecture shape` (references feedback shape-view), `Dependencies + critical path`, `Risks`. |
+| `planning.md` | per-iteration | Existing scope and completion contract, updated by the selected Superpowers owner; context, architecture, dependency DAG and risks remain on Desk. |
 | `doing.md` | per-unit | HOW we execute, unit-by-unit, TDD-shaped. Unit definitions with exact signatures, exact test names, per-unit acceptance criteria, `Addresses: #threadIds`, `Satisfies: [x] <planning completion-criteria line>`, `Sweep sites: <phase-5a paths>`, progress log, unit-status checkboxes. |
 
 **Cross-doc reference convention:**
@@ -101,9 +101,7 @@ pr-feedback-on-own-pr runs in one of two modes, set by the caller:
   - Phase 6a (plan) runs in a compressed form — findings with
     `resolution_path: auto` become units directly, one unit per
     finding, no DAG ceremony.
-  - Phase 7 (execute) applies the fixes via the standard
-    work-doer flow: strict TDD per repo, commit-and-push per unit,
-    tests green before continuing.
+  - Phase 7 sends fixes to the single selected Superpowers implementation owner through `desk:superpowers-integration`; strict TDD and recorded publication authority still apply.
   - Phase 8 (pipeline-verify) runs normally.
   - Phase 9 (per-thread verify) runs in a narrowed form: for each
     synthetic self-review thread that was executed, mark the
@@ -420,9 +418,7 @@ raised on the next PR. It is not optional.
 
 ## Phase 6a — Plan
 
-Hand off to `work-ideator` for architecture items (explore tradeoffs,
-surface alternatives) → `work-planner` to produce `planning.md`
-**shaped as a DAG, not a flat list**:
+Use `desk:superpowers-integration`: resolve missing architecture agreement with `superpowers:brainstorming`, then use `superpowers:writing-plans` when a plan is needed. Reuse the existing Desk plan and approval. The cross-repository plan is shaped as a DAG, not a flat list:
 - Nodes = units.
 - Edges = "must finish before."
 - Critical path marked.
@@ -486,7 +482,7 @@ default.
 
 ## Phase 6b — Execute setup + drift re-fetch gate
 
-Before handing off to `work-doer`:
+Before handing off to the selected Superpowers implementation owner:
 
 1. **Re-pull active threads** via the PR host's threads API (same call as
    phase 1).
@@ -505,11 +501,7 @@ assigned to a unit or dispositioned.
 
 ## Phase 7 — Execute
 
-`work-doer` runs critical-path units serially + parallelizable units
-concurrently. Strict TDD per `../../principles.md` invariants. Repo-
-specific build-check before every commit (e.g., a formatter `--check`
-flag for a C#-heavy reference implementation; capture per-repo
-build/lint commands in a repo-local notes file).
+The same Superpowers implementation owner handles all fixes, following the approved DAG and delegation limits. Use `desk:independent-review` for finding disposition and re-review; this PR intake does not start another fix loop. Strict TDD, repository checks and the recorded publication endpoint still apply.
 
 **doing.md kept live:** every unit completion triggers
 `docs(doing): complete Unit X` — unit status flip `⬜ → ✅`,

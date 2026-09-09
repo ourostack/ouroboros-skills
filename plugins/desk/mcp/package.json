@@ -1,6 +1,6 @@
 {
   "name": "@ourostack/desk-mcp",
-  "version": "1.4.0-alpha.2",
+  "version": "1.4.0-alpha.3",
   "private": true,
   "type": "module",
   "description": "MCP server for the desk plugin — task/track/friction/lesson CRUD + hybrid lexical+semantic search over the desk workspace. Spawned by the consumer (Claude Code, Copilot CLI, ouroboros daemon) pointed at a desk root via --root.",
@@ -34,6 +34,11 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@unicode/unicode-16.0.0": "2.0.2"
+    "@istanbuljs/esm-loader-hook": "0.3.0",
+    "@unicode/unicode-16.0.0": "2.0.2",
+    "nyc": "18.0.0"
+  },
+  "overrides": {
+    "test-exclude": "8.0.0"
   }
 }

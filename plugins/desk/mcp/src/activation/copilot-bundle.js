@@ -4,6 +4,7 @@ import {
 } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import { selectEngineeringMethod } from "./validate.js"
 
 export const COPILOT_BUNDLE_SCHEMA_VERSION = 1
 
@@ -11,7 +12,6 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const defaultRepoRoot = path.resolve(moduleDir, "..", "..", "..", "..", "..")
 const activationManifestPath = "plugins/desk/activation/desk.activation.json"
 const deskPluginPath = "plugins/desk/plugin.json"
-const workSuitePluginPath = "plugins/work-suite/plugin.json"
 const plainLanguagePluginPath = "plugins/plain-language/plugin.json"
 const ponytailPluginPath = "plugins/ponytail-upstream/plugin.json"
 const outputPath = "plugins/desk/activation/copilot-root.flattened-bundle.json"
@@ -21,9 +21,14 @@ const copilotWorkerSource = "agents/worker.agent.md"
 const copilotMcpSource = "plugins/desk/.mcp.copilot.json"
 
 export function buildCopilotBundle({ activation }) {
-  const workSuiteDependency = activation.dependencies.find((dependency) => (
-    dependency.id === "work-suite"
+  const methodId = copilotMethod(activation)
+  const methodPluginPath = `plugins/${methodId}/plugin.json`
+  const methodDependency = activation.dependencies.find((dependency) => (
+    dependency.id === methodId
   ))
+  if (methodDependency === undefined) {
+    throw new Error(`missing ${methodId === "superpowers" ? "Superpowers" : "Work Suite"} dependency in activation manifest`)
+  }
   const plainLanguageDependency = activation.dependencies.find((dependency) => (
     dependency.id === "plain-language"
   ))
@@ -38,7 +43,7 @@ export function buildCopilotBundle({ activation }) {
     generated_from: {
       activation_manifest: activationManifestPath,
       desk_plugin: deskPluginPath,
-      work_suite_plugin: workSuitePluginPath,
+      [methodId === "superpowers" ? "superpowers_plugin" : "work_suite_plugin"]: methodPluginPath,
       plain_language_plugin: plainLanguagePluginPath,
       ponytail_plugin: ponytailPluginPath,
     },
@@ -56,10 +61,10 @@ export function buildCopilotBundle({ activation }) {
         mcpServers: copilotMcpSource,
       },
       {
-        id: "work-suite",
-        version: workSuiteDependency.lock.version,
-        plugin: workSuitePluginPath,
-        skills: "plugins/work-suite/skills/",
+        id: methodId,
+        version: methodDependency.lock.version,
+        plugin: methodPluginPath,
+        skills: `plugins/${methodId}/skills/`,
       },
       {
         id: "plain-language",
@@ -83,16 +88,23 @@ export function validateCopilotPackagingContract(input) {
   const activation = asObject(input?.activation)
   const bundle = asObject(input?.bundle)
   const deskPlugin = asObject(input?.deskPlugin)
-  const workSuitePlugin = asObject(input?.workSuitePlugin)
+  let methodId
+  try {
+    methodId = copilotMethod(activation)
+  } catch (error) {
+    return [error.message]
+  }
+  const methodLabel = methodId === "superpowers" ? "Superpowers" : "Work Suite"
+  const methodPlugin = asObject(input?.[methodId === "superpowers" ? "superpowersPlugin" : "workSuitePlugin"])
   const plainLanguagePlugin = asObject(input?.plainLanguagePlugin)
   const ponytailPlugin = asObject(input?.ponytailPlugin)
   const activationDependencies = Array.isArray(activation.dependencies)
     ? activation.dependencies
     : []
-  const workSuiteDependency = activationDependencies.find((dependency) => (
-    dependency?.id === "work-suite"
+  const methodDependency = activationDependencies.find((dependency) => (
+    dependency?.id === methodId
   ))
-  const lockedWorkSuiteVersion = workSuiteDependency?.lock?.version
+  const lockedMethodVersion = methodDependency?.lock?.version
   const plainLanguageDependency = activationDependencies.find((dependency) => (
     dependency?.id === "plain-language"
   ))
@@ -114,13 +126,16 @@ export function validateCopilotPackagingContract(input) {
   if (deskPlugin.version !== activation.version) {
     errors.push(`Copilot root Desk version must match activation version ${activation.version}`)
   }
-  if (lockedWorkSuiteVersion === undefined) {
-    errors.push("Copilot activation must lock Work Suite dependency")
-  } else if (workSuitePlugin.version !== lockedWorkSuiteVersion) {
-    errors.push(`Copilot root Work Suite version must match activation lock ${lockedWorkSuiteVersion}`)
+  if (lockedMethodVersion === undefined) {
+    errors.push(`Copilot activation must lock ${methodLabel} dependency`)
+  } else if (methodPlugin.version !== lockedMethodVersion) {
+    errors.push(`Copilot root ${methodLabel} version must match activation lock ${lockedMethodVersion}`)
   }
-  if (!hasBundleDependency(bundle, "work-suite")) {
-    errors.push("Copilot flattened bundle must include work-suite dependency closure")
+  if (!hasBundleDependency(bundle, methodId)) {
+    errors.push(`Copilot flattened bundle must include ${methodId} dependency closure`)
+  }
+  if (methodId === "superpowers" && hasBundleDependency(bundle, "work-suite")) {
+    errors.push("Copilot alpha bundle must not include Work Suite as a second lifecycle owner")
   }
   if (lockedPlainLanguageVersion === undefined) {
     errors.push("Copilot activation must lock Plain Language dependency")
@@ -139,10 +154,10 @@ export function validateCopilotPackagingContract(input) {
     errors.push("Copilot flattened bundle must include ponytail-upstream dependency closure")
   }
   if (
-    deskPlugin.activation?.copilot?.dependencies?.["work-suite"]?.bundleMetadata
+    deskPlugin.activation?.copilot?.dependencies?.[methodId]?.bundleMetadata
       !== outputPath
   ) {
-    errors.push("Copilot Work Suite dependency must point to generated flattened bundle metadata")
+    errors.push(`Copilot ${methodLabel} dependency must point to generated flattened bundle metadata`)
   }
   if (
     deskPlugin.activation?.copilot?.dependencies?.["plain-language"]?.bundleMetadata
@@ -161,6 +176,11 @@ export function validateCopilotPackagingContract(input) {
   }
 
   return errors
+}
+
+function copilotMethod(activation) {
+  const target = activation.provides?.activation_targets?.find((entry) => entry.id === "desk:worker")
+  return selectEngineeringMethod(target?.depends_on ?? [])
 }
 
 export function generateCopilotBundleArtifact() {
