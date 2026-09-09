@@ -15,11 +15,12 @@ import { fileURLToPath } from "node:url"
 // own fixture prefix, one unrelated. Both must survive, which is what separates
 // exact-root ownership from a prefix sweep.
 //
-// Exit status is deliberately not asserted. This witness covers fixture lifecycle
-// only; whether a suite passes is that suite's own concern, and one file below is
-// currently red for a separately owned reason (a runtime pack pinned behind its
-// lock). Lifecycle must hold on the failure path too, which is exactly what that
-// file demonstrates here.
+// An empty temp dir only means something once the consumer is known to have run.
+// A file that dies before it loads reports `# tests 1` / `# fail 1` and creates no
+// fixture at all, so residue-free is vacuously true for it. Every case below
+// therefore demands positive evidence that real tests executed — at least one
+// passing test — and then either an unambiguously clean outcome or, for a consumer
+// declared red below, that exact declared cause.
 
 const mcpRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
@@ -42,6 +43,30 @@ const FIXTURE_OWNERS = [
   ["__tests__/snapshots/restore.test.js", "desk-snapshot-restore-plugin-"],
   ["__tests__/snapshots/fallback_reconcile.test.js", "desk-snapshot-fallback-desk-"],
 ]
+
+// A consumer that is red for a separately owned reason stays in the lifecycle
+// witness — lifecycle has to hold on the failure path too — but it is declared by
+// its exact cause so this case can never absorb a different or earlier failure.
+// The pack failure itself belongs to its own consumer gate, not to this one.
+const DECLARED_FAILURES = new Map([
+  [
+    "__tests__/integration/dependency_activation_flow.test.js",
+    {
+      owner: "runtime pack pinned behind its lock, owned separately",
+      subtest: "cold start restores the committed production snapshot without rebuild or embeddings",
+      cause: /stale_snapshot_reconciled/u,
+    },
+  ],
+])
+
+function tapCount(stdout, key) {
+  const found = stdout.match(new RegExp(`^# ${key} (\\d+)$`, "mu"))
+  return found ? Number(found[1]) : undefined
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+}
 
 function runInPrivateTemp(args, sandbox, timeout) {
   const env = { ...process.env, TMPDIR: sandbox, TMP: sandbox, TEMP: sandbox }
@@ -71,7 +96,32 @@ for (const [relPath, prefix] of FIXTURE_OWNERS) {
 
       assert.equal(result.error, undefined, result.error?.message)
       assert.equal(result.signal, null, result.stderr)
-      assert.match(result.stdout, /^# tests \d+/mu, result.stderr || result.stdout)
+
+      const evidence = result.stderr || result.stdout
+      const passed = tapCount(result.stdout, "pass")
+      const failed = tapCount(result.stdout, "fail")
+      assert.ok(
+        passed >= 1,
+        `${relPath} never ran a passing test, so an empty temp dir proves nothing: ${evidence}`,
+      )
+
+      const declared = DECLARED_FAILURES.get(relPath)
+      if (declared) {
+        assert.ok(failed >= 1, `${relPath} is declared red (${declared.owner}) but reported no failure`)
+        assert.match(
+          result.stdout,
+          new RegExp(`^not ok \\d+ - ${escapeRegExp(declared.subtest)}$`, "mu"),
+          `${relPath} failed somewhere other than its declared subtest: ${evidence}`,
+        )
+        assert.match(
+          result.stdout,
+          declared.cause,
+          `${relPath} failed for a cause other than the declared one: ${evidence}`,
+        )
+      } else {
+        assert.equal(failed, 0, `${relPath} reported failures: ${evidence}`)
+        assert.equal(result.status, 0, evidence)
+      }
 
       const kept = new Set([sameKind, unrelated].map((dir) => path.basename(dir)))
       const residue = readdirSync(sandbox).filter((entry) => !kept.has(entry))
@@ -88,6 +138,12 @@ for (const [relPath, prefix] of FIXTURE_OWNERS) {
 
 // The shared owner keeps fixtures readable for the duration of the test file, then
 // removes exactly what it handed out — on the failure and abort paths as well.
+//
+// The child writes its success marker inside the same teardown hook, after every
+// existence assertion, so a helper that destroys a fixture before returning it can
+// never reach the marker. Exit status alone cannot carry this: the intended failure
+// and a broken helper both exit 1, and the second would otherwise ride in on the
+// first. The intended cause is asserted for the same reason.
 for (const outcome of ["failure", "abort"]) {
   test(`mkTempRoot removes its own roots after ${outcome} and keeps them until teardown`, () => {
     const sandbox = mkdtempSync(path.join(tmpdir(), "desk-fixture-lifecycle-"))
@@ -102,10 +158,16 @@ for (const outcome of ["failure", "abort"]) {
           `import { existsSync } from "node:fs"`,
           `import { mkTempRoot } from ${JSON.stringify(new URL("_temp_roots.js", import.meta.url).href)}`,
           `const controller = new AbortController()`,
+          `controller.signal.addEventListener("abort", () => process.stdout.write("owner-cause:abort\\n"))`,
           `test("owner case", { signal: controller.signal }, async (t) => {`,
           `  const roots = [await mkTempRoot("desk-owner-case-"), await mkTempRoot("desk-owner-case-")]`,
           `  process.stdout.write("owner-roots:" + JSON.stringify(roots) + "\\n")`,
-          `  t.after(() => roots.forEach((root) => assert.equal(existsSync(root), true, "fixtures must outlive per-test teardown")))`,
+          `  t.after(() => {`,
+          `    for (const root of roots) {`,
+          `      assert.equal(existsSync(root), true, "fixtures must outlive per-test teardown")`,
+          `    }`,
+          `    process.stdout.write("owner-teardown-ok\\n")`,
+          `  })`,
           `  if (${JSON.stringify(outcome)} === "failure") throw new Error("expected owner case failure")`,
           `  controller.abort()`,
           `  await new Promise(() => {})`,
@@ -119,6 +181,19 @@ for (const outcome of ["failure", "abort"]) {
       assert.equal(result.error, undefined, result.error?.message)
       assert.equal(result.signal, null, result.stderr)
       assert.equal(result.status, 1, result.stderr || result.stdout)
+
+      const evidence = result.stderr || result.stdout
+      assert.match(
+        result.stdout,
+        /^(?:# )?owner-teardown-ok$/mu,
+        `per-test teardown did not observe both fixtures still present: ${evidence}`,
+      )
+      if (outcome === "failure") {
+        assert.match(result.stdout, /expected owner case failure/u, evidence)
+      } else {
+        assert.match(result.stdout, /^(?:# )?owner-cause:abort$/mu, evidence)
+        assert.doesNotMatch(result.stdout, /expected owner case failure/u, evidence)
+      }
 
       const reported = result.stdout.match(/owner-roots:(\[[^\n]+\])/u)
       assert.ok(reported, result.stderr || result.stdout)
