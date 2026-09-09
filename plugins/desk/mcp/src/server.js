@@ -1,6 +1,6 @@
 // desk MCP server registration.
 //
-// Registers all 16 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
+// Registers all 17 tools as stdio MCP handlers. Units 3 + 5 + 6 wire every
 // tool to a real implementation:
 //   - Unit 3: task_create, task_update, task_archive, track_create,
 //             track_update, friction_add, lesson_add
@@ -9,6 +9,7 @@
 //   - Index mgmt: desk_reindex (wraps ensureIndex + force-rebuild)
 //   - Health/status: desk_status and desk_doctor (session-start-safe, non-mutating)
 //   - Private feedback: desk_feedback (OS-user-private preview feedback CRUD)
+//   - Private work measurement: desk_work_ledger (OS-user-private work-item ledger)
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
@@ -28,6 +29,7 @@ import { track_create, track_update } from "./tools/track.js"
 import { friction_add } from "./tools/friction.js"
 import { lesson_add } from "./tools/lesson.js"
 import { desk_feedback } from "./tools/feedback.js"
+import { desk_work_ledger } from "./tools/work-ledger.js"
 import {
   desk_search,
   desk_recall,
@@ -57,6 +59,7 @@ export const TOOL_IMPLS = {
   friction_add,
   lesson_add,
   desk_feedback,
+  desk_work_ledger,
   desk_search,
   desk_recall,
   desk_similar,
@@ -80,7 +83,7 @@ export async function callTool({ deskRoot, name, input, person = null, statusCon
   }
   const impl = TOOL_IMPLS[name]
   if (!impl) {
-    // All 16 tools wired; this branch only fires if a name exists in
+    // All 17 tools wired; this branch only fires if a name exists in
     // TOOL_NAMES but is missing from TOOL_IMPLS — i.e. a wiring bug.
     // Return a structured payload that points at the cause.
     return {
