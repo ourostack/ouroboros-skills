@@ -58,6 +58,8 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   let session;
   let failure;
   let collecting = true;
+  let workDispatched = false;
+  let rootStarted = false;
   let endReason = "incomplete";
   let history;
   let cleanup;
@@ -159,8 +161,9 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
           try {
             if (!collecting) { send({ kind: "post-window-sdk-event", event }); return; }
             capture(event, sdkRecords, "sdk-events.jsonl");
-            if (event.type === "session.idle" && !event.agentId) resolveIdle(event);
-            if (event.type === "session.error") rejectIdle(new Error("The native session reported an error."));
+            if (event.type === "assistant.turn_start" && !event.agentId && workDispatched) rootStarted = true;
+            if (event.type === "session.idle" && !event.agentId && workDispatched && rootStarted && event.data?.mode === "interactive" && event.data.aborted === false) resolveIdle(event);
+            if (event.type === "session.error" && !event.agentId) rejectIdle(new Error("The native session reported an error."));
           } catch (error) { captureErrors.push(errorInfo(error)); rejectIdle(error); }
         },
       });
@@ -168,6 +171,7 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
       const metadata = await session.rpc.tools.getCurrentMetadata();
       requireCondition(Array.isArray(metadata.tools) && canonicalJson(metadata.tools.map(tool => tool.name).sort()) === canonicalJson(["read_evidence", "report_result"]), "NATIVE_TOOL_SET_MISMATCH", "The observed tool set differs from the empty control");
       send({ kind: "runtime-configuration", runId, sessionId, runtime, modelRequested: model, reasoningEffortRequested: "high", contextTierRequested: "default", tools: metadata.tools });
+      workDispatched = true;
       await session.send({ prompt: "Read checks/proof.txt, then submit the complete failing criterion through report_result." });
       await idle;
       history = await session.getEvents();

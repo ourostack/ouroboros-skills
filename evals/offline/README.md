@@ -36,6 +36,8 @@ This command currently checks one narrowly labelled control: delivered execution
 
 Failed RPC delivery and truncated output retain complete, hash-verified observed root requests, their call IDs, schema dispatch and validator counts without a grade. `verified_observed_prefix` is not a completeness claim. Raw SDK records are SDK capture, not raw provider HTTP data. Decoded strings cannot substitute for raw transport buffers. Schema replay is deduplicated by actual event identity; conflicting payloads remain a capture failure. Callback records preserve their actual invocation session and whether the work window was still open.
 
+The control waits for an observed root turn after its own dispatch and an interactive, non-aborted root idle. Startup, child, other-mode and aborted idle events stay in the raw capture but do not end the work window. A child error is not relabelled as a root session error.
+
 Native capture checks the 48 MiB aggregate and 240-file budget before each new write, with a separate 16 MiB/single-file reserve for final failure metadata inside the publisher's 128 MiB/256-file limit. Owned cleanup commands remain bounded and continue after capture failure, but missing raw cleanup evidence remains unavailable and prevents a final commit marker. Timeout stays primary when cleanup or publication also fails. Transport children use a bounded hard-stop signal; that is not proof of the separate SDK/container process tree's exit.
 
 ## Six ordinary fixed cases

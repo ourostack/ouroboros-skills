@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import { PassThrough } from "node:stream";
@@ -31,11 +32,32 @@ test("missing executable is a structured infrastructure failure without invented
   assert.deepEqual(result.cleanup.ownedSpawns, []);
 });
 
-test("timeout bounds and force-stops only its own signal-resistant child", async () => {
-  const result = await captureBoundedCommand({ ...options('process.on("SIGTERM",()=>{});process.stdout.write("ready");setInterval(()=>{},1000)'), limits: { maxStreamBytes: 32, timeoutMs: 400, cleanupMs: 300 } });
+test("the outer deadline bounds its own child without assuming completed startup", async () => {
+  const result = await captureBoundedCommand({ ...options("setInterval(()=>{},1000)"), limits: { maxStreamBytes: 32, timeoutMs: 400, cleanupMs: 300 } });
   assert.equal(result.status, "timed_out");
+  assert.equal(result.signal, "SIGTERM");
+  assert.equal(result.stdout.bytes.length, 0);
+  assert.equal(result.cleanup.exitObservations.length, 1);
+});
+
+test("a real signal-resistant child is force-stopped only after its readiness is observed", async () => {
+  const ready = path.join(root, "resistant-child-ready");
+  const controller = new AbortController();
+  let observedPid;
+  const watcher = fs.watch(root, (_event, filename) => {
+    if (filename !== path.basename(ready) || !fs.existsSync(ready)) return;
+    observedPid = Number(fs.readFileSync(ready, "utf8"));
+    controller.abort();
+  });
+  let result;
+  try {
+    const source = `const fs=require("node:fs");process.on("SIGTERM",()=>{});fs.writeFileSync(${JSON.stringify(`${ready}.pending`)},String(process.pid));fs.renameSync(${JSON.stringify(`${ready}.pending`)},${JSON.stringify(ready)});setInterval(()=>{},1000);`;
+    result = await captureBoundedCommand({ ...options(source), signal: controller.signal, limits: { maxStreamBytes: 32, timeoutMs: 10000, cleanupMs: 300 } });
+  } finally { watcher.close(); }
+  assert.equal(result.status, "cancelled");
   assert.equal(result.signal, "SIGKILL");
-  assert.equal(result.stdout.bytes.toString(), "ready");
+  assert.ok(Number.isSafeInteger(observedPid) && observedPid > 0);
+  assert.equal(result.cleanup.ownedSpawns[0].pid, observedPid);
   assert.equal(result.cleanup.exitObservations.length, 1);
 });
 
