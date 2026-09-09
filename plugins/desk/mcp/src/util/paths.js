@@ -215,7 +215,7 @@ export async function resolveWriteTarget({
   return target
 }
 
-function validateWriteSegment(segment) {
+export function validateWriteSegment(segment) {
   if (
     typeof segment !== "string" ||
     segment.trim() === "" ||
