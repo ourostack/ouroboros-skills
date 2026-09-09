@@ -215,6 +215,7 @@ test("the actual producer invocation binds the maintained loader, dependency cwd
   const loader = pathToFileURL(path.join(mcpRoot, "node_modules", "@istanbuljs", "esm-loader-hook", "index.js")).href
   assert.equal(registration, `import { register } from "node:module"; register(${JSON.stringify(loader)});`)
   assert.equal(options.env.NODE_OPTIONS, `--import=${args[importIndex + 1]}`)
+  assert.equal(options.env.NODE_PATH, path.join(mcpRoot, "node_modules"))
   assert.deepEqual(args.slice(importIndex + 2), [
     "--test",
     path.join(run.canonicalRepoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
@@ -222,13 +223,14 @@ test("the actual producer invocation binds the maintained loader, dependency cwd
 })
 
 test("the loader reaches descendants without replacing caller Node options or mutating the parent environment", t => {
-  const env = { NODE_OPTIONS: "--trace-warnings", RETAINED_VALUE: "original" }
+  const env = { NODE_OPTIONS: "--trace-warnings", NODE_PATH: "caller-modules", RETAINED_VALUE: "original" }
   const run = runFixture(t, { [sourceFile]: metrics(), total: metrics() }, { env })
   const { args, options } = run.invocation
   assert.equal(run.result, 0)
   assert.equal(options.env.NODE_OPTIONS, `--trace-warnings --import=${args[args.indexOf("--import") + 1]}`)
+  assert.equal(options.env.NODE_PATH, `${path.join(mcpRoot, "node_modules")}${path.delimiter}caller-modules`)
   assert.equal(options.env.RETAINED_VALUE, "original")
-  assert.deepEqual(env, { NODE_OPTIONS: "--trace-warnings", RETAINED_VALUE: "original" })
+  assert.deepEqual(env, { NODE_OPTIONS: "--trace-warnings", NODE_PATH: "caller-modules", RETAINED_VALUE: "original" })
 })
 
 test("the maintained producer measures the selected files without owning coverage thresholds", t => {

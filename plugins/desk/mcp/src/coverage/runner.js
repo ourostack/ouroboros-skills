@@ -166,6 +166,7 @@ function runInstrumentedTests({
       ...env,
       // Ordinary Node descendants do not inherit the parent's execArgv.
       NODE_OPTIONS: `${env.NODE_OPTIONS ?? ""} --import=${registrationUrl}`.trim(),
+      NODE_PATH: [path.join(defaultMcpRoot, "node_modules"), env.NODE_PATH].filter(Boolean).join(path.delimiter),
       DESK_COVERAGE_RUNNER_CHILD: "1",
     },
   })

@@ -11,7 +11,7 @@ const esmSource = "plugins/desk/mcp/src/subject.js"
 const cjsSource = "scripts/subject.cjs"
 const unexecutedSource = "plugins/desk/mcp/src/unexecuted.js"
 
-function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild = false }) {
+function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild = false, childFromRepoRoot = false }) {
   const root = mkdtempSync(path.join(tmpdir(), "desk-coverage-producer-"))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repoRoot = path.join(root, "repo")
@@ -107,7 +107,7 @@ function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild =
     ...(viaChild ? ['import { spawnSync } from "node:child_process"'] : subjectImports),
     'test("ESM and CommonJS execution witness", () => {',
     ...(viaChild ? [
-      `  const child = spawnSync(process.execPath, [${JSON.stringify(childPath)}], { env: process.env, encoding: "utf8", timeout: 10000 })`,
+      `  const child = spawnSync(process.execPath, [${JSON.stringify(childPath)}], { env: process.env, cwd: ${JSON.stringify(childFromRepoRoot ? repoRoot : undefined)}, encoding: "utf8", timeout: 10000 })`,
       '  assert.equal(child.status, 0, JSON.stringify({ error: child.error?.message, stderr: child.stderr }))',
       '  assert.equal(child.stdout, "child assertions completed\\n")',
     ] : assertions),
@@ -226,5 +226,19 @@ test("the subprocess producer reports the real missed statement instead of treat
   assert.deepEqual(
     [entry(run, cjsSource).statements.covered, entry(run, cjsSource).statements.total],
     [2, 3],
+  )
+})
+
+test("the installed producer resolves maintained instrumentation for children outside its dependency directory", t => {
+  const run = runProducerFixture(t, { complete: true, viaChild: true, childFromRepoRoot: true })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  assert.deepEqual(
+    [entry(run, esmSource).statements.covered, entry(run, esmSource).statements.total],
+    [2, 2],
+  )
+  assert.deepEqual(
+    [entry(run, cjsSource).statements.covered, entry(run, cjsSource).statements.total],
+    [3, 3],
   )
 })
