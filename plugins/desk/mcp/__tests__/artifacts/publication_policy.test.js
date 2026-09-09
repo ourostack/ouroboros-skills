@@ -4,12 +4,12 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 import { ensureIndex } from "../../src/server-helpers.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 const mcpRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
 const repoRoot = path.resolve(mcpRoot, "..", "..", "..")
@@ -44,7 +44,7 @@ async function readJson(filePath) {
 }
 
 async function tmpRoot(prefix) {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function writePolicyFixture(pluginRoot, policy) {

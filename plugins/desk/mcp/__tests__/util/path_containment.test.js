@@ -1,12 +1,12 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import * as paths from "../../src/util/paths.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function makeRoot(prefix = "desk-containment-") {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function resolveWriteTarget(options) {

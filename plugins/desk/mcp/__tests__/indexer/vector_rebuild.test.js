@@ -4,7 +4,6 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import matter from "gray-matter"
 
@@ -21,11 +20,12 @@ import {
   resolveEnsureIndexOptions,
 } from "../../src/server-helpers.js"
 import { desk_reindex } from "../../src/tools/reindex.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 const NO_RELEASE_ARTIFACTS = { snapshots: false, vectorPacks: false }
 
 async function tmpRoot(prefix = "desk-vector-rebuild-") {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function writeFile(root, rel, body) {
