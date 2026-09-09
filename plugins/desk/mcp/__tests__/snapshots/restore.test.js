@@ -4,8 +4,9 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
+
+import { mkTempRoot } from "../_temp_roots.js"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { zstdCompressSync } from "node:zlib"
 
@@ -24,7 +25,7 @@ async function loadRestoreModule() {
 }
 
 async function tmpRoot(prefix) {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 function sha256(value) {

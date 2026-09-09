@@ -262,6 +262,14 @@ test("diagnostic MCP imports and serves with native and SDK module resolution po
     )
     const script = [
       `import { PassThrough } from "node:stream"`,
+      `import { createRequire } from "node:module"`,
+      `const isolatedRequire = createRequire(${JSON.stringify(path.join(root, "isolated.cjs"))})`,
+      `try {`,
+      `  isolatedRequire.resolve("gray-matter")`,
+      `  process.exit(24)`,
+      `} catch (error) {`,
+      `  if (error.code !== "MODULE_NOT_FOUND") throw error`,
+      `}`,
       `const { startDiagnosticServer } = await import(${JSON.stringify(diagnosticServerUrl)})`,
       `const input = new PassThrough()`,
       `const output = new PassThrough()`,
@@ -291,6 +299,7 @@ test("diagnostic MCP imports and serves with native and SDK module resolution po
       env: {
         ...process.env,
         NODE_OPTIONS: "",
+        NODE_PATH: "",
       },
     })
 

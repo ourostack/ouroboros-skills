@@ -4,8 +4,9 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
+
+import { mkTempRoot } from "../_temp_roots.js"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
@@ -25,7 +26,7 @@ async function loadManifestModule() {
 }
 
 async function tmpPluginRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-snapshot-manifest-"))
+  const root = await mkTempRoot("desk-snapshot-manifest-")
   return path.join(root, "plugins", "desk")
 }
 

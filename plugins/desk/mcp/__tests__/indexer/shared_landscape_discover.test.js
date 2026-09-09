@@ -15,13 +15,13 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import {
   discover,
   classify,
   isIndexable,
 } from "../../src/indexer/discover.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function writeFile(root, rel, body) {
   const abs = path.join(root, rel)
@@ -31,7 +31,7 @@ async function writeFile(root, rel, body) {
 }
 
 async function mkRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-shared-discover-"))
+  return mkTempRoot("desk-shared-discover-")
 }
 
 // ── isIndexable: _shared/ docs count regardless of filename ───────────────────

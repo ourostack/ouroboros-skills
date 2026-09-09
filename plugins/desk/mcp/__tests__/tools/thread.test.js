@@ -9,15 +9,15 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 
 import { desk_thread, describeRefKind } from "../../src/tools/thread.js"
 import { openDb, closeDb } from "../../src/db/init.js"
 import { rebuildIndex } from "../../src/indexer/index.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function mkTempDeskRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-thread-test-"))
+  return mkTempRoot("desk-thread-test-")
 }
 
 async function writeFile(root, rel, body) {

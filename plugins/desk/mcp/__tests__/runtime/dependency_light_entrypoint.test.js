@@ -269,6 +269,7 @@ function fixtureEnv(fixture) {
     HOME: path.join(fixture.root, "home"),
     XDG_CACHE_HOME: path.join(fixture.root, "xdg-cache"),
     NODE_OPTIONS: `--import=${pathToFileURL(fixture.preloadPath).href}`,
+    NODE_PATH: "",
     PATH: `${fixture.binDir}${path.delimiter}${process.env.PATH ?? ""}`,
   }
 }
@@ -621,6 +622,39 @@ test("MCP entrypoint is dependency-light before bootstrap", async () => {
     assert.equal(result.code, 0, result.stderr || result.stdout)
     assert.deepEqual(JSON.parse(result.stdout), { root: "desk", person: "agent" })
   } finally {
+    rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("dependency-isolated runtime children cannot resolve host modules through NODE_PATH", async () => {
+  const fixture = makeFixture()
+  const previousNodePath = process.env.NODE_PATH
+  try {
+    process.env.NODE_PATH = path.join(mcpRoot, "node_modules")
+    const result = await spawnNode([
+      "--input-type=commonjs",
+      "--eval",
+      [
+        `try {`,
+        `  require.resolve("gray-matter")`,
+        `  process.exit(23)`,
+        `} catch (error) {`,
+        `  if (error.code !== "MODULE_NOT_FOUND") throw error`,
+        `}`,
+        `process.stdout.write("host-module-unavailable\\n")`,
+      ].join("\n"),
+    ], {
+      cwd: fixture.mcpRoot,
+      env: fixtureEnv(fixture),
+      timeoutMs: 5000,
+    })
+    assert.equal(result.timedOut, false, result.stderr)
+    assert.equal(result.code, 0, result.stderr || result.stdout)
+    assert.equal(result.stdout, "host-module-unavailable\n")
+    assert.equal(process.env.NODE_PATH, path.join(mcpRoot, "node_modules"))
+  } finally {
+    if (previousNodePath === undefined) delete process.env.NODE_PATH
+    else process.env.NODE_PATH = previousNodePath
     rmSync(fixture.root, { recursive: true, force: true })
   }
 })
