@@ -149,12 +149,13 @@ function runInstrumentedTests({
   }))
   const loader = pathToFileURL(require.resolve("@istanbuljs/esm-loader-hook")).href
   const registration = `import { register } from "node:module"; register(${JSON.stringify(loader)});`
+  const registrationUrl = `data:text/javascript,${encodeURIComponent(registration)}`
   const args = [
     require.resolve("nyc/bin/nyc.js"),
     "--cwd", repoRoot,
     "--nycrc-path", configPath,
     process.execPath,
-    "--import", `data:text/javascript,${encodeURIComponent(registration)}`,
+    "--import", registrationUrl,
     "--test",
     path.join(repoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
   ]
@@ -163,6 +164,8 @@ function runInstrumentedTests({
     encoding: "utf8",
     env: {
       ...env,
+      // Ordinary Node descendants do not inherit the parent's execArgv.
+      NODE_OPTIONS: `${env.NODE_OPTIONS ?? ""} --import=${registrationUrl}`.trim(),
       DESK_COVERAGE_RUNNER_CHILD: "1",
     },
   })

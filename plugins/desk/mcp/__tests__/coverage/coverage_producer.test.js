@@ -11,7 +11,7 @@ const esmSource = "plugins/desk/mcp/src/subject.js"
 const cjsSource = "scripts/subject.cjs"
 const unexecutedSource = "plugins/desk/mcp/src/unexecuted.js"
 
-function runProducerFixture(t, { complete, includeUnexecuted = false }) {
+function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild = false }) {
   const root = mkdtempSync(path.join(tmpdir(), "desk-coverage-producer-"))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repoRoot = path.join(root, "repo")
@@ -77,13 +77,11 @@ function runProducerFixture(t, { complete, includeUnexecuted = false }) {
     "",
   ].join("\n"))
   if (includeUnexecuted) writeSource(unexecutedSource, "export const unexecuted = true\n")
-  writeSource("plugins/desk/mcp/__tests__/subject.test.js", [
-    'import { test } from "node:test"',
-    'import { strict as assert } from "node:assert"',
+  const subjectImports = [
     'import { invoke } from "../src/subject.js"',
     'import cjs from "../../../../scripts/subject.cjs"',
-    'test("ESM and CommonJS execution witness", () => {',
-    ...(complete ? [
+  ]
+  const assertions = complete ? [
       "  invoke(() => {})",
       "  cjs.invoke(() => {})",
       "  assert.equal(globalThis.coverageUnreached, true)",
@@ -94,7 +92,25 @@ function runProducerFixture(t, { complete, includeUnexecuted = false }) {
       '  assert.throws(() => cjs.invoke(fail), /expected callback failure/)',
       '  assert.equal(Object.hasOwn(globalThis, "coverageUnreached"), false)',
       '  assert.equal(Object.hasOwn(globalThis, "coverageCjsUnreached"), false)',
-    ]),
+    ]
+  const childPath = path.join(mcpRoot, "__tests__", "child-program.js")
+  if (viaChild) write(childPath, [
+    'import { strict as assert } from "node:assert"',
+    ...subjectImports,
+    ...assertions,
+    'process.stdout.write("child assertions completed\\n")',
+    "",
+  ].join("\n"))
+  writeSource("plugins/desk/mcp/__tests__/subject.test.js", [
+    'import { test } from "node:test"',
+    'import { strict as assert } from "node:assert"',
+    ...(viaChild ? ['import { spawnSync } from "node:child_process"'] : subjectImports),
+    'test("ESM and CommonJS execution witness", () => {',
+    ...(viaChild ? [
+      `  const child = spawnSync(process.execPath, [${JSON.stringify(childPath)}], { env: process.env, encoding: "utf8", timeout: 10000 })`,
+      '  assert.equal(child.status, 0, JSON.stringify({ error: child.error?.message, stderr: child.stderr }))',
+      '  assert.equal(child.stdout, "child assertions completed\\n")',
+    ] : assertions),
     "})",
     "",
   ].join("\n"))
@@ -182,5 +198,33 @@ test("the selected producer measures unloaded required source rather than omitti
   assert.deepEqual(
     [entry(run, unexecutedSource).statements.covered, entry(run, unexecutedSource).statements.total],
     [0, 1],
+  )
+})
+
+test("the installed producer measures complete ESM and CommonJS execution in ordinary Node subprocesses", t => {
+  const run = runProducerFixture(t, { complete: true, viaChild: true })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  assert.deepEqual(
+    [entry(run, esmSource).statements.covered, entry(run, esmSource).statements.total],
+    [2, 2],
+  )
+  assert.deepEqual(
+    [entry(run, cjsSource).statements.covered, entry(run, cjsSource).statements.total],
+    [3, 3],
+  )
+})
+
+test("the subprocess producer reports the real missed statement instead of treating executed ESM as unloaded", t => {
+  const run = runProducerFixture(t, { complete: false, viaChild: true })
+  assert.equal(run.result, 1, JSON.stringify(run.output))
+  assert.match(run.output.stderr, /subject\.js statements coverage 50 is below 100/)
+  assert.deepEqual(
+    [entry(run, esmSource).statements.covered, entry(run, esmSource).statements.total],
+    [1, 2],
+  )
+  assert.deepEqual(
+    [entry(run, cjsSource).statements.covered, entry(run, cjsSource).statements.total],
+    [2, 3],
   )
 })
