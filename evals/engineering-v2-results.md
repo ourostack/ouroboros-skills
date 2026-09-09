@@ -96,4 +96,4 @@ Do not add another reminder and rerun the same candidate until green. Repair the
 
 Independent acceptance authorship is a hypothesis to investigate, not a demonstrated causal fix. These small comparisons establish neither a universal model winner nor a reliability rate, productivity improvement or retirement decision for another owner's workflow.
 
-The current decision is to keep the [interactive RFC](../AGENTIC-ENGINEERING-V2.md) explicitly experimental, preserve the failed method result, and use participant-controlled feedback alongside better outcome evidence. Promotion remains a separate owner decision.
+The decision at the end of this experiment was to keep the [Work Suite technical preview](../AGENTIC-ENGINEERING-V2.md) explicitly experimental, preserve the failed method result, and use participant-controlled feedback alongside better outcome evidence. Promotion remains a separate owner decision.

@@ -4,7 +4,7 @@ Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable i
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
-This preview branch hosts **[Agentic Engineering V2: rebasing the inner loop](AGENTIC-ENGINEERING-V2.md)**, an opt-in interactive RFC. The guide covers the proposed stack, version selection, private feedback, evidence limits, and rollback. It is not the main-branch default.
+This preview branch preserves the earlier **[Agentic Engineering V2 technical preview (Work Suite)](AGENTIC-ENGINEERING-V2.md)**. The guide covers that experiment's stack, version selection, private feedback, recorded evidence limits, and rollback. It is not the internal V2 RFC, a qualified replacement for V1, or the main-branch default.
 
 ## Repository Structure
 

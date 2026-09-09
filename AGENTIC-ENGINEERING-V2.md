@@ -1,10 +1,12 @@
-# Agentic Engineering V2: rebasing the inner loop
+# Agentic Engineering V2 technical preview (Work Suite)
 
-This branch is an opt-in, interactive RFC for people who already use Desk and want to try a smaller engineering workflow with current frontier models. Use it on real work, tell the agent what helped or got in the way, and choose what feedback to share. It does not replace the main-branch default.
+This branch preserves the earlier, opt-in Work Suite-based experiment for existing Desk users. It is a technical preview, not the internal V2 RFC or a qualified replacement for V1. Its stack and adoption decisions describe this candidate, not a later workflow composition. It does not replace the main-branch default.
 
-**Candidate status:** This is an installable experiment, not a qualified replacement for V1. Both method rounds are complete, and delivery qualification still fails. Native Mac feedback, restart and rollback work; native Windows protection, feedback persistence and source-mirror attribution now pass their CI scenarios. The [outcome ledger](evals/engineering-v2-results.md) retains the failures and measurement limits. These scoped runtime results are not a method-reliability claim.
+**Recorded candidate status:** This is an installable experiment, not a qualified replacement for V1. Both method rounds are complete, and delivery qualification still fails. Native Mac feedback, restart and rollback work; native Windows protection, feedback persistence and source-mirror attribution pass their recorded CI scenarios. The [outcome ledger](evals/engineering-v2-results.md) retains the failures and measurement limits. These scoped runtime results are not a method-reliability claim.
 
-## The proposal
+The source and results preceding this documentation-only framing correction remain available at [0d4d5833](https://github.com/ourostack/ouroboros-skills/tree/0d4d583331149237b5a03c65ebef43e2c5867e49). No experiment was rerun or regraded for this correction.
+
+## The experiment's proposal
 
 Keep the durable workspace. Simplify how work happens inside it. Stronger models should not need a second task system, a stack of overlapping methodologies, or ceremony that substitutes for a working result.
 
@@ -16,7 +18,7 @@ Keep the durable workspace. Simplify how work happens inside it. Stronger models
 | Pinned Ponytail | Prefer existing capabilities and the smallest complete implementation, without shrinking scope or proof |
 | Private preview feedback | Let the participant capture, inspect, correct, and delete their own comments |
 
-Superpowers and RoboRev were exercised rather than adopted by default. The small comparisons produced mixed results and correlated misses; they did not justify another overlapping lifecycle or an always-on review daemon. RoboRev remains an optional review candidate. Quorum is a reference, not bundled code. None of these dispositions claims a universal winner.
+In this experiment, Superpowers and RoboRev were exercised rather than adopted by default. The small comparisons produced mixed results and correlated misses, and the decision then was not to add another overlapping lifecycle or an always-on review daemon. RoboRev remained an optional review candidate for this Work Suite-based stack. Quorum was a reference, not bundled code. This records that experiment's adoption decision, not a recommendation for another composition or a universal winner.
 
 ### What changes in a task
 
