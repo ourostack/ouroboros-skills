@@ -3,10 +3,17 @@
 import { promises as fs } from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
+import { after } from "node:test"
 import matter from "gray-matter"
 
+const tempDeskRoots = new Set()
+
+after(() => Promise.all([...tempDeskRoots].map((root) => fs.rm(root, { recursive: true, force: true }))))
+
 export async function mkTempDeskRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-test-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-test-"))
+  tempDeskRoots.add(root)
+  return root
 }
 
 export async function readFront(filePath) {
