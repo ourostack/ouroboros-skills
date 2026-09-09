@@ -289,10 +289,19 @@ test("native: Windows work ledger protects its own namespace and clears deleted 
     }
 
     // Confirms the byte search reads the file the records actually landed in,
-    // so the absence check below cannot pass against the wrong file.
+    // so the absence checks below cannot pass against the wrong file — and,
+    // just as importantly, that each string was genuinely there to be removed.
+    // An absence assertion whose subject never reached the file passes for the
+    // wrong reason, so both strings are proven present before deletion rather
+    // than only the request.
+    const seeded = await fs.readFile(dbPath)
     assert.equal(
-      (await fs.readFile(dbPath)).includes(Buffer.from(request)), true,
+      seeded.includes(Buffer.from(request)), true,
       "the recorded request should be present before deletion",
+    )
+    assert.equal(
+      seeded.includes(Buffer.from(LEDGER_COMMITMENT.outcome)), true,
+      "the recorded commitment should be present before deletion",
     )
 
     const deleted = ledgerBody(await ledger({ action: "delete", work_item_id: workItemId, confirm: true }))
