@@ -47,6 +47,7 @@ export function createProcessObserver({ directory = readdirSync, stat = pid => r
 export async function runTerminalProtocol({ sdk, root, model, token, limits, emit = record => process.stdout.write(`${JSON.stringify(record)}\n`), processObserver = createProcessObserver(), clock = Date.now }) {
   requireCondition(["gpt-6-astra", "claude-opus-5"].includes(model) && typeof token === "string" && token.length > 20 && !/\s/.test(token) && Number.isSafeInteger(limits.startupSendWorkMs) && limits.startupSendWorkMs > 0 && Number.isSafeInteger(limits.cleanupMs) && limits.cleanupMs >= 3, "INVALID_NATIVE_PROTOCOL", "The control requires explicit auth, pinned model and finite budgets");
   const startedAt = clock();
+  const workDeadline = startedAt + limits.startupSendWorkMs;
   const runId = randomUUID();
   const sessionId = randomUUID();
   const sdkRecords = [];
@@ -58,6 +59,8 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   let session;
   let failure;
   let collecting = true;
+  let startup;
+  let startupSettled = true;
   let workDispatched = false;
   let rootStarted = false;
   let endReason = "incomplete";
@@ -110,6 +113,15 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
       ]);
     } finally { clearTimeout(timer); }
   }
+  function requireOpenWork() {
+    requireCondition(collecting && clock() < workDeadline, "NATIVE_DEADLINE", "The native work window is closed");
+  }
+  async function workPhase(operation) {
+    requireOpenWork();
+    const value = await operation();
+    requireOpenWork();
+    return value;
+  }
   for (const name of ["home", "state", "work", "runtime-work"]) mkdirSync(path.join(root, name), { recursive: true, mode: 0o700 });
   const client = new sdk.CopilotClient({
     mode: "empty",
@@ -119,12 +131,14 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   });
   try {
     await bounded("startup/send/work", async () => {
-      await client.start();
+      startupSettled = false;
+      startup = workPhase(() => client.start()).finally(() => { startupSettled = true; });
+      await startup;
       observeProcesses();
       requireCondition(owned.size > 0, "OWNED_RUNTIME_UNOBSERVED", "The SDK runtime process was not observed");
-      const runtime = await client.getStatus();
+      const runtime = await workPhase(() => client.getStatus());
       requireCondition(runtime.version === "1.0.84-1", "NATIVE_RUNTIME_MISMATCH", "The connected CLI is not the pinned version");
-      session = await client.createSession({
+      session = await workPhase(() => client.createSession({
         sessionId, model, reasoningEffort: "high", contextTier: "default",
         systemMessage: { mode: "replace", content: `This is an unscored protocol control, not a product evaluation. Read checks/proof.txt through read_evidence, then submit one report_result with the evidence-backed fail verdict. The frozen criterion is: ${criterion} Do not access any other source or tool. A semantic fail must still be a successful terminal tool execution.` },
         availableTools: ["custom:read_evidence", "custom:report_result"],
@@ -166,19 +180,20 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
             if (event.type === "session.error" && !event.agentId) rejectIdle(new Error("The native session reported an error."));
           } catch (error) { captureErrors.push(errorInfo(error)); rejectIdle(error); }
         },
-      });
-      await session.rpc.tools.initializeAndValidate();
-      const metadata = await session.rpc.tools.getCurrentMetadata();
+      }));
+      await workPhase(() => session.rpc.tools.initializeAndValidate());
+      const metadata = await workPhase(() => session.rpc.tools.getCurrentMetadata());
       requireCondition(Array.isArray(metadata.tools) && canonicalJson(metadata.tools.map(tool => tool.name).sort()) === canonicalJson(["read_evidence", "report_result"]), "NATIVE_TOOL_SET_MISMATCH", "The observed tool set differs from the empty control");
       send({ kind: "runtime-configuration", runId, sessionId, runtime, modelRequested: model, reasoningEffortRequested: "high", contextTierRequested: "default", tools: metadata.tools });
       workDispatched = true;
-      await session.send({ prompt: "Read checks/proof.txt, then submit the complete failing criterion through report_result." });
-      await idle;
-      history = await session.getEvents();
+      await workPhase(() => session.send({ prompt: "Read checks/proof.txt, then submit the complete failing criterion through report_result." }));
+      await workPhase(() => idle);
+      history = await workPhase(() => session.getEvents());
       artifact("history-response.json", history);
       observeProcesses();
+      requireOpenWork();
       endReason = "idle";
-    }, limits.startupSendWorkMs);
+    }, workDeadline - clock());
   } catch (error) {
     failure = errorInfo(error);
     endReason = error?.code === "NATIVE_DEADLINE" ? "timed_out" : "failed";
@@ -187,9 +202,14 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
     collecting = false;
     if (owned.size === 0) {
       const errors = [];
-      try { await bounded("unobserved force stop", () => client.forceStop(), limits.cleanupMs); }
+      const stopBudget = startupSettled ? limits.cleanupMs : Math.max(1, Math.floor(limits.cleanupMs / 2));
+      try { await bounded("unobserved force stop", () => client.forceStop(), stopBudget); }
       catch (error) { errors.push(errorInfo(error)); }
-      cleanup = { complete: false, errors, reason: "Owned runtime was not observed." };
+      if (!startupSettled) {
+        try { await bounded("pending startup settlement", () => startup.catch(() => {}), limits.cleanupMs - stopBudget); }
+        catch (error) { errors.push(errorInfo(error)); }
+      }
+      cleanup = { complete: false, errors, reason: "Owned runtime was not observed.", startupPending: !startupSettled };
     } else {
       cleanup = await cleanupOwnedRuntime({
         runId, ownedSpawns: [...owned.values()], readArtifact: name => artifacts.get(name),

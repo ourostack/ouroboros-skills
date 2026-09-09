@@ -16,9 +16,16 @@ test("an SDK rejection without an Error object remains a recorded failure with c
 });
 
 test("a never-resolving SDK send remains inside the outer deadline and invokes owned cleanup", async () => {
-  const control = fixture({ send: () => new Promise(() => {}) });
+  let now = 0, sendEntered = false;
+  const control = fixture({ send: () => {
+    sendEntered = true;
+    now = 10;
+    return new Promise(() => {});
+  } });
   control.input.limits.startupSendWorkMs = 10;
+  control.input.clock = () => now;
   const result = await runTerminalProtocol(control.input);
+  assert.equal(sendEntered, true);
   assert.equal(result.ok, false);
   assert.equal(result.failure.code, "NATIVE_DEADLINE");
   assert.equal(control.state.aborted, true);

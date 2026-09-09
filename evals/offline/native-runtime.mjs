@@ -224,18 +224,28 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
       record.execution = { status: executed.status, signal: executed.signal ?? null, errorCode: executed.error?.code ?? null };
       record.attemptCoverage = "unavailable";
       record.status = executed.error?.code === "ETIMEDOUT" || clock() >= deadline ? "timed_out" : "protocol_observation_failed";
-      append("stdout", safeBytes(executed.stdout));
-      append("stderr", safeBytes(executed.stderr));
-      const stream = textBytes(safeBytes(executed.stdout));
+      let streamCaptureFailure;
+      try {
+        append("stdout", safeBytes(executed.stdout));
+        append("stderr", safeBytes(executed.stderr));
+      } catch (error) {
+        captureFailed = true;
+        streamCaptureFailure = error;
+      }
+      const retained = readRegular(outputRoot, "stdout.raw", plan.limits.maxStreamBytes);
+      record.rawProtocolPrefix = { path: "stdout.raw", sha256: retained.sha256, bytes: retained.bytes.length };
       const rows = [];
       record.decodeErrors = [];
-      for (const [index, line] of stream.split("\n").entries()) {
-        if (!line.trim()) continue;
+      for (let start = 0, index = 1; start < retained.bytes.length; index++) {
+        const newline = retained.bytes.indexOf(10, start);
+        const bytes = retained.bytes.subarray(start, newline === -1 ? retained.bytes.length : newline);
+        start = newline === -1 ? retained.bytes.length : newline + 1;
         try {
-          const row = parseRawJson(Buffer.from(line));
+          if (!textBytes(bytes).trim()) continue;
+          const row = parseRawJson(bytes);
           requireCondition(row && typeof row.kind === "string", "NATIVE_RECORD_SHAPE", "A native record requires its declared kind");
           rows.push(row);
-        } catch (error) { record.decodeErrors.push({ line: index + 1, ...detail(error) }); }
+        } catch (error) { record.decodeErrors.push({ line: index, ...detail(error) }); }
       }
       if (rows.some(row => row.kind === "runtime-configuration")) {
         const captured = observeProtocolEvidence(rows, plan);
@@ -243,12 +253,13 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
         record.attempts = captured.attempts;
         record.captureErrors = captured.captureErrors.map(detail);
         record.attemptCoverage = "verified_observed_prefix";
-        for (const [name, bytes] of captured.files) {
+        for (const [name, bytes] of streamCaptureFailure ? [] : captured.files) {
           if (name === "sdk-events.jsonl") append("sdk-events", bytes);
           else if (name === "schema-events.jsonl") append("schema-events", bytes);
           else save(name, bytes);
         }
       }
+      if (streamCaptureFailure) throw streamCaptureFailure;
       if (executed.status === 0 && record.status !== "timed_out") {
         requireCondition(record.decodeErrors.length === 0, "NATIVE_RECORD_DECODE_FAILED", "The raw control stream is incomplete or malformed");
         const verified = verifyProtocolEvidence(rows, plan);
