@@ -7,7 +7,12 @@ const REQUIRED_WORKFLOW_EVENTS = ["pull_request", "push"]
 const REQUIRED_ROOT_VALIDATION_SCRIPTS = new Set([
   "scripts/test-desk-docs.cjs",
   "scripts/test-desk-generated-artifacts.cjs",
+  "scripts/test-desk-host-manifests.cjs",
 ])
+// The maintained offline evaluation implementation the root gate must exercise: its top-level ESM leaves, the source-pinned vendor TypeScript beneath them, and the root CommonJS bridge that routes the CLI into them.
+const OFFLINE_EVALUATION_ROOT = "evals/offline"
+const OFFLINE_PINNED_VENDOR_ROOT = "evals/offline/vendor/gauntlet"
+const OFFLINE_EVALUATION_BRIDGE = "scripts/skill-evals.cjs"
 const DEFAULT_THRESHOLDS = {
   lines: 100,
   branches: 100,
@@ -108,6 +113,7 @@ export function assertCoverageCommandParity({ packageJsonPath, workflowPath }) {
 }
 
 export function collectCoverageRequiredFiles({ repoRoot }) {
+  const offlineRoot = path.join(repoRoot, ...OFFLINE_EVALUATION_ROOT.split("/"))
   return normalizePathList([
     ...collectFiles(path.join(repoRoot, "plugins", "desk", "mcp"), ".js")
       .filter((file) => isDirectChild(file, path.join(repoRoot, "plugins", "desk", "mcp")))
@@ -118,7 +124,17 @@ export function collectCoverageRequiredFiles({ repoRoot }) {
       .filter(isProductionJs),
     ...collectFiles(path.join(repoRoot, "scripts"), ".cjs")
       .filter(isProductionCjs),
+    ...collectFiles(offlineRoot, ".mjs")
+      .filter((file) => isDirectChild(file, offlineRoot))
+      .filter(isProductionSource),
+    ...collectFiles(path.join(repoRoot, ...OFFLINE_PINNED_VENDOR_ROOT.split("/")), ".ts")
+      .filter(isProductionSource),
   ].map((file) => normalizeRelative(repoRoot, file)))
+}
+
+export function isOfflineEvaluationScope(file) {
+  const normalized = normalizePath(file)
+  return normalized.startsWith(`${OFFLINE_EVALUATION_ROOT}/`) || normalized === OFFLINE_EVALUATION_BRIDGE
 }
 
 function normalizePathList(files) {
@@ -203,6 +219,16 @@ function isProductionCjs(file) {
   const normalized = normalizePath(file)
   return isRequiredRootValidationScript(normalized) ||
     !path.basename(normalized).startsWith("test-")
+}
+
+function isProductionSource(file) {
+  const normalized = normalizePath(file)
+  const basename = path.basename(normalized)
+  return (
+    !normalized.includes("/__tests__/") &&
+    !/\.test\.[cm]?[jt]s$/.test(basename) &&
+    !basename.startsWith("test-")
+  )
 }
 
 function isRequiredRootValidationScript(normalizedPath) {

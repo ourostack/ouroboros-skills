@@ -6,7 +6,6 @@ import { strict as assert } from "node:assert"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -23,6 +22,7 @@ import {
   validateSnapshotArtifact,
   writeSnapshotArtifact,
 } from "../../src/snapshots/manifest.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 const mcpRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
 const repoRoot = path.resolve(mcpRoot, "..", "..", "..")
@@ -59,7 +59,7 @@ async function loadRebuildIndexScriptModule() {
 }
 
 async function tmpRoot(prefix) {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function writeFile(root, rel, body) {

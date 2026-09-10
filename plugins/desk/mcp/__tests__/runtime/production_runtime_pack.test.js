@@ -324,7 +324,7 @@ test("production runtime dependency pack is committed at the current canonical p
 
   assert.deepEqual(
     expectations.map((expectation) => expectation.target),
-    ["darwin-arm64-node-127", "win32-x64-node-137"],
+    ["darwin-arm64-node-127", "linux-x64-node-127", "win32-x64-node-137"],
   )
   for (const expectation of expectations) {
     const expectedPackDir = path.join(
@@ -473,11 +473,13 @@ test("generated artifact verification uses explicit published targets instead of
     generatedArtifacts.publishedRuntimePackTargets(),
     [
       { platform: "darwin", arch: "arm64", nodeAbi: "127" },
+      { platform: "linux", arch: "x64", nodeAbi: "127" },
       { platform: "win32", arch: "x64", nodeAbi: "137" },
     ],
   )
   assert.equal(expectations[0].target, "darwin-arm64-node-127")
-  assert.equal(expectations[1].target, "win32-x64-node-137")
+  assert.equal(expectations[1].target, "linux-x64-node-127")
+  assert.equal(expectations[2].target, "win32-x64-node-137")
   assert.deepEqual(platformOptionExpectations.map((expectation) => expectation.target), ["linux-arm64-node-127"])
   assert.equal(linuxHostExpectation.target, "linux-x64-node-127")
   assert.deepEqual(explicitTargetExpectations.map((expectation) => expectation.target), ["linux-x64-node-127"])
@@ -495,9 +497,10 @@ test("generated artifact verification uses explicit published targets instead of
   assert.equal(result.ok, true)
   assert.deepEqual(
     result.expectations.map((expectation) => expectation.target),
-    ["darwin-arm64-node-127", "win32-x64-node-137"],
+    ["darwin-arm64-node-127", "linux-x64-node-127", "win32-x64-node-137"],
   )
   assert.match(stdout.join(""), /darwin-arm64-node-127/u)
+  assert.match(stdout.join(""), /linux-x64-node-127/u)
   assert.match(stdout.join(""), /win32-x64-node-137/u)
   assert.equal(stderr.join(""), "")
 })
@@ -681,14 +684,14 @@ test("published runtime pack verifier rejects stale, unsafe, or fixture-only art
     const fixtureOnly = await generatedArtifacts.verifyGeneratedArtifacts({
       repoRoot,
       mcpRoot,
-      targets: [{ platform: "linux", arch: "x64", nodeAbi: "127" }],
+      targets: [{ platform: "linux", arch: "arm64", nodeAbi: "127" }],
       io: {
         stdout: { write: (text) => stdout.push(text) },
         stderr: { write: (text) => stderr.push(text) },
       },
     })
     assert.equal(fixtureOnly.ok, false)
-    assert.match(stderr.join(""), /linux-x64-node-127/u)
+    assert.match(stderr.join(""), /linux-arm64-node-127/u)
     assert.match(stderr.join(""), /generated artifact missing/u)
     assert.doesNotMatch(stderr.join(""), /__tests__\/fixtures/u)
     assert.equal(stdout.join(""), "")

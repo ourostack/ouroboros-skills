@@ -1,0 +1,34 @@
+{
+  "name": "@ourostack/desk-mcp",
+  "version": "1.3.3",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for the desk plugin — task/track/friction/lesson CRUD + hybrid lexical+semantic search over the desk workspace. Spawned by the consumer (Claude Code, Copilot CLI, ouroboros daemon) pointed at a desk root via --root.",
+  "bin": {
+    "desk-mcp": "./index.js"
+  },
+  "main": "./index.js",
+  "scripts": {
+    "test": "node --test \"__tests__/**/*.test.js\"",
+    "test:coverage": "node scripts/run-coverage.js",
+    "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
+    "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",
+    "runtime:deps-pack:build": "node scripts/build-runtime-deps-pack.js",
+    "runtime:deps-pack:verify": "node scripts/verify-runtime-deps-pack.js",
+    "runtime:support-matrix:generate": "node scripts/generate-runtime-support-matrix.js",
+    "runtime:support-matrix:verify": "node scripts/verify-runtime-support-matrix.js",
+    "artifact:vector-pack:build": "node scripts/build-vector-pack.js",
+    "artifact:snapshot:build": "node scripts/build-snapshot.js",
+    "artifact:snapshot:verify": "node scripts/verify-snapshot.js",
+    "artifact:validate": "node scripts/validate-artifacts.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^11.3.0",
+    "gray-matter": "^4.0.3",
+    "sqlite-vec": "^0.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,13 +1,15 @@
 # work-suite
 
-Work Suite 3 is the portable Ourostack workflow bundle. It preserves direct routing for clear work while restoring strict TDD, complete changed-production coverage, risk-graded review, verified delivery, and audited autonomous continuation.
+This branch previews Work Suite 4 for **Agentic Engineering V2: rebasing the inner loop**. New implementation work starts with substantive alignment and explicit go-ahead; already-approved work resumes without ceremony. After go, the agent uses native capabilities and Ponytail to deliver the smallest complete result, preserving repository quality policy, risk-graded review, and durable continuity.
+
+The preview replaces a universal changed-code coverage percentage with the repository owner's required coverage and explicit semantic acceptance evidence. Test-first work, error-path coverage, independent review, and consuming-surface proof remain. A green test suite or review cannot substitute for the agreed behavior, and a smaller or faster regression is still a failure.
 
 | Skill | Purpose |
 |-------|---------|
-| `work-ideator` | Resolve the unknowns that would materially change implementation |
+| `work-ideator` | Agree intent, constraints, definition of done, and explicit go before new implementation |
 | `work-planner` | Plan coordinated or risky work; skip planning when the change is already clear |
 | `work-doer` | Implement the smallest correct vertical slice and validate the changed behavior |
-| `work-merger` | Open, drive, merge, release or install, smoke, and clean up |
+| `work-merger` | Reach the agreed delivery boundary without promoting a preview or PR-only task beyond its scope |
 | `visual-qa-dogfood` | Use screenshot-backed dogfooding for UI/rendering work |
 | `autopilot` | Keep authorized long-horizon work moving until terminal state |
 | `stay-in-turn` | Keep CI, deploy, smoke, and multi-PR waits inside the same turn |
@@ -25,7 +27,7 @@ The upstream files are vendored unmodified and hash-locked in `upstream-sources.
 
 When the principal delegates sustained autonomy, `autopilot` keeps selecting ready work until the requested outcome is terminal. An explicit producer state named `needs-human-approval` is a hard exception; `needs reviewer gate` is reserved for producers that explicitly permit machine review.
 
-Terminal state includes merged changes, green required checks, applicable release/install/deploy and smoke evidence, current durable state, and no stale branch, PR, or worktree from the run. Reviews are risk-driven: cross-cutting, novel, or high-risk planning uses fresh **Tinfoil Hat** and **Stranger With Candy** reviews; coordinated doing-only work uses one risk-selected cold reviewer; clear work skips Planner.
+Terminal state comes from the alignment receipt. Normal merge-and-deliver work includes merged changes, green required checks, applicable release/install/deploy and smoke evidence, current durable state, and no stale branch, PR, or worktree from the run. Intentional previews keep their branch and rollback path; they do not silently become main-branch promotions. Reviews are risk-driven: cross-cutting, novel, or high-risk planning uses fresh **Tinfoil Hat** and **Stranger With Candy** reviews; coordinated doing-only work uses one risk-selected cold reviewer; already-approved clear work skips Planner.
 
 ### Runtime visibility audit
 
@@ -60,7 +62,7 @@ Pick the command for your engine:
 # top-level skills/ directory using the skill-management flow instead.
 ```
 
-Copilot-compatible hosts normally receive Work Suite through Desk's generated flattened bundle metadata. A direct Copilot load must explicitly include Work Suite 3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 because the root Copilot manifest does not resolve plugin dependencies.
+Copilot-compatible hosts normally receive Work Suite through Desk's generated flattened bundle metadata. A direct Copilot load of this preview must explicitly include Work Suite 4.0.0-alpha.1, Plain Language v0.2.0, and Ponytail v4.9.0 because the root Copilot manifest does not resolve plugin dependencies.
 
 ## Relationship to `skills/`
 

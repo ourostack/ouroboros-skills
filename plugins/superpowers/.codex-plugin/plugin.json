@@ -1,0 +1,22 @@
+{
+  "name": "superpowers",
+  "version": "6.3.0",
+  "description": "Pristine Superpowers 6.3.0 payload with Ourostack-authored host packaging.",
+  "author": {"name": "Jesse Vincent", "url": "https://github.com/obra"},
+  "repository": "https://github.com/obra/superpowers",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Superpowers",
+    "shortDescription": "Engineering skills with test-first implementation and verification.",
+    "developerName": "Jesse Vincent",
+    "category": "Engineering",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/obra/superpowers",
+    "privacyPolicyURL": "https://github.com/obra/superpowers",
+    "termsOfServiceURL": "https://github.com/obra/superpowers",
+    "defaultPrompt": ["Use Superpowers for this engineering task."],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

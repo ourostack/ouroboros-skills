@@ -26,6 +26,19 @@ function clone(value) {
   return structuredClone(value)
 }
 
+test("Darwin release provenance identifies the installed production build", () => {
+  const packageJson = loadJson(path.join(mcpRoot, "package.json"))
+  const root = path.join(mcpRoot, "artifacts", "runtime-deps", packageJson.version)
+  const matrix = loadJson(path.join(root, "support-matrix.json"))
+  const target = matrix.targets.find(entry => entry.id === "darwin-arm64-node-127")
+  assert.ok(target)
+  const manifest = loadJson(path.join(root, target.artifact_path, "runtime-deps.manifest.json"))
+  assert.equal(
+    manifest.provenance.source,
+    "Installed production closure on Node 22.23.2/darwin-arm64 (ABI 127); packaged without inferred SQLite build auxiliaries.",
+  )
+})
+
 test("committed runtime support matrix equals the physically shipped runtime packs", async () => {
   const {
     buildRuntimeSupportMatrix,
@@ -56,7 +69,7 @@ test("committed runtime support matrix equals the physically shipped runtime pac
     schema_version: 1,
     plugin: {
       name: "@ourostack/desk-mcp",
-      version: "1.3.4",
+      version: "1.4.0-alpha.3",
     },
     targets: [
       {
@@ -65,8 +78,17 @@ test("committed runtime support matrix equals the physically shipped runtime pac
         arch: "arm64",
         node_abi: "127",
         prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
-        archive_sha256: "2c39a4906c87dacc659a7c0947c0ec81193f2e5a123e26249c65adf8afc7716d",
+        archive_sha256: "552641ecf52cce8b06671b6966f5cc9e83bafc0551222fc1363cb8568f298141",
         artifact_path: "darwin-arm64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+      },
+      {
+        id: "linux-x64-node-127",
+        platform: "linux",
+        arch: "x64",
+        node_abi: "127",
+        prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+        archive_sha256: "a360f971f1af3e4a8153d519750008f303628389b495cb9220fca2ee7dcf56df",
+        artifact_path: "linux-x64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
       },
       {
         id: "win32-x64-node-137",
@@ -74,11 +96,37 @@ test("committed runtime support matrix equals the physically shipped runtime pac
         arch: "x64",
         node_abi: "137",
         prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
-        archive_sha256: "4b58ba26da83ae296bdc492766707465ec2aeac203cc1db40cfc5791a28128f3",
+        archive_sha256: "f29415d053f65bec0529f0fbabb1d7fc9785753eaaa9f0a499d6e1f64c977daf",
         artifact_path: "win32-x64-node-137/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
       },
     ],
   })
+})
+
+test("runtime support matrix defaults retain owning-root routing and required metadata failures", async () => {
+  const {
+    buildRuntimeSupportMatrix,
+    deriveRuntimeSupportMatrixPath,
+    loadRuntimeSupportMatrix,
+    validateRuntimeSupportMatrix,
+    verifyRuntimeSupportMatrix,
+  } = await loadRuntimeDeps()
+  const packageJson = loadJson(path.join(mcpRoot, "package.json"))
+  const matrixPath = deriveRuntimeSupportMatrixPath({ packageJson })
+  assert.equal(matrixPath, path.join(mcpRoot, "artifacts", "runtime-deps", packageJson.version, "support-matrix.json"))
+  const matrix = loadJson(matrixPath)
+  assert.deepEqual(buildRuntimeSupportMatrix({ packageJson }), matrix)
+  assert.deepEqual(loadRuntimeSupportMatrix({ packageJson }), matrix)
+  assert.deepEqual(verifyRuntimeSupportMatrix({ packageJson }), { ok: true, matrix })
+  assert.deepEqual(validateRuntimeSupportMatrix(), ["runtime support matrix must be a JSON object"])
+  assert.throws(() => buildRuntimeSupportMatrix(), TypeError)
+  assert.throws(() => loadRuntimeSupportMatrix(), TypeError)
+  const missing = verifyRuntimeSupportMatrix()
+  assert.equal(missing.ok, false)
+  assert.match(missing.errors[0], /version/u)
+  const unknown = clone(matrix)
+  delete unknown.targets[0].id
+  assert.match(validateRuntimeSupportMatrix({ matrix: unknown, packageJson }).join("\n"), /target <unknown> is missing id/u)
 })
 
 test("runtime support matrix validation catches omitted, phantom, and metadata-drifted targets", async () => {

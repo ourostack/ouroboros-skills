@@ -1,6 +1,6 @@
 ---
 name: work-doer
-description: Execute an authorized engineering task with strict TDD, complete changed-production coverage, and the smallest implementation that reaches a tested branch.
+description: Execute an approved engineering task test-first, preserve its quality and compatibility contract, and deliver the smallest complete change with primary evidence.
 ---
 
 # Work Doer
@@ -10,6 +10,8 @@ Read the task or doing document, current source, and repository instructions. Wo
 ## Before writes
 
 Verify that the request authorizes writes to this repository and that an approved contribution path and required identity exist before editing. Read-only requests, unapproved repositories, and identity mismatches make no writes. First-person future wording such as "I'll send it" preserves operator ownership; it does not delegate a live send.
+
+Consume the alignment receipt: intended outcome, constraints, definition of done, contribution scope, and explicit go-ahead. New work without that agreement returns to `work-ideator`; an obvious fix or a completed plan is not a substitute. Already-approved work resumes under its existing receipt without another approval round.
 
 ### Place behavior at its owner
 
@@ -39,7 +41,15 @@ Do not manufacture the red by weakening production code. A test that only mocks 
 
 For every changed boundary, prove what callers observe on success and, when applicable, invalid input, dependency failure, timeout, cancellation, partial mutation, retry, duplication, and error translation. Translate errors at the boundary that owns the outgoing contract.
 
-New and modified production logic requires 100% statements, branches, and functions coverage, including error, null, empty, boundary, and negative paths. Do not exclude a changed production file from coverage. For outbound adapters, capture and assert the actual request shape separately from response handling. UI and rendered-output changes also invoke `visual-qa-dogfood`.
+Meet repository-required coverage for new and modified production logic, including error, null, empty, boundary, and negative paths. Do not replace the owner's policy with a universal percentage. Do not exclude a changed production file from coverage to satisfy a gate. For outbound adapters, capture and assert the actual request shape separately from response handling. UI and rendered-output changes also invoke `visual-qa-dogfood`.
+
+### Prove the primary outcome
+
+Test the agreed primary outcome at its real owner and consuming boundary. Challenge the most consequential input-domain or compatibility assumption with a counterexample beyond the examples that drove implementation. Derive the expected behavior from the agreed contract and pre-change behavior, not from what the new code happens to do.
+
+Make this falsification observable. Give the fresh reviewer the intended behavior and compatibility contract before the author's test summary, and ask for a runnable probe from a materially different input class or state transition, not another example of the class already tested. Execute the proposed probe through the real owner or consuming route and retain its expectation, result, and limits in the existing confidence packet. An approving review without such a challenge cannot stand in for semantic evidence. If the primary claim remains untested, report that gap rather than declaring it complete.
+
+Passing tests, a coverage number, a clean commit, and an approving review are not proof of complete behavior. Keep deterministic results, semantic review, and consuming-surface evidence distinct. A regression in the quality or compatibility contract fails the change regardless of reduced code, tokens, or runtime. Do not fix an adjacent concern by silently expanding the agreed scope.
 
 Never simplify away requested scope, error handling, validation, accessibility, evidence, or terminal delivery. Never create an abstraction for one implementation or a dependency for a few clear lines. Commit meaningful behavior changes, not process-only or no-change checkpoints.
 
@@ -47,4 +57,6 @@ Never simplify away requested scope, error handling, validation, accessibility, 
 
 Keep durable state current at meaningful checkpoints: update the doing document when one exists; otherwise update the task card.
 
-At the branch boundary, record the exact build and full suite commands and results, confirm no new warnings, and run one fresh branch review. Fix blocker and major findings once and rerun affected proof. Then invoke `work-merger` and keep control through PR, CI repair, merge, release/install, consuming-surface smoke, cleanup, and continuation scan.
+Retain a concise confidence packet in that existing artifact: agreed intent and go-ahead, chosen design and material alternatives, changed surface, exact source and workflow version, model and runtime identity when available, independent review and closure, primary outcome evidence, known gaps, and applicable rollout/rollback. This is inspectable evidence, not a numeric self-grade, a new database, or a mandatory long-form document.
+
+At the branch boundary, record the exact build and full suite commands and results, confirm no new warnings, and run one fresh branch review. Fix blocker and major findings once and rerun affected proof. Then invoke `work-merger` and keep control through the agreed terminal state: PR, CI repair, merge, release/install, consuming-surface smoke, cleanup, and continuation scan as authorized. A preview-only contract does not authorize main-branch promotion.

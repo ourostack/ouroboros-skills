@@ -421,11 +421,7 @@ not "unforeseeable" — the discipline is to think hard about the whole
 decision surface before starting, not to defer that thinking into
 execution.
 
-**Execution-side twin.** Once everything is gathered and the work is
-running, `work-suite:autopilot` "Act when authority is broad and the
-action is safe-and-reversible" governs: act, don't stall. Invariant 1
-(collab-flow) governs the cadence of the few returns that remain. This
-invariant governs the moment *before* the work begins.
+**Execution-side twin.** During authorized work, the selected Superpowers owner acts within the recorded scope and host capabilities through `desk:superpowers-integration`. Continuation does not create new authority. Invariant 1 governs the cadence of necessary returns; this invariant governs preparation before work begins.
 
 ## Invariant 8 — Durable-by-default: callable-back artifacts land in the workspace
 

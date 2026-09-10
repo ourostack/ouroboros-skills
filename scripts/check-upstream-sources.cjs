@@ -105,7 +105,13 @@ function inspectSource(source, github) {
   if (!Array.isArray(source.files) || source.files.length === 0) {
     throw new Error(`source ${source.id} has no selected files`);
   }
-  if (source.license !== "MIT") {
+  const approvedGauntlet = source.id === "prime-radiant-inc-gauntlet-evaluation-leaves"
+    && source.repository === "prime-radiant-inc/gauntlet"
+    && source.commit === "187a9af979a7cf096c0890d0eeb998cc3008343a";
+  if (approvedGauntlet && source.license !== "Apache-2.0") {
+    throw new Error(`approved Gauntlet source must lock Apache-2.0: got ${source.license ?? "missing"}`);
+  }
+  if (source.license !== "MIT" && !approvedGauntlet) {
     throw new Error(`unsupported locked license for ${source.id}: ${source.license ?? "missing"}`);
   }
 
@@ -114,8 +120,8 @@ function inspectSource(source, github) {
     throw new Error(`repository identity mismatch: expected ${source.repository}, got ${repository.full_name}`);
   }
   const actualLicense = repository.license?.spdx_id ?? null;
-  if (actualLicense !== "MIT") {
-    throw new Error(`MIT license evidence missing for ${source.repository}: got ${actualLicense ?? "unknown"}`);
+  if (actualLicense !== source.license) {
+    throw new Error(`${source.license} license evidence missing for ${source.repository}: got ${actualLicense ?? "unknown"}`);
   }
 
   const release = github.latestRelease(source.repository);

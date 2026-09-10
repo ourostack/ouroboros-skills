@@ -1,3 +1,5 @@
+import { diagnosticFormat, previewRuntimeSnapshot } from "./preview-snapshot.js"
+
 const diagnosticToolNames = ["desk_status", "desk_doctor"]
 
 const diagnosticTools = diagnosticToolNames.map((name) => ({
@@ -7,7 +9,9 @@ const diagnosticTools = diagnosticToolNames.map((name) => ({
     : "Diagnose Desk runtime startup and return concrete remediation.",
   inputSchema: {
     type: "object",
-    properties: {},
+    properties: name === "desk_doctor"
+      ? { format: { type: "string", enum: ["full", "preview"] } }
+      : {},
     additionalProperties: false,
   },
 }))
@@ -111,6 +115,7 @@ function dispatchRequest({ diagnostic, request, serverVersion }) {
       result: toolResult({
         diagnostic,
         toolName: request.params?.name,
+        input: request.params?.arguments,
       }),
     }
   }
@@ -122,7 +127,24 @@ function dispatchRequest({ diagnostic, request, serverVersion }) {
   }
 }
 
-function toolResult({ diagnostic, toolName }) {
+function toolResult({ diagnostic, toolName, input }) {
+  if (toolName === "desk_doctor") {
+    let format
+    try {
+      format = diagnosticFormat(input)
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error
+      return {
+        content: [{ type: "text", text: error.message }],
+        isError: true,
+      }
+    }
+    if (format === "preview") {
+      return {
+        content: [{ type: "text", text: JSON.stringify(previewRuntimeSnapshot("diagnostic")) }],
+      }
+    }
+  }
   if (diagnosticToolNames.includes(toolName)) {
     return {
       content: [

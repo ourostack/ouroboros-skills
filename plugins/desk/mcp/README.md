@@ -14,7 +14,7 @@ Or via environment:
 DESK=~/<your-workspace> node ./index.js
 ```
 
-## Tools exposed (15)
+## Tools exposed (16)
 
 **Runtime CRUD:**
 - `task_create`, `task_update`, `task_archive`
@@ -25,6 +25,9 @@ DESK=~/<your-workspace> node ./index.js
 - `desk_status` — session-start-safe MCP health, root, activation, index, snapshot, and vector-pack status
 - `desk_doctor` — healthy-runtime confirmation or precise first-boot failure diagnosis and remediation
 
+**Private preview feedback:**
+- `desk_feedback` — explicit local capture, paged inspection, revision-guarded correction, and deletion outside the desk's Git and search stores; see [the privacy contract](docs/private-feedback.md)
+
 **Search:**
 - `desk_search` — hybrid lexical + semantic
 - `desk_recall` — semantic-only loose recall with auto-clustering
@@ -33,7 +36,7 @@ DESK=~/<your-workspace> node ./index.js
 - `desk_thread` — provenance walk via refs_graph
 - `desk_reindex` — rebuild or repair the local search index
 
-All 15 tools are wired to real implementations.
+All 16 tools are wired to real implementations. The optional `desk_doctor` input `{"format":"preview"}` returns a [minimal local diagnostic snapshot](../docs/preview-diagnostics.md), not feedback collection or a network report.
 
 ## How consumers wire this up
 
@@ -118,3 +121,11 @@ npm test
 ```
 
 Boots the server with temp roots, asserts the tool surface registers, and exercises the real tool bodies via the dispatcher and fixture desks.
+
+Run the same changed-production coverage gate used by CI with Node 22 or later:
+
+```sh
+npm run test:coverage
+```
+
+The gate runs the maintained tests through pinned `nyc` and `@istanbuljs/esm-loader-hook` development dependencies, then reads their JSON report. Statements are AST-instrumented units, not a copy of line coverage. The existing per-file thresholds and documented exclusions remain authoritative; the producer does not impose a separate global threshold. The pinned `test-exclude` override is covered by selector and real ESM/CommonJS execution fixtures. Source roots are canonicalized before instrumentation, and owned temporary reports are removed after evaluation. A nested invocation is refused with a failure status rather than reported as an unmeasured pass.

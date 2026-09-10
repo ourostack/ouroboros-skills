@@ -13,9 +13,10 @@ import {
   writeFileSync,
 } from "node:fs"
 import { createRequire } from "node:module"
-import { tmpdir } from "node:os"
+import { devNull, tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
+import matter from "gray-matter"
 
 const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
@@ -24,6 +25,47 @@ const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const generatedArtifactsScript = "scripts/test-desk-generated-artifacts.cjs"
 const hostManifestScript = "scripts/test-desk-host-manifests.cjs"
 const require = createRequire(import.meta.url)
+
+test("generated artifact verifier defaults select the owning repository and refuse missing expectations", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  assert.equal(await generatedArtifacts.loadRuntimeDeps(), await generatedArtifacts.loadRuntimeDeps(mcpRoot))
+  assert.deepEqual(
+    await generatedArtifacts.loadProductionArtifactModules(),
+    await generatedArtifacts.loadProductionArtifactModules(mcpRoot),
+  )
+  assert.deepEqual(
+    await generatedArtifacts.productionRuntimePackExpectations(),
+    await generatedArtifacts.productionRuntimePackExpectations({ repoRoot, mcpRoot }),
+  )
+  assert.equal(generatedArtifacts.gitTracksFile({ repoRoot, repoPath: generatedArtifactsScript }), true)
+  assert.equal(generatedArtifacts.gitTracksFile({ repoRoot, repoPath: "__missing_generated_artifact_fixture__" }), false)
+  assert.throws(() => generatedArtifacts.verifyPublishedRuntimeDependencyPack(), TypeError)
+  await assert.rejects(() => generatedArtifacts.verifyProductionSharedArtifacts(), TypeError)
+  const expectation = await generatedArtifacts.productionSharedArtifactExpectation({ repoRoot, mcpRoot })
+  const shared = await generatedArtifacts.verifyProductionSharedArtifacts({ expectation })
+  assert.equal(shared.ok, true, shared.errors.join("\n"))
+  assert.equal(await generatedArtifacts.runCli(), 0)
+})
+
+test("the artifact archive reader ignores directory headers and preserves their regular files", () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const root = mkdtempSync(path.join(tmpdir(), "desk-directory-header-"))
+  try {
+    mkdirSync(path.join(root, "artifact"))
+    writeFileSync(path.join(root, "artifact", "payload.txt"), "fixture payload\n")
+    const archive = path.join(root, "fixture.tgz")
+    const result = spawnSync("tar", ["-czf", archive, "-C", root, "artifact"], {
+      encoding: "utf8",
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+    })
+    assert.equal(result.status, 0, result.stderr)
+    const contents = generatedArtifacts.extractTarGzContents(archive)
+    assert.equal(contents.has("artifact/"), false)
+    assert.equal(contents.get("artifact/payload.txt").toString("utf8"), "fixture payload\n")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
 
 const requiredPackageScripts = {
   "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
@@ -37,6 +79,7 @@ const requiredPackageScripts = {
 }
 
 const requiredHostFreshnessPathFilters = [
+  ".gitattributes",
   "plugins/desk/activation/**",
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
@@ -48,6 +91,7 @@ const requiredHostFreshnessPathFilters = [
   "plugins/desk/plugin.json",
   "plugins/desk/principles.md",
   "plugins/desk/skills/**",
+  "plugins/superpowers/**",
   "plugins/work-suite/.claude-plugin/plugin.json",
   "plugins/work-suite/.codex-plugin/plugin.json",
   "plugins/work-suite/plugin.json",
@@ -69,7 +113,7 @@ const hostManifestFixtureFiles = [
   "manifest.json",
   ".github/workflows/desk-mcp-tests.yml",
   ".github/workflows/validate-skills.yml",
-  "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md",
+  "plugins/desk/activation/host-capability-evidence.md",
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
   "plugins/desk/.mcp.copilot.json",
@@ -97,6 +141,9 @@ const hostManifestFixtureFiles = [
   "plugins/work-suite/.claude-plugin/plugin.json",
   "plugins/work-suite/.codex-plugin/plugin.json",
   "plugins/work-suite/plugin.json",
+  "plugins/superpowers/.claude-plugin/plugin.json",
+  "plugins/superpowers/.codex-plugin/plugin.json",
+  "plugins/superpowers/plugin.json",
   "plugins/plain-language/.claude-plugin/plugin.json",
   "plugins/plain-language/.codex-plugin/plugin.json",
   "plugins/plain-language/plugin.json",
@@ -828,17 +875,17 @@ test("root host-manifest verifier catches stale generated host-facing files", as
       errorPattern: /copilot[- ]bundle/u,
       mutate: (fixtureRoot) => {
         const bundle = loadJson("plugins", "desk", "activation", "copilot-root.flattened-bundle.json")
-        bundle.dependency_closure = bundle.dependency_closure.filter((entry) => entry.id !== "work-suite")
+        bundle.dependency_closure = bundle.dependency_closure.filter((entry) => entry.id !== "superpowers")
         writeJson(fixtureRoot, "plugins/desk/activation/copilot-root.flattened-bundle.json", bundle)
       },
     },
     {
       label: "copilot-plugin-metadata",
-      errorPattern: /copilot[- ]plugin[- ]metadata|Copilot desk:worker target|Copilot Work Suite dependency/u,
+      errorPattern: /copilot[- ]plugin[- ]metadata|Copilot desk:worker target|Copilot Superpowers dependency/u,
       mutate: (fixtureRoot) => {
         const plugin = loadJson("plugins", "desk", "plugin.json")
         plugin.activation.copilot.targets["desk:worker"].source = "agents/worker.md"
-        plugin.activation.copilot.dependencies["work-suite"].bundleMetadata =
+        plugin.activation.copilot.dependencies.superpowers.bundleMetadata =
           "plugins/desk/activation/stale-bundle.json"
         writeJson(fixtureRoot, "plugins/desk/plugin.json", plugin)
       },
@@ -922,6 +969,78 @@ test("root host-manifest verifier catches stale generated host-facing files", as
   }
 })
 
+test("root host verifier selects an explicit legacy configuration across all three native metadata checks", async () => {
+  const { buildCopilotBundle } = await import("../../src/activation/copilot-bundle.js")
+  const { materializeCodexActivation } = await import("../../src/activation/adapters/codex.js")
+  const { validateActivationManifest } = await import("../../src/activation/validate.js")
+  const verifier = loadHostManifestVerifier()
+  await withHostFreshnessFixture(async (root) => {
+    // A temporary, explicitly declared legacy packaging configuration, not the shipped alpha or a native session.
+    const legacyText = (text) => text.replaceAll("superpowers", "work-suite").replaceAll("Superpowers", "Work Suite").replaceAll("6.3.0", "4.0.0-alpha.1")
+    const manifestPath = "plugins/desk/activation/desk.activation.json"
+    const manifest = JSON.parse(legacyText(loadText(...manifestPath.split("/"))))
+    const declaration = {
+      id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.1",
+      provenance: { source: "plugins/work-suite/.codex-plugin/plugin.json", package: "ourostack/work-suite" },
+      lock: { version: "4.0.0-alpha.1", integrity: "sha256-work-suite-activation-manifest-v1" },
+    }
+    manifest.dependencies = manifest.dependencies.map((entry) => entry.id === "work-suite" ? declaration : entry)
+    assert.equal(declaration.provenance.source, "plugins/work-suite/.codex-plugin/plugin.json")
+    assert.equal(declaration.provenance.package, "ourostack/work-suite")
+    assert.equal(declaration.lock.version, loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json").version)
+    assert.equal(validateActivationManifest(manifest).ok, true)
+    writeJson(root, manifestPath, manifest)
+    for (const file of ["plugins/desk/plugin.json", "plugins/desk/.codex-plugin/plugin.json", "plugins/desk/.claude-plugin/plugin.json"]) {
+      const plugin = JSON.parse(legacyText(loadText(...file.split("/"))))
+      if (file.includes(".claude-plugin")) plugin.dependencies[0].version = declaration.version_range
+      writeJson(root, file, plugin)
+    }
+    writeJson(root, "plugins/desk/activation/copilot-root.flattened-bundle.json", buildCopilotBundle({ activation: manifest }))
+    const matrix = JSON.parse(legacyText(loadText("plugins", "desk", "activation", "support-matrix.json")))
+    for (const host of matrix.hosts) {
+      host.source_paths = host.source_paths.filter((file) => file !== "plugins/work-suite/hooks/copilot-hooks.json")
+    }
+    writeJson(root, "plugins/desk/activation/support-matrix.json", matrix)
+    writeText(root, "plugins/desk/activation/host-capability-evidence.md", legacyText(
+      loadText("plugins", "desk", "activation", "host-capability-evidence.md").replace("; plugins/superpowers/hooks/copilot-hooks.json", ""),
+    ))
+    for (const mode of ["global-personal", "project-local", "manual-only"]) {
+      const result = materializeCodexActivation({
+        manifest, mode, pluginRoot: "plugins/desk",
+        deskRoot: mode === "project-local" ? ".desk" : "~/desk",
+        runtimeCacheDir: mode === "project-local" ? ".codex/desk-runtime-cache" : "~/.cache/ouroboros-skills/desk",
+        existingConfig: '# user-authored Codex config\nmodel = "gpt-5.4"\napproval_policy = "on-request"\n',
+        existingInstructions: "# user-authored Codex guidance\nKeep repo-local rules intact.\n",
+      })
+      const directory = `plugins/desk/mcp/__tests__/fixtures/activation/codex/${mode}`
+      writeText(root, `${directory}/generated-config.toml`, result.generatedConfig)
+      if (mode !== "manual-only") writeText(root, `${directory}/generated-instructions.md`, result.generatedInstructions)
+    }
+    // A hardcoded read of any Superpowers provider is now a real missing-file failure.
+    rmSync(path.join(root, "plugins", "superpowers"), { recursive: true })
+    const verify = () => verifier.verifyDeskHostManifests({
+      repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+    })
+    const current = await verify()
+    assert.equal(current.ok, true, current.errors.join("\n"))
+    assert.deepEqual(current.checked, requiredHostManifestChecks)
+    for (const [file, diagnostic] of [
+      ["plugins/work-suite/plugin.json", /Copilot root Work Suite version must match activation lock 4\.0\.0-alpha\.1/u],
+      ["plugins/work-suite/.codex-plugin/plugin.json", /codex-plugin Work Suite provider lock drift/u],
+      ["plugins/work-suite/.claude-plugin/plugin.json", /claude-plugin Work Suite provider lock drift/u],
+    ]) {
+      const before = readFileSync(path.join(root, file), "utf8")
+      const stale = JSON.parse(before)
+      stale.version = "0.0.0"
+      writeJson(root, file, stale)
+      const result = await verify()
+      assert.equal(result.ok, false)
+      assert.match(result.errors.join("\n"), diagnostic)
+      writeText(root, file, before)
+    }
+  })
+})
+
 test("root host-manifest verifier catches cross-host plugin version drift", async () => {
   const hostManifests = loadHostManifestVerifier()
   const staleVersionCases = [
@@ -953,30 +1072,39 @@ test("root host-manifest verifier catches cross-host plugin version drift", asyn
       },
     },
     {
-      label: "codex-work-suite-lock",
-      errorPattern: /codex-plugin Work Suite (dependency version|provider lock) drift/u,
+      label: "codex-superpowers-lock",
+      errorPattern: /codex-plugin Superpowers (dependency version|provider lock) drift/u,
       mutate: (fixtureRoot) => {
-        const plugin = loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json")
+        const plugin = loadJson("plugins", "superpowers", ".codex-plugin", "plugin.json")
         plugin.version = "0.0.0"
-        writeJson(fixtureRoot, "plugins/work-suite/.codex-plugin/plugin.json", plugin)
+        writeJson(fixtureRoot, "plugins/superpowers/.codex-plugin/plugin.json", plugin)
       },
     },
     {
-      label: "claude-work-suite-lock",
-      errorPattern: /claude-plugin Work Suite provider lock drift/u,
+      label: "claude-superpowers-lock",
+      errorPattern: /claude-plugin Superpowers provider lock drift/u,
       mutate: (fixtureRoot) => {
-        const plugin = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
+        const plugin = loadJson("plugins", "superpowers", ".claude-plugin", "plugin.json")
         plugin.version = "0.0.0"
-        writeJson(fixtureRoot, "plugins/work-suite/.claude-plugin/plugin.json", plugin)
+        writeJson(fixtureRoot, "plugins/superpowers/.claude-plugin/plugin.json", plugin)
       },
     },
     {
-      label: "copilot-work-suite-lock",
-      errorPattern: /Copilot root Work Suite version must match activation lock/u,
+      label: "claude-superpowers-activation",
+      errorPattern: /claude-plugin Superpowers activation dependency version drift/u,
       mutate: (fixtureRoot) => {
-        const plugin = loadJson("plugins", "work-suite", "plugin.json")
+        const activation = loadJson("plugins", "desk", "activation", "desk.activation.json")
+        activation.host_activation.claude.dependencies.superpowers.version = "0.0.0"
+        writeJson(fixtureRoot, "plugins/desk/activation/desk.activation.json", activation)
+      },
+    },
+    {
+      label: "copilot-superpowers-lock",
+      errorPattern: /Copilot root Superpowers version must match activation lock/u,
+      mutate: (fixtureRoot) => {
+        const plugin = loadJson("plugins", "superpowers", "plugin.json")
         plugin.version = "0.0.0"
-        writeJson(fixtureRoot, "plugins/work-suite/plugin.json", plugin)
+        writeJson(fixtureRoot, "plugins/superpowers/plugin.json", plugin)
       },
     },
   ]
@@ -1085,6 +1213,52 @@ test("root validation delegates host manifest freshness and artifact availabilit
   }
 })
 
+test("fingerprinted source bytes survive a Windows-style Git checkout", () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), "desk-canonical-checkout-"))
+  const fixtureRoot = path.join(tempRoot, "repo")
+  const checkoutRoot = path.join(tempRoot, "checkout")
+  const files = [
+    ...loadJson("evals", "engineering-v2-kernel.json").sources,
+    "plugins/desk/mcp/package.json",
+    "plugins/desk/mcp/package-lock.json",
+  ]
+  const git = (...args) => {
+    const result = spawnSync("git", args, {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: devNull },
+    })
+    assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`)
+  }
+  try {
+    for (const file of files) copyRepoFile(file, fixtureRoot)
+    if (existsSync(path.join(repoRoot, ".gitattributes"))) copyRepoFile(".gitattributes", fixtureRoot)
+    const binary = Buffer.from([0, 13, 10, 65, 13, 10, 0])
+    writeFileSync(path.join(fixtureRoot, "opaque.bin"), binary)
+    mkdirSync(checkoutRoot)
+    git("init", "--quiet")
+    git("-c", "core.autocrlf=false", "add", "--all")
+    git("-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index", "--all", `--prefix=${checkoutRoot}${path.sep}`)
+    for (const file of files) {
+      const expected = readFileSync(path.join(repoRoot, file))
+      const actual = readFileSync(path.join(checkoutRoot, file))
+      assert.equal(actual.equals(expected), true, `${file} changed during checkout`)
+    }
+    assert.deepEqual(readFileSync(path.join(checkoutRoot, "opaque.bin")), binary)
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+})
+
+test("CI workflow YAML parses before its commands are inspected", () => {
+  for (const filename of ["desk-mcp-tests.yml", "validate-skills.yml"]) {
+    const source = loadText(".github", "workflows", filename)
+    const { data } = matter(`---\n${source}\n---\n`)
+    assert.equal(typeof data.jobs, "object", `${filename} must declare jobs`)
+    assert.ok(Object.keys(data.jobs).length > 0, `${filename} must contain a job`)
+  }
+})
+
 test("desk MCP CI runs committed artifact and host manifest verifiers", () => {
   const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
 
@@ -1155,4 +1329,282 @@ test("validate-skills workflow installs Desk MCP dependencies before root freshn
     /cache-dependency-path:\s+plugins\/desk\/mcp\/package-lock\.json/u,
     "validate-skills.yml should cache the Desk MCP package-lock install",
   )
+})
+
+test("root host verifier reports selected Claude dependency drift for missing, wrong-name and wrong-range native metadata", async () => {
+  const verifier = loadHostManifestVerifier()
+  for (const dependencies of [
+    undefined, [], [null],
+    [{ name: "work-suite", version: "6.3.0" }],
+    [{ name: "superpowers", version: "0.0.0" }],
+  ]) {
+    await withHostFreshnessFixture(async (root) => {
+      const plugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+      plugin.dependencies = dependencies
+      writeJson(root, "plugins/desk/.claude-plugin/plugin.json", plugin)
+      const result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+      assert.equal(result.ok, false)
+      assert.ok(result.errors.includes("claude-plugin Superpowers dependency drift"), result.errors.join("\n"))
+    })
+  }
+})
+
+test("root host verifier surfaces missing selected declarations from actual alpha inputs without TypeError", async () => {
+  const verifier = loadHostManifestVerifier()
+  for (const [method, label] of [["superpowers", "Superpowers"], ["work-suite", "Work Suite"]]) {
+    await withHostFreshnessFixture(async (root) => {
+      const manifest = loadJson("plugins", "desk", "activation", "desk.activation.json")
+      assert.equal(manifest.dependencies.some((entry) => entry.id === "work-suite"), false)
+      manifest.dependencies = manifest.dependencies.filter((entry) => entry.id !== method)
+      manifest.provides.activation_targets[0].depends_on = ["desk", method, "plain-language", "ponytail-upstream"]
+      writeJson(root, "plugins/desk/activation/desk.activation.json", manifest)
+      const result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+      assert.equal(result.ok, false)
+      assert.deepEqual(result.errors, [`missing ${label} dependency in activation manifest`])
+      assert.deepEqual(result.checked, ["support-matrix", "copilot-bundle"])
+    })
+  }
+})
+
+test("root host verifier handles empty, sparse and contradictory evidence rows with precise diagnostics", async () => {
+  const verifier = loadHostManifestVerifier()
+  const evidence = "plugins/desk/activation/host-capability-evidence.md"
+  const host = loadJson("plugins", "desk", "activation", "desk.activation.json").host_support[0].host
+  for (const [kind, expected] of [
+    ["empty", "support-matrix evidence columns drifted"],
+    ["sparse", `support-matrix missing evidence row for ${host}`],
+    ["contradictory", `support-matrix evidence disposition drift for ${host}`],
+  ]) {
+    await withHostFreshnessFixture(async (root) => {
+      const rows = loadText(evidence).split(/\r?\n/u).filter((line) => line.startsWith("|"))
+      const header = rows.slice(0, 2).join("\n")
+      const body = kind === "empty" ? "" : kind === "sparse"
+        ? `${header}\n| unknown-host |\n`
+        : `${header}\n| ${host} | fixture | wrong-disposition | none | fixture | none | wrong fallback |\n`
+      writeText(root, evidence, body)
+      const result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+      assert.equal(result.ok, false)
+      assert.ok(result.errors.some((error) => error.includes(expected)), result.errors.join("\n"))
+      if (kind === "contradictory") assert.ok(result.errors.includes(`support-matrix fallback drift for ${host}`))
+    })
+  }
+})
+
+test("root host verifier reports every Codex native surface and missing activation diagnostic", async () => {
+  const verifier = loadHostManifestVerifier()
+  for (const missing of [false, true]) {
+    await withHostFreshnessFixture(async (root) => {
+      const plugin = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
+      plugin.version = "0.0.0"
+      plugin.skills = "./wrong/"
+      plugin.mcpServers = "./wrong.json"
+      if (missing) {
+        delete plugin.activation
+      } else {
+        const codex = plugin.activation.codex
+        codex.defaultMode = "wrong"
+        codex.optOutModes = []
+        codex.targets["desk:worker"] = { source: "wrong.toml", default: false }
+        codex.mcpServers.desk.manualRegistration = true
+        codex.manualSetupSteps = ["manual fixture"]
+        for (const dependency of Object.values(codex.dependencies)) dependency.version = "0.0.0"
+      }
+      writeJson(root, "plugins/desk/.codex-plugin/plugin.json", plugin)
+      const result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+      assert.equal(result.ok, false)
+      for (const message of [
+        "Desk version drift", "Desk surfaces drift", "default activation mode drift", "opt-out modes drift",
+        "desk:worker source drift", "desk:worker default drift", "Desk MCP manual-registration drift",
+        "Superpowers dependency version drift", "Plain Language dependency version drift", "Ponytail dependency version drift",
+      ]) assert.ok(result.errors.includes(`codex-plugin ${message}`), result.errors.join("\n"))
+      assert.equal(result.errors.includes("codex-plugin manual setup steps drift"), !missing)
+    })
+  }
+})
+
+test("root host verifier reports native provider lock drift for both host families", async () => {
+  const verifier = loadHostManifestVerifier()
+  for (const host of ["codex", "claude"]) {
+    await withHostFreshnessFixture(async (root) => {
+      for (const provider of ["superpowers", "plain-language", "ponytail-upstream"]) {
+        const plugin = loadJson("plugins", provider, `.${host}-plugin`, "plugin.json")
+        plugin.version = "0.0.0"
+        writeJson(root, `plugins/${provider}/.${host}-plugin/plugin.json`, plugin)
+      }
+      const result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+      assert.equal(result.ok, false)
+      for (const label of ["Superpowers", "Plain Language", "Ponytail"]) {
+        assert.ok(result.errors.includes(`${host}-plugin ${label} provider lock drift`), result.errors.join("\n"))
+      }
+      if (host === "claude") assert.ok(result.errors.includes("claude-plugin Superpowers activation dependency version drift"))
+    })
+  }
+})
+
+test("root host verifier reports Claude surface and activation-worker drift", async () => {
+  const verifier = loadHostManifestVerifier()
+  await withHostFreshnessFixture(async (root) => {
+    const plugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
+    plugin.version = "0.0.0"
+    plugin.agents = []
+    plugin.skills = "./wrong/"
+    plugin.mcpServers = "./wrong.json"
+    plugin.outputStyles = "./wrong/"
+    plugin.dependencies = [{ name: "wrong" }, { name: "wrong" }, { name: "wrong" }]
+    writeJson(root, "plugins/desk/.claude-plugin/plugin.json", plugin)
+    const activation = loadJson("plugins", "desk", "activation", "desk.activation.json")
+    activation.host_activation.claude.targets["desk:worker"].source = "wrong.md"
+    writeJson(root, "plugins/desk/activation/desk.activation.json", activation)
+    const result = await verifier.verifyDeskHostManifests({
+      repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+    })
+    assert.equal(result.ok, false)
+    for (const message of [
+      "Desk version drift", "worker exposure drift", "Desk surfaces drift", "output style surface drift",
+      "Superpowers dependency drift", "Plain Language dependency drift", "Ponytail dependency drift",
+      "activation worker source drift",
+    ]) assert.ok(result.errors.includes(`claude-plugin ${message}`), result.errors.join("\n"))
+  })
+})
+
+test("root host verifier rejects absent worker metadata and each authored invariant surface", async () => {
+  const verifier = loadHostManifestVerifier()
+  await withHostFreshnessFixture(async (root) => {
+    for (const file of [
+      "plugins/desk/agents/worker.md", "plugins/desk/agents/worker.toml", "plugins/desk/agents/worker.agent.md",
+      "plugins/desk/output-styles/worker.md", "plugins/desk/principles.md", "plugins/desk/mcp/src/activation/adapters/codex.js",
+    ]) writeText(root, file, "fixture without worker metadata\n")
+    const result = await verifier.verifyDeskHostManifests({
+      repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+    })
+    assert.equal(result.ok, false)
+    for (const host of ["claude", "codex", "copilot"]) {
+      assert.ok(result.errors.includes(`worker-sources ${host} worker name drift`))
+      assert.ok(result.errors.includes(`worker-sources ${host} body drift`))
+    }
+    for (const host of ["claude", "codex-subagent", "copilot", "claude-output-style"]) {
+      assert.ok(result.errors.includes(`worker-sources ${host} no-hard-wrap invariant drift`))
+    }
+    for (const message of [
+      "claude session-start prompt drift", "principles no-hard-wrap invariant drift",
+      "codex activation no-hard-wrap invariant drift", "codex activation Plain Language invariant drift",
+      "codex activation Ponytail invariant drift",
+    ]) assert.ok(result.errors.includes(`worker-sources ${message}`), result.errors.join("\n"))
+  })
+})
+
+test("root host verifier detects missing bundled humanize files and a revived standalone export", async () => {
+  const verifier = loadHostManifestVerifier()
+  await withHostFreshnessFixture(async (root) => {
+    for (const file of ["SKILL.md", "LICENSE"]) rmSync(path.join(root, "plugins/desk/skills/humanize", file))
+    writeText(root, "skills/humanize/SKILL.md", "fixture standalone copy\n")
+    const manifest = loadJson("manifest.json")
+    manifest.skills.push({ name: "humanize" })
+    writeJson(root, "manifest.json", manifest)
+    const result = await verifier.verifyDeskHostManifests({
+      repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+    })
+    assert.equal(result.ok, false)
+    for (const message of [
+      "Desk bundle missing SKILL.md", "Desk bundle missing LICENSE",
+      "remains in the standalone skill catalog", "remains exported from the standalone manifest",
+    ]) assert.ok(result.errors.includes(`humanize-skill ${message}`), result.errors.join("\n"))
+  })
+})
+
+test("root host verifier retains primitive I/O diagnostics without masking them as TypeErrors", async (t) => {
+  const verifier = loadHostManifestVerifier()
+  const fs = require("node:fs")
+  await withHostFreshnessFixture(async (root) => {
+    const activation = path.join(root, "plugins/desk/activation/desk.activation.json")
+    const read = fs.readFileSync
+    const mocked = t.mock.method(fs, "readFileSync", (file, ...args) => {
+      if (file === activation) throw "fixture activation read failure"
+      return read(file, ...args)
+    })
+    let result
+    try {
+      result = await verifier.verifyDeskHostManifests({
+        repoRoot: root, mcpRoot, io: { stdout: { write() {} }, stderr: { write() {} } },
+      })
+    } finally {
+      mocked.mock.restore()
+    }
+    assert.deepEqual(result.errors, ["fixture activation read failure"])
+    assert.deepEqual(result.checked, [])
+  })
+})
+
+test("root host verifier default API and CLI preserve success, refusal and stream-error outcomes", async (t) => {
+  const verifier = loadHostManifestVerifier()
+  const output = []
+  const write = process.stdout.write.bind(process.stdout)
+  const capture = t.mock.method(process.stdout, "write", (text, ...args) => {
+    if (typeof text === "string" && text.startsWith("Desk host manifests verified for ")) {
+      output.push(text)
+      return true
+    }
+    return write(text, ...args)
+  })
+  try {
+    assert.equal((await verifier.verifyDeskHostManifests()).ok, true)
+    assert.equal(await verifier.runCli(), 0)
+  } finally {
+    capture.mock.restore()
+  }
+  assert.equal(output.length, 2)
+  await withHostFreshnessFixture(async (root) => {
+    writeText(root, "plugins/desk/activation/host-capability-evidence.md", "")
+    const errors = []
+    const code = await verifier.runCli({
+      repoRoot: root, mcpRoot,
+      io: { stdout: { write() { assert.fail("invalid metadata must not print success") } }, stderr: { write: (text) => errors.push(text) } },
+    })
+    assert.equal(code, 1)
+    assert.ok(errors.join("").includes("support-matrix evidence columns drifted"))
+  })
+  for (const failure of [new Error("fixture output refused"), "fixture non-Error output refusal"]) {
+    const errors = []
+    const code = await verifier.runCli({
+      repoRoot, mcpRoot,
+      io: { stdout: { write() { throw failure } }, stderr: { write: (text) => errors.push(text) } },
+    })
+    assert.equal(code, 1)
+    assert.equal(errors.join(""), `${failure instanceof Error ? failure.message : failure}\n`)
+  }
+  const errors = []
+  const originalOut = process.stdout.write.bind(process.stdout)
+  const originalErr = process.stderr.write.bind(process.stderr)
+  const out = t.mock.method(process.stdout, "write", (text, ...args) => {
+    if (typeof text === "string" && text.startsWith("Desk host manifests verified for ")) throw new Error("fixture ambient output refused")
+    return originalOut(text, ...args)
+  })
+  const err = t.mock.method(process.stderr, "write", (text, ...args) => {
+    if (text === "fixture ambient output refused\n") { errors.push(text); return true }
+    return originalErr(text, ...args)
+  })
+  let code
+  try {
+    code = await verifier.runCli()
+  } finally {
+    out.mock.restore()
+    err.mock.restore()
+  }
+  assert.equal(code, 1)
+  assert.deepEqual(errors, ["fixture ambient output refused\n"])
+  const cli = spawnSync(process.execPath, [path.join(repoRoot, hostManifestScript)], {
+    cwd: repoRoot, encoding: "utf8",
+  })
+  assert.equal(cli.status, 0, cli.stderr)
+  assert.match(cli.stdout, /^Desk host manifests verified for /u)
 })

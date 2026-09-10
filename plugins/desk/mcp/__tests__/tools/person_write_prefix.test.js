@@ -8,16 +8,16 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import { task_create, task_update, task_archive } from "../../src/tools/task.js"
 import { track_create, track_update } from "../../src/tools/track.js"
 import { friction_add } from "../../src/tools/friction.js"
 import { lesson_add } from "../../src/tools/lesson.js"
 import { mkTempDeskRoot, readFront, exists } from "./_helpers.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function makeOutside() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-write-outside-"))
+  return mkTempRoot("desk-write-outside-")
 }
 
 function containmentError() {

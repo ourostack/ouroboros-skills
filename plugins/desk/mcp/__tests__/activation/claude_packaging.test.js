@@ -9,14 +9,14 @@ const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
 )
 const activationManifestPath = "plugins/desk/activation/desk.activation.json"
-const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const evidencePath = "plugins/desk/activation/host-capability-evidence.md"
 const supportMatrixPath = "plugins/desk/activation/support-matrix.json"
 const claudeNativeWorkerSource = "agents/worker.md"
 const expectedClaudeSourcePaths = [
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.mcp.json",
   `plugins/desk/${claudeNativeWorkerSource}`,
-  "plugins/work-suite/.claude-plugin/plugin.json",
+  "plugins/superpowers/.claude-plugin/plugin.json",
   "plugins/plain-language/.claude-plugin/plugin.json",
   "plugins/ponytail-upstream/.claude-plugin/plugin.json",
 ]
@@ -210,13 +210,13 @@ function currentClaudePackagingInput() {
       supportMatrixPath,
     ),
     worker: parseSimpleFrontmatter("plugins", "desk", "agents", "worker.md"),
-    workSuitePlugin: loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json"),
+    superpowersPlugin: loadJson("plugins", "superpowers", ".claude-plugin", "plugin.json"),
   }
 }
 
-test("Claude plugin metadata declares native Desk surfaces and Work Suite dependency", () => {
+test("Claude plugin metadata declares native Desk surfaces and Superpowers dependency", () => {
   const deskPlugin = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
-  const workSuitePlugin = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
+  const superpowersPlugin = loadJson("plugins", "superpowers", ".claude-plugin", "plugin.json")
 
   assert.equal(deskPlugin.skills, "./skills/")
   assert.deepEqual(deskPlugin.agents, ["./agents/worker.md"])
@@ -225,8 +225,8 @@ test("Claude plugin metadata declares native Desk surfaces and Work Suite depend
   assert.equal(deskPlugin.outputStyles, "./output-styles/")
   assert.deepEqual(deskPlugin.dependencies, [
     {
-      name: "work-suite",
-      version: "^3.0.0",
+      name: "superpowers",
+      version: "6.3.0",
     },
     {
       name: "plain-language",
@@ -238,7 +238,7 @@ test("Claude plugin metadata declares native Desk surfaces and Work Suite depend
     },
   ])
   assert.equal(Object.hasOwn(deskPlugin, "activation"), false)
-  assert.equal(workSuitePlugin.version, "3.0.0")
+  assert.equal(superpowersPlugin.version, "6.3.0")
 })
 
 test("Work Suite Claude manifest stays a strict-loadable skill provider", () => {
@@ -318,9 +318,9 @@ test("Claude packaging metadata is backed by fresh evidence and support matrix r
     activationManifestPath,
   )
 
-  assert.match(evidenceRow.evidence_command_or_doc, /claude plugin validate plugins\/desk --strict/u)
-  assert.match(evidenceRow.evidence_command_or_doc, /claude plugin validate plugins\/work-suite --strict/u)
-  assert.match(evidenceRow.evidence_command_or_doc, /unit-4b-claude-help-evidence\.log/u)
+  assert.match(evidenceRow.evidence_command_or_doc, /superpowers_host_consumers\.test\.js/u)
+  assert.match(evidenceRow.evidence_command_or_doc, /alpha runtime qualification required/u)
+  assert.doesNotMatch(evidenceRow.evidence_command_or_doc, /unit-4b-claude-help-evidence\.log/u)
   assert.match(evidenceRow.evidence_command_or_doc, /node --test plugins\/desk\/mcp\/__tests__\/activation\/claude_packaging\.test\.js/u)
   assert.deepEqual({
     activationManifestClaudeSource: activationTarget.entrypoints.claude,
@@ -391,41 +391,41 @@ test("Claude-facing manifests stay version-aligned with activation and marketpla
   const activation = loadJson("plugins", "desk", "activation", "desk.activation.json")
   const deskClaude = loadJson("plugins", "desk", ".claude-plugin", "plugin.json")
   const deskCodex = loadJson("plugins", "desk", ".codex-plugin", "plugin.json")
-  const workSuiteClaude = loadJson("plugins", "work-suite", ".claude-plugin", "plugin.json")
-  const workSuiteCodex = loadJson("plugins", "work-suite", ".codex-plugin", "plugin.json")
+  const superpowersClaude = loadJson("plugins", "superpowers", ".claude-plugin", "plugin.json")
+  const superpowersCodex = loadJson("plugins", "superpowers", ".codex-plugin", "plugin.json")
 
   assert.equal(deskClaude.version, activation.version)
   assert.equal(deskClaude.version, deskCodex.version)
   assert.equal(deskClaude.version, marketplacePlugin("desk").version)
-  assert.equal(workSuiteClaude.version, workSuiteCodex.version)
-  assert.equal(workSuiteClaude.version, marketplacePlugin("work-suite").version)
-  assert.equal(workSuiteClaude.version, activation.dependencies.find((dependency) => (
-    dependency.id === "work-suite"
+  assert.equal(superpowersClaude.version, superpowersCodex.version)
+  assert.equal(superpowersClaude.version, marketplacePlugin("superpowers").version)
+  assert.equal(superpowersClaude.version, activation.dependencies.find((dependency) => (
+    dependency.id === "superpowers"
   )).lock.version)
 })
 
-test("Claude packaging validation rejects missing Work Suite dependency and stale versions", () => {
+test("Claude packaging validation rejects missing Superpowers dependency and stale versions", () => {
   assert.deepEqual(validateClaudePackagingContract(currentClaudePackagingInput()), [])
 
   const missingDependency = clone(currentClaudePackagingInput())
   missingDependency.deskPlugin.dependencies = []
   assert.deepEqual(
     validateClaudePackagingContract(missingDependency),
-    ["missing Work Suite dependency in Claude plugin metadata"],
+    ["missing Superpowers dependency in Claude plugin metadata"],
   )
 
   const staleDependencyRange = clone(currentClaudePackagingInput())
   staleDependencyRange.deskPlugin.dependencies[0].version = "^2.0.0"
   assert.deepEqual(
     validateClaudePackagingContract(staleDependencyRange),
-    ["Claude Work Suite dependency range must be ^3.0.0"],
+    ["Claude Superpowers dependency range must be 6.3.0"],
   )
 
   const staleProviderVersion = clone(currentClaudePackagingInput())
-  staleProviderVersion.workSuitePlugin.version = "2.1.2"
+  staleProviderVersion.superpowersPlugin.version = "2.1.2"
   assert.deepEqual(
     validateClaudePackagingContract(staleProviderVersion),
-    ["Work Suite Claude version must match activation lock 3.0.0"],
+    ["Superpowers Claude version must match activation lock 6.3.0"],
   )
 })
 
@@ -452,7 +452,7 @@ test("Claude packaging validation rejects missing worker exposure and unsupporte
   )
 
   const unsupportedWorkSuiteManifestField = clone(currentClaudePackagingInput())
-  unsupportedWorkSuiteManifestField.workSuitePlugin.activation = { claude: {} }
+  unsupportedWorkSuiteManifestField.superpowersPlugin.activation = { claude: {} }
   assert.deepEqual(
     validateClaudePackagingContract(unsupportedWorkSuiteManifestField),
     ["Claude plugin manifest must not include host activation metadata"],

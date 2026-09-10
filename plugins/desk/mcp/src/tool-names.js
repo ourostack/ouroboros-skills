@@ -1,4 +1,4 @@
-// Single source of truth for the 15 MCP tools desk-mcp exposes.
+// Single source of truth for the 17 MCP tools desk-mcp exposes.
 //
 // Imported by both server.js (registers them) and the tests (asserts the
 // list is canonical). Kept in a no-deps file so tests can import without
@@ -13,6 +13,10 @@ export const TOOL_NAMES = [
   "track_update",
   "friction_add",
   "lesson_add",
+  // Private, non-Git qualitative feedback about the preview build
+  "desk_feedback",
+  // Private, non-Git work measurement the owner keeps about their own work
+  "desk_work_ledger",
   // Search (Units 5 + 6)
   "desk_search",
   "desk_recall",
@@ -41,6 +45,10 @@ export const TOOL_DESCRIPTIONS = {
     "Append a friction entry — cross-cutting to <root>/_meta/friction.md, or track-local to <root>/<track>/_friction/<date>-<theme>.md.",
   lesson_add:
     "Write or append a lesson under <root>/_meta/tips/<topic>.md. Existing file gets an `## Update <date>` section.",
+  desk_feedback:
+    "Private qualitative feedback about the preview build, stored in the OS user's own state directory — never in the desk Git workspace, the search index, or telemetry. Explicit capture only; never inferred from tasks or conversation. Actions: `capture` (text, optional task_ref), `list` (optional limit and offset), `correct` (entry_id, expected_revision, text), `delete` (entry_id). Scoped to the session's desk root and --person binding; it cannot read or write another participant's feedback. Results return to this caller only — there is no share or export action; writing anything to a desk is a separate, visible, opted-in step.",
+  desk_work_ledger:
+    "Private work-item measurement about the caller's own work, stored in the OS user's own state directory — never in the desk Git workspace, the search index, or telemetry. A work item is one request for one specific independently assessable outcome; identity is taken at intake before any commitment. Records commitment, size features (before execution), phases, scope changes, links, completion and closure; imports minimal usage facts with provenance from the host's own local session records; and reports every field as measured, declared, inferred, estimated or unavailable. Actions: `capabilities`, `intake`, `commit`, `size`, `phase`, `scope_change`, `link`, `complete`, `close`, `correct`, `delete`, `inspect`, `report`, `import_usage`, `cost_basis`, `set_recording`, `link_evaluation_receipt`. Scoped to the session's desk root and --person binding; it cannot read or write another participant's ledger. Results return to this caller only — there is no share or export action. It measures work, not people: no ranking, no scoring, no transcripts, and no universal credit-to-money conversion.",
   desk_search:
     "Hybrid lexical+semantic search across desk. Filters: track, status, kind, since, until. Returns ranked chunks with score_breakdown. Soft-fails to FTS-only when Ollama is unreachable. `scope` (optional): 'active' (default), 'archived', or 'all' — desk_search defaults to active because day-to-day signal beats archive noise; pass 'all' to search history too.",
   desk_recall:
@@ -56,5 +64,5 @@ export const TOOL_DESCRIPTIONS = {
   desk_status:
     "Fast session-start health/status report for the resolved desk root, runtime cache, plugin version, local DB, lexical index, document-vector coverage, snapshots, and vector packs. Does not run expensive repair work or probe live embedding endpoints.",
   desk_doctor:
-    "Report whether Desk MCP started in healthy runtime mode and describe the active runtime target. In diagnostic mode, reports the precise startup failure and offline remediation.",
+    "Report whether Desk MCP started in healthy runtime mode and describe the active runtime target. In diagnostic mode, reports the precise startup failure and offline remediation. Optional format:'preview' returns only a local-on-demand, nine-field package/process snapshot with no task or feedback records.",
 }

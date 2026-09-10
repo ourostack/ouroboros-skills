@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "0d4d583331149237b5a03c65ebef43e2c5867e49",
+  "cliSha256": "f4b470d74671cd3c4a31c3f671b2e4207d9eda8e0f4b5d8f399747610630379a",
+  "nodeVersion": "v22.23.2",
+  "cases": {
+    "validate-ok": {
+      "argv": [
+        "validate",
+        "."
+      ],
+      "status": 0,
+      "stdoutBase64": "VmFsaWRhdGVkIDEgc3VpdGUocyksIDEgcmVxdWlyZW1lbnQocyksIDEgY2FzZShzKSwgMiBjaGVjayhzKS4gYmVoYXZpb3I6IFVOVkVSSUZJRUQgLSB2YWxpZGF0aW9uIGRvZXMgbm90IHJ1biBvciBqdWRnZSBhbiBhZ2VudC4K",
+      "stderrBase64": ""
+    },
+    "fingerprint-ok": {
+      "argv": [
+        "fingerprint",
+        "evals/fixture.json",
+        "."
+      ],
+      "status": 0,
+      "stdoutBase64": "eyJzb3VyY2VGaW5nZXJwcmludCI6IjY5OGRhZWQ2M2FlMjA0YjgyMjMwMDUwZWQzN2UyZmI3N2U2Yjc4NmRiNmFmMjI5NTcxYzU5NTAzZTk4NjJjNWMiLCJjb250cmFjdEZpbmdlcnByaW50IjoiM2I2YTY4ODExNGY4ZWU2NWZmYTkzZDljOWNhNzAzODZmNzk1Y2U2ZTU2YjZkNmYzMThhN2MwMGM2ZGE3YzQ0OCJ9Cg==",
+      "stderrBase64": ""
+    },
+    "verify-ok": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 0,
+      "stdoutBase64": "VmVyaWZpZWQgZml4dHVyZTogMSBjYXNlKHMpLCAyIGNoZWNrKHMpOyByZWNlaXB0IGlzIGNvbXBsZXRlL2N1cnJlbnQgYW5kIGV2aWRlbmNlIHdhcyBub3QganVkZ2VkLgo=",
+      "stderrBase64": ""
+    },
+    "validate-stale": {
+      "argv": [
+        "validate",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IGV2YWxzL2ZpeHR1cmUuanNvbjogcmV2aWV3ZWRTb3VyY2VGaW5nZXJwcmludCBkb2VzIG5vdCBtYXRjaCBjdXJyZW50IHNvdXJjZXMK"
+    },
+    "validate-polarity": {
+      "argv": [
+        "validate",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IGV2YWxzL2ZpeHR1cmUuanNvbjogY2FzZSBvcmRpbmFyeSBuZWVkcyBhdCBsZWFzdCBvbmUgbXVzdCBhbmQgb25lIG11c3Rfbm90IGNoZWNrCg=="
+    },
+    "fingerprint-empty": {
+      "argv": [
+        "fingerprint",
+        "evals/fixture.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHNvdXJjZXMgbXVzdCBiZSBhIG5vbi1lbXB0eSBhcnJheQo="
+    },
+    "fingerprint-traversal": {
+      "argv": [
+        "fingerprint",
+        "evals/fixture.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHNvdXJjZSBwYXRoIGVzY2FwZXMgcmVwbyByb290OiAuLi9vdXRzaWRlCg=="
+    },
+    "verify-source": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IHNvdXJjZUZpbmdlcnByaW50IGRvZXMgbm90IG1hdGNoIGN1cnJlbnQgc291cmNlcwo="
+    },
+    "verify-contract": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IGNvbnRyYWN0RmluZ2VycHJpbnQgZG9lcyBub3QgbWF0Y2ggdGhlIGN1cnJlbnQgY29udHJhY3QK"
+    },
+    "verify-unknown-suite": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IG5hbWVzIHVua25vd24gc3VpdGU6IHVua25vd24K"
+    },
+    "verify-failed-check": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IGZhaWxlZCBjaGVjazogcG9zaXRpdmUK"
+    },
+    "verify-missing-check": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IG1pc3NpbmcgY2hlY2s6IG9yZGluYXJ5Lm5lZ2F0aXZlCg=="
+    },
+    "verify-invalid-time": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IHJ1bi5zdGFydGVkQXQgbXVzdCBiZSBhIHZhbGlkIFVUQyBJU08gdGltZXN0YW1wCg=="
+    },
+    "verify-missing-run": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IG5lZWRzIGEgcnVuIG9iamVjdAo="
+    },
+    "verify-invalid-shape": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        "."
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHJlc3VsdCByZWNlaXB0IG5lZWRzIHNjaGVtYVZlcnNpb24sIHN1aXRlSWQsIHNvdXJjZUZpbmdlcnByaW50LCBjb250cmFjdEZpbmdlcnByaW50LCBhbmQgY2FzZXMK"
+    },
+    "no-command": {
+      "argv": [],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    },
+    "unknown-command": {
+      "argv": [
+        "unknown"
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    },
+    "validate-extra": {
+      "argv": [
+        "validate",
+        ".",
+        "extra"
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    },
+    "fingerprint-missing": {
+      "argv": [
+        "fingerprint"
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    },
+    "verify-missing": {
+      "argv": [
+        "verify"
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    },
+    "verify-extra": {
+      "argv": [
+        "verify",
+        "receipt.json",
+        ".",
+        "extra"
+      ],
+      "status": 1,
+      "stdoutBase64": "",
+      "stderrBase64": "c2tpbGwtZXZhbHM6IHVzYWdlOiBub2RlIHNjcmlwdHMvc2tpbGwtZXZhbHMuY2pzIHZhbGlkYXRlIFtyZXBvUm9vdF0gfCBmaW5nZXJwcmludCA8c3VpdGUtZmlsZT4gW3JlcG9Sb290XSB8IHZlcmlmeSA8cmVzdWx0LWZpbGU+IFtyZXBvUm9vdF0K"
+    }
+  }
+}

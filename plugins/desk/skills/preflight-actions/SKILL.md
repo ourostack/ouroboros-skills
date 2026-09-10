@@ -173,5 +173,4 @@ Worker/operator-owned surfaces and established contribution paths
 remain autonomous. The hold is only for unilateral mutation outside
 an owner-aligned path.
 
-**Cross-link.** This is the ownership axis beside verb
-(`principles.md` Sub-invariant 2c) and reversibility (`autopilot`).
+**Cross-link.** This is the ownership axis beside verb (`principles.md` Sub-invariant 2c) and the recorded authority and continuation capabilities in `desk:superpowers-integration`.

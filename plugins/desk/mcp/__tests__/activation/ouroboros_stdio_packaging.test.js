@@ -9,7 +9,7 @@ const repoRoot = path.resolve(
   fileURLToPath(new URL("../../../../..", import.meta.url)),
 )
 const activationManifestPath = "plugins/desk/activation/desk.activation.json"
-const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const evidencePath = "plugins/desk/activation/host-capability-evidence.md"
 const supportMatrixPath = "plugins/desk/activation/support-matrix.json"
 const unitTestCommand =
   "node --test plugins/desk/mcp/__tests__/activation/ouroboros_stdio_packaging.test.js"
@@ -160,7 +160,7 @@ test("Ouroboros/autonomous-agent packaging has a flattened bundle disposition", 
     "plugins/desk/activation/README.md",
     "plugins/desk/.mcp.json",
     "plugins/desk/plugin.json",
-    "plugins/work-suite/plugin.json",
+    "plugins/superpowers/plugin.json",
     "plugins/plain-language/plugin.json",
     "plugins/ponytail-upstream/plugin.json",
   ], "Ouroboros evidence source_paths")
@@ -170,7 +170,7 @@ test("Ouroboros/autonomous-agent packaging has a flattened bundle disposition", 
     "plugins/desk/activation/README.md#ouroboros-autonomous-agent",
   ], "Ouroboros evidence_command_or_doc")
   assert.match(evidenceRow.fallback_behavior, /\$DESK/u)
-  assert.match(evidenceRow.fallback_behavior, /bundle Desk \+ Work Suite/u)
+  assert.match(evidenceRow.fallback_behavior, /bundle Desk \+ Superpowers/u)
 })
 
 test("Ouroboros activation docs define the evidence anchor and disposition", () => {
@@ -179,7 +179,7 @@ test("Ouroboros activation docs define the evidence anchor and disposition", () 
 
   assert.match(section, /supported-flattened/u)
   assert.match(section, /host-native-plugin-install/u)
-  assert.match(section, /bundle Desk \+ Work Suite/u)
+  assert.match(section, /bundles Desk \+ Superpowers/u)
   assert.match(section, /\$DESK/u)
 })
 
@@ -190,7 +190,7 @@ test("Ouroboros docs specify bundle.json plugin closure and $DESK preamble bindi
   assert.match(section, /bundle\.json/u)
   assert.match(section, /"plugins"\s*:\s*\[/u)
   assert.match(section, /"desk"/u)
-  assert.match(section, /"work-suite"/u)
+  assert.match(section, /"superpowers"/u)
   assert.match(section, /"plain-language"/u)
   assert.match(section, /"ponytail-upstream"/u)
   assert.match(section, /preamble/u)
@@ -291,10 +291,10 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
 
   const missingWorkSuitePlugin = clone(currentOuroborosStdioPackagingInput())
   missingWorkSuitePlugin.ouroborosReadmeSection =
-    missingWorkSuitePlugin.ouroborosReadmeSection.replace("\"work-suite\"", "\"workflow\"")
+    missingWorkSuitePlugin.ouroborosReadmeSection.replace("\"superpowers\"", "\"workflow\"")
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(missingWorkSuitePlugin),
-    ["Ouroboros bundle metadata must include work-suite plugin"],
+    ["Ouroboros bundle metadata must include superpowers plugin"],
   )
 
   const missingDeskBinding = clone(currentOuroborosStdioPackagingInput())
@@ -329,7 +329,7 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
         "{",
         "  \"plugins\": [",
         "    \"notes\",",
-        "    \"work-suite\"",
+        "    \"superpowers\"",
         "  ]",
         "}",
         "```",
@@ -356,12 +356,12 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
         "}",
         "```",
         "",
-        "The word \"work-suite\" appears in prose but not in bundle metadata.",
+        "The word \"superpowers\" appears in prose but not in bundle metadata.",
       ].join("\n"),
     )
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(malformedWorkSuiteBundleWithProse),
-    ["Ouroboros bundle metadata must include work-suite plugin"],
+    ["Ouroboros bundle metadata must include superpowers plugin"],
   )
 
   const malformedJsonBundle = clone(currentOuroborosStdioPackagingInput())
@@ -395,7 +395,7 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
         "Later unrelated JSON must not rescue malformed bundle metadata:",
         "",
         "```json",
-        "{ \"plugins\": [\"desk\", \"work-suite\"] }",
+        "{ \"plugins\": [\"desk\", \"superpowers\"] }",
         "```",
       ].join("\n"),
     )
@@ -411,7 +411,7 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
       [
         "```json",
         "{",
-        "  \"metadata\": [\"desk\", \"work-suite\"]",
+        "  \"metadata\": [\"desk\", \"superpowers\"]",
         "}",
         "```",
       ].join("\n"),
@@ -420,7 +420,7 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
     validateOuroborosStdioPackagingContract(bundleWithoutPluginsArray),
     [
       "Ouroboros bundle metadata must include desk plugin",
-      "Ouroboros bundle metadata must include work-suite plugin",
+      "Ouroboros bundle metadata must include superpowers plugin",
     ],
   )
 
@@ -441,7 +441,7 @@ test("Ouroboros packaging validation rejects missing bundle metadata and DESK bi
     )
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(bundleWithNonStringPlugin),
-    ["Ouroboros bundle metadata must include work-suite plugin"],
+    ["Ouroboros bundle metadata must include superpowers plugin"],
   )
 })
 
@@ -486,7 +486,7 @@ test("Ouroboros packaging validation rejects evidence row drift", () => {
     [
       "Ouroboros evidence must record supported-flattened disposition",
       "Ouroboros evidence must mark host-native-plugin-install unsupported",
-      "Ouroboros evidence fallback must describe bundled Desk and Work Suite",
+      "Ouroboros evidence fallback must describe bundled Desk and Superpowers",
       "Ouroboros evidence fallback must describe $DESK binding",
     ],
   )
@@ -501,7 +501,7 @@ test("Ouroboros packaging validation rejects evidence row drift", () => {
   assert.deepEqual(
     validateOuroborosStdioPackagingContract(missingFallback),
     [
-      "Ouroboros evidence fallback must describe bundled Desk and Work Suite",
+      "Ouroboros evidence fallback must describe bundled Desk and Superpowers",
       "Ouroboros evidence fallback must describe $DESK binding",
     ],
   )
@@ -1601,7 +1601,7 @@ test("Ouroboros/generic stdio packaging validation reports missing rows without 
 
   assert.deepEqual(
     validateOuroborosStdioPackagingContract({
-      activationManifest: { host_support: [null] },
+      activationManifest: { ...currentOuroborosStdioPackagingInput().activationManifest, host_support: [null] },
       evidenceRows: [null],
       ouroborosReadmeSection: currentOuroborosStdioPackagingInput().ouroborosReadmeSection,
       genericStdioReadmeSection: currentOuroborosStdioPackagingInput().genericStdioReadmeSection,

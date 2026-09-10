@@ -9,6 +9,8 @@ Plan only when the plan prevents a real mistake.
 
 ## Route
 
+These are post-go lanes. Consume the existing alignment receipt before planning implementation; new work without an agreed outcome, definition of done, and explicit go-ahead returns to `work-ideator`. Skipping a planning document never skips alignment. Already-approved work reuses its contract.
+
 - **Clear, local, low risk:** skip planning and implement.
 - **Several coordinated files or a behavior change:** write or update a short doing-only document.
 - **Cross-cutting, novel, or high risk:** write one planning document, then one doing document.
@@ -29,7 +31,7 @@ Every behavior-changing slice names:
 
 - the test or fixture written before implementation and its observed red;
 - the minimum green behavior;
-- 100% statements, branches, and functions coverage for new and modified production logic, including error, null, empty, boundary, and negative paths with no changed-file exclusion;
+- repository-required coverage for new and modified production logic, including error, null, empty, boundary, and negative paths with no changed-file exclusion, plus semantic acceptance evidence that challenges a material assumption with a counterexample;
 - the build, full-suite, and consuming-surface proof required before completion.
 - for a default-off feature or optional configuration-gated behavior, the owning contract, activation seam, every inactive state, and the characterization at the real routing boundary that proves the pre-change path survives.
 - for every changed boundary, what callers observe on success and, when applicable, invalid input, dependency failure, timeout, cancellation, partial mutation, retry, duplication, and error translation.

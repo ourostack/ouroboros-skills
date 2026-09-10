@@ -1,0 +1,5 @@
+{
+  "approvedTarget": "approved",
+  "entryPoint": "challenge.mjs",
+  "claim": "Zero retries is supported and returns zero."
+}

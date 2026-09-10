@@ -1,7 +1,7 @@
 {
   "name": "work-suite",
-  "version": "3.0.0",
-  "description": "A risk-graded workflow bundle with strict TDD, complete changed-production coverage, verified delivery, and audited autonomous continuation. Uses pinned upstream Ponytail for coding posture and Plain Language for human-readable output.",
+  "version": "4.0.0-alpha.1",
+  "description": "An opt-in engineering preview with explicit alignment/go, test-first native execution, repository quality policy, semantic outcome evidence, and scoped terminal delivery. Uses pinned Ponytail and Plain Language.",
   "author": {
     "name": "ourostack",
     "url": "https://github.com/ourostack/ouroboros-skills"

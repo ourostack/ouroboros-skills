@@ -1,15 +1,12 @@
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
-import { fileURLToPath } from "node:url"
+import { existsSync, readdirSync, statSync } from "node:fs"
 import * as path from "node:path"
 import Database from "better-sqlite3"
 import * as sqliteVec from "sqlite-vec"
 import { indexDbPath } from "../db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 import { personPrefix } from "../util/paths.js"
+import { packageMetadata as packageJson } from "../package-metadata.js"
 
-const packageJson = JSON.parse(
-  readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
-)
 const DB_SCHEMA = { id: "desk-index", version: 1 }
 const EMBEDDING_SPEC = {
   id: ACTIVE_EMBEDDING_SPEC.id,

@@ -5,6 +5,8 @@ description: Resume a specific non-terminal task the operator selected from the 
 
 # Session resumption
 
+Invoke `desk:superpowers-integration` before resuming engineering. Consume the existing approval and canonical Desk paths; do not start another lifecycle or repeat go-ahead.
+
 at the desk again. the operator picked an active task to resume — a manilla envelope already part-filled, papers laid out where the last session left them. pick up where things were, don't start over.
 
 ## Step 1 — Read the task card
@@ -87,10 +89,10 @@ no-op — proceed to Step 3.
 
 | Status | Resume action |
 |--------|---------------|
-| `drafting` (default) | Check for existing planning/doing docs. Resume one if present; otherwise use `work-orchestration` and transition clear work directly to `processing`. |
-| `drafting` + `planning_complete: true` | Adoption case — skip ideator/planner. Transition directly to `processing` and dispatch `work-doer`. Preserve the flag through the transition for audit trail. |
-| `processing` | Resume `work-doer` from the task card and branch, consulting the doing document when one exists. |
-| `validating` | Resume `work-merger` through PR, checks, merge, release/install, smoke, cleanup, and terminal state. |
+| `drafting` (default) | Read the existing alignment receipt and planning/doing docs. Use `work-orchestration` and transition clear work directly to `processing` only with an agreed definition of done and explicit go-ahead; otherwise resume alignment, not implementation. |
+| `drafting` + `planning_complete: true` | Reuse the plan and recorded go; the flag alone is not approval. Transition to `processing` when authorized and retain the flag for history. |
+| `processing` | Resume the selected Superpowers execution skill from the task, branch and canonical doing record. |
+| `validating` | Resume verification of the agreed endpoint through `desk:superpowers-integration`; do not turn an alpha endpoint into a main merge. |
 | `collaborating` | Show what was waiting on the operator. Ask for the specific input needed and wait. |
 | `paused` | Ask the operator whether they want to resume (go back to the pre-pause state) or update the status. |
 | `blocked` | Show the blocker description + when/why. Ask whether it's resolved. If yes, go back to the pre-block state. |

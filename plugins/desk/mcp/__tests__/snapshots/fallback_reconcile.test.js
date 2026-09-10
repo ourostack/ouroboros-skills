@@ -5,8 +5,9 @@ import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import { createRequire } from "node:module"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
+
+import { mkTempRoot } from "../_temp_roots.js"
 import { zstdCompressSync } from "node:zlib"
 import matter from "gray-matter"
 
@@ -43,7 +44,7 @@ const RUNTIME = {
 }
 
 async function tmpRoot(prefix) {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function writeFile(root, rel, body) {

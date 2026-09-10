@@ -1,0 +1,11 @@
+{
+  "name": "checker-enforcement-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test baseline.test.mjs",
+    "check": "node scripts/check-config.mjs",
+    "ci": "npm run test"
+  }
+}

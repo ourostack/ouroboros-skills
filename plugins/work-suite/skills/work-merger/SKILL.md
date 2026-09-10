@@ -5,6 +5,12 @@ description: Drive an authorized finished branch through current-target sync, ex
 
 # Work Merger
 
+## Resolve the agreed terminal state
+
+Read the alignment receipt before applying the delivery sequence. An explicitly requested preview or PR-only outcome ends at its published artifact, required checks, and applicable consuming-surface proof: do not merge, release, deploy, or promote beyond that contract. Preserve the intentional preview branch and rollback path. These are completed scoped outcomes, not stalled merge tasks.
+
+For a normal merge-and-deliver task, the full sequence below applies. Never use a generic terminal-state rule to expand the operator's authority.
+
 ## Before remote writes
 
 Before push, PR, merge, release, or deploy:

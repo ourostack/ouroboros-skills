@@ -14,6 +14,7 @@ const fallbackDeskMcpTools = Object.freeze([
   "track_update",
   "friction_add",
   "lesson_add",
+  "desk_feedback",
   "desk_search",
   "desk_recall",
   "desk_similar",
@@ -21,6 +22,7 @@ const fallbackDeskMcpTools = Object.freeze([
   "desk_thread",
   "desk_reindex",
   "desk_status",
+  "desk_doctor",
 ]);
 
 function expandHome(inputPath) {
@@ -140,7 +142,7 @@ function requiredDeskMcpTools(repoRoot) {
   return names.length > 0 ? names : [...fallbackDeskMcpTools];
 }
 
-function collectActiveTools({ repoRoot, activeTools = null, activeToolsFiles = [] }) {
+function collectActiveTools({ repoRoot, activeTools, activeToolsFiles }) {
   let active = activeTools ? new Set(normalizeActiveToolNames(activeTools)) : null;
   for (const file of activeToolsFiles) {
     const absolute = path.resolve(repoRoot, expandHome(file));

@@ -4,6 +4,8 @@ Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable i
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
+This branch hosts the **[Agentic Engineering V2 technical alpha](AGENTIC-ENGINEERING-V2.md)**: pinned Superpowers with Desk/Crew state and authority, independent review, and explicit opt-in source selection. It is not the main-branch default or a qualified V1 replacement. Historical preview results remain historical.
+
 ## Repository Structure
 
 ```
@@ -15,7 +17,7 @@ ouroboros-skills/
       SKILL.md
     autopilot/               # Full-delivery execution doctrine
       SKILL.md
-    work-ideator/            # Resolve material ambiguity only when needed
+    work-ideator/            # Align new work before explicit implementation go
       SKILL.md
     work-planner/            # Risk-scaled planner for coordinated work
       SKILL.md
@@ -70,10 +72,11 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
 | **autopilot** | Keep authorized long-horizon work moving through terminal delivery and the continuation scan. |
 | **stay-in-turn** | Keep long-running work in the same turn with a native notification path or bounded foreground fallback. |
-| **work-ideator** | Resolve material ambiguity and choose the smallest viable shape; skip when the task is clear. |
+| **work-ideator** | Align new engineering work before explicit go; resume an already-approved contract without reopening it. |
 | **work-planner** | Plan coordinated or risky work; skip when the task description is sufficient. |
-| **work-doer** | Implement the smallest complete vertical change test-first, with complete coverage of changed production paths. |
+| **work-doer** | Implement the smallest complete change test-first, with repository-required coverage and primary outcome evidence. |
 | **work-merger** | Drive a branch through PR, merge, release/install, smoke, cleanup, and continuation. |
+| **preview-feedback** | Keep explicit preview feedback private, inspect or correct it, and share only a confirmed excerpt and destination. |
 | **visual-qa-dogfood** | Screenshot-backed dogfooding for UI/rendering work so visual absurdity cannot hide behind passing metrics. |
 | **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
@@ -96,7 +99,7 @@ For skill or plugin changes, "done" also requires runtime refresh and dogfooding
 
 ### Runtime Visibility Audit
 
-Use `scripts/audit-work-suite-runtime.cjs` to prove the work-suite contract across source, installed roots, and the active host menu snapshot:
+For the retained legacy standalone Work Suite provider, `scripts/audit-work-suite-runtime.cjs` checks source, installed roots and a captured menu snapshot. It is not the selected Superpowers alpha's admission check:
 
 ```bash
 node scripts/audit-work-suite-runtime.cjs --repo-root .

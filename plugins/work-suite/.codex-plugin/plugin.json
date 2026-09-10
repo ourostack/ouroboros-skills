@@ -1,7 +1,7 @@
 {
   "name": "work-suite",
-  "version": "3.0.0",
-  "description": "A risk-graded workflow bundle with strict TDD, complete changed-production coverage, verified delivery, and audited autonomous continuation.",
+  "version": "4.0.0-alpha.1",
+  "description": "An opt-in engineering preview with explicit alignment/go, test-first native execution, repository quality policy, semantic outcome evidence, and scoped terminal delivery.",
   "author": {
     "name": "ourostack",
     "url": "https://github.com/ourostack/ouroboros-skills"
@@ -20,7 +20,7 @@
     "codex": {
       "dependencyProvider": {
         "id": "work-suite",
-        "version": "3.0.0",
+        "version": "4.0.0-alpha.1",
         "resolution": "flattened"
       },
       "dependencies": {
@@ -40,7 +40,7 @@
   "interface": {
     "displayName": "Work Suite",
     "shortDescription": "Ideation, planning, doing, merging, and autonomous execution skills.",
-    "longDescription": "Work Suite packages ten canonical Ourostack workflow skills for Codex and other agent runtimes. Work Suite 3 preserves direct routing for clear work, requires strict TDD and complete changed-production coverage, uses risk-graded reviews, verifies delivery, and keeps authorized autopilot work moving through audited terminal state.",
+    "longDescription": "Work Suite packages ten canonical Ourostack workflow skills for Codex and other agent runtimes. This Work Suite 4 preview aligns new work before explicit go, resumes approved work without ceremony, preserves repository quality policy, requires primary outcome evidence, and delivers to the agreed terminal boundary.",
     "developerName": "ourostack",
     "category": "Engineering",
     "capabilities": [
@@ -52,7 +52,7 @@
     "privacyPolicyURL": "https://github.com/ourostack/ouroboros-skills",
     "termsOfServiceURL": "https://github.com/ourostack/ouroboros-skills",
     "defaultPrompt": [
-      "Run in autopilot through merge, deploy, smoke, cleanup, and durable continuation.",
+      "Continue the already-approved task through its agreed terminal state.",
       "Plan and execute this work.",
       "Merge this finished branch."
     ],

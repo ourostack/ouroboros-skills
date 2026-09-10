@@ -1,32 +1,32 @@
 {
   "schema_version": 1,
   "id": "desk",
-  "version": "3.1.2",
+  "version": "3.2.0-alpha.3",
   "dependencies": [
     {
       "id": "desk",
       "kind": "substrate",
-      "version": "3.1.2",
+      "version": "3.2.0-alpha.3",
       "provenance": {
         "source": "plugins/desk/.codex-plugin/plugin.json",
         "package": "ourostack/desk"
       },
       "lock": {
-        "version": "3.1.2",
+        "version": "3.2.0-alpha.3",
         "integrity": "sha256-desk-activation-manifest-v1"
       }
     },
     {
-      "id": "work-suite",
+      "id": "superpowers",
       "kind": "plugin",
-      "version_range": "^3.0.0",
+      "version_range": "6.3.0",
       "provenance": {
-        "source": "plugins/work-suite/.codex-plugin/plugin.json",
-        "package": "ourostack/work-suite"
+        "source": "plugins/superpowers/.codex-plugin/plugin.json",
+        "package": "obra/superpowers"
       },
       "lock": {
-        "version": "3.0.0",
-        "integrity": "sha256-work-suite-activation-manifest-v1"
+        "version": "6.3.0",
+        "integrity": "sha256-a6ce3a2accf90ec523f7f35be2a76142b94b7178dcbf688d10b756a45f1a2fd0"
       }
     },
     {
@@ -64,7 +64,7 @@
         "default": true,
         "depends_on": [
           "desk",
-          "work-suite",
+          "superpowers",
           "plain-language",
           "ponytail-upstream"
         ],
@@ -146,7 +146,7 @@
       "host": "ouroboros-autonomous-agent",
       "status": "supported",
       "dependency_resolution": "flattened",
-      "fallback_behavior": "bundle Desk + Work Suite + Plain Language + Ponytail into the agent bundle and bind $DESK to ~/AgentBundles/<agent>.ouro/desk/",
+      "fallback_behavior": "bundle Desk + Superpowers + Plain Language + Ponytail into the agent bundle and bind $DESK to ~/AgentBundles/<agent>.ouro/desk/; alpha source packaging is not native runtime qualification",
       "capabilities": [
         "agents",
         "skills",
@@ -196,9 +196,9 @@
         }
       },
       "dependencies": {
-        "work-suite": {
-          "path": "../work-suite",
-          "version": "3.0.0",
+        "superpowers": {
+          "path": "../superpowers",
+          "version": "6.3.0",
           "resolution": "native"
         },
         "plain-language": {
@@ -219,7 +219,7 @@
         "agentViewLaunch": "claude agents --agent desk:worker",
         "inheritsPluginContext": false,
         "evidence": "Claude Code 2.1.161 help exposes `claude agents --agent` and `--plugin-dir`, but Unit 4b did not capture a dispatched-session smoke proving `desk:worker` loads with Desk plugin context.",
-        "reason": "Help text proves CLI flags exist; it does not prove Agent View dispatched sessions inherit the installed plugin agent, skills, hooks, MCP server, and Work Suite dependency.",
+        "reason": "Historical help text proves flags exist, not that Agent View sessions inherit the selected Desk agent, MCP, hooks and Superpowers provider. Alpha inheritance remains unqualified.",
         "fallback": "Launch foreground with `claude --agent desk:worker`; for Agent View experiments, pass explicit `--plugin-dir` and `--mcp-config` until a dispatched-session smoke proves inheritance."
       },
       "backgroundSessionInheritance": {
@@ -228,7 +228,7 @@
         "agentViewLaunch": "claude agents --agent desk:worker",
         "inheritsPluginContext": false,
         "evidence": "Claude Code 2.1.161 `claude agents --help` exposes background-agent flags, but no Unit 4b dispatched-session smoke validates plugin-context inheritance; the worker agent frontmatter also declares `background: false`.",
-        "reason": "Background inheritance is not proven by help text and should not be treated as supported until a real background session loads `desk:worker` with Desk MCP and Work Suite skills.",
+        "reason": "Background inheritance is not proven by historical help text. It remains unsupported until a real background session loads `desk:worker` with the selected Desk MCP and Superpowers skills.",
         "fallback": "Launch foreground with `claude --agent desk:worker` when plugin-context inheritance is required."
       },
       "permissionBoundary": {

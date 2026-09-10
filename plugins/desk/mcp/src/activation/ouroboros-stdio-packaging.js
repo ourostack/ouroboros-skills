@@ -1,10 +1,6 @@
 const OUROBOROS_HOST = "ouroboros-autonomous-agent"
 const GENERIC_STDIO_HOST = "generic-stdio"
 const REQUIRED_OUROBOROS_CAPABILITIES = ["agents", "skills", "mcp"]
-const REQUIRED_OUROBOROS_BUNDLE_SOURCES = [
-  "plugins/desk/plugin.json",
-  "plugins/work-suite/plugin.json",
-]
 const GENERIC_STDIO_UNSUPPORTED = [
   "agent-defaults",
   "plugin-dependency-resolution",
@@ -17,10 +13,12 @@ const REQUIRED_GENERIC_STDIO_EVIDENCE_SOURCES = [
 
 export function validateOuroborosStdioPackagingContract(input) {
   const errors = []
+  const method = selectEngineeringMethod(input?.activationManifest?.provides?.activation_targets?.find((target) => target.id === "desk:worker")?.depends_on ?? [])
   validateOuroborosHost({
     host: findHostSupport(input, OUROBOROS_HOST),
     evidence: findEvidenceRow(input, OUROBOROS_HOST),
     readmeSection: input?.ouroborosReadmeSection ?? "",
+    method,
   }, errors)
   validateGenericStdioHost({
     host: findHostSupport(input, GENERIC_STDIO_HOST),
@@ -31,7 +29,8 @@ export function validateOuroborosStdioPackagingContract(input) {
   return errors
 }
 
-function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
+function validateOuroborosHost({ host, evidence, readmeSection, method }, errors) {
+  const label = method === "superpowers" ? "Superpowers" : "Work Suite"
   if (host === undefined) {
     errors.push("Ouroboros host support row is required")
   } else {
@@ -52,15 +51,15 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
     if (evidence.disposition !== "supported-flattened") {
       errors.push("Ouroboros evidence must record supported-flattened disposition")
     }
-    if (!includesAll(evidence.source_paths, REQUIRED_OUROBOROS_BUNDLE_SOURCES)) {
+    if (!includesAll(evidence.source_paths, ["plugins/desk/plugin.json", `plugins/${method}/plugin.json`])) {
       errors.push("Ouroboros evidence must reference bundle metadata sources")
     }
     if (!arrayIncludes(evidence.unsupported_primitives, "host-native-plugin-install")) {
       errors.push("Ouroboros evidence must mark host-native-plugin-install unsupported")
     }
     const fallbackBehavior = evidence.fallback_behavior ?? ""
-    if (!/bundle Desk \+ Work Suite/u.test(fallbackBehavior)) {
-      errors.push("Ouroboros evidence fallback must describe bundled Desk and Work Suite")
+    if (!fallbackBehavior.includes(`bundle Desk + ${label}`)) {
+      errors.push(`Ouroboros evidence fallback must describe bundled Desk and ${label}`)
     }
     if (!/\$DESK/u.test(fallbackBehavior)) {
       errors.push("Ouroboros evidence fallback must describe $DESK binding")
@@ -77,8 +76,11 @@ function validateOuroborosHost({ host, evidence, readmeSection }, errors) {
     if (!bundleMetadata.plugins.includes("desk")) {
       errors.push("Ouroboros bundle metadata must include desk plugin")
     }
-    if (!bundleMetadata.plugins.includes("work-suite")) {
-      errors.push("Ouroboros bundle metadata must include work-suite plugin")
+    if (!bundleMetadata.plugins.includes(method)) {
+      errors.push(`Ouroboros bundle metadata must include ${method} plugin`)
+    }
+    if (method === "superpowers" && bundleMetadata.plugins.includes("work-suite")) {
+      errors.push("Ouroboros alpha bundle must not include work-suite plugin")
     }
   }
   if (!/\$DESK\s*=\s*~\/AgentBundles\/<agent>\.ouro\/desk\//u.test(readmeSection)) {
@@ -224,7 +226,7 @@ function claimsGenericStdioDependencyResolution(readmeSection) {
   return hasGenericStdioSupportClaim({
     readmeSection,
     action: /\b(?:resolves?|resolved|resolving|loads?|loaded|loading|includes?|included|including|installs?|installed|installing|preloads?|preloaded|preloading|brings?\s+in|brought\s+in|bringing\s+in|comes?\s+with|came\s+with|coming\s+with|gives?\s+you|gave\s+you|giving\s+you|has|have|had|having|built\s+into|activates?|activated|activating|supports?|supported|supporting|provides?|provided|providing|exposes?|exposed|exposing|enables?|enabled|enabling|handles?|handled|handling|manages?|managed|managing|wires?|wired|wiring|bootstraps?|bootstrapped|bootstrapping|configures?|configured|configuring|prepares?|prepared|preparing|supplies|supply|supplied|supplying|delivers?|delivered|delivering|sets?\s+up|set\s+up|setting\s+up|ships?|shipped|shipping|spawns?|spawned|spawning|bundles?|bundled|bundling)\b/u,
-    target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|work suite dependency closure|work suite dependency resolution|work suite dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite)\b/u,
+    target: /\b(?:plugin dependencies|plugin dependency resolution|plugin dependency support|work suite dependency closure|work suite dependency resolution|work suite dependency support|dependency closure|dependency resolution|dependency support|transitive dependencies|work suite|superpowers)\b/u,
   })
 }
 
@@ -357,3 +359,4 @@ function sameList(left, right) {
     && left.length === right.length
     && left.every((value, index) => value === right[index])
 }
+import { selectEngineeringMethod } from "./validate.js"

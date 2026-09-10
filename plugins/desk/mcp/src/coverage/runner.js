@@ -1,37 +1,47 @@
 import { spawnSync } from "node:child_process"
 import {
+  existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
-import { fileURLToPath } from "node:url"
+import { createRequire } from "node:module"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import {
   assertCoverageCommandParity,
   collectCoverageRequiredFiles,
   evaluateCoverageReport,
+  isOfflineEvaluationScope,
 } from "./gate.js"
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const defaultMcpRoot = path.resolve(moduleDir, "..", "..")
 const defaultRepoRoot = path.resolve(defaultMcpRoot, "..", "..", "..")
+const require = createRequire(import.meta.url)
 
 export function runCoverageCommand(options = {}) {
   const env = options.env ?? process.env
   const spawn = options.spawn ?? spawnSync
-  if (env.DESK_COVERAGE_RUNNER_CHILD === "1") return 0
-
-  const paths = options.paths ?? defaultPaths()
   const io = options.io ?? {
     stdout: process.stdout,
     stderr: process.stderr,
   }
+  if (env.DESK_COVERAGE_RUNNER_CHILD === "1") {
+    io.stderr.write("[coverage-gate] refusing nested coverage invocation; no coverage was measured\n")
+    return 1
+  }
+
+  const paths = options.paths ?? defaultPaths()
+  const repoRoot = realpathSync(paths.repoRoot)
   const fsOps = options.fsOps ?? defaultFsOps()
   const config = JSON.parse(fsOps.readText(paths.configPath))
   const requiredFiles = collectChangedCoverageFiles({
-    repoRoot: paths.repoRoot,
+    repoRoot,
     spawn,
   })
   const coverageIncludeFiles = filterCoverageIncludeFiles({
@@ -41,9 +51,11 @@ export function runCoverageCommand(options = {}) {
   const tmp = fsOps.makeTempDir()
 
   try {
-    const testResult = runNodeCoverage({
-      repoRoot: paths.repoRoot,
+    const testResult = runInstrumentedTests({
+      repoRoot,
       requiredFiles: coverageIncludeFiles,
+      reportDirectory: tmp,
+      fsOps,
       spawn,
       env,
     })
@@ -54,17 +66,8 @@ export function runCoverageCommand(options = {}) {
     }
 
     const reportPath = path.join(tmp, "coverage-summary.json")
-    fsOps.writeText(
-      reportPath,
-      JSON.stringify(
-        parseNodeCoverageReport(`${testResult.stdout ?? ""}\n${testResult.stderr ?? ""}`),
-        null,
-        2,
-      ),
-    )
-
     const coverage = evaluateCoverageReport({
-      repoRoot: paths.repoRoot,
+      repoRoot,
       reportPath,
       requiredFiles,
       exclusions: config.exclusions,
@@ -123,67 +126,85 @@ export function changedSinceMergeBase({ repoRoot, spawn = spawnSync }) {
     : []
 }
 
-export function runNodeCoverage({
+function runInstrumentedTests({
   repoRoot,
   requiredFiles,
-  spawn = spawnSync,
-  env = process.env,
+  reportDirectory,
+  fsOps,
+  spawn,
+  env,
 }) {
+  const offline = resolveOfflineEvaluationScope({ repoRoot, requiredFiles })
+  const configPath = path.join(reportDirectory, "nyc.json")
+  fsOps.writeText(configPath, JSON.stringify({
+    cwd: repoRoot,
+    all: true,
+    include: requiredFiles,
+    exclude: requiredFiles.length ? [
+      "plugins/desk/mcp/__tests__/**",
+      "plugins/desk/mcp/node_modules/**",
+      ...(offline.selected ? ["evals/offline/__tests__/**"] : []),
+    ] : ["**"],
+    // The maintained offline selection is only parsed and measured when its own extensions are admitted; without them nyc silently reports no entry at all for those production leaves.
+    extension: [".js", ".cjs", ...(offline.selected ? [".mjs", ".ts"] : [])],
+    ...(offline.requiresTypeScript ? { parserPlugins: ["typescript"] } : {}),
+    reporter: ["json-summary", "json"],
+    reportDir: reportDirectory,
+    tempDir: path.join(reportDirectory, "raw"),
+    cache: false,
+    checkCoverage: false,
+  }))
+  const loader = pathToFileURL(require.resolve("@istanbuljs/esm-loader-hook")).href
+  const registration = `import { register } from "node:module"; register(${JSON.stringify(loader)});`
+  // The repository's own offline registration helper is a superset of this registration: it installs the same maintained hook and additionally gives the source-pinned TypeScript leaves a module format that hook will instrument.
+  const registrationUrl = offline.registrationPath
+    ? pathToFileURL(offline.registrationPath).href
+    : `data:text/javascript,${encodeURIComponent(registration)}`
   const args = [
+    require.resolve("nyc/bin/nyc.js"),
+    "--cwd", repoRoot,
+    "--nycrc-path", configPath,
+    process.execPath,
+    "--import", registrationUrl,
     "--test",
-    "--experimental-test-coverage",
-    "--test-coverage-lines=0",
-    "--test-coverage-branches=0",
-    "--test-coverage-functions=0",
-    "--test-coverage-exclude=plugins/desk/mcp/__tests__/**",
-    "--test-coverage-exclude=plugins/desk/mcp/node_modules/**",
-    ...requiredFiles.map((file) => `--test-coverage-include=${file}`),
-    "plugins/desk/mcp/__tests__/**/*.test.js",
+    // Instrumented fixture children must not compete with other test files for their unchanged startup deadlines.
+    "--test-concurrency=1",
+    path.join(repoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
+    // Separate path arguments run as separate test workers, so the offline suite and the CLI contract keep their own hooks.
+    ...offline.testTargets,
   ]
   return spawn(process.execPath, args, {
-    cwd: repoRoot,
+    cwd: defaultMcpRoot,
     encoding: "utf8",
     env: {
       ...env,
+      // Ordinary Node descendants do not inherit the parent's execArgv.
+      NODE_OPTIONS: `${env.NODE_OPTIONS ?? ""} --import=${registrationUrl}`.trim(),
+      NODE_PATH: [path.join(defaultMcpRoot, "node_modules"), env.NODE_PATH].filter(Boolean).join(path.delimiter),
+      ...(offline.registrationPath ? { OFFLINE_COVERAGE_PACKAGE_ROOT: defaultMcpRoot } : {}),
       DESK_COVERAGE_RUNNER_CHILD: "1",
     },
   })
 }
 
-export function parseNodeCoverageReport(output) {
-  const report = { total: metricBlock(100, 100, 100) }
-  const stack = []
-  for (const line of output.split("\n")) {
-    const raw = line.replace(/^# ?/, "")
-    if (!raw.includes("|")) continue
-    const parts = raw.split("|").map((part) => part.trimEnd())
-    if (parts.length < 4) continue
-    const nameCell = parts[0]
-    const name = nameCell.trim()
-    if (
-      !name ||
-      name === "file" ||
-      name === "all files" ||
-      name.startsWith("-")
-    ) {
-      continue
-    }
-
-    const linePct = parseMetric(parts[1])
-    const branchPct = parseMetric(parts[2])
-    const functionPct = parseMetric(parts[3])
-    const depth = nameCell.length - nameCell.trimStart().length
-    if (linePct == null && branchPct == null && functionPct == null) {
-      stack[depth] = name
-      stack.length = depth + 1
-      continue
-    }
-
-    const parent = stack.slice(0, depth).filter(Boolean)
-    const file = normalizePath(path.join(...parent, name))
-    report[file] = metricBlock(linePct, branchPct, functionPct)
+function resolveOfflineEvaluationScope({ repoRoot, requiredFiles }) {
+  const required = requiredFiles.filter(isOfflineEvaluationScope)
+  if (!required.length) return { selected: false, requiresTypeScript: false, registrationPath: null, testTargets: [] }
+  const testDirectory = path.join(repoRoot, "evals", "offline", "__tests__")
+  const hasOfflineTests = existsSync(testDirectory) &&
+    readdirSync(testDirectory).some((entry) => entry.endsWith(".test.mjs"))
+  const contractTest = path.join(repoRoot, "scripts", "test-skill-evals.cjs")
+  const registrationPath = path.join(testDirectory, "helpers", "register-coverage.mjs")
+  return {
+    selected: true,
+    requiresTypeScript: required.some((file) => file.endsWith(".ts")),
+    registrationPath: existsSync(registrationPath) ? registrationPath : null,
+    // A required production leaf whose tests are absent stays measured and fails the gate; an unmatched selection argument would end the run before any measurement instead.
+    testTargets: [
+      ...(hasOfflineTests ? [path.join(testDirectory, "*.test.mjs")] : []),
+      ...(existsSync(contractTest) ? [contractTest] : []),
+    ],
   }
-  return report
 }
 
 function defaultPaths() {
@@ -203,22 +224,6 @@ function defaultFsOps() {
     readText: (file) => readFileSync(file, "utf8"),
     writeText: (file, text) => writeFileSync(file, text, "utf8"),
   }
-}
-
-function metricBlock(lines, branches, functions) {
-  return {
-    lines: { pct: lines },
-    branches: { pct: branches },
-    functions: { pct: functions },
-    statements: { pct: lines },
-  }
-}
-
-function parseMetric(value) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const number = Number(trimmed)
-  return Number.isFinite(number) ? number : null
 }
 
 function gitText({ repoRoot, spawn, args }) {

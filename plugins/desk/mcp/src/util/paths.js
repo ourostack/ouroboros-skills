@@ -187,6 +187,7 @@ export async function resolveWriteTarget({
   deskRoot,
   person = null,
   segments,
+  createPersonRoot = true,
 }) {
   if (!Array.isArray(segments) || segments.length === 0) {
     throw new Error("desk-mcp: write target requires at least one path segment")
@@ -206,6 +207,7 @@ export async function resolveWriteTarget({
   const realEffectiveRoot = await prepareEffectiveRoot({
     deskRoot,
     effectiveRoot,
+    createPersonRoot,
   })
   await validateExistingTarget({
     effectiveRoot,
@@ -215,7 +217,7 @@ export async function resolveWriteTarget({
   return target
 }
 
-function validateWriteSegment(segment) {
+export function validateWriteSegment(segment) {
   if (
     typeof segment !== "string" ||
     segment.trim() === "" ||
@@ -232,7 +234,7 @@ function validateWriteSegment(segment) {
   }
 }
 
-async function prepareEffectiveRoot({ deskRoot, effectiveRoot }) {
+async function prepareEffectiveRoot({ deskRoot, effectiveRoot, createPersonRoot }) {
   const lexicalDeskRoot = path.resolve(deskRoot)
   const realDeskRoot = await realDirectory(lexicalDeskRoot, "desk root")
   if (effectiveRoot === lexicalDeskRoot) return realDeskRoot
@@ -247,6 +249,9 @@ async function prepareEffectiveRoot({ deskRoot, effectiveRoot }) {
     realCursor = path.join(realCursor, segment)
     let stat = await lstatIfExists(lexicalCursor)
     if (stat === null) {
+      if (createPersonRoot === false) {
+        throw new Error(`desk-mcp: effective write root does not exist: ${lexicalCursor}`)
+      }
       await fs.mkdir(lexicalCursor)
       stat = await fs.lstat(lexicalCursor)
     }

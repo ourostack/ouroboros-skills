@@ -6,7 +6,7 @@
   "encoding": "float32-json",
   "row_count": 2,
   "rows_sha256": "974644991aa23dbb7348d3b92ce39cef404298462e09a9b3410f92ca38279b4c",
-  "artifact_source_scope_hash": "sha256:a1de29c388f284e46956aafc9afe03e3bfa00a594a8e9dac410d17f3eea3c9bd",
+  "artifact_source_scope_hash": "sha256:5ecdd7fab712b6a05c750a1269b5cc738ff1cd71d962d0bd7d13f7e7acd22fe2",
   "document_tree_hash": "sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8",
   "represented_documents": [
     {
@@ -14,11 +14,11 @@
       "hash": "sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59"
     }
   ],
-  "created_at": "2026-09-07T23:00:46.637Z",
+  "created_at": "2026-09-09T11:53:20.975Z",
   "provenance": {
     "builder": "plugins/desk/mcp/scripts/build-vector-pack.js",
     "source": "local-db",
-    "commit": "5a1ec823c06d5fec3f2b8951e1e2035be6dad910"
+    "commit": "a0669758a0b6d8aedcb15ea44f048dfc158c07f6"
   },
   "source_paths": [
     "plugins/desk/mcp/src/indexer/index.js",

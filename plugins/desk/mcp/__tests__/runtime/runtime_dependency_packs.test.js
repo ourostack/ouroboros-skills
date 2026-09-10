@@ -170,6 +170,8 @@ function createTarGzWithHeaderModes(entries, entryBytes = {}, headerModes = {}) 
         type: "x",
       })
       appendTarEntry(blocks, { name: entry, body })
+    } else if (headerModes[entry] === "directory") {
+      appendTarEntry(blocks, { name: entry, body: Buffer.alloc(0), type: "5" })
     } else if (headerModes[entry] === "nul-type") {
       appendTarEntry(blocks, { name: entry, body, type: "\0" })
     } else if (headerModes[entry] === "blank-size") {
@@ -599,6 +601,7 @@ function archiveEntriesForProductionDependencies(dependencies) {
 function runtimeFilesForDependency(dependency) {
   const explicitFiles = requiredRuntimeFilesByPackage.get(dependency.name) ?? []
   const inferredFiles = inferRuntimeFilesForDependency(dependency)
+    .filter((file) => dependency.name !== "better-sqlite3" || !file.startsWith("build/"))
   const runtimeFiles = unique([...explicitFiles, ...inferredFiles])
   assert.ok(
     runtimeFiles.length > 0,
@@ -1186,6 +1189,20 @@ test("runtime dependency pack manifest validates lock provenance and dependency-
       "runtime dependency pack manifest dependency zod native flag must match production closure",
     ],
   )
+
+  const wrongLockPath = structuredClone(manifest)
+  wrongLockPath.production_dependencies.find((dependency) => dependency.name === "zod").lock_path = "node_modules/wrong-zod"
+  assert.deepEqual(
+    validateRuntimeDependencyPackManifest({
+      manifest: wrongLockPath,
+      packageJson,
+      packageLock,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+    }),
+    ["runtime dependency pack manifest dependency zod lock_path must match production closure"],
+  )
 })
 
 test("runtime dependency archive shape rejects server source and missing dependencies", async () => {
@@ -1211,6 +1228,13 @@ test("runtime dependency archive shape rejects server source and missing depende
       productionDependencies,
     }),
     [],
+  )
+  assert.throws(
+    () => validateRuntimeDependencyArchiveShape({
+      entries: [...validEntries, "node_modules/"],
+      productionDependencies,
+    }),
+    /lock path must end in a package node_modules segment: node_modules\//u,
   )
 
   const extraDependencyErrors = validateRuntimeDependencyArchiveShape({
@@ -1392,6 +1416,77 @@ test("runtime dependency archive shape scans package runtime files defensively",
     rmSync(emptyRuntime.root, { recursive: true, force: true })
   }
 })
+
+for (const buildWithAuxiliaries of [false, true]) {
+  test(`native build auxiliaries do not change runtime-pack shape (${buildWithAuxiliaries ? "compiled" : "prebuilt"} input)`, async (t) => {
+    const {
+      buildRuntimeDependencyPack,
+      validateRuntimeDependencyArchiveShape,
+      verifyRuntimeDependencyPack,
+    } = await loadRuntimeDeps()
+    const runtimeFiles = [
+      "lib/index.js",
+      "lib/database.js",
+      "lib/methods/transaction.js",
+      "build/Release/better_sqlite3.node",
+    ]
+    const auxiliaryFiles = [
+      "build/Release/test_extension.node",
+      "build/Release/obj.target/better_sqlite3.node",
+      "build/config.json",
+    ]
+    const synthetic = writeSyntheticMcpRoot({
+      dependencyName: "better-sqlite3",
+      dependencyFiles: [...runtimeFiles, ...(buildWithAuxiliaries ? auxiliaryFiles : [])],
+    })
+    t.after(() => rmSync(synthetic.root, { recursive: true, force: true }))
+    const built = buildRuntimeDependencyPack({
+      mcpRoot: synthetic.root,
+      outputRoot: path.join(synthetic.root, "packs"),
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+      createdAt: "2026-06-15T00:00:00.000Z",
+      provenanceSource: "native build-shape fixture",
+    })
+    const originalArchiveSha = sha256(readFileSync(built.archivePath))
+    for (const file of auxiliaryFiles) {
+      const targetPath = path.join(synthetic.root, synthetic.lockPath, file)
+      if (buildWithAuxiliaries) rmSync(targetPath)
+      else writeTextFile(targetPath, "build-only fixture\n")
+    }
+
+    const verified = verifyRuntimeDependencyPack({
+      packDir: built.packDir,
+      mcpRoot: synthetic.root,
+      platform: target.platform,
+      arch: target.arch,
+      nodeAbi: targetNodeAbi,
+    })
+    assert.deepEqual(verified.errors, [])
+    assert.equal(verified.ok, true)
+    assert.equal(sha256(readFileSync(built.archivePath)), originalArchiveSha)
+    const entries = listTarGzEntries(built.archivePath)
+    for (const file of runtimeFiles) assert.ok(entries.includes(`${synthetic.lockPath}/${file}`), file)
+    for (const file of auxiliaryFiles) assert.equal(entries.includes(`${synthetic.lockPath}/${file}`), false, file)
+
+    const shape = (selected) => validateRuntimeDependencyArchiveShape({
+      entries: selected,
+      productionDependencies: built.manifest.production_dependencies,
+      mcpRoot: synthetic.root,
+    })
+    for (const file of ["build/Release/better_sqlite3.node", "lib/methods/transaction.js"]) {
+      const requiredEntry = `${synthetic.lockPath}/${file}`
+      assert.ok(shape(entries.filter((entry) => entry !== requiredEntry)).includes(
+        `runtime dependency archive must include runtime file ${requiredEntry}`,
+      ))
+    }
+    assert.deepEqual(
+      shape([...entries, `${synthetic.lockPath}/build/Release/test_extension.node`]),
+      ["runtime dependency archive must not include non-production dependency better-sqlite3"],
+    )
+  })
+}
 
 test("runtime dependency pack verification checks checksums and unsupported platforms", async () => {
   const {
@@ -1586,18 +1681,20 @@ test("runtime dependency pack verification checks checksums and unsupported plat
     archiveEntries: missingEmbeddedManifestEntries,
     manifest: missingEmbeddedManifest,
   })
+  const specialHeaderEntries = [...validEntries, "node_modules/"]
   const specialHeaderModes = {
+    "node_modules/": "directory",
     "node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js": "pax-path",
     "node_modules/express/lib/express.js": "gnu-long-name",
   }
   const specialHeaderManifest = fixtureManifestForSpecialArchiveEntries({
-    archiveEntries: validEntries,
+    archiveEntries: specialHeaderEntries,
     headerModes: specialHeaderModes,
     prodDependencyLockHash: productionDependencyLockHash({ packageJson, packageLock }),
     productionDependencies,
   })
   const specialHeaderPackDir = writeSpecialPackFixture({
-    archiveEntries: validEntries,
+    archiveEntries: specialHeaderEntries,
     headerModes: specialHeaderModes,
     manifest: specialHeaderManifest,
   })
@@ -2522,6 +2619,56 @@ test("runtime dependency pack rebuilds are byte-stable when inputs are unchanged
   }
 })
 
+test("runtime pack defaults retain host routing and surface filesystem failure without writing", async (t) => {
+  const { buildRuntimeDependencyPack, deriveRuntimeDependencyPackPaths, verifyRuntimeDependencyPack } = await loadRuntimeDeps()
+  const { default: fs } = await import("node:fs")
+  const { syncBuiltinESMExports } = await import("node:module")
+  const packageJson = loadJson(packageJsonPath)
+  const packageLock = loadJson(packageLockPath)
+  const defaultPaths = deriveRuntimeDependencyPackPaths({ packageJson, packageLock })
+  const explicitPaths = deriveRuntimeDependencyPackPaths({
+    mcpRoot,
+    packageJson,
+    packageLock,
+    platform: process.platform,
+    arch: process.arch,
+    nodeAbi: process.versions.modules,
+  })
+  assert.deepEqual(defaultPaths, explicitPaths)
+  const root = mkdtempSync(path.join(tmpdir(), "runtime-pack-defaults-"))
+  try {
+    const absent = verifyRuntimeDependencyPack({ packDir: root })
+    assert.equal(absent.ok, false)
+    assert.deepEqual(absent.errors, ["runtime dependency pack manifest runtime-deps.manifest.json is missing"])
+    const failure = new Error("fixture package read denied")
+    const read = fs.readFileSync
+    const mocked = t.mock.method(fs, "readFileSync", (file, ...args) => {
+      if (file === packageJsonPath) throw failure
+      return read(file, ...args)
+    })
+    const mutationFailure = new Error("default builder must not mutate release artifacts")
+    const mkdir = t.mock.method(fs, "mkdirSync", () => { throw mutationFailure })
+    const write = t.mock.method(fs, "writeFileSync", () => { throw mutationFailure })
+    syncBuiltinESMExports()
+    try {
+      assert.equal(readFileSync, mocked)
+      assert.equal(mkdirSync, mkdir)
+      assert.equal(writeFileSync, write)
+      assert.throws(() => buildRuntimeDependencyPack(), (error) => error === failure)
+      assert.equal(mocked.mock.calls[0].arguments[0], packageJsonPath)
+      assert.equal(mkdir.mock.callCount(), 0)
+      assert.equal(write.mock.callCount(), 0)
+    } finally {
+      mocked.mock.restore()
+      mkdir.mock.restore()
+      write.mock.restore()
+      syncBuiltinESMExports()
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test("CI workflow verifies runtime dependency packs for release-maintained artifacts", () => {
   const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
   const pullRequestPathFilters = workflowPathFilters(workflow, "pull_request")
@@ -2659,4 +2806,18 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
       "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js",
     ], `${eventName} path filters`)
   }
+})
+
+test("CI retains only its verified runtime pack for source-bound consumption", () => {
+  const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
+  const steps = workflowStepBlocks(workflowJob(workflow, "desk-mcp-tests"))
+  const uploads = steps.filter((step) => /^\s*uses:\s*actions\/upload-artifact@v4\s*$/mu.test(step))
+  assert.equal(uploads.length, 1, "the existing native build must return its verified pack")
+  const upload = uploads[0]
+  assert.equal(steps.at(-1), upload, "retention follows every existing validation step")
+  assert.match(upload, /^\s*name: desk-runtime-deps-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}\s*$/mu)
+  assert.match(upload, /^\s*path: \$\{\{ runner\.temp \}\}\/desk-runtime-deps\s*$/mu)
+  assert.match(upload, /^\s*if-no-files-found: error\s*$/mu)
+  assert.match(upload, /^\s*retention-days: 7\s*$/mu)
+  assert.doesNotMatch(upload, /^\s*(?:if|continue-on-error):/mu)
 })

@@ -515,4 +515,61 @@ process.stdout.write(JSON.stringify(value));
   assert.match(cli.stderr, /unknown or incomplete argument/u);
 }
 
+{
+  // License-policy characterization uses the existing injected GitHub fixture,
+  // not the evaluator payload or a new network harness.
+  const approved = {
+    ...source(),
+    id: "prime-radiant-inc-gauntlet-evaluation-leaves",
+    repository: "prime-radiant-inc/gauntlet",
+    commit: "187a9af979a7cf096c0890d0eeb998cc3008343a",
+    license: "Apache-2.0",
+  };
+  const remote = (overrides = {}) => github({
+    fullName: approved.repository,
+    candidate: approved.commit,
+    license: "Apache-2.0",
+    ...overrides,
+  });
+
+  const current = inspectSource(approved, remote());
+  assert.equal(current.classification, "current");
+  assert.equal(current.repository_identity, approved.repository);
+  assert.equal(current.license, "Apache-2.0");
+  assert.deepEqual(current.changed_paths, []);
+
+  for (const license of ["MIT", null, "NOASSERTION"]) {
+    assert.throws(
+      () => inspectSource(approved, remote({ license })),
+      { message: `Apache-2.0 license evidence missing for ${approved.repository}: got ${license ?? "unknown"}` },
+    );
+  }
+  for (const license of ["MIT", null, "BSD-3-Clause"]) {
+    assert.throws(
+      () => inspectSource({ ...approved, license }, remote({ license })),
+      { message: `approved Gauntlet source must lock Apache-2.0: got ${license ?? "missing"}` },
+    );
+  }
+  for (const overrides of [
+    { id: "unapproved-gauntlet-entry" },
+    { repository: "another-owner/gauntlet" },
+    { commit: candidateCommit },
+  ]) {
+    const unapproved = { ...approved, ...overrides };
+    assert.throws(
+      () => inspectSource(unapproved, remote({ fullName: unapproved.repository, candidate: unapproved.commit })),
+      { message: `unsupported locked license for ${unapproved.id}: Apache-2.0` },
+    );
+  }
+  assert.throws(
+    () => inspectSource(approved, remote({ fullName: "another-owner/gauntlet" })),
+    /repository identity mismatch/u,
+  );
+
+  const drift = inspectSource(approved, remote({ actualContent: "tampered pinned payload" }));
+  assert.equal(drift.classification, "blocked");
+  assert.equal(drift.reason, "selected payload at the locked commit does not match the recorded hashes");
+  assert.deepEqual(drift.changed_paths, ["skills/example/SKILL.md"]);
+}
+
 console.log("upstream source steward tests passed.");

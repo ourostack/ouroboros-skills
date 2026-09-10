@@ -11,7 +11,7 @@ const repoRoot = path.resolve(
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const activationManifestPath = "plugins/desk/activation/desk.activation.json"
 const copilotBundlePath = "plugins/desk/activation/copilot-root.flattened-bundle.json"
-const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const evidencePath = "plugins/desk/activation/host-capability-evidence.md"
 const supportMatrixPath = "plugins/desk/activation/support-matrix.json"
 const copilotWorkerSource = "agents/worker.agent.md"
 const copilotBundleCommand =
@@ -20,7 +20,8 @@ const expectedCopilotSourcePaths = [
   "plugins/desk/plugin.json",
   "plugins/desk/agents/worker.agent.md",
   "plugins/desk/.mcp.copilot.json",
-  "plugins/work-suite/plugin.json",
+  "plugins/superpowers/plugin.json",
+  "plugins/superpowers/hooks/copilot-hooks.json",
   "plugins/plain-language/plugin.json",
   "plugins/ponytail-upstream/plugin.json",
   copilotBundlePath,
@@ -114,7 +115,7 @@ function currentCopilotPackagingInput() {
     activation,
     bundle: loadJson(...copilotBundlePath.split("/")),
     deskPlugin: loadJson("plugins", "desk", "plugin.json"),
-    workSuitePlugin: loadJson("plugins", "work-suite", "plugin.json"),
+    superpowersPlugin: loadJson("plugins", "superpowers", "plugin.json"),
     plainLanguagePlugin: loadJson("plugins", "plain-language", "plugin.json"),
     ponytailPlugin: loadJson("plugins", "ponytail-upstream", "plugin.json"),
   }
@@ -123,7 +124,7 @@ function currentCopilotPackagingInput() {
 function expectedCopilotBundle() {
   const activation = loadJson(activationManifestPath)
   const lockedWorkSuiteVersion = activation.dependencies.find((dependency) => (
-    dependency.id === "work-suite"
+    dependency.id === "superpowers"
   )).lock.version
   const lockedPlainLanguageVersion = activation.dependencies.find((dependency) => (
     dependency.id === "plain-language"
@@ -139,7 +140,7 @@ function expectedCopilotBundle() {
     generated_from: {
       activation_manifest: activationManifestPath,
       desk_plugin: "plugins/desk/plugin.json",
-      work_suite_plugin: "plugins/work-suite/plugin.json",
+      superpowers_plugin: "plugins/superpowers/plugin.json",
       plain_language_plugin: "plugins/plain-language/plugin.json",
       ponytail_plugin: "plugins/ponytail-upstream/plugin.json",
     },
@@ -157,10 +158,10 @@ function expectedCopilotBundle() {
         mcpServers: "plugins/desk/.mcp.copilot.json",
       },
       {
-        id: "work-suite",
+        id: "superpowers",
         version: lockedWorkSuiteVersion,
-        plugin: "plugins/work-suite/plugin.json",
-        skills: "plugins/work-suite/skills/",
+        plugin: "plugins/superpowers/plugin.json",
+        skills: "plugins/superpowers/skills/",
       },
       {
         id: "plain-language",
@@ -215,7 +216,7 @@ test("Work Suite root plugin metadata omits inert dependency metadata", () => {
   const workSuitePlugin = loadJson("plugins", "work-suite", "plugin.json")
 
   assert.equal(workSuitePlugin.name, "work-suite")
-  assert.equal(workSuitePlugin.version, "3.0.0")
+  assert.equal(workSuitePlugin.version, "4.0.0-alpha.1")
   assert.equal(workSuitePlugin.version, marketplacePlugin("work-suite").version)
   assert.equal(workSuitePlugin.skills, "./skills/")
   assert.equal(Object.hasOwn(workSuitePlugin, "dependencies"), false)
@@ -229,11 +230,11 @@ test("Copilot root packaging declares a generated flattened dependency closure",
   const deskPlugin = loadJson("plugins", "desk", "plugin.json")
   const bundle = loadJson(...copilotBundlePath.split("/"))
   const lockedWorkSuiteVersion = activation.dependencies.find((dependency) => (
-    dependency.id === "work-suite"
+    dependency.id === "superpowers"
   )).lock.version
 
-  assert.deepEqual(deskPlugin.activation?.copilot?.dependencies?.["work-suite"], {
-    path: "../work-suite",
+  assert.deepEqual(deskPlugin.activation?.copilot?.dependencies?.["superpowers"], {
+    path: "../superpowers",
     version: lockedWorkSuiteVersion,
     resolution: "flattened",
     bundleMetadata: copilotBundlePath,
@@ -284,7 +285,7 @@ test("Copilot root evidence and support matrix record flattened packaging as gen
     supportMatrixPath,
   )
 
-  assert.equal(evidenceRow.surface, "Root plugin package for Copilot-compatible hosts")
+  assert.equal(evidenceRow.surface, "Root Copilot source package and selected provider adapter")
   assert.equal(evidenceRow.disposition, "supported-flattened")
   assert.deepEqual(evidenceRow.source_paths, expectedCopilotSourcePaths)
   assert.match(evidenceRow.evidence_command_or_doc, /activation:copilot-bundle:generate/u)
@@ -292,7 +293,7 @@ test("Copilot root evidence and support matrix record flattened packaging as gen
   assert.deepEqual(evidenceRow.unsupported_primitives, ["transitive-dependency-resolution"])
   assert.equal(
     evidenceRow.fallback_behavior,
-    "load the generated flattened Desk, Work Suite, Plain Language, and Ponytail bundle metadata",
+    "load the generated flattened Desk, Superpowers, Plain Language, and Ponytail bundle metadata",
   )
   assert.deepEqual(supportMatrixRow, evidenceRow)
 })
@@ -335,14 +336,14 @@ test("Copilot packaging validation rejects missing root surfaces and stale versi
   staleDeskVersion.deskPlugin.version = "1.7.2"
   assert.deepEqual(
     validateCopilotPackagingContract(staleDeskVersion),
-    ["Copilot root Desk version must match activation version 3.1.2"],
+    ["Copilot root Desk version must match activation version 3.2.0-alpha.3"],
   )
 
   const staleWorkSuiteVersion = clone(currentCopilotPackagingInput())
-  staleWorkSuiteVersion.workSuitePlugin.version = "1.4.8"
+  staleWorkSuiteVersion.superpowersPlugin.version = "1.4.8"
   assert.deepEqual(
     validateCopilotPackagingContract(staleWorkSuiteVersion),
-    ["Copilot root Work Suite version must match activation lock 3.0.0"],
+    ["Copilot root Superpowers version must match activation lock 6.3.0"],
   )
 
   const stalePlainLanguageVersion = clone(currentCopilotPackagingInput())
@@ -366,7 +367,7 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   assert.deepEqual(
     validateCopilotPackagingContract(missingActivationDependencies),
     [
-      "Copilot activation must lock Work Suite dependency",
+      "Copilot activation must lock Superpowers dependency",
       "Copilot activation must lock Plain Language dependency",
       "Copilot activation must lock Ponytail dependency",
     ],
@@ -374,10 +375,10 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
 
   const missingActivationLock = clone(currentCopilotPackagingInput())
   missingActivationLock.activation.dependencies =
-    missingActivationLock.activation.dependencies.filter((entry) => entry.id !== "work-suite")
+    missingActivationLock.activation.dependencies.filter((entry) => entry.id !== "superpowers")
   assert.deepEqual(
     validateCopilotPackagingContract(missingActivationLock),
-    ["Copilot activation must lock Work Suite dependency"],
+    ["Copilot activation must lock Superpowers dependency"],
   )
 
   const missingPonytailActivationLock = clone(currentCopilotPackagingInput())
@@ -389,10 +390,10 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   )
 
   const missingWorkSuitePlugin = clone(currentCopilotPackagingInput())
-  delete missingWorkSuitePlugin.workSuitePlugin
+  delete missingWorkSuitePlugin.superpowersPlugin
   assert.deepEqual(
     validateCopilotPackagingContract(missingWorkSuitePlugin),
-    ["Copilot root Work Suite version must match activation lock 3.0.0"],
+    ["Copilot root Superpowers version must match activation lock 6.3.0"],
   )
 
   const missingBundle = clone(currentCopilotPackagingInput())
@@ -400,7 +401,7 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   assert.deepEqual(
     validateCopilotPackagingContract(missingBundle),
     [
-      "Copilot flattened bundle must include work-suite dependency closure",
+      "Copilot flattened bundle must include superpowers dependency closure",
       "Copilot flattened bundle must include plain-language dependency closure",
       "Copilot flattened bundle must include ponytail-upstream dependency closure",
     ],
@@ -408,10 +409,10 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
 
   const missingBundleDependency = clone(currentCopilotPackagingInput())
   missingBundleDependency.bundle.dependency_closure =
-    missingBundleDependency.bundle.dependency_closure.filter((entry) => entry.id !== "work-suite")
+    missingBundleDependency.bundle.dependency_closure.filter((entry) => entry.id !== "superpowers")
   assert.deepEqual(
     validateCopilotPackagingContract(missingBundleDependency),
-    ["Copilot flattened bundle must include work-suite dependency closure"],
+    ["Copilot flattened bundle must include superpowers dependency closure"],
   )
 
   const missingPonytailBundleDependency = clone(currentCopilotPackagingInput())
@@ -427,7 +428,7 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   assert.deepEqual(
     validateCopilotPackagingContract(missingBundleClosure),
     [
-      "Copilot flattened bundle must include work-suite dependency closure",
+      "Copilot flattened bundle must include superpowers dependency closure",
       "Copilot flattened bundle must include plain-language dependency closure",
       "Copilot flattened bundle must include ponytail-upstream dependency closure",
     ],
@@ -438,25 +439,25 @@ test("Copilot packaging validation rejects incomplete flattened dependency closu
   assert.deepEqual(
     validateCopilotPackagingContract(malformedBundleClosure),
     [
-      "Copilot flattened bundle must include work-suite dependency closure",
+      "Copilot flattened bundle must include superpowers dependency closure",
       "Copilot flattened bundle must include plain-language dependency closure",
       "Copilot flattened bundle must include ponytail-upstream dependency closure",
     ],
   )
 
   const missingBundleMetadata = clone(currentCopilotPackagingInput())
-  delete missingBundleMetadata.deskPlugin.activation.copilot.dependencies["work-suite"]
+  delete missingBundleMetadata.deskPlugin.activation.copilot.dependencies["superpowers"]
   assert.deepEqual(
     validateCopilotPackagingContract(missingBundleMetadata),
-    ["Copilot Work Suite dependency must point to generated flattened bundle metadata"],
+    ["Copilot Superpowers dependency must point to generated flattened bundle metadata"],
   )
 
   const staleBundlePath = clone(currentCopilotPackagingInput())
-  staleBundlePath.deskPlugin.activation.copilot.dependencies["work-suite"].bundleMetadata =
+  staleBundlePath.deskPlugin.activation.copilot.dependencies["superpowers"].bundleMetadata =
     "plugins/desk/activation/old-bundle.json"
   assert.deepEqual(
     validateCopilotPackagingContract(staleBundlePath),
-    ["Copilot Work Suite dependency must point to generated flattened bundle metadata"],
+    ["Copilot Superpowers dependency must point to generated flattened bundle metadata"],
   )
 
   const missingPlainLanguageBundleMetadata = clone(currentCopilotPackagingInput())

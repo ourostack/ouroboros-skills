@@ -12,7 +12,7 @@ const repoRoot = path.resolve(
 )
 const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const manifestPath = "plugins/desk/activation/desk.activation.json"
-const evidencePath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+const evidencePath = "plugins/desk/activation/host-capability-evidence.md"
 const generatedMatrixPath = "plugins/desk/activation/support-matrix.json"
 const requiredColumns = [
   "host_id",

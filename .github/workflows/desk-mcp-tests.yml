@@ -4,13 +4,13 @@ name: desk MCP tests
 # (plugins/desk/mcp `npm run test:coverage`).
 # Skill-manifest validation lives in validate-skills.yml and does NOT exercise
 # the MCP code, so without this job desk-core changes can merge untested.
-# Path-filtered to the MCP package, root validation scripts, and this workflow
-# file to keep unrelated skill/docs edits from triggering a Node build they
-# don't need.
+# Path-filtered to MCP, offline-evaluation and root validation inputs so related changes run this gate.
 
 on:
   pull_request:
     paths:
+      - ".gitattributes"
+      - "evals/offline/**"
       - "plugins/desk/mcp/**"
       - "plugins/desk/activation/**"
       - "plugins/desk/.claude-plugin/plugin.json"
@@ -23,6 +23,7 @@ on:
       - "plugins/desk/plugin.json"
       - "plugins/desk/principles.md"
       - "plugins/desk/skills/**"
+      - "plugins/superpowers/**"
       - "plugins/work-suite/.claude-plugin/plugin.json"
       - "plugins/work-suite/.codex-plugin/plugin.json"
       - "plugins/work-suite/plugin.json"
@@ -55,6 +56,8 @@ on:
     branches:
       - main
     paths:
+      - ".gitattributes"
+      - "evals/offline/**"
       - "plugins/desk/mcp/**"
       - "plugins/desk/activation/**"
       - "plugins/desk/.claude-plugin/plugin.json"
@@ -67,6 +70,7 @@ on:
       - "plugins/desk/plugin.json"
       - "plugins/desk/principles.md"
       - "plugins/desk/skills/**"
+      - "plugins/superpowers/**"
       - "plugins/work-suite/.claude-plugin/plugin.json"
       - "plugins/work-suite/.codex-plugin/plugin.json"
       - "plugins/work-suite/plugin.json"
@@ -151,3 +155,42 @@ jobs:
       - name: Validate Desk shared artifacts
         working-directory: plugins/desk/mcp
         run: npm run artifact:validate -- --desk-root ../../.. --plugin-root ..
+
+      - name: Retain verified runtime dependency pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: desk-runtime-deps-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/desk-runtime-deps
+          if-no-files-found: error
+          retention-days: 7
+
+  desk-feedback-windows:
+    name: desk private feedback on native Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up the shipped Windows Node ABI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: plugins/desk/mcp/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: plugins/desk/mcp
+        run: npm ci
+
+      - name: Verify source-bound evaluation contracts on Windows
+        run: node scripts/skill-evals.cjs validate
+
+      - name: Exercise real NTFS protection, feedback CRUD and the offline source mirror
+        working-directory: plugins/desk/mcp
+        run: |
+          node --test --test-name-pattern "^native[: ]" __tests__/feedback/windows_acl.test.js __tests__/feedback/windows_store.test.js __tests__/feedback/source_mirror.test.js

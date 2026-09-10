@@ -1,7 +1,5 @@
 const CLAUDE_WORKER_AGENT_PATH = "./agents/worker.md"
 const CLAUDE_WORKER_SOURCE = "agents/worker.md"
-const WORK_SUITE_DEPENDENCY_NAME = "work-suite"
-const WORK_SUITE_DEPENDENCY_RANGE = "^3.0.0"
 const SUPPORTED_SESSION_STATUSES = new Set([
   "supported",
   "supported-with-version-floor",
@@ -12,21 +10,32 @@ const DISPATCHED_SESSION_SMOKE_RE =
 
 export function validateClaudePackagingContract(input) {
   const errors = []
-  const workSuiteDependency = input.deskPlugin.dependencies.find((dependency) => (
-    dependency.name === WORK_SUITE_DEPENDENCY_NAME
+  const method = selectEngineeringMethod(input.activation.provides.activation_targets.find((target) => target.id === "desk:worker").depends_on)
+  const label = method === "superpowers" ? "Superpowers" : "Work Suite"
+  const methodPlugin = method === "superpowers" ? input.superpowersPlugin : input.workSuitePlugin
+  const selectedDependency = input.deskPlugin.dependencies.find((dependency) => (
+    dependency.name === method
   ))
-  const lockedWorkSuiteVersion = input.activation.dependencies.find((dependency) => (
-    dependency.id === WORK_SUITE_DEPENDENCY_NAME
-  )).lock.version
+  const declaredMethod = input.activation.dependencies.find((dependency) => (
+    dependency.id === method
+  ))
+  if (declaredMethod === undefined) {
+    return [`missing ${label} dependency in activation manifest`]
+  }
+  const lockedVersion = declaredMethod.lock.version
+  const expectedRange = declaredMethod.version_range
 
-  if (workSuiteDependency === undefined) {
-    errors.push("missing Work Suite dependency in Claude plugin metadata")
-  } else if (workSuiteDependency.version !== WORK_SUITE_DEPENDENCY_RANGE) {
-    errors.push("Claude Work Suite dependency range must be ^3.0.0")
+  if (selectedDependency === undefined) {
+    errors.push(`missing ${label} dependency in Claude plugin metadata`)
+  } else if (selectedDependency.version !== expectedRange) {
+    errors.push(`Claude ${label} dependency range must be ${expectedRange}`)
   }
 
-  if (input.workSuitePlugin.version !== lockedWorkSuiteVersion) {
-    errors.push(`Work Suite Claude version must match activation lock ${lockedWorkSuiteVersion}`)
+  if (method === "superpowers" && input.deskPlugin.dependencies.some((dependency) => dependency.name === "work-suite")) {
+    errors.push("Claude alpha plugin metadata must not include work-suite dependency")
+  }
+  if (methodPlugin.version !== lockedVersion) {
+    errors.push(`${label} Claude version must match activation lock ${lockedVersion}`)
   }
 
   if (!input.deskPlugin.agents.includes(CLAUDE_WORKER_AGENT_PATH)) {
@@ -37,7 +46,7 @@ export function validateClaudePackagingContract(input) {
     errors.push("Claude activation target desk:worker must use agents/worker.md")
   }
 
-  for (const pluginManifest of [input.deskPlugin, input.workSuitePlugin]) {
+  for (const pluginManifest of [input.deskPlugin, methodPlugin]) {
     if (Object.hasOwn(pluginManifest, "activation")) {
       errors.push("Claude plugin manifest must not include host activation metadata")
     }
@@ -70,3 +79,4 @@ function hasDispatchedSessionSmokeEvidence(disposition) {
     disposition.validation,
   ].join("\n"))
 }
+import { selectEngineeringMethod } from "./validate.js"

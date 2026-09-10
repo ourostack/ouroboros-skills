@@ -21,7 +21,7 @@ Durable content fails when it lands in the wrong home. A general principle wedge
 
 - A **workspace** is one operator's desk: their state (tracks, tasks, friction, planning) **and** their operator-specific rules (voice, output preferences, name resolutions, their particular risk tolerance). It is per-operator and per-context — and there can be **many desk instances**: a work desk, a personal desk, an autonomous agent's own desk, each a separate workspace repo consuming the same plugins. These instances split along an **identity axis** as much as a purpose one: a work desk authenticates as an *employer-managed* account, a personal desk as a *personal* account. That identity is what decides which account a given push lands under — the generic seed an overlay later instantiates with concrete account names.
 - The **plugins** are the shared code every desk consumes:
-  - a **generic substrate plugin** (`desk`) plus the **doing-loop plugin** (`work-suite`) — vendor-neutral, no employer- or context-specific content, safe to publish;
+  - a **generic substrate plugin** (`desk`) plus the **pinned engineering provider** (`superpowers`) — vendor-neutral. Repo-authored integration belongs in Desk; pristine upstream payload changes require the maintained provenance/update path, not an in-place fork.
   - **overlay plugins** that layer employer- or context-specific behavior on top of the generic substrate — these hold content that's *general to that context* but can't ship in the public generic plugins.
 
 So content lives in exactly one of: a workspace (operator-specific), a generic plugin (general + publishable), or an overlay plugin (general-to-a-context + not publishable).
@@ -30,7 +30,7 @@ So content lives in exactly one of: a workspace (operator-specific), a generic p
 
 1. **Specific to THIS operator / context?** — a voice preference, a personal name resolution, an emotional reaction, their particular risk tolerance. → It stays in the **workspace**. If a general kernel sits underneath the instance, leave a ≤3-line instance + a pointer to the general home, and route the kernel per step 2.
 2. **General — would a *different* operator, or a *different* agent, benefit?** → the **body** goes to a **plugin**; the workspace keeps only the instance + pointer.
-   - **Generic, no employer/context-specific content** → the **public generic plugin** (`desk` / `work-suite`). Strip every employer/context-specific term before it ships — the public-OSS hygiene gate (grep for the forbidden terms; an example product name is fine, an internal tool/repo/account name is not).
+   - **Generic, no employer/context-specific content** → the **public generic Desk integration**. Do not edit the pinned provider to encode local rules. Strip employer/context-specific terms before publication; an internal tool, repository or account name is not a generic example.
    - **General to a context but employer/context-specific** (names an internal tool, account model, or repo that can't go public) → the matching **overlay plugin**.
    - **Within the chosen plugin**, pick the surface by *when it must apply*:
      - **Every turn / unconditionally** → the agent **body** (`agents/<name>.md`) or **`principles.md`**.

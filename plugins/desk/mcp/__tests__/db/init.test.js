@@ -4,7 +4,6 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import * as path from "node:path"
-import * as os from "node:os"
 import { promises as fs } from "node:fs"
 import Database from "better-sqlite3"
 
@@ -15,9 +14,10 @@ import {
   getMeta,
   setMeta,
 } from "../../src/db/init.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function tmpRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-init-"))
+  return mkTempRoot("desk-init-")
 }
 
 test("openDb creates parent .state dir + applies schema idempotently", async () => {

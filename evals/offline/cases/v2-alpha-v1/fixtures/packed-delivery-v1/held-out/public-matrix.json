@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {"id":"omitted","arguments":[],"expected":3},
+    {"id":"positive","arguments":[5],"expected":5},
+    {"id":"zero","arguments":[0],"expected":0}
+  ],
+  "completion": "Trusted parent asserts all installed-archive observations before emitting completion.",
+  "requiredBinding": ["archiveSha256", "sourceCommit", "sourceManifestSha256", "installedPackageManifestSha256", "observationBytesSha256"]
+}

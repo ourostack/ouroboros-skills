@@ -7,6 +7,17 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+const temporaryRoots = [];
+process.once("exit", () => {
+  for (const root of temporaryRoots) fs.rmSync(root, { recursive: true, force: true });
+});
+
+function makeTempRoot(prefix) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  temporaryRoots.push(root);
+  return root;
+}
+
 const WORK_SUITE_SKILLS = [
   "autopilot",
   "deep-research",
@@ -52,7 +63,7 @@ function makeRegistry(overrides = {}) {
 }
 
 function makeSkillRoot(options = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "work-suite-runtime-audit-"));
+  const root = makeTempRoot("work-suite-runtime-audit-");
   for (const name of WORK_SUITE_SKILLS) {
     const targetDir = path.join(root, name);
     fs.mkdirSync(targetDir, { recursive: true });
@@ -70,7 +81,7 @@ function parseJson(result) {
 }
 
 function makeRepoCopy() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "work-suite-runtime-audit-repo-"));
+  const root = makeTempRoot("work-suite-runtime-audit-repo-");
   fs.cpSync("manifest.json", path.join(root, "manifest.json"));
   fs.cpSync("skills", path.join(root, "skills"), { recursive: true });
   fs.cpSync("plugins", path.join(root, "plugins"), { recursive: true });
@@ -220,7 +231,7 @@ const activePrefixed = parseJson(run([
 assert.equal(activePrefixed.status, "pass");
 assert.equal(activePrefixed.active.status, "pass");
 
-const activeFile = path.join(os.tmpdir(), `work-suite-runtime-audit-active-${Date.now()}.json`);
+const activeFile = path.join(makeTempRoot("work-suite-runtime-audit-active-"), "skills.json");
 fs.writeFileSync(activeFile, JSON.stringify({
   skills: WORK_SUITE_SKILLS.map((name) => ({ name: `work-suite:${name}` })),
 }), "utf8");

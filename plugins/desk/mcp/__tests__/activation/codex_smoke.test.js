@@ -128,7 +128,7 @@ function overlayChainManifest() {
       overlay_agents: [
         overlayAgent({
           id: "ms-desk:worker",
-          dependsOn: ["desk", "work-suite", "ms-desk"],
+          dependsOn: ["desk", "superpowers", "ms-desk"],
           inherits: ["desk:worker"],
           identity: "Microsoft Desk worker",
           addendum: "Use Microsoft employee context without copying Desk setup.",
@@ -788,9 +788,10 @@ test("Codex smoke rejects malformed output and desk_status proof failures", asyn
   }
 })
 
-test("Codex smoke evidence records CLI proof and an exact Desktop App fallback", () => {
+test("historical Codex smoke evidence records its original CLI proof and Desktop fallback", () => {
   const evidence = readFileSync(evidencePath, "utf8")
-  const codex = codexMatrixRow()
+  const historicalPath = "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md"
+  const codex = parseHostCapabilityEvidence({ content: readFileSync(path.join(repoRoot, historicalPath), "utf8"), sourcePath: historicalPath }).hosts.find((row) => row.host_id === "codex")
   const desktopSection = evidenceSection(evidence, "Codex Desktop App Activation Surface")
 
   assert.match(evidence, /^Status: PASS$/m)
@@ -834,23 +835,22 @@ test("installed-profile Codex CLI smoke proof is machine-readable", () => {
   assert.deepEqual(proof.degraded_modes, [])
 })
 
-test("Codex support matrix points at the smoke contract and evidence artifact", () => {
+test("current Codex support matrix names alpha source contracts without promoting historical runtime proof", () => {
   const codex = codexMatrixRow()
-  const evidence = readFileSync(evidencePath, "utf8")
-  const desktopSection = evidenceSection(evidence, "Codex Desktop App Activation Surface")
-  const desktopRealSmoke = completeDesktopRealSmoke(desktopSection)
 
   assert.ok(codex.source_paths.includes("plugins/desk/mcp/__tests__/activation/codex_smoke.test.js"))
   assert.ok(
     codex.source_paths.includes(
-      "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/codex-smoke-evidence.md",
+      "plugins/superpowers/.codex-plugin/plugin.json",
     ),
   )
   assert.match(codex.evidence_command_or_doc, /node --test plugins\/desk\/mcp\/__tests__\/activation\/codex_smoke\.test\.js/u)
-  assert.match(codex.evidence_command_or_doc, /codex-smoke-evidence\.md/u)
+  assert.doesNotMatch(codex.evidence_command_or_doc, /codex-smoke-evidence\.md/u)
+  assert.match(codex.evidence_command_or_doc, /alpha runtime qualification required/u)
   assert.equal(
-    desktopRealSmoke || codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive),
+    codex.unsupported_primitives.includes(codexDesktopUnsupportedPrimitive),
     true,
-    "Codex support matrix must either rely on real Desktop smoke evidence or name the unsupported primitive",
+    "Current alpha metadata must retain the unsupported Desktop primitive until independently qualified",
   )
 })
+import { parseHostCapabilityEvidence } from "../../src/activation/support-matrix.js"

@@ -451,9 +451,7 @@ export function validateRuntimeDependencyArchiveShape({
     }
     if (entry.startsWith("node_modules/")) {
       const packageRoot = packageRootFromArchiveEntry(entry)
-      if (packageRoot !== undefined) {
-        unexpectedDependencyNames.add(packageNameFromLockPath(packageRoot))
-      }
+      unexpectedDependencyNames.add(packageNameFromLockPath(packageRoot))
       continue
     }
     if (!entry.includes("/")) {
@@ -838,7 +836,7 @@ function isNativeRuntimeDependency(lockPath) {
   return /^node_modules\/(?:better-sqlite3|sqlite-vec(?:-|$))/u.test(lockPath)
 }
 
-function relevantLockFields(entry = {}) {
+function relevantLockFields(entry) {
   return {
     version: entry.version,
     resolved: entry.resolved,
@@ -856,7 +854,7 @@ function relevantLockFields(entry = {}) {
 function runtimeDependencyPackManifest({
   archiveSha,
   createdAt,
-  mcpRoot = defaultMcpRoot,
+  mcpRoot,
   packageJson,
   packageLock,
   prodDependencyLockHash,
@@ -902,7 +900,7 @@ function runtimeDependencyPackManifest({
   }
 }
 
-function archiveEntriesForProductionDependencies(productionDependencies, { mcpRoot = defaultMcpRoot } = {}) {
+function archiveEntriesForProductionDependencies(productionDependencies, { mcpRoot }) {
   const entries = [
     "package.json",
     "package-lock.json",
@@ -917,12 +915,13 @@ function archiveEntriesForProductionDependencies(productionDependencies, { mcpRo
   return entries.sort()
 }
 
-function runtimeFilesForDependency(dependency, { mcpRoot = defaultMcpRoot } = {}) {
+function runtimeFilesForDependency(dependency, { mcpRoot }) {
   const explicitFiles = requiredRuntimeFilesByPackage.get(dependency.name) ?? []
   const inferredFiles = runtimeFilesUnderPackageDir(
     path.join(mcpRoot, dependency.lock_path),
     path.join(mcpRoot, dependency.lock_path),
-  )
+  ).filter((file) => dependency.name !== "better-sqlite3" || !file.startsWith("build/"))
+  // The explicit addon is required; optional compiler outputs and test extensions are not runtime dependencies.
   const runtimeFiles = unique([...explicitFiles, ...inferredFiles])
   if (runtimeFiles.length === 0) {
     throw new Error(`runtime dependency archive must require a non-marker runtime file for ${dependency.name}`)

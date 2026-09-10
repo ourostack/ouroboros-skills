@@ -1323,6 +1323,7 @@ test("CI invokes artifact validation and watches artifact script inputs", () => 
     ["push", workflowPathFilters(workflow, "push")],
   ]) {
     assertIncludesAll(pathFilters, [
+      "evals/offline/**",
       "plugins/desk/artifacts/vector-packs/**",
       "plugins/desk/artifacts/snapshots/**",
       "plugins/desk/artifacts/tombstones/**",

@@ -9,8 +9,7 @@ const defaultRepoRoot = path.resolve(__dirname, "..");
 const defaultMcpRoot = path.join(defaultRepoRoot, "plugins", "desk", "mcp");
 const activationManifestPath = "plugins/desk/activation/desk.activation.json";
 const copilotBundlePath = "plugins/desk/activation/copilot-root.flattened-bundle.json";
-const evidencePath =
-  "desk/tasks/2026-06-14-1335-doing-desk-dependency-activation/host-capability-evidence.md";
+const evidencePath = "plugins/desk/activation/host-capability-evidence.md";
 const supportMatrixPath = "plugins/desk/activation/support-matrix.json";
 const requiredEvidenceColumns = [
   "host_id",
@@ -72,58 +71,6 @@ function expectedSupportMatrix(repoRoot) {
   };
 }
 
-function expectedCopilotBundle(repoRoot) {
-  const activation = readJson(repoRoot, activationManifestPath);
-  const workSuiteDependency = activation.dependencies.find((dependency) => (
-    dependency.id === "work-suite"
-  ));
-  return {
-    schema_version: 1,
-    host: "copilot-root",
-    generated_by: "npm --prefix plugins/desk/mcp run activation:copilot-bundle:generate",
-    generated_from: {
-      activation_manifest: activationManifestPath,
-      desk_plugin: "plugins/desk/plugin.json",
-      work_suite_plugin: "plugins/work-suite/plugin.json",
-      plain_language_plugin: "plugins/plain-language/plugin.json",
-      ponytail_plugin: "plugins/ponytail-upstream/plugin.json",
-    },
-    launch: {
-      agent: "plugins/desk/agents/worker.agent.md",
-      mcp: "plugins/desk/.mcp.copilot.json",
-    },
-    dependency_closure: [
-      {
-        id: "desk",
-        version: activation.version,
-        plugin: "plugins/desk/plugin.json",
-        skills: "plugins/desk/skills/",
-        agents: "plugins/desk/agents/",
-        mcpServers: "plugins/desk/.mcp.copilot.json",
-      },
-      {
-        id: "work-suite",
-        version: workSuiteDependency?.lock?.version,
-        plugin: "plugins/work-suite/plugin.json",
-        skills: "plugins/work-suite/skills/",
-      },
-      {
-        id: "plain-language",
-        version: findActivationDependency(activation, "plain-language")?.lock?.version,
-        plugin: "plugins/plain-language/plugin.json",
-        skills: "plugins/plain-language/skills/",
-      },
-      {
-        id: "ponytail-upstream",
-        version: findActivationDependency(activation, "ponytail-upstream")?.lock?.version,
-        plugin: "plugins/ponytail-upstream/plugin.json",
-        skills: "plugins/ponytail-upstream/skills/",
-      },
-    ],
-    manual_steps: [],
-  };
-}
-
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
@@ -174,7 +121,7 @@ function checkSupportMatrix({ repoRoot, errors, checked }) {
   }
 }
 
-async function checkCopilotBundle({ repoRoot, mcpRoot, errors, checked }) {
+async function checkCopilotBundle({ repoRoot, mcpRoot, methodId, errors, checked }) {
   checked.push("copilot-bundle");
   const { buildCopilotBundle, validateCopilotPackagingContract } = await import(pathToFileURL(
     path.join(mcpRoot, "src", "activation", "copilot-bundle.js"),
@@ -188,7 +135,7 @@ async function checkCopilotBundle({ repoRoot, mcpRoot, errors, checked }) {
     activation,
     bundle,
     deskPlugin: readJson(repoRoot, "plugins/desk/plugin.json"),
-    workSuitePlugin: readJson(repoRoot, "plugins/work-suite/plugin.json"),
+    [methodId === "superpowers" ? "superpowersPlugin" : "workSuitePlugin"]: readJson(repoRoot, `plugins/${methodId}/plugin.json`),
     plainLanguagePlugin: readJson(repoRoot, "plugins/plain-language/plugin.json"),
     ponytailPlugin: readJson(repoRoot, "plugins/ponytail-upstream/plugin.json"),
   });
@@ -197,14 +144,15 @@ async function checkCopilotBundle({ repoRoot, mcpRoot, errors, checked }) {
   }
 }
 
-function checkCodexPlugin({ repoRoot, errors, checked }) {
+function checkCodexPlugin({ repoRoot, methodId, errors, checked }) {
   checked.push("codex-plugin");
   const activation = readJson(repoRoot, activationManifestPath);
   const deskPlugin = readJson(repoRoot, "plugins/desk/.codex-plugin/plugin.json");
-  const workSuitePlugin = readJson(repoRoot, "plugins/work-suite/.codex-plugin/plugin.json");
+  const methodPlugin = readJson(repoRoot, `plugins/${methodId}/.codex-plugin/plugin.json`);
+  const methodLabel = methodId === "superpowers" ? "Superpowers" : "Work Suite";
   const plainLanguagePlugin = readJson(repoRoot, "plugins/plain-language/.codex-plugin/plugin.json");
   const ponytailPlugin = readJson(repoRoot, "plugins/ponytail-upstream/.codex-plugin/plugin.json");
-  const workSuiteLock = findActivationDependency(activation, "work-suite")?.lock?.version;
+  const methodLock = findActivationDependency(activation, methodId)?.lock?.version;
   const plainLanguageLock = findActivationDependency(activation, "plain-language")?.lock?.version;
   const ponytailLock = findActivationDependency(activation, "ponytail-upstream")?.lock?.version;
   const codex = deskPlugin.activation?.codex;
@@ -233,11 +181,11 @@ function checkCodexPlugin({ repoRoot, errors, checked }) {
   if (!sameJson(codex?.manualSetupSteps ?? [], [])) {
     errors.push("codex-plugin manual setup steps drift");
   }
-  if (codex?.dependencies?.["work-suite"]?.version !== workSuitePlugin.version) {
-    errors.push("codex-plugin Work Suite dependency version drift");
+  if (codex?.dependencies?.[methodId]?.version !== methodPlugin.version) {
+    errors.push(`codex-plugin ${methodLabel} dependency version drift`);
   }
-  if (workSuitePlugin.version !== workSuiteLock) {
-    errors.push("codex-plugin Work Suite provider lock drift");
+  if (methodPlugin.version !== methodLock) {
+    errors.push(`codex-plugin ${methodLabel} provider lock drift`);
   }
   if (codex?.dependencies?.["plain-language"]?.version !== plainLanguagePlugin.version) {
     errors.push("codex-plugin Plain Language dependency version drift");
@@ -253,15 +201,16 @@ function checkCodexPlugin({ repoRoot, errors, checked }) {
   }
 }
 
-function checkClaudePlugin({ repoRoot, errors, checked }) {
+function checkClaudePlugin({ repoRoot, methodId, errors, checked }) {
   checked.push("claude-plugin");
   const activation = readJson(repoRoot, activationManifestPath);
   const deskPlugin = readJson(repoRoot, "plugins/desk/.claude-plugin/plugin.json");
-  const workSuitePlugin = readJson(repoRoot, "plugins/work-suite/.claude-plugin/plugin.json");
+  const methodPlugin = readJson(repoRoot, `plugins/${methodId}/.claude-plugin/plugin.json`);
+  const methodLabel = methodId === "superpowers" ? "Superpowers" : "Work Suite";
   const plainLanguagePlugin = readJson(repoRoot, "plugins/plain-language/.claude-plugin/plugin.json");
   const ponytailPlugin = readJson(repoRoot, "plugins/ponytail-upstream/.claude-plugin/plugin.json");
   const claudeActivation = activation.host_activation?.claude;
-  const workSuiteLock = findActivationDependency(activation, "work-suite")?.lock?.version;
+  const methodLock = findActivationDependency(activation, methodId)?.lock?.version;
   const plainLanguageLock = findActivationDependency(activation, "plain-language")?.lock?.version;
   const ponytailLock = findActivationDependency(activation, "ponytail-upstream")?.lock?.version;
 
@@ -277,11 +226,14 @@ function checkClaudePlugin({ repoRoot, errors, checked }) {
   if (deskPlugin.outputStyles !== "./output-styles/") {
     errors.push("claude-plugin output style surface drift");
   }
-  if (deskPlugin.dependencies?.[0]?.name !== "work-suite" || deskPlugin.dependencies?.[0]?.version !== "^3.0.0") {
-    errors.push("claude-plugin Work Suite dependency drift");
+  if (deskPlugin.dependencies?.[0]?.name !== methodId || deskPlugin.dependencies?.[0]?.version !== findActivationDependency(activation, methodId)?.version_range) {
+    errors.push(`claude-plugin ${methodLabel} dependency drift`);
   }
-  if (workSuitePlugin.version !== workSuiteLock) {
-    errors.push("claude-plugin Work Suite provider lock drift");
+  if (claudeActivation?.dependencies?.[methodId]?.version !== methodPlugin.version) {
+    errors.push(`claude-plugin ${methodLabel} activation dependency version drift`);
+  }
+  if (methodPlugin.version !== methodLock) {
+    errors.push(`claude-plugin ${methodLabel} provider lock drift`);
   }
   if (
     deskPlugin.dependencies?.[1]?.name !== "plain-language" ||
@@ -419,7 +371,6 @@ async function expectedCodexFixtures({ repoRoot, mcpRoot }) {
     existingConfig,
     existingInstructions,
     pluginRoot: "plugins/desk",
-    workSuitePluginRoot: "plugins/work-suite",
     deskRoot: mode === "project-local" ? ".desk" : "~/desk",
     runtimeCacheDir: mode === "project-local"
       ? ".codex/desk-runtime-cache"
@@ -460,10 +411,15 @@ async function verifyDeskHostManifests(options = {}) {
   const checked = [];
 
   try {
+    const { selectEngineeringMethod } = await import(pathToFileURL(
+      path.join(mcpRoot, "src", "activation", "validate.js"),
+    ).href);
+    const activation = readJson(repoRoot, activationManifestPath);
+    const methodId = selectEngineeringMethod(activation.provides.activation_targets.find((target) => target.id === "desk:worker").depends_on);
     checkSupportMatrix({ repoRoot, errors, checked });
-    await checkCopilotBundle({ repoRoot, mcpRoot, errors, checked });
-    checkCodexPlugin({ repoRoot, errors, checked });
-    checkClaudePlugin({ repoRoot, errors, checked });
+    await checkCopilotBundle({ repoRoot, mcpRoot, methodId, errors, checked });
+    checkCodexPlugin({ repoRoot, methodId, errors, checked });
+    checkClaudePlugin({ repoRoot, methodId, errors, checked });
     checkWorkerSources({ repoRoot, errors, checked });
     checkHumanizePackaging({ repoRoot, errors, checked });
     await checkCodexFixtures({ repoRoot, mcpRoot, errors, checked });

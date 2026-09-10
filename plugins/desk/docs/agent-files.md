@@ -20,18 +20,17 @@ claude --agent desk:worker
 
 ### Copilot CLI
 
-The plugin's root `plugin.json` (Copilot CLI's expected location) names `agents/` as the agents directory. After installing:
+The root `plugin.json` names `agents/` as the agent directory. Select `ourostack/ouroboros-skills:plugins/desk@v2-alpha` through the host's admitted opt-in composition; do not change a live default profile:
 
 ```bash
-copilot plugin install ourostack/ouroboros-skills:plugins/desk
-copilot --agent worker
+copilot --agent desk:worker
 ```
 
-The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so no separate Work Suite install is part of the healthy path.
+The root package carries generated flattened Superpowers metadata for Copilot-compatible hosts. Desk + Superpowers and the declared companion closure must be loaded from the admitted roots; metadata alone is not runtime proof. The existing overlay keeps its own worker instead of launching the standalone agent above.
 
 ### Codex CLI / Codex App
 
-Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, writes the Desk activation config, owns the Desk MCP bridge, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.
+Within explicit alpha activation, Codex selects Desk and Superpowers with one owned Desk MCP bridge and worker instruction block. `global-personal` is the selected activation's default mode, not permission to replace an existing installation. Operator-owned text, prior approvals and opt-outs remain intact through `desk:superpowers-integration`.
 
 The generated worker block includes a Desk MCP health guard. Before treating session start as healthy, the agent checks whether the active host exposes Desk MCP tools, especially `desk_status`. Missing tools are not silently treated as local-only mode: `session-start` explains what Desk MCP provides, asks whether to fix/reload now or continue without reminders, and routes repair to `desk:codex-onboarding` or the Codex repair checklist. Callable `desk_status` means the MCP is present and any degraded index/vector/snapshot state should be repaired through Desk runtime tooling.
 
@@ -57,7 +56,7 @@ The first-class dependency ladder is:
 desk substrate -> desk:worker -> ms-desk:worker -> area overlay
 ```
 
-`desk:worker` remains the standalone default. A downstream plugin such as `ms-desk` should not copy Desk skills, Desk MCP config, or the worker body; it should declare an overlay agent that inherits `desk:worker`, adds its own identity/instructions, and becomes the selected activation in the user's global or project profile. A narrower area overlay should depend on `ms-desk` and inherit `ms-desk:worker` so the chain stays explicit. Codex activation enables the selected overlay's plugin dependencies together with Desk and Work Suite while preserving a single Desk MCP server.
+`desk:worker` is the standalone target. Downstream overlays inherit it rather than copying its skills, MCP or body. Select the authorized overlay chain with Desk and Superpowers and preserve one Desk MCP server. Source packaging and actual host inheritance require separate evidence.
 
 `desk_status` reports the active selected activation and chain when the host passes activation context. For Codex cache/debugging, distinguish `repo-source-current`, `installed-cache-current`, and `active-session-visible`: the first two can be checked by the read-only cache audit, while active session visibility requires a host/session reload proof or an active tool-list snapshot supplied to the cache audit.
 

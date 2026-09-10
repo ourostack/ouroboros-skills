@@ -4,15 +4,15 @@ import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { createHash } from "node:crypto"
 import * as path from "node:path"
-import * as os from "node:os"
 import { promises as fs } from "node:fs"
 import Database from "better-sqlite3"
 
 import { isIndexFresh, rebuildIndex } from "../../src/indexer/index.js"
 import { openDb, closeDb, getMeta, setMeta } from "../../src/db/init.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function mkRoot() {
-  return fs.mkdtemp(path.join(os.tmpdir(), "desk-idx-"))
+  return mkTempRoot("desk-idx-")
 }
 async function w(root, rel, body) {
   const abs = path.join(root, rel)

@@ -1,0 +1,10 @@
+{
+  "name": "superpowers",
+  "version": "6.3.0",
+  "description": "Pristine Superpowers 6.3.0 payload with Ourostack-authored host packaging.",
+  "author": {"name": "Jesse Vincent", "url": "https://github.com/obra"},
+  "repository": "https://github.com/obra/superpowers",
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

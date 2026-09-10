@@ -1,36 +1,20 @@
 ---
 name: work-orchestration
-description: "Route authorized work through only the phases it needs, validate cross-repo dependencies, isolate parallel worktrees, and leave lifecycle state to Desk."
+description: Bind authorized engineering work to the selected Superpowers method and preserve Desk state and cross-repository dependency authority.
 ---
 
-# Work Orchestration
+# Work orchestration
 
-Worker remains the engineer; the `work-*` skills are optional workflow tools.
+Invoke `desk:superpowers-integration`. This Desk compatibility entrypoint selects no second engineering method: Superpowers owns discovery, planning, execution and verification; Desk owns the work state and approved terminal boundary.
 
-| Shape | Route |
-| --- | --- |
-| Clear, local, low risk | `work-doer` → `work-merger` |
-| Coordinated behavior change | short `work-planner` → `work-doer` → `work-merger` |
-| Ambiguous, novel, or high risk | `work-ideator` → `work-planner` → `work-doer` → `work-merger` |
+Read the existing task, agreement and plan before choosing the matching Superpowers skill. Consume prior approval without reopening it. Use `superpowers:brainstorming` for missing design agreement, `superpowers:writing-plans` when a plan is needed, and `superpowers:executing-plans` or authorized `superpowers:subagent-driven-development` for implementation. Keep plans and progress on Desk. Invoke `desk:independent-review` for the required independent gate.
 
-Apply Ponytail inside coding and review. Skip a phase when its output would only restate what is already known. Use one fresh cold branch review at the diff boundary; planning-stage review follows the Planner rule below.
+Verify repository authority and the approved contribution path before any branch, worktree or source edit. Read-only requests remain read-only. Delegation and worktree creation stay within the recorded mandate.
 
-## Before mutation
+The cross-repository plan owns an explicit DAG; `repos[]` must never define dependency order. Reject cycles and unknown dependencies. A failed predecessor blocks its dependents, not independent ready nodes. Use isolated worktrees and explicit working directories for authorized parallel work. Serialize shared/version surfaces or merge normally; never force-push through a coordinated conflict.
 
-Verify repository authority and the approved contribution path before any branch, worktree, or source edit. A read-only request or unapproved repository does not mutate.
+Only a current, unsatisfied `needs-human-approval` is a hard exception. Superseded records do not revoke existing go. Mechanical reviews go to the authorized reviewer. A nested worker returns its frozen brief to the parent rather than self-certifying or waiting for the parent's entire task to finish.
 
-## Cross-repo execution
+Desk owns task and iteration state and archive transitions. The agreed endpoint determines whether verification ends at an intentional alpha/PR-only branch or includes authorized merge, release/install, consuming-surface smoke and cleanup. Superpowers finish options cannot silently change that endpoint.
 
-The cross-repo plan owns an explicit DAG. `repos[]` order is never dependency order.
-
-Before mutation, reject a dependency cycle or unknown dependency. A failed predecessor blocks its dependents while independent ready nodes continue.
-
-Each repository gets its own branch and merge cycle. Independent parallel branches use separate worktrees and explicit `git -C <worktree>` commands. Shared and version files serialize or merge; never force-push through a coordinated-file conflict.
-
-An explicit producer state named `needs-human-approval` is a `hard exception`; do not replace required human approval with agent review. Use `needs reviewer gate` only when the producer explicitly permits machine review.
-
-Mechanical review uses the Planner reviewer rule. A nested host emits the required briefs and returns review to its parent rather than self-certifying.
-
-Desk owns task, iteration, and archive state. Work Orchestration routes child skills and does not duplicate that lifecycle.
-
-The terminal state is merged, released or installed as applicable, smoked through the consuming surface, cleaned, and followed by an empty or out-of-scope continuation scan.
+Invoke `desk:independent-review` for a fresh cold branch review at the diff boundary, using frozen source and evidence inputs. This is the same independent-review cycle with one Superpowers remediation owner, not a second implementation loop or a repeated per-edit ceremony.

@@ -8,9 +8,10 @@ import * as os from "node:os"
 import { promises as fs } from "node:fs"
 
 import { discover, classify, isIndexable, normalizeDate } from "../../src/indexer/discover.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 async function buildFixture() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-discover-"))
+  const root = await mkTempRoot("desk-discover-")
 
   async function w(rel, body) {
     const abs = path.join(root, rel)
@@ -125,7 +126,7 @@ test("discover skips documents that become unreadable mid-walk", async (t) => {
 })
 
 test("discover indexes malformed frontmatter with empty metadata", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "desk-discover-malformed-"))
+  const root = await mkTempRoot("desk-discover-malformed-")
   await fs.mkdir(path.join(root, "trackA", "bad-task"), { recursive: true })
   await fs.writeFile(
     path.join(root, "trackA", "bad-task", "task.md"),

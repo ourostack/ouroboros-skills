@@ -4,7 +4,6 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { promises as fs } from "node:fs"
-import * as os from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -12,6 +11,7 @@ import { closeDb, openDb } from "../../src/db/init.js"
 import { discover } from "../../src/indexer/discover.js"
 import { rebuildIndex } from "../../src/indexer/index.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
+import { mkTempRoot } from "../_temp_roots.js"
 
 const mcpRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
 const repoRoot = path.resolve(mcpRoot, "..", "..", "..")
@@ -35,7 +35,7 @@ const SENSITIVE_ARCHIVED_PATHS = Object.freeze([
 ])
 
 async function tmpRoot(prefix = "desk-exclusions-") {
-  return fs.mkdtemp(path.join(os.tmpdir(), prefix))
+  return mkTempRoot(prefix)
 }
 
 async function writeFile(root, rel, body) {

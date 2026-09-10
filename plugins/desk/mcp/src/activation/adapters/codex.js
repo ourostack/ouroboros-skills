@@ -2,7 +2,7 @@ import {
   applyActivationArtifacts,
   deactivateActivationArtifacts,
 } from "../artifact-ledger.js"
-import { resolveActivationChain } from "../validate.js"
+import { resolveActivationChain, selectEngineeringMethod } from "../validate.js"
 
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
@@ -422,7 +422,7 @@ function hasDisabledPluginValue(path, value, namespace) {
   return false
 }
 
-function hasUserDisabledDeskConfig(content, namespace) {
+function* tomlAssignments(content) {
   let sectionPath = []
   for (const rawLine of content.split(/\r?\n/u)) {
     const line = stripTomlComment(rawLine).trim()
@@ -449,11 +449,29 @@ function hasUserDisabledDeskConfig(content, namespace) {
       continue
     }
 
-    if (hasDisabledPluginValue([...sectionPath, ...keyPath], parsedValue, namespace)) {
+    yield [[...sectionPath, ...keyPath], parsedValue]
+  }
+}
+
+function hasUserDisabledDeskConfig(content, namespace) {
+  for (const [keyPath, value] of tomlAssignments(content)) {
+    if (hasDisabledPluginValue(keyPath, value, namespace)) {
       return true
     }
   }
   return false
+}
+
+function assertNoActiveWorkSuite(config) {
+  const parsed = Object.create(null)
+  for (const [keyPath, value] of tomlAssignments(config)) {
+    setObjectPath(parsed, keyPath, value)
+  }
+  if (Object.entries(parsed.plugins ?? {}).some(([name, plugin]) => (
+    name.startsWith("work-suite@") && getObjectPath(plugin, ["enabled"]) === true
+  ))) {
+    throw new Error("active Work Suite conflicts with the selected Superpowers lifecycle; leave user config unchanged")
+  }
 }
 
 function assertNoUserDisabledDeskConfig(config, namespace) {
@@ -557,9 +575,10 @@ function orderedCodexPluginIds(input, selectedActivation) {
     dependency.id,
     dependency,
   ]))
-  const preferred = ["work-suite", input.manifest.id]
+  const preferred = [selectEngineeringMethod(dependencyIds), input.manifest.id]
   const pluginIds = []
   for (const id of [...preferred, ...dependencyIds]) {
+    if (id !== input.manifest.id && !dependencyIds.includes(id)) continue
     const dependency = dependencyMap.get(id)
     if (!dependency) continue
     if (!["plugin", "substrate"].includes(dependency.kind)) continue
@@ -643,11 +662,14 @@ Active Desk activation: ${activationChain}.
 ${overlayAddenda.join("\n")}
 `
     : ""
+  const methodInstruction = selectEngineeringMethod(selectedDependencyIds(selectedActivation)) === "superpowers"
+    ? "Selected engineering lifecycle: Superpowers. Invoke `desk:superpowers-integration` before engineering work and `desk:independent-review` for independent review. Interpret legacy Work Suite references and imperative standing instructions through that selected-method mapping without modifying operator text, granted authority, or the delivery endpoint. Do not load Work Suite as a second lifecycle owner."
+    : "Use Work Suite skills (`work-ideator`, `work-planner`, `work-doer`, `work-merger`) for substantial engineering work."
 
   return `# BEGIN desk activation: ${input.manifest.id}@${input.manifest.version} mode=${input.mode} owner=desk-activation
 You are the ${identity} ${modeConfig.workerContext}.
 
-Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. ${DESK_MCP_HEALTH_GUARD} Apply the \`plain-language\` skill to every human-readable response and artifact while preserving evidence, uncertainty, safety, schemas, and exact source content. Apply \`ponytail\` to coding and \`ponytail-review\` to over-engineering review; never use it to truncate requested research, status truth, explanations, or terminal delivery. Never hard-wrap authored prose: keep each paragraph, list item, blockquote, message, task card paragraph, commit body paragraph, and PR body paragraph on one physical line; use newlines only for real structure or source-preserved semantic breaks. Before finishing, inspect authored/changed prose and join column-wrap continuations without rewriting third-party or historical source. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work.${overlaySection}
+Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. ${DESK_MCP_HEALTH_GUARD} Apply the \`plain-language\` skill to every human-readable response and artifact while preserving evidence, uncertainty, safety, schemas, and exact source content. Apply \`ponytail\` to coding and \`ponytail-review\` to over-engineering review; never use it to truncate requested research, status truth, explanations, or terminal delivery. Never hard-wrap authored prose: keep each paragraph, list item, blockquote, message, task card paragraph, commit body paragraph, and PR body paragraph on one physical line; use newlines only for real structure or source-preserved semantic breaks. Before finishing, inspect authored/changed prose and join column-wrap continuations without rewriting third-party or historical source. ${methodInstruction}${overlaySection}
 # END desk activation
 `
 }
@@ -674,6 +696,10 @@ export function materializeCodexActivation(input) {
   const selectedActivation = selectedActivationFor(input)
   const namespace = activationNamespace(input)
   const configWithoutOwnedBlock = removeOwnedActivationBlock(input.existingConfig)
+  const methodId = selectEngineeringMethod(selectedDependencyIds(selectedActivation))
+  if (input.mode !== "manual-only" && methodId === "superpowers") {
+    assertNoActiveWorkSuite(configWithoutOwnedBlock)
+  }
   assertNoUserDisabledDirectDeskMcpConfig(configWithoutOwnedBlock)
   const configWithoutUnownedDeskMcp = removeUnownedDeskMcpConfig(configWithoutOwnedBlock)
   assertNoUserDisabledDeskConfig(configWithoutUnownedDeskMcp, namespace)
