@@ -83,6 +83,21 @@ contract("git hygiene reuses proof only while its inputs match", () => {
     /reuse[\s\S]+only while[\s\S]+source\/diff\s+fingerprint[\s\S]+exact command and selection[\s\S]+dependency and[\s\S]+configuration fingerprint[\s\S]+environment all match[\s\S]+input\s+changed[\s\S]+rerun/iu,
   );
 });
+contract("git hygiene defers expensive gates to the final exact SHA", () => {
+  const body = subsection("plugins/desk/skills/git-hygiene/SKILL.md", "Final-candidate expensive gates");
+  assert.match(
+    body,
+    /coverage[\s\S]+fully instrumented builds[\s\S]+exception[\s\S]+routine every-push[\s\S]+targeted build[\s\S]+test[\s\S]+formatter/iu,
+  );
+  assert.match(
+    body,
+    /after the last[\s\S]+source[\s\S]+configuration[\s\S]+dependency mutation[\s\S]+exact candidate SHA[\s\S]+before final delivery/iu,
+  );
+  assert.match(
+    body,
+    /SHA[\s\S]+relevant input[\s\S]+changes[\s\S]+invalidate[\s\S]+rerun[\s\S]+not waived/iu,
+  );
+});
 contract("git hygiene rechecks executable repository configuration after ref changes", () => {
   const body = subsection("plugins/desk/skills/git-hygiene/SKILL.md", "Folder trust is path trust, not revision trust");
   assert.match(
@@ -197,6 +212,25 @@ for (const file of [
   requires(file, "doer records build and full-suite proof", /record[\s\S]+build[\s\S]+full (?:existing )?suite/iu);
   requires(file, "doer composes visual QA", /visual-qa-dogfood/u);
   requires(file, "doer preserves operator ownership of future sends", /I'll send|I’ll send/iu);
+  contract(`doer bounds disposable validation artifacts in ${file}`, () => {
+    const body = subsection(file, "Bound disposable validation artifacts");
+    assert.match(
+      body,
+      /coverage[\s\S]+fully instrumented builds[\s\S]+exact-SHA final gate[\s\S]+not[\s\S]+iteration loop[\s\S]+smallest targeted proof/iu,
+    );
+    assert.match(
+      body,
+      /after the final source mutation[\s\S]+review fix[\s\S]+candidate SHA[\s\S]+changes[\s\S]+rerun/iu,
+    );
+    assert.match(
+      body,
+      /copy[\s\S]+proved app or package[\s\S]+commit-addressed[\s\S]+source and destination[\s\S]+hash[\s\S]+before deleting/iu,
+    );
+    assert.match(
+      body,
+      /after each[\s\S]+cycle[\s\S]+delete[\s\S]+test-owned DerivedData[\s\S]+container or image[\s\S]+prove[\s\S]+test-owned[\s\S]+no live consumer[\s\S]+never prune shared/iu,
+    );
+  });
   contract(`doer places behavior at its canonical owner in ${file}`, () => {
     assert.match(
       subsection(file, "Place behavior at its owner"),
