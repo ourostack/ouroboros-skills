@@ -10,8 +10,11 @@ import { runCoverageCommand } from "../../src/coverage/runner.js"
 const esmSource = "plugins/desk/mcp/src/subject.js"
 const cjsSource = "scripts/subject.cjs"
 const unexecutedSource = "plugins/desk/mcp/src/unexecuted.js"
+const offlineEsmSource = "evals/offline/subject.mjs"
+const offlineTypeScriptSource = "evals/offline/vendor/gauntlet/src/subject.ts"
+const offlineBridgeSource = "scripts/skill-evals.cjs"
 
-function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild = false, childFromRepoRoot = false }) {
+function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild = false, childFromRepoRoot = false, offline = false, offlineTests = true, offlinePinnedTypeScript = true, offlineRegistration = true, bridgeExecuted = true, exclusions = [] }) {
   const root = mkdtempSync(path.join(tmpdir(), "desk-coverage-producer-"))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repoRoot = path.join(root, "repo")
@@ -43,7 +46,7 @@ function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild =
   assert.equal(git.status, 0, git.stderr)
   const configPath = writeSource("plugins/desk/mcp/config/coverage-gate.json", JSON.stringify({
     thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
-    exclusions: [],
+    exclusions,
   }))
   const packageJsonPath = writeSource("plugins/desk/mcp/package.json", JSON.stringify({
     type: "module",
@@ -114,6 +117,94 @@ function runProducerFixture(t, { complete, includeUnexecuted = false, viaChild =
     "})",
     "",
   ].join("\n"))
+  if (offline) {
+    // The maintained offline evaluation implementation the root CI must exercise: top-level ESM, pinned vendor TypeScript, and the CommonJS CLI bridge that routes to them.
+    writeSource(offlineEsmSource, [
+      "export function evaluate(callback) {",
+      "  callback()",
+      "  globalThis.coverageOfflineUnreached = true",
+      "}",
+      "",
+    ].join("\n"))
+    if (offlinePinnedTypeScript) writeSource(offlineTypeScriptSource, [
+      "export interface Verdict { passed: boolean }",
+      "export function verdict(passed: boolean): Verdict {",
+      "  if (!passed) return { passed: false }",
+      "  return { passed: true }",
+      "}",
+      "",
+    ].join("\n"))
+    writeSource(offlineBridgeSource, [
+      "module.exports.route = function route(argv) {",
+      '  if (argv[0] !== "offline") throw new Error("unsupported skill-evals route")',
+      '  return "offline"',
+      "}",
+      "",
+    ].join("\n"))
+    // Mirrors the maintained registration pair: the instrumentation hook plus the format hook that gives the source-pinned TypeScript leaves a module format the hook will instrument.
+    if (offlineRegistration) writeSource("evals/offline/__tests__/helpers/coverage-format.mjs", [
+      "let admittedUrls = new Set()",
+      "export function initialize({ urls }) { admittedUrls = new Set(urls) }",
+      "export async function resolve(specifier, context, nextResolve) {",
+      "  const result = await nextResolve(specifier, context)",
+      '  return admittedUrls.has(result.url) ? { ...result, format: "module" } : result',
+      "}",
+      "",
+    ].join("\n"))
+    if (offlineRegistration) writeSource("evals/offline/__tests__/helpers/register-coverage.mjs", [
+      'import { createRequire, register } from "node:module"',
+      'import path from "node:path"',
+      'import { fileURLToPath, pathToFileURL } from "node:url"',
+      'const repository = fileURLToPath(new URL("../../../../", import.meta.url))',
+      "const require = createRequire(path.join(process.env.OFFLINE_COVERAGE_PACKAGE_ROOT, \"package.json\"))",
+      "const option = `--import=${import.meta.url}`",
+      'if (!(process.env.NODE_OPTIONS || "").includes(option)) process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ""} ${option}`.trim()',
+      'register(pathToFileURL(require.resolve("@istanbuljs/esm-loader-hook")).href)',
+      'register(new URL("./coverage-format.mjs", import.meta.url), {',
+      '  data: { urls: ["src/subject.ts"].map(filename => pathToFileURL(path.join(repository, "evals/offline/vendor/gauntlet", filename)).href) },',
+      "})",
+      "",
+    ].join("\n"))
+    const offlineAssertions = [
+      ...(complete ? [
+        "  evaluate(() => {})",
+        "  assert.equal(globalThis.coverageOfflineUnreached, true)",
+      ] : [
+        '  const fail = () => { throw new Error("expected offline callback failure") }',
+        "  assert.throws(() => evaluate(fail), /expected offline callback failure/)",
+        '  assert.equal(Object.hasOwn(globalThis, "coverageOfflineUnreached"), false)',
+      ]),
+      ...(offlinePinnedTypeScript ? [
+        "  assert.deepEqual(verdict(true), { passed: true })",
+        ...(complete ? ["  assert.deepEqual(verdict(false), { passed: false })"] : []),
+      ] : []),
+    ]
+    if (offlineTests) writeSource("evals/offline/__tests__/subject.test.mjs", [
+      'import { test } from "node:test"',
+      'import { strict as assert } from "node:assert"',
+      'import { evaluate } from "../subject.mjs"',
+      ...(offlinePinnedTypeScript ? ['import { verdict } from "../vendor/gauntlet/src/subject.ts"'] : []),
+      'test("offline evaluation witness", () => {',
+      ...offlineAssertions,
+      "})",
+      "",
+    ].join("\n"))
+    if (offlineTests) writeSource("scripts/test-skill-evals.cjs", [
+      'const { test } = require("node:test")',
+      'const assert = require("node:assert").strict',
+      ...(bridgeExecuted ? ['const { route } = require("./skill-evals.cjs")'] : []),
+      'test("skill-evals CLI routing contract", () => {',
+      ...(bridgeExecuted ? [
+        '  assert.equal(route(["offline"]), "offline")',
+        '  assert.throws(() => route(["unknown"]), /unsupported skill-evals route/)',
+      ] : [
+        // The contract test exists and is selected, but never routes through the bridge, which is the shape the obsolete exclusion silently permitted.
+        '  assert.equal(typeof require.resolve("./skill-evals.cjs"), "string")',
+      ]),
+      "})",
+      "",
+    ].join("\n"))
+  }
   const output = { stdout: "", stderr: "" }
   const executions = []
   let summary
@@ -241,4 +332,86 @@ test("the installed producer resolves maintained instrumentation for children ou
     [entry(run, cjsSource).statements.covered, entry(run, cjsSource).statements.total],
     [3, 3],
   )
+})
+
+test("the maintained coverage entry measures the offline evaluation implementation and its CLI bridge through their own test workers", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  const offlineEsm = entry(run, offlineEsmSource)
+  assert.deepEqual([offlineEsm.statements.covered, offlineEsm.statements.total], [2, 2])
+  assert.deepEqual([offlineEsm.functions.covered, offlineEsm.functions.total], [1, 1])
+  const pinned = entry(run, offlineTypeScriptSource)
+  assert.deepEqual([pinned.statements.covered, pinned.statements.total], [3, 3])
+  assert.deepEqual([pinned.branches.covered, pinned.branches.total], [2, 2])
+  assert.deepEqual([pinned.functions.covered, pinned.functions.total], [1, 1])
+  assert.ok(pinned.lines.total > 0 && pinned.lines.covered === pinned.lines.total, JSON.stringify(pinned.lines))
+  const bridge = entry(run, offlineBridgeSource)
+  assert.deepEqual([bridge.statements.covered, bridge.statements.total], [4, 4])
+  assert.deepEqual([bridge.branches.covered, bridge.branches.total], [2, 2])
+})
+
+test("the maintained coverage entry reports the real missed offline statement rather than reporting the untested implementation as complete", t => {
+  const run = runProducerFixture(t, { complete: false, offline: true })
+  assert.equal(run.result, 1, JSON.stringify(run.output))
+  assert.match(run.output.stderr, /subject\.mjs statements coverage 50 is below 100/)
+  const offlineEsm = entry(run, offlineEsmSource)
+  assert.deepEqual([offlineEsm.statements.covered, offlineEsm.statements.total], [1, 2])
+  const pinned = entry(run, offlineTypeScriptSource)
+  assert.deepEqual([pinned.branches.covered, pinned.branches.total], [1, 2])
+})
+
+test("an existing offline implementation without its own tests is measured and failed rather than silently omitted", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true, offlineTests: false })
+  assert.equal(run.result, 1, JSON.stringify(run.output))
+  assert.match(run.output.stderr, /subject\.mjs statements coverage 0 is below 100/)
+  assert.match(run.output.stderr, /subject\.ts statements coverage 0 is below 100/)
+  const pinned = entry(run, offlineTypeScriptSource)
+  assert.deepEqual([pinned.statements.covered, pinned.statements.total], [0, 3])
+})
+
+// The exclusions the repository actually ships, read from the maintained configuration rather than restated, so removing or re-adding an entry there is felt here.
+const maintainedExclusions = JSON.parse(readFileSync(new URL("../../config/coverage-gate.json", import.meta.url), "utf8")).exclusions
+// The entry this change made obsolete, retained verbatim as the demonstrated cause rather than as a live exclusion.
+const obsoleteBridgeExclusion = {
+  path: "scripts/skill-evals.cjs",
+  owner: "Skill evaluation contract validator",
+  reason: "Root-level eval validation CLI is exercised directly by scripts/test-skill-evals.cjs and the 'Validate skill eval contracts' CI step; its CLI branches run outside the Desk MCP coverage runner.",
+}
+
+test("the maintained exclusions no longer let an unexercised CLI bridge pass while the rest of the production set is covered", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true, bridgeExecuted: false, exclusions: maintainedExclusions })
+  assert.equal(run.result, 1, JSON.stringify(run.output))
+  assert.match(run.output.stderr, /skill-evals\.cjs statements coverage 0 is below 100/)
+  assert.match(run.output.stderr, /skill-evals\.cjs branches coverage 0 is below 100/)
+  const bridge = entry(run, offlineBridgeSource)
+  assert.deepEqual([bridge.statements.covered, bridge.statements.total], [0, 4])
+  const offlineEsm = entry(run, offlineEsmSource)
+  assert.deepEqual([offlineEsm.statements.covered, offlineEsm.statements.total], [2, 2])
+})
+
+test("the obsolete bridge exclusion is what let that same unexercised CLI bridge pass", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true, bridgeExecuted: false, exclusions: [...maintainedExclusions, obsoleteBridgeExclusion] })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  assert.match(run.output.stdout, /\[coverage-gate\] passed for 4 changed production file\(s\)/)
+  assert.equal(run.summary[path.join(realpathSync(run.repoRoot), offlineBridgeSource)], undefined)
+})
+
+test("the maintained exclusions admit a fully exercised CLI bridge", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true, exclusions: maintainedExclusions })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  const bridge = entry(run, offlineBridgeSource)
+  assert.deepEqual([bridge.statements.covered, bridge.statements.total], [4, 4])
+  assert.deepEqual([bridge.branches.covered, bridge.branches.total], [2, 2])
+})
+
+test("an offline scope without the repository's registration helper still measures its ESM through the maintained instrumentation", t => {
+  const run = runProducerFixture(t, { complete: true, offline: true, offlinePinnedTypeScript: false, offlineRegistration: false })
+  assert.equal(run.result, 0, JSON.stringify(run.output))
+  assert.equal(run.output.stderr, "")
+  const offlineEsm = entry(run, offlineEsmSource)
+  assert.deepEqual([offlineEsm.statements.covered, offlineEsm.statements.total], [2, 2])
+  assert.deepEqual([offlineEsm.functions.covered, offlineEsm.functions.total], [1, 1])
 })

@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process"
 import {
+  existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -14,6 +16,7 @@ import {
   assertCoverageCommandParity,
   collectCoverageRequiredFiles,
   evaluateCoverageReport,
+  isOfflineEvaluationScope,
 } from "./gate.js"
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -131,6 +134,7 @@ function runInstrumentedTests({
   spawn,
   env,
 }) {
+  const offline = resolveOfflineEvaluationScope({ repoRoot, requiredFiles })
   const configPath = path.join(reportDirectory, "nyc.json")
   fsOps.writeText(configPath, JSON.stringify({
     cwd: repoRoot,
@@ -139,8 +143,11 @@ function runInstrumentedTests({
     exclude: requiredFiles.length ? [
       "plugins/desk/mcp/__tests__/**",
       "plugins/desk/mcp/node_modules/**",
+      ...(offline.selected ? ["evals/offline/__tests__/**"] : []),
     ] : ["**"],
-    extension: [".js", ".cjs"],
+    // The maintained offline selection is only parsed and measured when its own extensions are admitted; without them nyc silently reports no entry at all for those production leaves.
+    extension: [".js", ".cjs", ...(offline.selected ? [".mjs", ".ts"] : [])],
+    ...(offline.requiresTypeScript ? { parserPlugins: ["typescript"] } : {}),
     reporter: ["json-summary", "json"],
     reportDir: reportDirectory,
     tempDir: path.join(reportDirectory, "raw"),
@@ -149,7 +156,10 @@ function runInstrumentedTests({
   }))
   const loader = pathToFileURL(require.resolve("@istanbuljs/esm-loader-hook")).href
   const registration = `import { register } from "node:module"; register(${JSON.stringify(loader)});`
-  const registrationUrl = `data:text/javascript,${encodeURIComponent(registration)}`
+  // The repository's own offline registration helper is a superset of this registration: it installs the same maintained hook and additionally gives the source-pinned TypeScript leaves a module format that hook will instrument.
+  const registrationUrl = offline.registrationPath
+    ? pathToFileURL(offline.registrationPath).href
+    : `data:text/javascript,${encodeURIComponent(registration)}`
   const args = [
     require.resolve("nyc/bin/nyc.js"),
     "--cwd", repoRoot,
@@ -158,6 +168,8 @@ function runInstrumentedTests({
     "--import", registrationUrl,
     "--test",
     path.join(repoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
+    // Separate path arguments run as separate test workers, so the offline suite and the CLI contract keep their own hooks.
+    ...offline.testTargets,
   ]
   return spawn(process.execPath, args, {
     cwd: defaultMcpRoot,
@@ -167,9 +179,30 @@ function runInstrumentedTests({
       // Ordinary Node descendants do not inherit the parent's execArgv.
       NODE_OPTIONS: `${env.NODE_OPTIONS ?? ""} --import=${registrationUrl}`.trim(),
       NODE_PATH: [path.join(defaultMcpRoot, "node_modules"), env.NODE_PATH].filter(Boolean).join(path.delimiter),
+      ...(offline.registrationPath ? { OFFLINE_COVERAGE_PACKAGE_ROOT: defaultMcpRoot } : {}),
       DESK_COVERAGE_RUNNER_CHILD: "1",
     },
   })
+}
+
+function resolveOfflineEvaluationScope({ repoRoot, requiredFiles }) {
+  const required = requiredFiles.filter(isOfflineEvaluationScope)
+  if (!required.length) return { selected: false, requiresTypeScript: false, registrationPath: null, testTargets: [] }
+  const testDirectory = path.join(repoRoot, "evals", "offline", "__tests__")
+  const hasOfflineTests = existsSync(testDirectory) &&
+    readdirSync(testDirectory).some((entry) => entry.endsWith(".test.mjs"))
+  const contractTest = path.join(repoRoot, "scripts", "test-skill-evals.cjs")
+  const registrationPath = path.join(testDirectory, "helpers", "register-coverage.mjs")
+  return {
+    selected: true,
+    requiresTypeScript: required.some((file) => file.endsWith(".ts")),
+    registrationPath: existsSync(registrationPath) ? registrationPath : null,
+    // A required production leaf whose tests are absent stays measured and fails the gate; an unmatched selection argument would end the run before any measurement instead.
+    testTargets: [
+      ...(hasOfflineTests ? [path.join(testDirectory, "*.test.mjs")] : []),
+      ...(existsSync(contractTest) ? [contractTest] : []),
+    ],
+  }
 }
 
 function defaultPaths() {
