@@ -68,7 +68,11 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   let cleanup;
   let resolveIdle;
   let rejectIdle;
-  const idle = new Promise((resolve, reject) => { resolveIdle = resolve; rejectIdle = reject; });
+  let workFailure;
+  const idle = new Promise((resolve, reject) => {
+    resolveIdle = resolve;
+    rejectIdle = error => { workFailure ??= { error }; reject(error); };
+  });
   idle.catch(() => {});
   function send(record) {
     const bytes = jsonBytes(record);
@@ -115,6 +119,7 @@ export async function runTerminalProtocol({ sdk, root, model, token, limits, emi
   }
   function requireOpenWork() {
     requireCondition(collecting && clock() < workDeadline, "NATIVE_DEADLINE", "The native work window is closed");
+    if (workFailure) throw workFailure.error;
   }
   async function workPhase(operation) {
     requireOpenWork();
