@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
-import { availableParallelism, tmpdir } from "node:os"
+import { tmpdir } from "node:os"
 import * as path from "node:path"
 import { createRequire } from "node:module"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -167,7 +167,8 @@ function runInstrumentedTests({
     process.execPath,
     "--import", registrationUrl,
     "--test",
-    `--test-concurrency=${Math.max(1, Math.min(4, availableParallelism() - 1))}`,
+    // Instrumented fixture children must not compete with other test files for their unchanged startup deadlines.
+    "--test-concurrency=1",
     path.join(repoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
     // Separate path arguments run as separate test workers, so the offline suite and the CLI contract keep their own hooks.
     ...offline.testTargets,
