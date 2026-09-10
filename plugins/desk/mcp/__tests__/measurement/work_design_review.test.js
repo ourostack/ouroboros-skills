@@ -14,10 +14,13 @@
 // evidence that nothing happened or that the operator has started using this.
 
 import { test } from "node:test"
+import Database from "better-sqlite3"
+import { promises as fs } from "node:fs"
+import * as path from "node:path"
 import { strict as assert } from "node:assert"
 
 import { callTool } from "../../src/server.js"
-import { mkLedgerFixture, cleanup } from "./_helpers.js"
+import { mkLedgerFixture, useHostEnv, cleanup } from "./_helpers.js"
 
 function body(result) {
   const text = result.content[0].text
@@ -79,6 +82,10 @@ async function review(fixture, input = {}) {
 test("the review selects the work items declared complete inside its window", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const completed = await committedItem(fixture, "Ship the thing that was asked for.")
   await ledger({
@@ -108,6 +115,10 @@ test("the review selects the work items declared complete inside its window", as
 test("an item still open is not in the cohort, and open coverage is pointed at separately", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   await committedItem(fixture, "Work that is still in flight.")
 
@@ -126,6 +137,10 @@ test("an item still open is not in the cohort, and open coverage is pointed at s
 test("a cancelled or abandoned item is never counted as completed work", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const abandoned = await committedItem(fixture, "Work that was dropped.")
   const closed = body(
@@ -152,6 +167,10 @@ test("a cancelled or abandoned item is never counted as completed work", async (
 test("the review preserves every recorded size feature, and names the ones never recorded", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const sized = await committedItem(fixture, "Work whose shape was recorded first.")
   await ledger({
@@ -210,6 +229,10 @@ test("the review preserves every recorded size feature, and names the ones never
 test("the review reports delivery evidence against the committed endpoint", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const delivered = await committedItem(fixture, "Work with evidence at the endpoint.")
   await ledger({
@@ -233,6 +256,10 @@ test("the review reports delivery evidence against the committed endpoint", asyn
 test("the review never grades, scores or ranks the work it reads", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const item = await committedItem(fixture, "Work that will not be marked.")
   await ledger({
@@ -289,6 +316,10 @@ test("the review never grades, scores or ranks the work it reads", async (t) => 
 test("a window that excludes the completion returns an empty cohort, not the item", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const item = await committedItem(fixture, "Completed now, reviewed for last week.")
   await ledger({
@@ -314,6 +345,10 @@ test("a window that excludes the completion returns an empty cohort, not the ite
 test("the review refuses a window it cannot trust rather than guessing one", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const undated = body(
     await ledger({
@@ -348,6 +383,10 @@ test("the review refuses a window it cannot trust rather than guessing one", asy
 test("the review is a read: advertised as non-capturing, and answerable while recording is off", async (t) => {
   const fixture = await mkLedgerFixture()
   t.after(() => cleanup(fixture.base))
+  // Binds the protected store to this fixture's own state home. Without it the
+  // ledger resolves against the real operator state directory and every case
+  // leaves a live partition behind there.
+  t.after(useHostEnv(fixture))
 
   const capabilities = body(
     await ledger({ deskRoot: fixture.deskRoot, input: { action: "capabilities" } }),
@@ -371,4 +410,72 @@ test("the review is a read: advertised as non-capturing, and answerable while re
 
   const result = await review(fixture)
   assert.equal(result.status, "reviewed", result.message ?? "")
+})
+
+// A recorded completion timestamp carries whole-second precision, so two items
+// finished in the same second share a completed_at exactly. Left at that, their
+// order in the cohort would fall back to whatever order the rows came out of
+// SQLite in, which is not specified. The tie is broken on the work item id so a
+// week reads the same way every time it is opened. The collision is constructed
+// here rather than raced for, because two completions landing in the same second
+// is ordinary at this precision but not something a test can schedule.
+async function ledgerDbPath(stateHome) {
+  const namespace = path.join(stateHome, "ouroboros-skills", "desk", "work-ledger")
+  const partitions = await fs.readdir(namespace)
+  assert.equal(partitions.length, 1, "the fixture must own exactly one partition")
+  return path.join(namespace, partitions[0], "work-ledger.sqlite")
+}
+
+test("two items completed in the same second read in a stable order", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const ids = []
+  for (const request of ["Deliver the first outcome.", "Deliver the second outcome."]) {
+    const workItemId = await committedItem(fixture, request)
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "complete",
+        work_item_id: workItemId,
+        endpoint: ENDPOINT,
+        evidence: "The endpoint holds the delivered artifact.",
+      },
+    })
+    ids.push(workItemId)
+  }
+
+  const sameSecond = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/u, "Z")
+  const expected = [...ids].sort((a, b) => a.localeCompare(b))
+  const db = new Database(await ledgerDbPath(fixture.stateHome))
+  db.prepare("UPDATE completions SET completed_at = ?").run(sameSecond)
+  const stored = db.prepare("SELECT DISTINCT completed_at FROM completions").all()
+  assert.equal(stored.length, 1, "both completions must now carry the identical second")
+  // Rows are stored in the order the completions were recorded, which here is
+  // already the answer the review is supposed to produce. That would let a
+  // missing tiebreak look correct, so the stored order is reversed first: now
+  // only an explicit tiebreak can put the cohort back into a stable order.
+  db.prepare("UPDATE completions SET rowid = rowid + 1000").run()
+  ;[...expected].reverse().forEach((workItemId, index) => {
+    db.prepare("UPDATE completions SET rowid = ? WHERE work_item_id = ?").run(index + 1, workItemId)
+  })
+  // Selecting the same columns the review does, so this observes the order the
+  // review really sees. Asking for the id alone is answered from the primary
+  // key index instead, which is always sorted and would hide the row order.
+  const scanned = db
+    .prepare("SELECT work_item_id, endpoint, evidence, completed_at FROM completions")
+    .all()
+    .map((row) => row.work_item_id)
+  db.close()
+  assert.deepEqual(scanned, [...expected].reverse(), "the stored order must oppose the expected one")
+
+  const result = await review(fixture)
+  assert.equal(result.status, "reviewed", result.message ?? "")
+  assert.equal(result.cohort.count, 2)
+  assert.deepEqual(
+    result.cohort.items.map((item) => item.work_item_id),
+    expected,
+    "a same-second tie is settled on the work item id, not on row order",
+  )
 })
