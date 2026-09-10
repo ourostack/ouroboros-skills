@@ -20,7 +20,14 @@ import * as path from "node:path"
 import { strict as assert } from "node:assert"
 
 import { callTool } from "../../src/server.js"
-import { mkLedgerFixture, useHostEnv, cleanup } from "./_helpers.js"
+import {
+  mkLedgerFixture,
+  useHostEnv,
+  cleanup,
+  writeSessionRecords,
+  FIXTURE_SESSION_ID,
+  baseSessionRecords,
+} from "./_helpers.js"
 
 function body(result) {
   const text = result.content[0].text
@@ -409,7 +416,10 @@ test("the review is a read: advertised as non-capturing, and answerable while re
   // Reading work already recorded is not new capture, so the recording switch
   // does not govern it and the advertised shape must say so.
   assert.equal(entry.captures, false)
-  assert.deepEqual(entry.fields, ["since", "until"])
+  // The exact accepted shape, pinned. carry_forward names work-item identities
+  // the owner's dispatch ledger already holds; it still selects no store, no
+  // person and no schema, which is the property this pin exists to protect.
+  assert.deepEqual(entry.fields, ["since", "until", "carry_forward"])
 
   const off = body(
     await ledger({
@@ -603,4 +613,282 @@ test("a successful result is eligible input, not a review that happened", async 
     result.reading.some((line) => /never a verification of delivery/i.test(line)),
     "the payload must state in words that selection is not delivery verification",
   )
+})
+
+// A reading is source-bound, or it says it is not.
+//
+// The point of naming the session behind an item is that a weekly reading of
+// "my work" should be able to show which of it actually came from a recorded
+// session on this machine. An item with no binding was never correlated with
+// any session, and that has to read as an absence rather than as a quiet blank.
+// This is also the seam a later first-use confirmation needs: a real V2 item
+// carries a binding to the source and session that produced it, and this route
+// is where that binding is read back.
+
+async function completeItem(fixture, workItemId, evidence = "Replay output attached.") {
+  const done = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "complete",
+        work_item_id: workItemId,
+        endpoint: ENDPOINT,
+        evidence,
+      },
+    }),
+  )
+  assert.equal(done.status, "completed", done.message ?? "")
+  return done
+}
+
+test("a reading names the session an item came from, or states it has none", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  writeSessionRecords(fixture.sourcePath, baseSessionRecords())
+
+  const bound = await committedItem(fixture, "Work that came from a real session.")
+  const imported = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "import_usage",
+        work_item_id: bound,
+        source: "copilot_local_session_records",
+        session_id: FIXTURE_SESSION_ID,
+        machine_id: "workstation-a",
+      },
+    }),
+  )
+  assert.equal(imported.status, "usage_imported", imported.message ?? "")
+  await completeItem(fixture, bound)
+
+  const unbound = await committedItem(fixture, "Work nobody bound to a session.")
+  await completeItem(fixture, unbound)
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: { action: "review", ...windowAroundNow() },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  const boundItem = review.eligible.items.find((item) => item.work_item_id === bound)
+  const unboundItem = review.eligible.items.find((item) => item.work_item_id === unbound)
+
+  assert.equal(boundItem.source_binding.class, "declared")
+  assert.equal(boundItem.source_binding.sessions.length, 1)
+  assert.equal(boundItem.source_binding.sessions[0].source, "copilot_local_session_records")
+  assert.equal(boundItem.source_binding.sessions[0].session_id, FIXTURE_SESSION_ID)
+  assert.equal(boundItem.source_binding.sessions[0].machine_id, "workstation-a")
+  assert.ok(boundItem.source_binding.sessions[0].bound_at)
+
+  // The absence has to be explicit. A missing binding must never read as though
+  // the item merely had nothing interesting to say about its origin.
+  assert.equal(unboundItem.source_binding.class, "unavailable")
+  assert.match(unboundItem.source_binding.reason, /no session/i)
+  assert.equal(unboundItem.source_binding.sessions, undefined)
+
+  // And the reading states plainly what a binding is and is not evidence of.
+  assert.match(JSON.stringify(review.result_is), /binding/i)
+})
+
+// Carry-forward, and the identity it is not allowed to launder.
+//
+// An item whose evidence could not be assessed in its own week comes back for a
+// later look, but it stays in the cohort it was completed in. It must never be
+// added to a later week's new-completion denominator, because that would count
+// one outcome as completed twice and quietly inflate a later week.
+
+async function backdateCompletion(fixture, workItemId, completedAt) {
+  const db = new Database(await ledgerDbPath(fixture.stateHome))
+  try {
+    db.prepare("UPDATE completions SET completed_at = ? WHERE work_item_id = ?").run(
+      completedAt,
+      workItemId,
+    )
+  } finally {
+    db.close()
+  }
+}
+
+const LAST_WEEK = "2026-08-31T07:00:00.000Z"
+
+test("a carried-forward item keeps its original cohort and stays out of the denominator", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const older = await committedItem(fixture, "Completed in an earlier week.")
+  await completeItem(fixture, older)
+  await backdateCompletion(fixture, older, LAST_WEEK)
+
+  const fresh = await committedItem(fixture, "Completed in this week.")
+  await completeItem(fixture, fresh)
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "review",
+        ...windowAroundNow(),
+        carry_forward: [{ work_item_id: older, completed_at: LAST_WEEK }],
+      },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  // The denominator is this window's new completions only.
+  assert.equal(review.eligible.count, 1)
+  assert.deepEqual(review.eligible.ids, [fresh])
+  assert.ok(!review.eligible.ids.includes(older))
+
+  const carried = review.carried_forward
+  assert.equal(carried.count, 1)
+  assert.equal(carried.counted_in_denominator, false)
+  assert.equal(carried.items[0].work_item_id, older)
+  assert.equal(carried.items[0].status, "carried_forward")
+  assert.equal(carried.items[0].original_cohort.completed_at, LAST_WEEK)
+  assert.equal(carried.items[0].original_cohort.falls_in_this_window, false)
+})
+
+test("a carry-forward that restates a different completion time is refused", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const older = await committedItem(fixture, "Completed in an earlier week.")
+  await completeItem(fixture, older)
+  await backdateCompletion(fixture, older, LAST_WEEK)
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "review",
+        ...windowAroundNow(),
+        // A later completion time than the ledger holds: the shape a
+        // recompletion or reopened-work claim would take if it were allowed to
+        // move an item into a newer cohort.
+        carry_forward: [{ work_item_id: older, completed_at: "2026-09-07T07:00:00.000Z" }],
+      },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  const entry = review.carried_forward.items[0]
+  assert.equal(entry.status, "identity_mismatch")
+  assert.equal(entry.original_cohort.completed_at, LAST_WEEK)
+  assert.equal(entry.stated_completed_at, "2026-09-07T07:00:00.000Z")
+  assert.match(entry.reason, /cannot.*reset|does not match/i)
+  // Refused entries are never silently promoted into the denominator either.
+  assert.equal(review.carried_forward.counted_in_denominator, false)
+  assert.equal(review.eligible.count, 0)
+})
+
+test("a carry-forward already completed inside this window is not double counted", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const fresh = await committedItem(fixture, "Completed in this very window.")
+  const done = await completeItem(fixture, fresh)
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "review",
+        ...windowAroundNow(),
+        carry_forward: [{ work_item_id: fresh, completed_at: done.completion.completed_at }],
+      },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  // It is a new completion in this window, so it belongs in the denominator
+  // exactly once and must not also be reported as carried forward.
+  assert.equal(review.eligible.count, 1)
+  assert.equal(review.carried_forward.items[0].status, "already_in_this_window")
+  assert.match(review.carried_forward.items[0].reason, /counted once|already/i)
+})
+
+test("a carry-forward for an unknown item is stated unavailable", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "review",
+        ...windowAroundNow(),
+        carry_forward: [
+          { work_item_id: "11111111-2222-3333-4444-555555555555", completed_at: LAST_WEEK },
+        ],
+      },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  const entry = review.carried_forward.items[0]
+  assert.equal(entry.status, "unavailable")
+  assert.match(entry.reason, /no completion|not recorded|unknown/i)
+})
+
+test("a malformed carry-forward input is refused on shape", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  for (const carry of [
+    "not-a-list",
+    [7],
+    [null],
+    [{ completed_at: LAST_WEEK }],
+    [{ work_item_id: "11111111-2222-3333-4444-555555555555" }],
+    [{ work_item_id: 7, completed_at: LAST_WEEK }],
+  ]) {
+    const refused = body(
+      await ledger({
+        deskRoot: fixture.deskRoot,
+        input: { action: "review", ...windowAroundNow(), carry_forward: carry },
+      }),
+    )
+    assert.notEqual(refused.status, "ok")
+    assert.match(refused.message, /carry_forward/i)
+  }
+})
+
+test("a carry-forward completed after this window is not pulled backwards into it", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const later = await committedItem(fixture, "Completed in a later week.")
+  await completeItem(fixture, later)
+  const AFTER = "2099-01-04T08:00:00.000Z"
+  await backdateCompletion(fixture, later, AFTER)
+
+  const review = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: {
+        action: "review",
+        ...windowAroundNow(),
+        carry_forward: [{ work_item_id: later, completed_at: AFTER }],
+      },
+    }),
+  )
+  assert.equal(review.status, "ok", review.message ?? "")
+
+  const entry = review.carried_forward.items[0]
+  assert.equal(entry.status, "completed_after_window")
+  assert.equal(entry.original_cohort.falls_in_this_window, false)
+  assert.match(entry.reason, /later cohort|after this window/i)
+  assert.equal(review.carried_forward.count, 0)
+  assert.equal(review.eligible.count, 0)
 })

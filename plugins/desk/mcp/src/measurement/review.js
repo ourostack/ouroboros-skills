@@ -171,7 +171,130 @@ function sizingOrder(size, completedAt) {
   return { class: DECLARED, value: recorded <= completed }
 }
 
-export function buildReview(db, { since, until }) {
+/**
+ * The sessions an item's usage was actually imported from.
+ *
+ * This is what makes a weekly reading source-bound rather than anonymous. A
+ * binding is written only by a real usage import, which names its source and
+ * session explicitly and refuses to guess the caller's own, so a bound item is
+ * one whose work was genuinely correlated with a recorded session on a named
+ * machine. An item with no binding was never correlated with anything, and that
+ * has to be stated: read as a blank it would look like an item that simply had
+ * nothing to say about its origin.
+ *
+ * An item can carry more than one, because work can span sessions, so they are
+ * reported as a list rather than collapsed into one.
+ */
+function bindingsOf(db, workItemId) {
+  const rows = db
+    .prepare(
+      "SELECT source, session_id, machine_id, bound_at FROM session_bindings " +
+        "WHERE work_item_id = ? ORDER BY bound_at, source, session_id",
+    )
+    .all(workItemId)
+  if (rows.length === 0) {
+    return unavailable(
+      "no session is bound to this work item, so this reading cannot say which " +
+        "source or session produced it",
+    )
+  }
+  return { class: DECLARED, sessions: rows }
+}
+
+/**
+ * Entries the owner's dispatch ledger says were left unresolved in an earlier
+ * window. Supplied by the caller because this route does not hold dispositions:
+ * which items were read and which were deferred lives in that ledger, not here.
+ */
+function parseCarryForward(carryForward) {
+  if (carryForward === undefined) return []
+  if (!Array.isArray(carryForward)) {
+    throw new Error(
+      "carry_forward must be a list of { work_item_id, completed_at } entries taken " +
+        "from an earlier window's unresolved items.",
+    )
+  }
+  return carryForward.map((entry) => {
+    const record = typeof entry === "object" && entry !== null ? entry : {}
+    if (typeof record.work_item_id !== "string" || typeof record.completed_at !== "string") {
+      throw new Error(
+        "each carry_forward entry must name a work_item_id and the completed_at it was " +
+          "originally recorded with, both as strings, so the item can be matched to the " +
+          "cohort it was completed in.",
+      )
+    }
+    return { work_item_id: record.work_item_id, completed_at: record.completed_at }
+  })
+}
+
+/**
+ * Resolve carried-forward entries against the ledger's own immutable record.
+ *
+ * The rule being enforced is that carrying an item forward may not move it: it
+ * keeps the cohort it was completed in, and it never joins a later window's
+ * new-completion denominator. So the stated completion time is checked against
+ * the one this ledger holds, and a disagreement is surfaced rather than
+ * accepted — that disagreement is exactly the shape a recompletion, correction
+ * or reopened-work claim would take if it were allowed to relabel an old
+ * outcome as newly completed.
+ */
+function resolveCarryForward(db, entries, sinceEpoch, untilEpoch) {
+  return entries.map((entry) => {
+    const row = db
+      .prepare("SELECT completed_at FROM completions WHERE work_item_id = ?")
+      .get(entry.work_item_id)
+    if (!row) {
+      return {
+        work_item_id: entry.work_item_id,
+        status: UNAVAILABLE,
+        stated_completed_at: entry.completed_at,
+        reason:
+          "no completion is recorded for this work item in this ledger, so there is no " +
+          "original cohort to carry it forward under",
+      }
+    }
+    if (row.completed_at !== entry.completed_at) {
+      return {
+        work_item_id: entry.work_item_id,
+        status: "identity_mismatch",
+        stated_completed_at: entry.completed_at,
+        original_cohort: { completed_at: row.completed_at },
+        reason:
+          "the stated completion time does not match the immutable one this ledger holds. " +
+          "A recompletion, correction or reopened-work claim cannot reset the original " +
+          "identity or move the item into a newer window's denominator.",
+      }
+    }
+    const epoch = Date.parse(row.completed_at)
+    if (epoch < sinceEpoch) {
+      return {
+        work_item_id: entry.work_item_id,
+        status: "carried_forward",
+        original_cohort: { completed_at: row.completed_at, falls_in_this_window: false },
+      }
+    }
+    if (epoch < untilEpoch) {
+      return {
+        work_item_id: entry.work_item_id,
+        status: "already_in_this_window",
+        original_cohort: { completed_at: row.completed_at, falls_in_this_window: true },
+        reason:
+          "this item was declared complete inside this window, so it is already counted " +
+          "once in the new-completion denominator and is not also carried forward",
+      }
+    }
+    return {
+      work_item_id: entry.work_item_id,
+      status: "completed_after_window",
+      original_cohort: { completed_at: row.completed_at, falls_in_this_window: false },
+      reason:
+        "this item was declared complete after this window closed, so it belongs to a " +
+        "later cohort and cannot be carried backwards into this one",
+    }
+  })
+}
+
+export function buildReview(db, { since, until, carryForward }) {
   const sinceEpoch = parseWindowBound(since, "since")
   const untilEpoch = parseWindowBound(until, "until")
   if (!(sinceEpoch < untilEpoch)) {
@@ -180,6 +303,12 @@ export function buildReview(db, { since, until }) {
         `ends at ${until}.`,
     )
   }
+  const carried = resolveCarryForward(
+    db,
+    parseCarryForward(carryForward),
+    sinceEpoch,
+    untilEpoch,
+  )
 
   const completions = completionsInWindow(db, sinceEpoch, untilEpoch)
   const items = completions.map((completion) => {
@@ -219,6 +348,11 @@ export function buildReview(db, { since, until }) {
       },
       size,
       size_recorded_before_completion: sizingOrder(size, completion.completed_at),
+      // Which recorded session this item's work was correlated with, or an
+      // explicit absence. Read back here so a later first-use confirmation has
+      // somewhere to land: a genuinely used session shows up as a binding on
+      // the item it produced.
+      source_binding: bindingsOf(db, completion.work_item_id),
       // No closure is read here. Completion is terminal — the close route
       // refuses a completed item with "a terminal work item does not accept
       // close" for every accepted closure state — so a reviewed item can never
@@ -249,6 +383,13 @@ export function buildReview(db, { since, until }) {
         "which eligible items were actually reviewed, deferred, or carried forward " +
           "is recorded in the owner's review and dispatch ledger, not by this read route",
       ),
+      // A binding says which recorded session an item's usage came from. It is
+      // not on its own evidence that the operator has started using anything:
+      // it says where imported usage came from, and nothing about whether the
+      // work behind it mattered or was delivered.
+      binding_means:
+        "a source binding names the session an item's imported usage came from; it is " +
+        "not evidence of delivery, of quality, or on its own of a first real use",
     },
     window: {
       since,
@@ -256,11 +397,16 @@ export function buildReview(db, { since, until }) {
       bounds: "since is inclusive, until is exclusive",
       selected_on:
         "completions.completed_at, the immutable claim that the item was declared " +
-        "complete, which is not a delivery time",
+        "complete, which the item report names terminal_claim_recording, and which " +
+        "is not a delivery time",
     },
     eligible: {
       class: DECLARED,
       selected_by: "a completion recorded inside the window; cancelled and abandoned work is never counted as completed",
+      // The denominator for this window. Carried-forward items are reported
+      // separately and are never added here, because counting one outcome as
+      // newly completed in two different weeks would inflate the later one.
+      denominator: "new completions inside this window only",
       count: items.length,
       ids: items.map((item) => item.work_item_id),
       items,
@@ -277,6 +423,21 @@ export function buildReview(db, { since, until }) {
       "open, blocked and cancelled work is a separate question from a completed-work " +
         "design review, and is deliberately not summarised here",
     ),
+    // Items an earlier window left unresolved, kept under the cohort they were
+    // completed in. They are listed so the reader can pick them up again, and
+    // they are deliberately outside the denominator above.
+    carried_forward: {
+      count: carried.filter((entry) => entry.status === "carried_forward").length,
+      counted_in_denominator: false,
+      statement:
+        "These were declared complete in an earlier window and left unresolved there. " +
+        "They keep their original cohort and are never counted as newly completed in " +
+        "this one. Entries whose stated completion time disagrees with this ledger are " +
+        "reported as a mismatch rather than accepted.",
+      supplied_by:
+        "the owner's review and dispatch ledger; this route holds no dispositions of its own",
+      items: carried,
+    },
     reading: [
       "Selection is a declaration of completion, never a verification of delivery.",
       "This is input for a reading, not a reading that happened.",

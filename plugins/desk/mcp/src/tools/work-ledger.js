@@ -651,7 +651,11 @@ const ROUTES = {
   // A read, so it stays available while recording is off: the owner's right to
   // look at what is already held does not depend on new capture being on.
   review: ({ db, values }) =>
-    buildReview(db, { since: values.since, until: values.until }),
+    buildReview(db, {
+      since: values.since,
+      until: values.until,
+      carryForward: values.carry_forward,
+    }),
 
   import_usage: ({ db, values, item, env }) => importUsage({ db, values, item, env }),
 

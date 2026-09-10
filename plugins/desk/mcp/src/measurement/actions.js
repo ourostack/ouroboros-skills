@@ -39,7 +39,7 @@ export const LEDGER_ACTIONS = {
   delete: ["action", "work_item_id", "confirm"],
   inspect: ["action", "work_item_id"],
   report: ["action", "work_item_id", "include_phase_span"],
-  review: ["action", "since", "until"],
+  review: ["action", "since", "until", "carry_forward"],
   import_usage: [
     "action",
     "work_item_id",
