@@ -41,6 +41,22 @@ On interruption, read the canonical doing record, not an upstream shadow ledger.
 
 The evidence root must be an explicitly approved private artifact location outside Git-backed Desk. It must never be the reserved `<state home>/ouroboros-skills/desk/work-measurement/` ledger partition. File contents remain subject to the repository's write authority and the selected private-storage policy. A printed path is not proof of protection or permission.
 
+## Bounded execution and recovery
+
+Use `desk:session-resumption` to checkpoint at completed integration and delegation boundaries and before an unattended batch. Keep one implementation writer per worktree, close completed assignments, and return bounded findings plus artifact pointers rather than repeatedly copying whole histories or command output. The approved outcome continues across process handovers; no new go or lifecycle is created.
+
+Treat a host-observed persistent memory-pressure signal followed by compaction failure as a handover condition: stop starting new work, preserve the current recoverable source/evidence and use the authorized host recovery path. Do not keep retrying failed emergency compaction indefinitely. Context-token usage is not JavaScript heap usage, and more physical memory does not establish a healthy process.
+
+The guard and restart capability must live outside the worker process. Desk owns checkpoint and recovery admission; the host owns process generations, descendant cleanup and the actual launch. A replacement must consume the current Desk record, establish sole-writer ownership, reconcile uncertain side effects and keep the original work identity. Do not put a second scheduler, task ledger or implementation loop into this integration.
+
+The host protocol declares armed and disarmed intent, finite pressure-persistence/checkpoint/handover/acknowledgement limits, and a persisted ceiling on consecutive recoveries without verified durable progress. A launch, heartbeat or self-reported success cannot reset that counter. Explicitly disarm before an intentional stop, pause or completion; recovery must not resurrect stopped work. For non-ready recovery, do not launch or continue the protected workload, report the exact reason and never substitute reduced-capability execution. Independent safe work can continue under the original mandate.
+
+Record the actual fresh-history executable/argv, admitted source/profile and identity in the host receipt without copying credentials or changing permissions. Require a work-item-bound acknowledgement and read-back of the next expected work step before declaring recovery successful; starting a process or delivering a prompt is not that acknowledgement.
+
+Before claiming unattended recovery, exercise two consecutive actual interruption and recovery cycles on the declared consuming host. Confirm preserved partial work and original identity, no competing writers or duplicate external effects, resumed work through the selected source, and ordinary rollback. Retain both attempts and their source/host boundaries. Source instructions, a synthetic process fixture or a successful launch alone are not that proof.
+
+The two cycles include graceful handover and abrupt mid-batch interruption, with actual uncommitted source and an externally visible operation whose response is uncertain. Record the operation identity or idempotency key before issue; use destination read-back instead of blind replay. Prove refusal of a surviving delegated writer, intentional-stop/disarm behavior, the exhausted recovery budget and an incomplete latest checkpoint. Each replacement must perform the next expected work step; two idle restarts cannot satisfy the requirement.
+
 ## Review and accounting
 
 Invoke `desk:independent-review` for independent review. A host overlay may supply the reviewer launcher; it may not supply a second fix loop. Superpowers' implementation owner dispositions findings, performs in-scope fixes and requests re-review against fresh frozen inputs.

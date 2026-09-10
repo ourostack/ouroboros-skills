@@ -154,6 +154,8 @@ decisions and no external blocker, proceed.
 Nothing else qualifies. "Multi-session" in particular is not a stop
 condition — context compression is the harness's job.
 
+**Verified resource exhaustion is not a phantom limit.** A process handoff continues the existing mandate; it is not permission to return control, shrink the outcome or keep an exhausted runtime alive. At a safe integration boundary, or when the host reports persistent memory pressure with failed compaction, preserve source and unfinished work through `session-resumption` and use the authorized host's fresh-process recovery path. The project and its work-item identity outlive the process. Do not infer heap health from context-token counts, substitute a larger heap for recovery, or call an in-process reminder an external safeguard.
+
 **Sub-agent corollary.** When a sub-agent returns early with an
 early-return framing ("remaining N units should be sized as multiple
 dispatches," "this exceeds a single dispatch's scope"), the default

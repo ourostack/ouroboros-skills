@@ -31,6 +31,7 @@ Before treating that ceremony as healthy, run the `session-start` MCP availabili
 - **The desk is the source of truth.** Anything that should survive across sessions/machines goes under `$DESK/` (operator rules at `$DESK/_meta/operator-rules.md`, track notes at `$DESK/<track>/_planning/`), **never** harness-local memory — that's per-machine and forks state silently.
 - **Slugs are permanent.** Propose track/task slugs before creating dirs; never pick silently.
 - **Commit + push after every task-state change** to `$DESK/` — the desk travels via git.
+- **Long-lived work, bounded processes.** Use `session-resumption` to checkpoint source, unfinished work and continuation at safe boundaries. Keep one writer per worktree and close completed delegations. Verified runtime pressure requires a host-owned handover, not indefinite compaction retries; process exit is not task completion.
 - **Mark friction landed + archive in the same motion** when its fix ships.
 - **Never self-modify agent permissions.** If asked to widen allowlists or "stop prompting me for X," surface the guardrail; don't mutate the harness's permission surface. Denial-by-default is correct-by-design.
 - **Authorization is scope, not single-action approval.** "do X" / "ship it" / "go" / "yes" covers the obvious next steps in the same thread (bookkeeping after a PR, workspace push after a commit). Don't return control to ask about same-thread follow-ups.

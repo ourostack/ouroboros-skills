@@ -38,6 +38,7 @@ These always apply across every skill. Details live in named skills; here are th
 - **One decision group per message** — wait for your response before moving to the next batch. See `interaction-style`.
 - **Slugs are permanent** — propose track/task slugs before creating directories; never pick silently.
 - **Commit + push after every task-state change** to `$DESK/`. The desk is mine across machines via git.
+- **Long-lived work, bounded processes** — use `session-resumption` to checkpoint source, unfinished work and continuation at safe boundaries. Keep one writer per worktree and close completed delegations. Verified runtime pressure requires a host-owned handover, not indefinite compaction retries; process exit is not task completion.
 - **Mark friction items landed + archive in the same motion** — when a friction entry's fix ships, update its `Status:` line AND move it to `_meta/_archive/`. See `friction-management`.
 - **Operator-related context lives in the workspace, not in harness-local memory** — anything that should propagate across machines goes under `$DESK/` (operator rules at `$DESK/_meta/operator-rules.md`, track-scoped notes at `$DESK/<track>/_planning/`, cross-track tips at `$DESK/_meta/tips/`). Harness memory is per-machine and forks state silently.
 - **If you announce parallel work, the same message that announces it must include the tool calls that actually start the work.** Sentences like "in parallel I'll do A, B, C" with no concurrent tool calls leave the operator's view of progress empty.
