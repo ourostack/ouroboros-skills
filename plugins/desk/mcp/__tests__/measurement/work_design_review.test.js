@@ -892,3 +892,111 @@ test("a carry-forward completed after this window is not pulled backwards into i
   assert.equal(review.carried_forward.count, 0)
   assert.equal(review.eligible.count, 0)
 })
+
+for (const field of ["since", "until"]) {
+  test(`the review refuses sub-millisecond ${field} precision instead of moving its boundary`, async (t) => {
+    const fixture = await mkLedgerFixture()
+    t.after(() => cleanup(fixture.base))
+    t.after(useHostEnv(fixture))
+
+    const workItemId = await committedItem(fixture, "Keep the exact completion-window boundary.")
+    await completeItem(fixture, workItemId)
+    const observed = await review(fixture)
+    assert.equal(observed.status, "ok", observed.message ?? "")
+    assert.equal(observed.eligible.count, 1)
+    const completedAt = observed.eligible.items[0].delivery.completed_at
+    const second = new Date(completedAt).toISOString().replace(/\.000Z$/u, "")
+
+    for (const fraction of [".0001Z", ".0000001Z", ".1230001Z", ".0001+00:00"]) {
+      const bound = `${second}${fraction}`
+      const result = await review(fixture, { [field]: bound })
+      t.diagnostic(JSON.stringify({
+        field,
+        completedAt,
+        bound,
+        status: result.status,
+        eligible: result.eligible?.ids,
+      }))
+      assert.notEqual(result.status, "ok", "unsupported precision must not become a successful different window")
+      assert.match(result.message, /millisecond|precision/i)
+    }
+  })
+}
+
+test("the review preserves representable fractional precision and its half-open boundary", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const workItemId = await committedItem(fixture, "Retain exact millisecond-compatible instants.")
+  await completeItem(fixture, workItemId)
+  const observed = await review(fixture)
+  assert.equal(observed.status, "ok", observed.message ?? "")
+  const completedAt = observed.eligible.items[0].delivery.completed_at
+  const epoch = Date.parse(completedAt)
+  const second = new Date(epoch).toISOString().replace(/\.000Z$/u, "")
+
+  for (const suffix of [".0Z", ".00Z", ".000Z", ".000000Z", ".0000+0000", ".0000+00:00"]) {
+    const bound = `${second}${suffix}`
+    const included = await review(fixture, {
+      since: bound,
+      until: new Date(epoch + 1).toISOString(),
+    })
+    assert.equal(included.status, "ok", included.message ?? "")
+    assert.deepEqual(included.eligible.ids, [workItemId])
+    const excluded = await review(fixture, {
+      since: new Date(epoch - 1).toISOString(),
+      until: bound,
+    })
+    assert.equal(excluded.status, "ok", excluded.message ?? "")
+    assert.equal(excluded.eligible.count, 0)
+  }
+
+  const fractional = await review(fixture, {
+    since: `${second}.123000Z`,
+    until: `${second}.124000Z`,
+  })
+  assert.equal(fractional.status, "ok", fractional.message ?? "")
+  assert.equal(fractional.eligible.count, 0)
+})
+
+test("the review rejects duplicate carry-forward identities rather than inflating carried work", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  for (const request of ["One unresolved outcome.", "A different unresolved outcome."]) {
+    await completeItem(fixture, await committedItem(fixture, request))
+  }
+  const observed = await review(fixture)
+  assert.equal(observed.status, "ok", observed.message ?? "")
+  assert.equal(observed.eligible.count, 2)
+  const entries = observed.eligible.items.map((item) => ({
+    work_item_id: item.work_item_id,
+    completed_at: item.delivery.completed_at,
+  }))
+  const latest = Math.max(...entries.map((entry) => Date.parse(entry.completed_at)))
+  const window = {
+    since: new Date(latest + 1000).toISOString(),
+    until: new Date(latest + 2000).toISOString(),
+  }
+  const distinct = await review(fixture, { ...window, carry_forward: entries })
+  assert.equal(distinct.status, "ok", distinct.message ?? "")
+  assert.equal(distinct.eligible.count, 0)
+  assert.equal(distinct.carried_forward.count, 2)
+  const duplicate = await review(fixture, {
+    ...window,
+    carry_forward: [entries[0], { ...entries[0] }],
+  })
+  t.diagnostic(JSON.stringify({
+    status: duplicate.status,
+    carriedCount: duplicate.carried_forward?.count,
+  }))
+  assert.notEqual(duplicate.status, "ok", "one identity must not be presented as two carried outcomes")
+  assert.match(duplicate.message, /duplicate|once/i)
+})
+
+test("the review module exposes only its production consumer entrypoint", async () => {
+  const exports = await import("../../src/measurement/review.js")
+  assert.deepEqual(Object.keys(exports), ["buildReview"])
+})

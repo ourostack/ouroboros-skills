@@ -40,7 +40,7 @@ function unavailable(reason) {
  * guesses. Only an explicit offset or `Z` is accepted here.
  */
 const INSTANT_WITH_OFFSET =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/u
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(?<fraction>\d+))?(?:Z|[+-]\d{2}:?\d{2})$/u
 
 /** The Gregorian rule in full: every fourth year, except centuries, except every fourth century. */
 function isLeapYear(year) {
@@ -78,7 +78,7 @@ function statedInstantIsReal([, year, month, day, hour, minute, second]) {
   return Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59
 }
 
-export function parseWindowBound(value, field) {
+function parseWindowBound(value, field) {
   const written = typeof value === "string" ? value.trim() : ""
   const fields = INSTANT_WITH_OFFSET.exec(written)
   if (!fields) {
@@ -94,6 +94,12 @@ export function parseWindowBound(value, field) {
       `${field} has the shape of an instant but is not a real one: ${value}. The ` +
         `calendar has no such day or time, and accepting it would roll the window ` +
         `forward onto a different day than the one asked about.`,
+    )
+  }
+  const fraction = fields.groups.fraction ?? ""
+  if (/[1-9]/u.test(fraction.slice(3))) {
+    throw new Error(
+      `${field} must not contain nonzero fractional precision beyond milliseconds.`,
     )
   }
   const epoch = Date.parse(written)
@@ -214,6 +220,7 @@ function parseCarryForward(carryForward) {
         "from an earlier window's unresolved items.",
     )
   }
+  const seen = new Set()
   return carryForward.map((entry) => {
     const record = typeof entry === "object" && entry !== null ? entry : {}
     if (typeof record.work_item_id !== "string" || typeof record.completed_at !== "string") {
@@ -223,6 +230,12 @@ function parseCarryForward(carryForward) {
           "cohort it was completed in.",
       )
     }
+    if (seen.has(record.work_item_id)) {
+      throw new Error(
+        `carry_forward must name each work_item_id once; duplicate ${record.work_item_id}.`,
+      )
+    }
+    seen.add(record.work_item_id)
     return { work_item_id: record.work_item_id, completed_at: record.completed_at }
   })
 }
