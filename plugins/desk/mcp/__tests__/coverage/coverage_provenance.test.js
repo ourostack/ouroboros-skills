@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { availableParallelism, tmpdir } from "node:os"
 import * as path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import TestExclude from "test-exclude"
@@ -218,8 +218,32 @@ test("the actual producer invocation binds the maintained loader, dependency cwd
   assert.equal(options.env.NODE_PATH, path.join(mcpRoot, "node_modules"))
   assert.deepEqual(args.slice(importIndex + 2), [
     "--test",
+    `--test-concurrency=${Math.max(1, Math.min(4, availableParallelism() - 1))}`,
     path.join(run.canonicalRepoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
   ])
+})
+
+test("test-file concurrency caps the host default without raising it on smaller hosts", async t => {
+  const { default: os } = await import("node:os")
+  const { syncBuiltinESMExports } = await import("node:module")
+  for (const [cpus, workers] of [[1, 1], [2, 1], [4, 3], [5, 4], [12, 4]]) {
+    await t.test(`${cpus} available CPUs use ${workers} test workers`, child => {
+      const mocked = child.mock.method(os, "availableParallelism", () => cpus)
+      syncBuiltinESMExports()
+      try {
+        const run = runFixture(child, { [sourceFile]: metrics(), total: metrics() })
+        assert.equal(run.result, 0)
+        assert.deepEqual(
+          run.invocation.args.filter(arg => arg.startsWith("--test-concurrency=")),
+          [`--test-concurrency=${workers}`],
+        )
+        assert.doesNotMatch(run.invocation.options.env.NODE_OPTIONS, /test-concurrency/u)
+      } finally {
+        mocked.mock.restore()
+        syncBuiltinESMExports()
+      }
+    })
+  }
 })
 
 test("the loader reaches descendants without replacing caller Node options or mutating the parent environment", t => {

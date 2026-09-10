@@ -132,10 +132,10 @@ async function openProtectedDb(dbPath, { platform, env, schemaSql, naming }) {
     clearExtendedAcl(dbPath, platform, naming)
     await fs.chmod(dbPath, OWNER_ONLY_FILE_MODE)
   }
-  // The handle exists before anything that can fail against it, so every exit
-  // from here closes exactly one open handle.
-  const db = new Database(dbPath)
+  // Contextualize construction and initialization failures, closing only an opened handle.
+  let db
   try {
+    db = new Database(dbPath)
     // DELETE journalling keeps private rows in one file instead of leaving
     // copies in a -wal sidecar; secure_delete zeroes freed pages so a deletion
     // removes the content rather than unlinking a still-readable page.
@@ -143,7 +143,7 @@ async function openProtectedDb(dbPath, { platform, env, schemaSql, naming }) {
     db.pragma("secure_delete = ON")
     db.exec(schemaSql)
   } catch (error) {
-    db.close()
+    db?.close()
     throw new Error(
       `${label}: private ${subject} store at ${dbPath} could not be opened: ${error.message}`,
     )

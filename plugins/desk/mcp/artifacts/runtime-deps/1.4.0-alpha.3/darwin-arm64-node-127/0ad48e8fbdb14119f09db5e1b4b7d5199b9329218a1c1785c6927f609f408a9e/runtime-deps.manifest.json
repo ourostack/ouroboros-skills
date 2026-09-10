@@ -17,7 +17,7 @@
   },
   "archive": {
     "file": "runtime-deps.tgz",
-    "sha256": "219025949310bafeca79ba85f107e9945f0fb50907fe6eb87d293765bd95af65",
+    "sha256": "552641ecf52cce8b06671b6966f5cc9e83bafc0551222fc1363cb8568f298141",
     "root_entries": [
       "node_modules/",
       "package.json",
@@ -876,6 +876,6 @@
   ],
   "provenance": {
     "builder": "runtime:deps-pack:build",
-    "source": "Current alpha.3 locked production closure on Node 22 darwin-arm64; reviewed dev-only AST coverage lock reflected in root provenance."
+    "source": "Installed production closure on Node 22.23.2/darwin-arm64 (ABI 127); packaged without inferred SQLite build auxiliaries."
   }
 }
