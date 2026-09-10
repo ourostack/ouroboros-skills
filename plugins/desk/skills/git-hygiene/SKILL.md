@@ -158,8 +158,10 @@ trap that surfaces under that rule.
 ## Pre-push gate
 
 Every `git push` that carries code changes is a CI-parity boundary.
-The agent reproduces every gate the CI pipelines will run, locally,
-**before** the push — not after, not in parallel, not optimistically.
+The agent reproduces every routine gate the CI pipelines will run,
+locally, **before** the push — not after, not in parallel, not
+optimistically. Explicit final-candidate expensive gates use the
+exact-SHA exception below.
 
 Three layers, all mandatory, all green:
 
@@ -209,6 +211,14 @@ At end-of-loop (convergence reached, findings drained, or operator
 interrupt), wait for the most recent push's pipelines to finalize.
 If any pipeline goes red, treat it as a new finding — fix, push,
 wait again. Only when all pipelines are green does the loop exit.
+
+### Final-candidate expensive gates
+
+Coverage, fully instrumented builds, and explicitly designated release or package gates are an exception to routine every-push local repetition when the repository or task declares them final-candidate gates. Intermediate pushes still require the smallest targeted build, test, and formatter proof that covers their changes.
+
+Run each expensive gate after the last source, configuration, or dependency mutation against the exact candidate SHA and before final delivery. Record the SHA, command, and retained artifact or report. If that SHA or any relevant input changes, invalidate the proof and rerun the gate.
+
+This defers redundant local execution; it is not waived validation. CI may still run the expensive gate on earlier pushes, and any failure remains actionable.
 
 ### Attribute failures after they happen
 

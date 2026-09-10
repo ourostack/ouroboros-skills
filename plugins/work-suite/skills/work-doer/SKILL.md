@@ -47,4 +47,12 @@ Never simplify away requested scope, error handling, validation, accessibility, 
 
 Keep durable state current at meaningful checkpoints: update the doing document when one exists; otherwise update the task card.
 
+### Bound disposable validation artifacts
+
+Treat coverage and fully instrumented builds as an exact-SHA final gate, not as the default iteration loop. During implementation, run the smallest targeted proof that covers the current change. After the final source mutation and all review fixes, run the expensive gate against the candidate SHA before final delivery; if that SHA or any relevant input changes, invalidate the proof and rerun it.
+
+Copy any proved app or package needed for smoke, release, or rollback out of the disposable build root into a commit-addressed artifact path, then compare the source and destination identity and hash before deleting the original.
+
+After each Xcode or equivalent build-test cycle, delete its test-owned DerivedData or other disposable build root once the required proof is captured. If validation created a container or image, prove that artifact is test-owned and has no live consumer before removing it; never prune shared artifacts. Record disk usage before and after cleanup when the artifacts are large.
+
 At the branch boundary, record the exact build and full suite commands and results, confirm no new warnings, and run one fresh branch review. Fix blocker and major findings once and rerun affected proof. Then invoke `work-merger` and keep control through PR, CI repair, merge, release/install, consuming-surface smoke, cleanup, and continuation scan.
