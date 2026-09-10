@@ -40,10 +40,48 @@ function unavailable(reason) {
  * guesses. Only an explicit offset or `Z` is accepted here.
  */
 const INSTANT_WITH_OFFSET =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/u
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/u
+
+/** The Gregorian rule in full: every fourth year, except centuries, except every fourth century. */
+function isLeapYear(year) {
+  if (year % 4 !== 0) return false
+  if (year % 100 !== 0) return true
+  return year % 400 === 0
+}
+
+function daysInMonth(year, month) {
+  if (month === 2) return isLeapYear(year) ? 29 : 28
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+}
+
+/**
+ * Whether the fields the caller actually wrote name a day and time that exist.
+ *
+ * This has to be checked against the written fields rather than against the
+ * instant they parse to. The platform parser does not reject an impossible
+ * date, it rolls it forward: the thirtieth of February becomes the second of
+ * March, the twenty-ninth of February in a common year becomes the first of
+ * March, and hour 24 becomes midnight the following day. A window bound that
+ * moves to a different day selects a different week's work than the caller
+ * asked about, and nothing in the answer would reveal it.
+ *
+ * Checking the written fields is also what keeps an offset valid. A bound like
+ * `2026-09-07T00:00:00+02:00` is a real instant on the seventh even though it
+ * lands on the sixth in UTC, so comparing against the parsed UTC components
+ * would reject legitimate bounds.
+ */
+function statedInstantIsReal([, year, month, day, hour, minute, second]) {
+  const numericMonth = Number(month)
+  const numericDay = Number(day)
+  if (numericMonth < 1 || numericMonth > 12) return false
+  if (numericDay < 1 || numericDay > daysInMonth(Number(year), numericMonth)) return false
+  return Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59
+}
 
 export function parseWindowBound(value, field) {
-  if (typeof value !== "string" || !INSTANT_WITH_OFFSET.test(value.trim())) {
+  const written = typeof value === "string" ? value.trim() : ""
+  const fields = INSTANT_WITH_OFFSET.exec(written)
+  if (!fields) {
     throw new Error(
       `${field} must be an instant with an explicit UTC offset or Z, such as ` +
         `2026-09-07T00:00:00Z. A date or a local-looking time would have to be ` +
@@ -51,7 +89,14 @@ export function parseWindowBound(value, field) {
         `work is reviewed.`,
     )
   }
-  const epoch = Date.parse(value.trim())
+  if (!statedInstantIsReal(fields)) {
+    throw new Error(
+      `${field} has the shape of an instant but is not a real one: ${value}. The ` +
+        `calendar has no such day or time, and accepting it would roll the window ` +
+        `forward onto a different day than the one asked about.`,
+    )
+  }
+  const epoch = Date.parse(written)
   if (!Number.isFinite(epoch)) {
     throw new Error(`${field} has the shape of an instant but is not a real one: ${value}`)
   }
@@ -158,12 +203,18 @@ export function buildReview(db, { since, until }) {
         class: DECLARED,
         endpoint: completion.endpoint,
         evidence: completion.evidence,
+        // The immutable claim that the work was declared complete. It is not a
+        // delivery time, and nothing here observes when or whether anything
+        // arrived at the endpoint.
         completed_at: completion.completed_at,
-        // The completion route already refuses an endpoint that is not the
-        // committed one, so this is a restatement for the reader rather than a
-        // new check. It is reported because a design review should not require
-        // trusting that the write path held.
-        matches_committed_endpoint: commitment.delivery_endpoint === completion.endpoint,
+        // A string comparison between two declarations: the endpoint named at
+        // commitment and the endpoint named at completion. The completion route
+        // already refuses a mismatch, so this restates that for the reader
+        // rather than checking anything new. It is emphatically not delivery
+        // verification, and must not be consumed as evidence that anything was
+        // delivered, received or is present at that endpoint.
+        endpoint_string_matches_commitment:
+          commitment.delivery_endpoint === completion.endpoint,
         committed_endpoint: commitment.delivery_endpoint,
       },
       size,
@@ -176,12 +227,42 @@ export function buildReview(db, { since, until }) {
   })
 
   return {
-    status: "reviewed",
-    window: { since, until, bounds: "since is inclusive, until is exclusive" },
-    cohort: {
+    status: "ok",
+    // What a caller is allowed to conclude from this payload. The route selects
+    // input for a weekly work-design reading; it does not perform one, and it
+    // does not verify delivery. A successful status means the selection ran,
+    // never that anything was examined.
+    result_is: {
+      kind: "eligible_input",
+      examined: false,
+      statement:
+        "These are the work items eligible for a weekly work-design reading in this " +
+        "window. Nothing here has been read, judged or verified, and no delivery has " +
+        "been confirmed. A status of ok means the selection succeeded, not that a " +
+        "review happened.",
+      // Which items were actually read, which were deferred, and which carry
+      // forward because their evidence could not be assessed are identities in
+      // the owner's review and dispatch ledger. This route cannot determine
+      // them: it sees a declared evidence string and never the thing itself, so
+      // reporting an availability judgement here would be an invention.
+      reviewed_and_deferred_identities: unavailable(
+        "which eligible items were actually reviewed, deferred, or carried forward " +
+          "is recorded in the owner's review and dispatch ledger, not by this read route",
+      ),
+    },
+    window: {
+      since,
+      until,
+      bounds: "since is inclusive, until is exclusive",
+      selected_on:
+        "completions.completed_at, the immutable claim that the item was declared " +
+        "complete, which is not a delivery time",
+    },
+    eligible: {
       class: DECLARED,
       selected_by: "a completion recorded inside the window; cancelled and abandoned work is never counted as completed",
       count: items.length,
+      ids: items.map((item) => item.work_item_id),
       items,
       empty:
         items.length === 0
@@ -198,6 +279,7 @@ export function buildReview(db, { since, until }) {
     ),
     reading: [
       "Selection is a declaration of completion, never a verification of delivery.",
+      "This is input for a reading, not a reading that happened.",
       "Nothing here is graded, scored or ranked; the review reads the shape of work.",
       "An absent sizing or an empty week is stated with a reason rather than left as a zero.",
     ],

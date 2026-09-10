@@ -99,17 +99,17 @@ test("the review selects the work items declared complete inside its window", as
   })
 
   const result = await review(fixture)
-  assert.equal(result.status, "reviewed", result.message ?? "")
-  assert.equal(result.cohort.count, 1)
+  assert.equal(result.status, "ok", result.message ?? "")
+  assert.equal(result.eligible.count, 1)
   assert.deepEqual(
-    result.cohort.items.map((entry) => entry.work_item_id),
+    result.eligible.items.map((entry) => entry.work_item_id),
     [completed],
   )
 
   // Selection is on a declaration. Saying so in the payload is the whole
   // honesty of this route: nothing here verifies that delivery really happened.
-  assert.equal(result.cohort.class, "declared")
-  assert.match(result.cohort.selected_by, /complet/i)
+  assert.equal(result.eligible.class, "declared")
+  assert.match(result.eligible.selected_by, /complet/i)
 })
 
 test("an item still open is not in the cohort, and open coverage is pointed at separately", async (t) => {
@@ -123,11 +123,11 @@ test("an item still open is not in the cohort, and open coverage is pointed at s
   await committedItem(fixture, "Work that is still in flight.")
 
   const result = await review(fixture)
-  assert.equal(result.cohort.count, 0)
+  assert.equal(result.eligible.count, 0)
   // An empty cohort must carry a reason. A silent zero reads as "nothing
   // happened", which is exactly the false conclusion this route must not invite.
-  assert.equal(result.cohort.empty.class, "unavailable")
-  assert.match(result.cohort.empty.reason, /no work item was declared complete/i)
+  assert.equal(result.eligible.empty.class, "unavailable")
+  assert.match(result.eligible.empty.reason, /no work item was declared complete/i)
   // Open and blocked work is a separate question, and the review says so rather
   // than implying its silence covers them.
   assert.equal(result.open_coverage.class, "unavailable")
@@ -157,9 +157,9 @@ test("a cancelled or abandoned item is never counted as completed work", async (
   assert.equal(closed.status, "closed", closed.message ?? "")
 
   const result = await review(fixture)
-  assert.equal(result.cohort.count, 0)
+  assert.equal(result.eligible.count, 0)
   assert.equal(
-    result.cohort.items.some((entry) => entry.work_item_id === abandoned),
+    result.eligible.items.some((entry) => entry.work_item_id === abandoned),
     false,
   )
 })
@@ -208,7 +208,7 @@ test("the review preserves every recorded size feature, and names the ones never
   })
 
   const result = await review(fixture)
-  const byId = new Map(result.cohort.items.map((entry) => [entry.work_item_id, entry]))
+  const byId = new Map(result.eligible.items.map((entry) => [entry.work_item_id, entry]))
 
   const sizedEntry = byId.get(sized)
   assert.equal(sizedEntry.size.class, "declared")
@@ -245,11 +245,11 @@ test("the review reports delivery evidence against the committed endpoint", asyn
     },
   })
 
-  const entry = (await review(fixture)).cohort.items[0]
+  const entry = (await review(fixture)).eligible.items[0]
   assert.equal(entry.delivery.class, "declared")
   assert.equal(entry.delivery.endpoint, ENDPOINT)
   assert.equal(entry.delivery.evidence, "Run 34394778641 is green on the exact source.")
-  assert.equal(entry.delivery.matches_committed_endpoint, true)
+  assert.equal(entry.delivery.endpoint_string_matches_commitment, true)
   assert.equal(typeof entry.delivery.completed_at, "string")
 })
 
@@ -337,7 +337,7 @@ test("a window that excludes the completion returns an empty cohort, not the ite
     until: "2026-01-08T00:00:00.000Z",
   }
   const result = await review(fixture, past)
-  assert.equal(result.cohort.count, 0)
+  assert.equal(result.eligible.count, 0)
   assert.equal(result.window.since, past.since)
   assert.equal(result.window.until, past.until)
 })
@@ -378,6 +378,17 @@ test("the review refuses a window it cannot trust rather than guessing one", asy
     }),
   )
   assert.match(notReal.message ?? "", /not a real one/i)
+
+  // A caller can send something that is not text at all. It is refused on the
+  // same ground as a bare date: there is no instant here to read, and guessing
+  // one would silently pick a window.
+  const notText = body(
+    await ledger({
+      deskRoot: fixture.deskRoot,
+      input: { action: "review", since: 12345, until: "2026-09-14T00:00:00Z" },
+    }),
+  )
+  assert.match(notText.message ?? "", /instant/i)
 })
 
 test("the review is a read: advertised as non-capturing, and answerable while recording is off", async (t) => {
@@ -409,7 +420,7 @@ test("the review is a read: advertised as non-capturing, and answerable while re
   assert.equal(off.status, "recording_disabled", off.message ?? "")
 
   const result = await review(fixture)
-  assert.equal(result.status, "reviewed", result.message ?? "")
+  assert.equal(result.status, "ok", result.message ?? "")
 })
 
 // A recorded completion timestamp carries whole-second precision, so two items
@@ -471,11 +482,125 @@ test("two items completed in the same second read in a stable order", async (t) 
   assert.deepEqual(scanned, [...expected].reverse(), "the stored order must oppose the expected one")
 
   const result = await review(fixture)
-  assert.equal(result.status, "reviewed", result.message ?? "")
-  assert.equal(result.cohort.count, 2)
+  assert.equal(result.status, "ok", result.message ?? "")
+  assert.equal(result.eligible.count, 2)
   assert.deepEqual(
-    result.cohort.items.map((item) => item.work_item_id),
+    result.eligible.items.map((item) => item.work_item_id),
     expected,
     "a same-second tie is settled on the work item id, not on row order",
+  )
+})
+
+// A date can have the exact shape of an instant, parse without complaint, and
+// still name a day that never existed. The platform parser rolls those over
+// silently: the last of February in a common year becomes the first of March,
+// and the thirty-first of April becomes the first of May. A window bound that
+// quietly moves to a different day selects a different week's work than the
+// caller asked about, and nothing in the answer would show it. The rollover is
+// refused rather than accepted, while real leap days and explicit offsets keep
+// working exactly as before.
+test("the review refuses a date the calendar does not have", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const impossible = [
+    ["2026-02-30T00:00:00Z", "February 2026 has 28 days, and this silently became 2 March"],
+    ["2025-02-29T00:00:00Z", "2025 is not a leap year, and this silently became 1 March"],
+    ["1900-02-29T00:00:00Z", "1900 was a century and not a leap year, despite dividing by four"],
+    ["2026-04-31T00:00:00Z", "April has 30 days, and this silently became 1 May"],
+    ["2026-09-07T24:00:00Z", "hour 24 silently became the next day"],
+    ["2026-13-01T00:00:00Z", "there is no thirteenth month"],
+    ["2026-00-10T00:00:00Z", "there is no month zero"],
+    ["2026-01-00T00:00:00Z", "there is no day zero"],
+    ["2026-09-07T12:60:00Z", "there is no minute 60"],
+    ["2026-09-07T12:00:60Z", "there is no second 60"],
+    ["2026-09-07T00:00:00+99:99", "the written fields are real but the offset is not"],
+  ]
+  for (const [since, why] of impossible) {
+    const refused = body(
+      await ledger({
+        deskRoot: fixture.deskRoot,
+        input: { action: "review", since, until: "2026-12-01T00:00:00Z" },
+      }),
+    )
+    assert.notEqual(refused.status, "ok", `${since} must not be accepted: ${why}`)
+    assert.match(refused.message ?? "", /not a real one/i, why)
+  }
+
+  // The bound is checked as the calendar day the caller wrote, not as the day
+  // it lands on in UTC, so an offset that legitimately moves the instant across
+  // midnight is still a valid bound rather than a rejected one.
+  const shifted = await review(fixture, {
+    since: "2026-09-07T00:00:00+02:00",
+    until: "2026-09-14T00:00:00+02:00",
+  })
+  assert.equal(shifted.status, "ok", shifted.message ?? "")
+
+  // Both leap rules that say yes: an ordinary leap year, and the century that
+  // is one because it divides by four hundred. 1900 above is the century that
+  // is not.
+  for (const year of ["2024", "2000"]) {
+    const leapDay = await review(fixture, {
+      since: `${year}-02-29T00:00:00Z`,
+      until: `${year}-03-01T00:00:00Z`,
+    })
+    assert.equal(leapDay.status, "ok", leapDay.message ?? "")
+  }
+})
+
+// The route selects the input a weekly reading would start from. It does not
+// perform the reading, and it does not verify that anything was delivered. Both
+// of those are easy to assume from a successful status and an endpoint that
+// matches, so the payload says otherwise in its own words and this case holds
+// it to that.
+test("a successful result is eligible input, not a review that happened", async (t) => {
+  const fixture = await mkLedgerFixture()
+  t.after(() => cleanup(fixture.base))
+  t.after(useHostEnv(fixture))
+
+  const workItemId = await committedItem(fixture, "Ship the thing that was asked for.")
+  await ledger({
+    deskRoot: fixture.deskRoot,
+    input: {
+      action: "complete",
+      work_item_id: workItemId,
+      endpoint: ENDPOINT,
+      evidence: "The endpoint holds the delivered artifact.",
+    },
+  })
+
+  const result = await review(fixture)
+  assert.equal(result.status, "ok", result.message ?? "")
+  assert.equal(result.result_is.kind, "eligible_input")
+  assert.equal(
+    result.result_is.examined,
+    false,
+    "a successful selection must not present itself as an examination",
+  )
+  assert.match(result.result_is.statement, /not that a review happened/i)
+
+  // Which items were actually read or deferred belongs to the owner's dispatch
+  // ledger. This route must say it does not know rather than imply it does.
+  assert.equal(result.result_is.reviewed_and_deferred_identities.class, "unavailable")
+
+  // The window is selected on the completion claim, which is not a delivery
+  // time, and the payload has to say so where a reader will see it.
+  assert.match(result.window.selected_on, /completions\.completed_at/)
+  assert.match(result.window.selected_on, /not a delivery time/i)
+
+  // The endpoint comparison is between two declared strings. Its name must not
+  // suggest delivery was checked, and the payload must disclaim that in words.
+  const entry = result.eligible.items[0]
+  assert.equal(entry.delivery.endpoint_string_matches_commitment, true)
+  assert.equal(
+    entry.delivery.matches_committed_endpoint,
+    undefined,
+    "the older name read as a delivery check and must not come back",
+  )
+  assert.equal(entry.delivery.class, "declared")
+  assert.ok(
+    result.reading.some((line) => /never a verification of delivery/i.test(line)),
+    "the payload must state in words that selection is not delivery verification",
   )
 })
