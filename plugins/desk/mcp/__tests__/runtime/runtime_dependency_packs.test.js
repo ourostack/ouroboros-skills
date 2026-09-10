@@ -2807,3 +2807,17 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
     ], `${eventName} path filters`)
   }
 })
+
+test("CI retains only its verified runtime pack for source-bound consumption", () => {
+  const workflow = readFileSync(path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"), "utf8")
+  const steps = workflowStepBlocks(workflowJob(workflow, "desk-mcp-tests"))
+  const uploads = steps.filter((step) => /^\s*uses:\s*actions\/upload-artifact@v4\s*$/mu.test(step))
+  assert.equal(uploads.length, 1, "the existing native build must return its verified pack")
+  const upload = uploads[0]
+  assert.equal(steps.at(-1), upload, "retention follows every existing validation step")
+  assert.match(upload, /^\s*name: desk-runtime-deps-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}\s*$/mu)
+  assert.match(upload, /^\s*path: \$\{\{ runner\.temp \}\}\/desk-runtime-deps\s*$/mu)
+  assert.match(upload, /^\s*if-no-files-found: error\s*$/mu)
+  assert.match(upload, /^\s*retention-days: 7\s*$/mu)
+  assert.doesNotMatch(upload, /^\s*(?:if|continue-on-error):/mu)
+})

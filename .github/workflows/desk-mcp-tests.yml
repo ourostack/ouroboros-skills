@@ -156,6 +156,14 @@ jobs:
         working-directory: plugins/desk/mcp
         run: npm run artifact:validate -- --desk-root ../../.. --plugin-root ..
 
+      - name: Retain verified runtime dependency pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: desk-runtime-deps-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/desk-runtime-deps
+          if-no-files-found: error
+          retention-days: 7
+
   desk-feedback-windows:
     name: desk private feedback on native Windows
     runs-on: windows-latest
