@@ -31,6 +31,7 @@ import {
   readSessionWorkspace,
 } from "../measurement/copilot-usage.js"
 import { buildReport, readGaps, readRecording } from "../measurement/report.js"
+import { buildReview } from "../measurement/review.js"
 
 const LABEL = "desk_work_ledger"
 
@@ -646,6 +647,11 @@ const ROUTES = {
       includePhaseSpan: values.include_phase_span === true,
       asOf: nowIso(),
     }),
+
+  // A read, so it stays available while recording is off: the owner's right to
+  // look at what is already held does not depend on new capture being on.
+  review: ({ db, values }) =>
+    buildReview(db, { since: values.since, until: values.until }),
 
   import_usage: ({ db, values, item, env }) => importUsage({ db, values, item, env }),
 
