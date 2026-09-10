@@ -26,6 +26,47 @@ const generatedArtifactsScript = "scripts/test-desk-generated-artifacts.cjs"
 const hostManifestScript = "scripts/test-desk-host-manifests.cjs"
 const require = createRequire(import.meta.url)
 
+test("generated artifact verifier defaults select the owning repository and refuse missing expectations", async () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  assert.equal(await generatedArtifacts.loadRuntimeDeps(), await generatedArtifacts.loadRuntimeDeps(mcpRoot))
+  assert.deepEqual(
+    await generatedArtifacts.loadProductionArtifactModules(),
+    await generatedArtifacts.loadProductionArtifactModules(mcpRoot),
+  )
+  assert.deepEqual(
+    await generatedArtifacts.productionRuntimePackExpectations(),
+    await generatedArtifacts.productionRuntimePackExpectations({ repoRoot, mcpRoot }),
+  )
+  assert.equal(generatedArtifacts.gitTracksFile({ repoRoot, repoPath: generatedArtifactsScript }), true)
+  assert.equal(generatedArtifacts.gitTracksFile({ repoRoot, repoPath: "__missing_generated_artifact_fixture__" }), false)
+  assert.throws(() => generatedArtifacts.verifyPublishedRuntimeDependencyPack(), TypeError)
+  await assert.rejects(() => generatedArtifacts.verifyProductionSharedArtifacts(), TypeError)
+  const expectation = await generatedArtifacts.productionSharedArtifactExpectation({ repoRoot, mcpRoot })
+  const shared = await generatedArtifacts.verifyProductionSharedArtifacts({ expectation })
+  assert.equal(shared.ok, true, shared.errors.join("\n"))
+  assert.equal(await generatedArtifacts.runCli(), 0)
+})
+
+test("the artifact archive reader ignores directory headers and preserves their regular files", () => {
+  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
+  const root = mkdtempSync(path.join(tmpdir(), "desk-directory-header-"))
+  try {
+    mkdirSync(path.join(root, "artifact"))
+    writeFileSync(path.join(root, "artifact", "payload.txt"), "fixture payload\n")
+    const archive = path.join(root, "fixture.tgz")
+    const result = spawnSync("tar", ["-czf", archive, "-C", root, "artifact"], {
+      encoding: "utf8",
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+    })
+    assert.equal(result.status, 0, result.stderr)
+    const contents = generatedArtifacts.extractTarGzContents(archive)
+    assert.equal(contents.has("artifact/"), false)
+    assert.equal(contents.get("artifact/payload.txt").toString("utf8"), "fixture payload\n")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 const requiredPackageScripts = {
   "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
   "activation:copilot-bundle:generate": "node scripts/generate-copilot-bundle.js",

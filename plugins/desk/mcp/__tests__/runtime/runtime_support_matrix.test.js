@@ -82,6 +82,15 @@ test("committed runtime support matrix equals the physically shipped runtime pac
         artifact_path: "darwin-arm64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
       },
       {
+        id: "linux-x64-node-127",
+        platform: "linux",
+        arch: "x64",
+        node_abi: "127",
+        prod_dependency_lock_hash: "0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+        archive_sha256: "a360f971f1af3e4a8153d519750008f303628389b495cb9220fca2ee7dcf56df",
+        artifact_path: "linux-x64-node-127/0ad48e8fbdb14119f09db5e1b4b7d5199b9329218a1c1785c6927f609f408a9e",
+      },
+      {
         id: "win32-x64-node-137",
         platform: "win32",
         arch: "x64",

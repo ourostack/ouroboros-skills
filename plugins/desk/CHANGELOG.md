@@ -6,7 +6,7 @@
 
 Desk `3.2.0-alpha.3` couples to `desk-mcp@1.4.0-alpha.3`, current activation metadata and generated host fixtures. The read-only context adapter requires existing canonical task, plan and doing files; no-create path resolution preserves its default write behavior, and the existing segment validator is exported unchanged. Copilot uses the authored hook adapter while pristine upstream hooks and all selected skill payloads retain their lock hashes.
 
-Both runtime dependency targets are repackaged for the candidate. The Windows dependency payload is reused with verified provenance, not executed on this Mac. Approved public vector/snapshot payloads remain byte-identical while current source metadata is re-anchored. Historical preview results and runtime limitations remain historical; full native and consumer-composition qualification is separate.
+The Darwin and Windows runtime dependency targets are repackaged for the candidate. Linux x64 on Node ABI 127 is also included from the existing [native Linux CI build](https://github.com/ourostack/ouroboros-skills/actions/runs/34444276591), and generated-artifact verification now requires all three targets. The Windows dependency payload is reused with verified provenance, not executed on this Mac. Approved public vector/snapshot payloads remain byte-identical while current source metadata is re-anchored. Historical preview results and runtime limitations remain historical; full native and consumer-composition qualification is separate.
 
 ## 3.2.0-alpha.2 — 2026-09-08
 
