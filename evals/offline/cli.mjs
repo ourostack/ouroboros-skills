@@ -1,11 +1,13 @@
 import path from "node:path";
 import { validateDatasetFiles } from "./dataset.mjs";
-import { validatePlan } from "./contracts.mjs";
+import { prepareRunPlan } from "./producer.mjs";
+import { loadNativeInputs, runFixedController } from "./fixed-controller.mjs";
+import { compareScoredResults } from "./scored-comparison.mjs";
 import { checkComparisonCompatibility, validateRunSetInventory } from "./comparison.mjs";
 import { readCommittedRun } from "./output.mjs";
 import { parseRawJson, readRegular, requireCondition, textBytes } from "./core.mjs";
 
-const usage = "offline validate --dataset <dataset.json> --fixtures <fixture-manifest.json>\noffline compare --left <run-set.json> --right <run-set.json>\noffline run --plan <plan.json> --output <fresh-output-root>\noffline qualify-runtime --plan <runtime-qualification.json> --output <fresh-output-root>\n";
+const usage = "offline validate --dataset <dataset.json> --fixtures <fixture-manifest.json>\noffline compare --left <run-set.json> --right <run-set.json>\noffline run --plan <plan.json> --output <fresh-output-root> [--native-inputs <source-bound-module.mjs>]\noffline qualify-runtime --plan <runtime-qualification.json> --output <fresh-output-root>\n";
 function argumentsFor(args, required) {
   requireCondition(args.length === required.length * 2, "INVALID_OFFLINE_ARGUMENTS", usage);
   const values = {};
@@ -32,7 +34,7 @@ function bundle(filename) {
   }
   return { ...inventory, root, readArtifact };
 }
-export async function main(args, io = process) {
+export async function main(args, io = process, nativeInputs) {
   const [command, ...rest] = args;
   if (command === "help" && rest.length === 0) {
     io.stdout.write(usage);
@@ -58,14 +60,27 @@ export async function main(args, io = process) {
       ? { compatible: false, reason: "DUPLICATE_COMPARISON_INPUT" }
       : checkComparisonCompatibility({ leftPlan: left.plan, rightPlan: right.plan, leftCells: left.expectedCells, rightCells: right.expectedCells, sourceProof });
     const compatible = left.inventoryComplete && right.inventoryComplete && compatibility.compatible;
+    if (left.plan.dataset.id === "engineering-v2-alpha" && right.plan.dataset.id === "engineering-v2-alpha") {
+      const result = compareScoredResults({ left, right, compatibility });
+      io.stdout.write(`${JSON.stringify(result)}\n`);
+      return result.scored ? 0 : 2;
+    }
     io.stdout.write(`${JSON.stringify({ schemaVersion: 1, status: compatible ? "compatible" : "not_comparable", assessment: "inventory_and_compatibility_only", scored: false, grade: null, compatibility, left: { inventoryComplete: left.inventoryComplete, cells: left.cells }, right: { inventoryComplete: right.inventoryComplete, cells: right.cells } })}\n`);
     return compatible ? 0 : 2;
   }
   if (command === "run") {
-    const options = argumentsFor(rest, ["--plan", "--output"]);
+    const options = argumentsFor(rest, ["--plan", "--output", ...(rest.includes("--native-inputs") ? ["--native-inputs"] : [])]);
     const filename = path.resolve(options["--plan"]);
-    validatePlan(parseRawJson(readRegular(path.dirname(filename), path.basename(filename)).bytes));
-    throw Object.assign(new Error("Native source/agent activation, both-model terminal semantics and owned-runtime cleanup have not been qualified. No subject or judge was started."), { code: "NATIVE_QUALIFICATION_REQUIRED", exitCode: 3, status: "unavailable", artifacts: null });
+    const prepared = prepareRunPlan({ filename, outputRoot: path.resolve(options["--output"]) });
+    try {
+      if (options["--native-inputs"]) nativeInputs = await loadNativeInputs({ filename: options["--native-inputs"], prepared, inputRoot: path.dirname(filename) });
+      const result = await runFixedController({ prepared, nativeInputs });
+      io.stdout.write(`${JSON.stringify(result)}\n`);
+      return result.exitCode;
+    } catch (error) {
+      if (error?.code === "NATIVE_QUALIFICATION_REQUIRED") Object.assign(error, { exitCode: 3, status: "unavailable", artifacts: prepared?.root ?? null });
+      throw error;
+    }
   }
   if (command === "qualify-runtime") {
     const options = argumentsFor(rest, ["--plan", "--output"]);

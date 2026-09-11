@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { availableParallelism } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +18,7 @@ mkdirSync(temporary, { recursive: true });
 const result = spawnSync(process.execPath, [
   nyc, "--cwd", repository, "--nycrc-path", path.join(repository, "evals/offline/nyc.json"),
   process.execPath, "--import", fileURLToPath(new URL("./helpers/register-coverage.mjs", import.meta.url)),
-  "--test", path.join(repository, "evals/offline/__tests__/*.test.mjs"), path.join(repository, "scripts/test-skill-evals.cjs"),
+  "--test", `--test-concurrency=${Math.max(1, Math.min(4, availableParallelism() - 1))}`, path.join(repository, "evals/offline/__tests__/*.test.mjs"), path.join(repository, "scripts/test-skill-evals.cjs"),
 ], {
   cwd: packageRoot, stdio: "inherit",
   env: { ...process.env, OFFLINE_COVERAGE_PACKAGE_ROOT: packageRoot, NODE_PATH: [path.join(packageRoot, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter), TMPDIR: temporary },

@@ -78,3 +78,20 @@ export function validateExpectedCells(expected) {
   }
   return expected;
 }
+
+export function validateAlphaExpectedCells(expected, dataset) {
+  validateExpectedCells(expected);
+  requireCondition(Array.isArray(dataset?.cases) && dataset.cases.length === 6, "INVALID_ALPHA_DATASET", "Alpha requires the complete six-case frozen dataset");
+  const models = ["gpt-6-astra", "claude-opus-5"];
+  requireCondition(expected.cells.length === dataset.cases.length * models.length, "INCOMPLETE_ALPHA_MATRIX", "Alpha requires twelve cells per stack, not a selected subset");
+  for (const definition of dataset.cases) {
+    const cells = expected.cells.filter(cell => cell.caseId === definition.id);
+    requireCondition(cells.length === models.length, "INCOMPLETE_ALPHA_MATRIX", "Every frozen alpha case requires both configuration strata");
+    if (definition.mode === "deterministic") {
+      requireCondition(cells.every(cell => cell.executionKind === "deterministic") && cells.map(cell => cell.repetition).sort().join(",") === "1,2", "INVALID_ALPHA_CONFIGURATION", "The deterministic case has one no-model execution per declared configuration stratum");
+    } else {
+      requireCondition(cells.every(cell => cell.executionKind === "subject_with_judge" && cell.repetition === 1) && models.every(model => cells.filter(cell => cell.subject.model === model).length === 1), "INVALID_ALPHA_CONFIGURATION", "Each subject case requires exactly one Astra and one Opus configuration");
+    }
+  }
+  return expected;
+}

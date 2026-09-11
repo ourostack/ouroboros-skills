@@ -16,7 +16,7 @@ test("the durable initial envelope binds the entire source closure before the na
   const fake = engine(value, { before: command => { if (command === "gh") beforeAuth = JSON.parse(readFileSync(path.join(outputRoot, "receipt.incomplete.json"))); } });
   const result = await runRuntimeQualification({ plan: value, outputRoot, execute: fake.execute });
   assert.ok(Array.isArray(beforeAuth.sourceManifest));
-  assert.equal(beforeAuth.sourceManifest.length, 8);
+  assert.equal(beforeAuth.sourceManifest.length, 15);
   assert.deepEqual(beforeAuth.sourceManifest, result.sourceManifest);
   assert.equal(beforeAuth.sourceManifestSha256, sha256(jsonBytes(result.sourceManifest)));
   assert.match(beforeAuth.hostControllerSha256, /^[a-f0-9]{64}$/);

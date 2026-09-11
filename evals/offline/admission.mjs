@@ -14,6 +14,9 @@ function immutable(value) {
   return value;
 }
 const payload = canonicalJson;
+export function isSuccessfulIdle(data, expectedMode) {
+  return nonblank(expectedMode) && plainObject(data) && data.mode === expectedMode && (data.aborted === undefined || data.aborted === false);
+}
 function observedRecord(entry) {
   requireCondition(plainObject(entry) && nonblank(entry.sessionId) && Buffer.isBuffer(entry.rawRecord) && entry.rawRecord.length <= MAX_FILE_BYTES && plainObject(entry.ref), "INVALID_OBSERVATION", "Expected a bounded session-bound raw observation");
   const { ref, rawRecord } = entry;
@@ -47,7 +50,7 @@ function rootRequests(records, sessionId, rootAgentId, expectedMode) {
     if (record.sessionId === sessionId && agentId === rootAgentId && event.type === "assistant.turn_start") activeRootWindow = { eventId: event.id };
     const inRoot = record.sessionId === sessionId && agentId === rootAgentId && index >= firstRootIndex && (!nonblank(data.turnId) || knownTurns.size === 0 || knownTurns.has(data.turnId));
     if (inRoot && nonblank(data.turnId)) supportedTurnIds.add(data.turnId);
-    if (inRoot && event.type === "session.idle") rootIdle = { eligible: data.mode === expectedMode && data.aborted === false, eventId: event.id, index, receivedAt: record.receivedAt, ref, mode: data.mode, aborted: data.aborted };
+    if (inRoot && event.type === "session.idle") rootIdle = { eligible: isSuccessfulIdle(data, expectedMode), eventId: event.id, index, receivedAt: record.receivedAt, ref, mode: data.mode, aborted: data.aborted, ephemeral: event.ephemeral === true };
     const calls = event.type === "assistant.message" && Array.isArray(data.toolRequests)
       ? data.toolRequests.filter(call => plainObject(call) && call.name === "report_result")
       : event.type === "assistant.tool_call_delta" && data.toolName === "report_result"
@@ -86,10 +89,11 @@ function rootRequests(records, sessionId, rootAgentId, expectedMode) {
   const partialRootRequests = root.filter(request => request.argumentsState === "partial");
   const unobservedRootRequests = root.filter(request => request.argumentsState === "unobserved");
   const conflictingCalls = [...conflicts].filter(key => requests.get(key).inRoot).map(key => requests.get(key));
-  const complete = rootIdle.eligible && partialRootRequests.length === 0 && unobservedRootRequests.length === 0 && root.every(request => request.toolCallId !== null) && conflictingCalls.length === 0 && eventConflicts.length === 0 && !all.some(request => request.sessionId === sessionId && request.agentId === rootAgentId && !request.inRoot);
+  const requestCoverageComplete = rootStarts.length > 0 && partialRootRequests.length === 0 && unobservedRootRequests.length === 0 && root.every(request => request.toolCallId !== null) && conflictingCalls.length === 0 && eventConflicts.length === 0 && !all.some(request => request.sessionId === sessionId && request.agentId === rootAgentId && !request.inRoot);
+  const complete = rootIdle.eligible && requestCoverageComplete;
   return {
     completeRootRequests, partialRootRequests, unobservedRootRequests, conflictingCalls, eventConflicts, rootIdle, rootStarts,
-    supportedTurnIds: [...supportedTurnIds].sort(),
+    supportedTurnIds: [...supportedTurnIds].sort(), requestCoverageComplete,
     excludedChildRequests: all.filter(request => request.sessionId === sessionId && request.agentId !== rootAgentId),
     outOfScopeRequests: all.filter(request => request.sessionId !== sessionId || (request.agentId === rootAgentId && !request.inRoot)),
     availability: complete ? "available" : "unavailable", admissionEligible: complete, modelProtocolViolation: false,
@@ -111,24 +115,31 @@ export function reconcileJudgeHistory({ history, observed, sessionId, rootAgentI
     const historical = rootRequests(history.map(event => ({ event, sessionId, ref: null })), sessionId, rootAgentId, expectedMode);
     const signature = value => [...value.completeRootRequests, ...value.partialRootRequests, ...value.unobservedRootRequests].map(request => payload([request.toolCallId, request.scopeStartEventId, request.turnId, request.argumentsState, request.arguments])).sort();
     const starts = value => [...new Set(value.rootStarts.map(start => payload([start.eventId, start.turnId ?? null])))];
-    const terminal = value => [value.rootIdle.eventId, value.rootIdle.mode, value.rootIdle.aborted];
-    return historical.admissionEligible === true && observed.admissionEligible === true && payload(signature(historical)) === payload(signature(observed)) && payload(starts(historical)) === payload(starts(observed)) && payload(terminal(historical)) === payload(terminal(observed)) && payload(historical.supportedTurnIds) === payload(observed.supportedTurnIds);
+    const terminal = value => [value.rootIdle.eventId, value.rootIdle.mode, value.rootIdle.aborted === true];
+    const terminalMatches = observed.rootIdle.ephemeral === true && !historical.rootIdle.eventId
+      ? historical.requestCoverageComplete
+      : historical.admissionEligible === true && payload(terminal(historical)) === payload(terminal(observed));
+    return terminalMatches && observed.admissionEligible === true && payload(signature(historical)) === payload(signature(observed)) && payload(starts(historical)) === payload(starts(observed)) && payload(historical.supportedTurnIds) === payload(observed.supportedTurnIds);
   } catch { return false; }
 }
-export function validateTerminalReport(value, { criteria, evidenceIndex } = {}) {
+export function validFrozenRubric({ criteria, evidenceIndex, fixedVerdicts = [] }) {
+  return Array.isArray(criteria) && criteria.length > 0 && criteria.every(nonblank) && new Set(criteria).size === criteria.length && Array.isArray(evidenceIndex?.files) && Array.isArray(fixedVerdicts) && fixedVerdicts.every(row => exactKeys(row, ["criterion", "verdict"]) && criteria.includes(row.criterion) && ["pass", "fail", "unclear"].includes(row.verdict)) && new Set(fixedVerdicts.map(row => row.criterion)).size === fixedVerdicts.length;
+}
+export function validateTerminalReport(value, { criteria, evidenceIndex, fixedVerdicts = [] } = {}) {
   try {
-    if (!Array.isArray(criteria) || criteria.length === 0 || !criteria.every(nonblank) || new Set(criteria).size !== criteria.length || !Array.isArray(evidenceIndex?.files)) return badReport("A nonempty frozen rubric and evidence index are required");
+    if (!validFrozenRubric({ criteria, evidenceIndex, fixedVerdicts })) return badReport("A nonempty frozen rubric, evidence index and unambiguous deterministic verdicts are required");
     if (!exactKeys(value, ["status", "summary", "reasoning", "criteria"], ["observations"]) || !nonblank(value.summary) || !nonblank(value.reasoning) || !Array.isArray(value.criteria) || (value.observations !== undefined && !Array.isArray(value.observations))) return badReport("Report fields must use their strict, nonblank declared shapes");
     const parsed = parseReportResult(value);
     if (!parsed.ok) return parsed;
     const table = parseReportCriteria(value.criteria, criteria);
     if (!table.ok) return table;
     if (!value.criteria.every((row, index) => exactKeys(row, ["criterion", "verdict", "evidence"]) && row.criterion === criteria[index])) return badReport("Report criteria must match the frozen rubric exactly and in order");
+    if (fixedVerdicts.some(fixed => table.value.find(row => row.criterion === fixed.criterion).verdict !== fixed.verdict)) return badReport("A report cannot contradict a retained deterministic checker verdict");
     if (!parsed.value.observations.every(row => nonblank(row.description))) return badReport("Observation descriptions must be nonblank");
     for (const file of evidenceIndex.files) relativeName(file);
     if (!table.value.every(row => evidenceIndex.files.some(file => {
       const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`(?:^|[\\s\\[(])${escaped}(?::[1-9]\\d*(?:-[1-9]\\d*)?)?(?=$|[\\s\\]).,;])`).test(row.evidence);
+      return new RegExp(`(?:^|[\\s\\[(])${escaped}(?::[1-9]\\d*(?:-[1-9]\\d*)?(?=$|[\\s\\]).,;:])|(?=$|[\\s\\]).,;]))`).test(row.evidence);
     }))) return badReport("Each criterion must cite a listed evidence path");
     const consistent = checkCriteriaConsistency(parsed.value.status, table.value);
     if (!consistent.ok) return consistent;
@@ -151,9 +162,9 @@ function coverageMatches(coverage, sdk, schema, observed, sessionId, rootAgentId
     return true;
   } catch { return false; }
 }
-export function createReportAdmission({ runId, sessionId, rootAgentId, expectedMode, criteria, evidenceIndex, schemaSha256, deadlineAt, clock = Date.now, readArtifact }) {
-  requireCondition(nonblank(runId) && nonblank(sessionId) && (rootAgentId === null || nonblank(rootAgentId)) && nonblank(expectedMode) && hashString(schemaSha256) && Number.isFinite(deadlineAt) && typeof clock === "function" && Array.isArray(criteria) && criteria.length > 0 && criteria.every(nonblank) && Array.isArray(evidenceIndex?.files), "INVALID_ADMISSION_CONTRACT", "Admission requires a fixed session, mode, rubric, schema and deadline");
-  const rubric = { criteria: [...criteria], evidenceIndex: { files: [...evidenceIndex.files] } };
+export function createReportAdmission({ runId, sessionId, rootAgentId, expectedMode, criteria, evidenceIndex, fixedVerdicts = [], schemaSha256, deadlineAt, clock = Date.now, readArtifact }) {
+  requireCondition(nonblank(runId) && nonblank(sessionId) && (rootAgentId === null || nonblank(rootAgentId)) && nonblank(expectedMode) && hashString(schemaSha256) && Number.isFinite(deadlineAt) && typeof clock === "function" && validFrozenRubric({ criteria, evidenceIndex, fixedVerdicts }), "INVALID_ADMISSION_CONTRACT", "Admission requires a fixed session, mode, rubric, schema and deadline");
+  const rubric = { criteria: [...criteria], evidenceIndex: { files: [...evidenceIndex.files] }, fixedVerdicts: structuredClone(fixedVerdicts) };
   const sdk = [];
   const schema = [];
   const handlers = [];

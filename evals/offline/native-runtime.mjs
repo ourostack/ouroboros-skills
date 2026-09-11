@@ -5,12 +5,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalJson, exactKeys, jsonBytes, parseRawJson, readRegular, relativeName, requireCondition, sha256, textBytes } from "./core.mjs";
 import { openRunOutput } from "./output.mjs";
-import { normalizeJudgeObservations, reconcileJudgeHistory, validateTerminalReport } from "./admission.mjs";
+import { createReportAdmission, normalizeJudgeObservations, reconcileJudgeHistory, validateTerminalReport } from "./admission.mjs";
 import { validateCleanupReceipt } from "./copilot-runner.mjs";
 import { reportSchema } from "./native-protocol.mjs";
+import { validateNativeRoleProbe } from "./native-identity.mjs";
+import { observeEffectiveConfiguration, prepareNativeAssessment } from "./native-assessment.mjs";
 
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
-const sourceMembers = ["native-protocol.mjs", "core.mjs", "admission.mjs", "copilot-runner.mjs", "vendor/gauntlet/LICENSE", "vendor/gauntlet/src/agent/validators.ts", "vendor/gauntlet/src/context/scoped-read.ts", "vendor/gauntlet/src/types.ts"];
+const sourceMembers = ["native-protocol.mjs", "core.mjs", "admission.mjs", "copilot-runner.mjs", "native-identity.mjs", "native-role-entry.mjs", "native-role-probe-entry.mjs", "native-assessment.mjs", "evidence.mjs", "vendor/gauntlet/LICENSE", "vendor/gauntlet/src/agent/validators.ts", "vendor/gauntlet/src/context/scoped-read.ts", "vendor/gauntlet/src/types.ts", "native-subject.mjs", "cases/v2-alpha-v1/dataset.json"];
 const captureBudget = { maxBytes: 50331648, maxFiles: 240, finalMetadataBytes: 16777216, finalMetadataFiles: 1 };
 const fields = (value, names, label) => requireCondition(exactKeys(value, names), "INVALID_RUNTIME_QUALIFICATION", `${label} requires its exact fields`);
 const boundedInteger = (value, minimum, maximum) => Number.isSafeInteger(value) && value >= minimum && value <= maximum;
@@ -31,18 +33,20 @@ export function validateRuntimeQualification(plan) {
 // The credential is a separate in-memory envelope field, never a file member.
 const bootstrap = [
   'const fs=require("node:fs"),crypto=require("node:crypto"),path=require("node:path");',
-  'if(process.version!=="v22.23.2"||process.platform!=="linux"||process.arch!=="x64")throw Error("RUNTIME_PLATFORM");',
+  'if(process.version!=="v22.23.2"||process.platform!=="linux"||process.arch!=="x64"||process.getuid()!==0)throw Error("RUNTIME_PLATFORM");',
   'if(JSON.parse(fs.readFileSync("/opt/copilot-v2/package/package.json")).version!=="1.0.84-1"||JSON.parse(fs.readFileSync("/opt/copilot-sdk-v2/node_modules/@github/copilot-sdk/package.json")).version!=="1.0.13")throw Error("RUNTIME_PACKAGES");',
-  'const input=fs.readFileSync(0);if(input.length>1048576)throw Error("INPUT_LIMIT");',
+  'const input=fs.readFileSync(0);if(input.length>67108864)throw Error("INPUT_LIMIT");',
   `const expected=${JSON.stringify(sourceMembers)};`,
   'const p=JSON.parse(input),f=p.files;if(!Array.isArray(f)||f.length!==expected.length||new Set(f.map(x=>x.path)).size!==expected.length)throw Error("ARCHIVE_MEMBERS");',
   'for(const x of f){if(!expected.includes(x.path))throw Error("ARCHIVE_MEMBERS");const b=Buffer.from(x.base64,"base64");if(b.length>524288||b.toString("base64")!==x.base64||crypto.createHash("sha256").update(b).digest("hex")!==x.sha256)throw Error("ARCHIVE_IDENTITY");',
   'const target=path.join("/run/controller",x.path);fs.mkdirSync(path.dirname(target),{recursive:true,mode:448});fs.writeFileSync(target,b,{flag:"wx",mode:384});}',
   'const sdk=require("/opt/copilot-sdk-v2/node_modules/@github/copilot-sdk/dist/cjs/index.js");',
-  'import("file:///run/controller/native-protocol.mjs").then(async m=>{const r=await m.runTerminalProtocol({sdk,root:"/run/controller",model:p.model,token:p.credential,limits:p.limits});process.exitCode=r.ok?0:1;}).catch(()=>{process.stderr.write("NATIVE_PROTOCOL_FAILED\\n");process.exitCode=1;});',
+  'import("file:///run/controller/native-identity.mjs").then(async identity=>{const role=identity.prepareNativeRole();if(p.assessment)(await import("file:///run/controller/native-assessment.mjs")).stageAssessmentEvidence(p);const m=await import("file:///run/controller/native-protocol.mjs");const r=await m.runTerminalProtocol({sdk,root:role.root,model:p.model,token:p.credential,limits:p.limits,assessment:p.assessment});process.exitCode=p.assessment?(["passed","product_failure","inconclusive"].includes(r.status)?0:1):r.ok?0:1;}).catch(()=>{process.stderr.write("NATIVE_PROTOCOL_FAILED\\n");process.exitCode=1;});',
 ].join("");
 
-function observeProtocolEvidence(rows, plan) {
+function observeProtocolEvidence(rows, plan, prepared) {
+  const rubric = prepared?.input ?? { criteria: ["The approved zero-value API returns zero."], evidenceIndex: { files: ["checks/proof.txt"] } };
+  const schemaDefinition = prepared?.schema ?? reportSchema;
   const configurations = rows.filter(row => row.kind === "runtime-configuration");
   requireCondition(configurations.length === 1, "NATIVE_OBSERVATION_INCOMPLETE", "One observed configuration is required");
   const configuration = configurations[0];
@@ -81,13 +85,13 @@ function observeProtocolEvidence(rows, plan) {
   const schemaEvents = [...schemaIdentities.values()];
   const completions = [...new Map(sdk.map(record => [record.ref.eventId, { ...record, event: parseRawJson(record.rawRecord) }])).values()].filter(record => record.event.type === "tool.execution_complete" && !record.event.agentId);
   const attempts = observed.completeRootRequests.map(request => {
-    const report = validateTerminalReport(request.arguments, { criteria: ["The approved zero-value API returns zero."], evidenceIndex: { files: ["checks/proof.txt"] } });
-    const decisions = schemaEvents.filter(record => record.event.type === "report.schema_decision" && record.event.sessionId === configuration.sessionId && record.event.toolName === "report_result" && record.event.withinWorkWindow === true && record.event.toolCallId === request.toolCallId && record.event.origin === "handler" && record.event.decision === "accepted" && record.event.schemaSha256 === sha256(jsonBytes(reportSchema)) && record.event.argumentsSha256 === sha256(JSON.stringify(request.arguments)));
+    const report = validateTerminalReport(request.arguments, rubric);
+    const decisions = schemaEvents.filter(record => record.event.type === "report.schema_decision" && record.event.sessionId === configuration.sessionId && record.event.toolName === "report_result" && (prepared || record.event.withinWorkWindow === true) && record.event.toolCallId === request.toolCallId && record.event.origin === "handler" && record.event.decision === "accepted" && record.event.schemaSha256 === sha256(jsonBytes(schemaDefinition)) && record.event.argumentsSha256 === sha256(JSON.stringify(request.arguments)));
     const executions = completions.filter(record => record.event.data?.toolCallId === request.toolCallId);
     return { ...request, validatorAccepted: report.ok, schemaAcceptedHandlerCount: decisions.length, schemaEventRefs: decisions.map(record => record.ref), executionCompletionRefs: executions.map(record => record.ref), executionSucceeded: executions.some(record => record.event.data.success === true), executionFailed: executions.some(record => record.event.data.success === false) };
   });
   const counts = { observedRequests: attempts.length, schemaAcceptedHandlers: attempts.reduce((sum, attempt) => sum + attempt.schemaAcceptedHandlerCount, 0), validatorAcceptedReports: attempts.filter(attempt => attempt.validatorAccepted).length, admittedGrades: 0 };
-  return { configuration, files, observed, attempts, counts, captureErrors };
+  return { configuration, files, observed, attempts, counts, captureErrors, sdk, schema, schemaEvents };
 }
 
 export function verifyProtocolEvidence(rows, plan) {
@@ -106,15 +110,71 @@ export function verifyProtocolEvidence(rows, plan) {
   const history = parseRawJson(files.get("history-response.json"));
   requireCondition(Array.isArray(history), "NATIVE_HISTORY_UNAVAILABLE", "The actual SDK history response is required");
   requireCondition(reconcileJudgeHistory({ history, observed, sessionId: configuration.sessionId, rootAgentId: null, expectedMode: "interactive" }), "NATIVE_HISTORY_MISMATCH", "History and observed root attempts, windows or terminal state disagree");
-  const cleanup = terminal.cleanup;
-  requireCondition(cleanup?.complete === true && cleanup.errors.length === 0 && validateCleanupReceipt(cleanup.receipt, { runId: configuration.runId, readArtifact: name => files.get(name) }).ok, "NATIVE_CLEANUP_UNVERIFIED", "Hashed owned-process exits are required");
+  verifyProtocolCleanup(configuration, terminal, files);
   const counts = { observedRequests: 1, schemaAcceptedHandlers: 1, validatorAcceptedReports: 1, admittedGrades: 0 };
   requireCondition(terminal.ok === true && terminal.grade === null && canonicalJson(terminal.counts) === canonicalJson(counts), "NATIVE_CONTROL_ENVELOPE_MISMATCH", "The final control disagrees with its observed evidence");
   return { counts, files, observation: observed };
 }
 
-export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot = path.dirname(outputRoot), protectedRoots = [], env = process.env, execute = spawnSync, clock = Date.now, rawPlanBytes = jsonBytes(plan) }) {
+function verifyProtocolCleanup(configuration, terminal, files) {
+  const cleanup = terminal.cleanup;
+  requireCondition(cleanup?.complete === true && cleanup.errors.length === 0 && validateCleanupReceipt(cleanup.receipt, { runId: configuration.runId, readArtifact: name => files.get(name) }).ok, "NATIVE_CLEANUP_UNVERIFIED", "Hashed owned-process exits are required");
+  requireCondition(Array.isArray(configuration.roleProbes) && configuration.roleProbes.length > 0 && new Set(configuration.roleProbes.map(ref => ref.path)).size === configuration.roleProbes.length, "NATIVE_ROLE_UNVERIFIED", "The native role requires its complete retained same-UID probe evidence");
+  for (const ref of configuration.roleProbes) {
+    const bytes = files.get(ref.path);
+    requireCondition(Buffer.isBuffer(bytes) && bytes.length === ref.byteLength && sha256(bytes) === ref.sha256, "NATIVE_ROLE_UNVERIFIED", "A native role probe is missing or differs from its raw reference");
+    const proof = parseRawJson(bytes);
+    requireCondition(cleanup.receipt.ownedSpawns.some(spawn => spawn.pid === proof.pid && spawn.spawnIdentity === proof.spawnIdentity) && validateNativeRoleProbe(proof), "NATIVE_ROLE_UNVERIFIED", "The captured same-UID native process protection was not verified against an owned runtime");
+  }
+}
+
+export function verifyAssessmentEvidence(rows, plan, prepared) {
+  const captured = observeProtocolEvidence(rows, plan, prepared);
+  const { configuration, files, sdk, schema, schemaEvents, attempts } = captured;
+  if (captured.captureErrors.length) throw captured.captureErrors[0];
+  const terminals = rows.filter(row => row.kind === "assessment-finished");
+  requireCondition(terminals.length === 1 && terminals[0].runId === configuration.runId && terminals[0].sessionId === configuration.sessionId, "ASSESSMENT_TERMINAL_MISMATCH", "One actual session-bound assessment terminal is required");
+  const terminal = terminals[0];
+  if (terminal.status === "cancelled") {
+    const bytes = files.get("run-cancellation.json");
+    requireCondition(Buffer.isBuffer(bytes) && terminal.failure?.code === "NATIVE_CANCELLED", "ASSESSMENT_CANCELLATION_UNOBSERVED", "Cancellation requires the actual owning-run observation, not a terminal label");
+    const cancellation = parseRawJson(bytes);
+    requireCondition(cancellation.type === "explicit-run-cancellation" && cancellation.runId === configuration.runId && cancellation.sessionId === configuration.sessionId && Number.isFinite(cancellation.observedAt), "ASSESSMENT_CANCELLATION_UNOBSERVED", "The cancellation observation is not bound to this actual native run");
+  }
+  const { caseId, criteria, fixedVerdicts, evidenceIndex, evidenceSeal } = prepared.input;
+  requireCondition(canonicalJson(parseRawJson(files.get("assessment-input.json"))) === canonicalJson({ caseId, criteria, fixedVerdicts, evidenceIndex, evidenceSeal, promptSha256: prepared.promptSha256, schemaSha256: sha256(jsonBytes(prepared.schema)) }), "ASSESSMENT_INPUT_MISMATCH", "The actual judge did not consume the predeclared rubric and evidence seal");
+  verifyProtocolCleanup(configuration, terminal, files);
+  for (const name of evidenceIndex.files) prepared.reader.read(name, 0, 1);
+  const effective = observeEffectiveConfiguration({ events: sdk, sessionId: configuration.sessionId, model: plan.model });
+  let replayTime = 0;
+  const admission = createReportAdmission({ runId: configuration.runId, sessionId: configuration.sessionId, rootAgentId: null, expectedMode: "interactive", criteria, fixedVerdicts, evidenceIndex, schemaSha256: sha256(jsonBytes(prepared.schema)), deadlineAt: 1, clock: () => replayTime, readArtifact: name => files.get(name) });
+  for (const record of sdk) requireCondition(admission.observeSdkEvent(record).accepted, "ASSESSMENT_REPLAY_FAILED", "SDK capture cannot be replayed");
+  for (const record of schema) requireCondition(admission.observeSchemaEvent(record).accepted, "ASSESSMENT_REPLAY_FAILED", "Schema capture cannot be replayed");
+  for (const attempt of attempts) for (const ref of attempt.schemaEventRefs) {
+    const event = schemaEvents.find(row => row.ref.eventId === ref.eventId).event;
+    replayTime = event.withinWorkWindow === true ? 0 : 2;
+    admission.handle(attempt.arguments, { sessionId: event.sessionId, toolCallId: event.toolCallId, toolName: event.toolName });
+  }
+  replayTime = 0;
+  const result = admission.finish({
+    endReason: terminal.status === "timed_out" ? "timed_out" : terminal.status === "cancelled" ? "cancelled" : terminal.failure ? "failed" : "idle",
+    attemptCoverage: terminal.attemptCoverage, sourceVerified: terminal.failure === null, evidenceVerified: terminal.evidenceVerified === true, runtimeVerified: effective.verified, cleanupReceipt: terminal.cleanup.receipt,
+  });
+  requireCondition(canonicalJson(result.counts) === canonicalJson(terminal.counts) && result.status === terminal.status && canonicalJson(result.grade) === canonicalJson(terminal.grade), "ASSESSMENT_ADMISSION_MISMATCH", "The claimed outcome differs from replayed raw requests, handlers, completions and effective configuration");
+  return { result, effective };
+}
+
+export async function runRuntimeQualification({ plan, assessment, outputRoot, authorizedRoot = path.dirname(outputRoot), protectedRoots = [], env = process.env, execute = spawnSync, clock = Date.now, rawPlanBytes = jsonBytes(plan) }) {
   plan = structuredClone(validateRuntimeQualification(plan));
+  const prepared = assessment === undefined ? null : prepareNativeAssessment(assessment, reportSchema);
+  let evidenceBytes = 0;
+  const evidence = prepared?.input.evidenceIndex.files.map(name => {
+    const member = readRegular(prepared.input.evidenceRoot, name);
+    evidenceBytes += member.bytes.length;
+    requireCondition(evidenceBytes <= 33554432 && prepared.reader.seal.some(seal => seal.path === name && seal.sha256 === member.sha256), "ASSESSMENT_EVIDENCE_CHANGED", "Evidence changed before transport or exceeded its aggregate budget");
+    return { path: name, sha256: member.sha256, base64: member.bytes.toString("base64") };
+  });
+  const portableAssessment = prepared ? { ...prepared.input, evidenceRoot: "/run/controller/evidence" } : undefined;
   requireCondition(jsonBytes(parseRawJson(rawPlanBytes)).equals(jsonBytes(plan)), "PLAN_BYTES_MISMATCH", "The supplied plan bytes differ from the validated plan");
   const source = sourceMembers.map(name => ({ path: name, ...readRegular(sourceRoot, name, 524288) }));
   const controller = source[0];
@@ -127,7 +187,7 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
   const deadline = startedAt + plan.limits.startupSendWorkMs;
   const output = openRunOutput({
     outputRoot: path.resolve(outputRoot), authorizedRoot: path.resolve(authorizedRoot), protectedRoots,
-    runContext: { runId, cellId: plan.id, planSha256: sha256(rawPlanBytes), containerName, controllerSha256: controller.sha256, sourceManifest, sourceManifestSha256: sha256(jsonBytes(sourceManifest)), hostControllerSha256: readRegular(sourceRoot, "native-runtime.mjs", 524288).sha256, bootstrapSha256: sha256(bootstrap), captureBudget },
+    runContext: { runId, cellId: plan.id, planSha256: sha256(rawPlanBytes), ...(prepared ? { executionKind: "subject_with_judge", assessmentInputSha256: sha256(jsonBytes(portableAssessment)) } : {}), containerName, controllerSha256: controller.sha256, sourceManifest, sourceManifestSha256: sha256(jsonBytes(sourceManifest)), hostControllerSha256: readRegular(sourceRoot, "native-runtime.mjs", 524288).sha256, bootstrapSha256: sha256(bootstrap), captureBudget },
     limits: { maxStreamBytes: plan.limits.maxStreamBytes, maxFileBytes: 16777216, maxTotalBytes: 134217728, maxFiles: 256 },
   });
   let token;
@@ -206,11 +266,13 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
       const create = [
         "create", "--name", containerName, "--interactive", "--init", "--hostname", "offline-qualification", "--pull=never",
         "--label", `offline.run-id=${runId}`, "--label", `offline.controller-sha256=${controller.sha256}`,
-        "--platform", plan.runtime.platform, "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--ulimit", "core=0",
+        "--platform", plan.runtime.platform, "--read-only", "--cap-drop", "ALL",
+        "--cap-add", "SETUID", "--cap-add", "SETGID", "--cap-add", "CHOWN", "--cap-add", "KILL", "--cap-add", "DAC_OVERRIDE",
+        "--security-opt", "no-new-privileges", "--pids-limit", "256", "--ulimit", "core=0",
         "--tmpfs", "/run:rw,exec,nosuid,nodev,mode=0755,size=512m",
         "--tmpfs", "/work:rw,exec,nosuid,nodev,mode=0755,size=128m",
         "--tmpfs", "/output:rw,nosuid,nodev,mode=0700,size=128m",
-        "--entrypoint", "/usr/local/bin/node", plan.runtime.imageId, "-e", bootstrap,
+        "--entrypoint", "/usr/bin/env", plan.runtime.imageId, "node", "-e", bootstrap,
       ];
       const created = observedDocker(create);
       requireCondition(created.status === 0 && !created.error, "CONTAINER_CREATE_FAILED", "Owned container creation did not complete");
@@ -219,7 +281,7 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
       const container = parsedContainer(observedDocker(["inspect", containerId]));
       requireCondition(owned(container) && container.Id === containerId, "CONTAINER_OWNERSHIP_UNVERIFIED", "The returned container does not match the predeclared owned invocation");
       requireCondition(container.HostConfig?.ReadonlyRootfs === true && container.HostConfig.CapDrop?.includes("ALL") && container.HostConfig.SecurityOpt?.some(value => value.includes("no-new-privileges")) && Array.isArray(container.Mounts) && container.Mounts.every(mount => mount.Type === "tmpfs"), "CONTAINER_BOUNDARY_MISMATCH", "The actual container does not satisfy the fixed no-host-mount boundary");
-      const input = JSON.stringify({ credential: token, model: plan.model, limits: plan.limits, files: source.map(file => ({ path: file.path, sha256: file.sha256, base64: file.bytes.toString("base64") })) });
+      const input = JSON.stringify({ credential: token, model: plan.model, limits: plan.limits, files: source.map(file => ({ path: file.path, sha256: file.sha256, base64: file.bytes.toString("base64") })), ...(prepared ? { assessment: portableAssessment, evidence } : {}) });
       const executed = run("docker", ["start", "--attach", "--interactive", containerId], { input, timeout: Math.max(1, deadline - clock()) });
       record.execution = { status: executed.status, signal: executed.signal ?? null, errorCode: executed.error?.code ?? null };
       record.attemptCoverage = "unavailable";
@@ -248,11 +310,19 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
         } catch (error) { record.decodeErrors.push({ line: index, ...detail(error) }); }
       }
       if (rows.some(row => row.kind === "runtime-configuration")) {
-        const captured = observeProtocolEvidence(rows, plan);
+        const captured = observeProtocolEvidence(rows, plan, prepared);
         record.counts = captured.counts;
         record.attempts = captured.attempts;
         record.captureErrors = captured.captureErrors.map(detail);
         record.attemptCoverage = "verified_observed_prefix";
+        const filtered = captured.sdk.filter(entry => {
+          const event = parseRawJson(entry.rawRecord);
+          return event.type === "assistant.usage" && !event.agentId && (event.data?.contentFilterTriggered === true || event.data?.finishReason === "content_filter");
+        });
+        if (filtered.length > 0) {
+          record.modelAvailability = { status: "unavailable", reason: "content_filter", rawEventRefs: filtered.map(entry => entry.ref) };
+          if (record.status !== "timed_out") record.status = "unavailable";
+        }
         for (const [name, bytes] of streamCaptureFailure ? [] : captured.files) {
           if (name === "sdk-events.jsonl") append("sdk-events", bytes);
           else if (name === "schema-events.jsonl") append("schema-events", bytes);
@@ -260,12 +330,23 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
         }
       }
       if (streamCaptureFailure) throw streamCaptureFailure;
-      if (executed.status === 0 && record.status !== "timed_out") {
+      if ((executed.status === 0 || (prepared && executed.status === 1)) && record.status !== "timed_out" && !record.modelAvailability) {
         requireCondition(record.decodeErrors.length === 0, "NATIVE_RECORD_DECODE_FAILED", "The raw control stream is incomplete or malformed");
-        const verified = verifyProtocolEvidence(rows, plan);
-        record.counts = verified.counts;
-        record.attemptCoverage = "complete_control_observation";
-        record.status = "component_observed";
+        if (prepared) {
+          const verified = verifyAssessmentEvidence(rows, plan, prepared);
+          record.assessment = verified.result;
+          record.effectiveConfiguration = verified.effective;
+          record.counts = { ...verified.result.counts };
+          record.grade = verified.result.grade;
+          record.status = verified.result.status;
+          record.scored = record.grade !== null;
+          record.attemptCoverage = "complete_assessment_observation";
+        } else {
+          const verified = verifyProtocolEvidence(rows, plan);
+          record.counts = verified.counts;
+          record.attemptCoverage = "complete_control_observation";
+          record.status = "component_observed";
+        }
       }
       record.protocolObservation = rows.findLast(row => row.kind === "protocol-observation") ?? null;
     }
@@ -312,14 +393,22 @@ export async function runRuntimeQualification({ plan, outputRoot, authorizedRoot
       }
     }
     if (captureFailed && record.status !== "timed_out") record.status = "capture_incomplete";
+    if (prepared && !["passed", "product_failure", "inconclusive"].includes(record.status)) {
+      record.grade = null;
+      record.counts.admittedGrades = 0;
+      record.scored = false;
+    }
     record.elapsedMs = clock() - startedAt;
     try {
       save("qualification.json", jsonBytes(record), true);
-      if (!captureFailed) output.commit({ schemaVersion: 1, runId, status: record.status === "component_observed" ? "unavailable" : record.status === "timed_out" ? "timed_out" : "infrastructure_failure", grade: null, counts: record.counts, qualification: record });
+      if (!captureFailed) output.commit({ schemaVersion: 1, runId, status: prepared && ["passed", "product_failure", "inconclusive", "protocol_failure", "cancelled", "unavailable"].includes(record.status) ? record.status : ["component_observed", "unavailable"].includes(record.status) ? "unavailable" : record.status === "timed_out" ? "timed_out" : "infrastructure_failure", grade: record.grade, counts: record.counts, qualification: record });
     } catch (error) {
       if (record.status !== "timed_out") record.status = "publication_failed";
       record.publicationFailure = detail(error);
+      record.grade = null;
+      record.counts.admittedGrades = 0;
+      record.scored = false;
     }
   }
-  return { ...record, artifacts: path.resolve(outputRoot), exitCode: record.status === "component_observed" ? 0 : 3 };
+  return { ...record, artifacts: path.resolve(outputRoot), exitCode: ["component_observed", "passed"].includes(record.status) ? 0 : record.status === "product_failure" ? 1 : record.status === "inconclusive" ? 2 : 3 };
 }

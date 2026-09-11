@@ -44,7 +44,13 @@ export function fixture(options = {}) {
       root: workRoot(`native-protocol-${++sequence}`), model: "gpt-6-astra", token: "synthetic-native-controller-entitlement-value",
       limits: { startupSendWorkMs: 1000, cleanupMs: 100 },
       emit: record => state.records.push(record),
-      processObserver: { list: () => [processRow], read: () => state.stopped ? null : processRow },
+      processObserver: {
+        list: () => [processRow], read: () => state.stopped ? null : processRow,
+        probe: () => {
+          const observation = { probeUid: 65534, targetUid: 65534, environ: "EACCES", memory: "EACCES", descriptor: "EACCES", rootRegain: "EPERM" };
+          return { protected: true, observation, capture: { stdoutBase64: Buffer.from(JSON.stringify(observation)).toString("base64"), stderrBase64: "", exitCode: 0 } };
+        },
+      },
     },
   };
 }
