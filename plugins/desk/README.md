@@ -96,6 +96,10 @@ Embeddings and snapshots are derivative data and may carry privacy risk even whe
 
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 
+### Explicit batch work profile
+
+The [bounded batch profiler](docs/batch-work-profile.md) reports one rooted agent job from an explicitly supplied normalized snapshot: `node plugins/desk/mcp/scripts/profile-work.js --input snapshot.json --format json|markdown`. It reads no live sources, follows no references, writes no reports or ledger rows, and adds no automatic MCP path. Its output distinguishes observed operations, selected native usage, declared episodes and unknown acceptance.
+
 ## Invocation — the default `worker` agent
 
 The plugin ships a substrate-default agent named `worker` — a long-running engineering agent that uses the desk (tracks, tasks, friction, lessons) to keep its work coherent across sessions. It's standalone-functional; you don't need to author a consumer overlay to start working.
