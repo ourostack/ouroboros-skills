@@ -110,7 +110,9 @@ test("structural descendants are admitted, foreign sessions and contradictory pa
   foreign.source_ref.native_session_id = "session-b"
   input.facts.push(foreign)
   assert.deepEqual(profile(input).observations.agents.map((a) => a.agent_id), ["worker-a", "worker-b"])
-  input.facts.push(fact("conflicting-owner", "tool.execution_start", 2, "worker-z", { toolCallId: "dispatch-b" }))
+  input.facts.push(fact("unrelated-owner", "tool.execution_start", 2, "worker-z", { toolCallId: "dispatch-b" }))
+  assert.deepEqual(profile(input).observations.agents.map((a) => a.agent_id), ["worker-a", "worker-b"])
+  input.facts.push(fact("conflicting-child", "subagent.started", 4, "worker-b", { toolCallId: "different-call" }, { structural_parent_agent_id: "worker-z" }))
   assert.throws(() => profile(input), /lineage/i)
   const cycle = snapshot()
   cycle.facts.push(fact("root-again", "subagent.started", 5, "worker-a", { toolCallId: "different-call" }, { structural_parent_agent_id: "worker-a" }))

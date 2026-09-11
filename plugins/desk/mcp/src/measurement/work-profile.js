@@ -54,6 +54,7 @@ function parseSnapshot(bytes) {
   while (pending.length) {
     const [value, depth] = pending.pop()
     requireFact(depth <= 32 && ++nodes <= 500000, "Snapshot structure exceeds 32 levels or 500000 values")
+    if (typeof value === "number") requireFact(Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER, "Snapshot numeric metadata and usage counters must be finite and within the safe numeric range")
     if (value !== null && typeof value === "object") {
       const children = Object.values(value)
       requireFact(nodes + pending.length + children.length <= 500000, "Snapshot structure exceeds 500000 values")
@@ -180,19 +181,25 @@ function lineage(facts, binding) {
     if (!dispatchIndex.has(identity)) dispatchIndex.set(identity, [])
     dispatchIndex.get(identity).push(dispatch)
   }
+  function dispatchOwners(started) {
+    const matches = dispatchIndex.get(key(sourceScope(started), started.dispatch_tool_call_id)) ?? []
+    return started.structural_parent_agent_id != null
+      ? matches.filter((f) => f.agent_id === started.structural_parent_agent_id)
+      : matches
+  }
   const rootStarts = starts.filter((f) => f.agent_id === binding.root_agent_id && f.dispatch_tool_call_id === binding.dispatch_tool_call_id)
   requireFact(rootStarts.length === 1, "Native root binding requires one matching subagent start")
-  const rootDispatches = dispatchIndex.get(key(sourceScope(rootStarts[0]), binding.dispatch_tool_call_id)) ?? []
+  const rootDispatches = dispatchOwners(rootStarts[0])
   requireFact(rootDispatches.length === 1 && rootDispatches[0].agent_id !== binding.root_agent_id, "Native root binding requires one parent dispatch")
-  const rootCompletions = completions.filter((f) => agentScope(f) === agentScope(rootDispatches[0]) && f.fields.toolCallId === binding.dispatch_tool_call_id && f.returned_agent_id === binding.root_agent_id)
-  requireFact(rootCompletions.length === 1, "Native root binding requires one dispatch completion with the returned agent")
+  const rootCompletions = completions.filter((f) => agentScope(f) === agentScope(rootDispatches[0]) && f.fields.toolCallId === binding.dispatch_tool_call_id)
+  requireFact(rootCompletions.length === 1, "Native root binding requires exactly one dispatch completion")
+  requireFact(rootCompletions[0].returned_agent_id === binding.root_agent_id, "Native root binding completion must return the root agent")
   requireFact(Date.parse(rootCompletions[0].timestamp) >= Date.parse(rootDispatches[0].timestamp), "Reversed interval in root dispatch")
   const links = new Map()
   for (const started of starts) {
-    const owners = dispatchIndex.get(key(sourceScope(started), started.dispatch_tool_call_id)) ?? []
+    const owners = dispatchOwners(started)
     requireFact(owners.length <= 1, "Ambiguous dispatch lineage")
     const structural = started.structural_parent_agent_id
-    if (structural != null && owners.length) requireFact(structural === owners[0].agent_id, "Conflicting structural/dispatch lineage")
     const parent = structural ?? (owners.length ? owners[0].agent_id : null)
     const link = { agent_id: started.agent_id, parent_agent_id: parent, dispatch_tool_call_id: started.dispatch_tool_call_id, evidence_fact_ids: [started.fact_id, ...owners.map((f) => f.fact_id)].sort() }
     requireFact(!links.has(started.agent_id) && started.agent_id !== parent, "Conflicting or cyclic agent lineage")
@@ -247,11 +254,19 @@ function operations(facts) {
       requireFact(members.every((f) => f.source_ref.line !== undefined) && new Set(members.map((f) => f.source_ref.line)).size === members.length, "Ambiguous timestamp-tied interaction boundary without native sequence")
     }
   }
-  const missingSequence = new Set(facts.filter((f) => f.source_ref.line === undefined).map(agentScope))
+  const missingSequence = new Set()
+  const scopeLines = new Map()
+  for (const fact of facts) {
+    const scope = agentScope(fact)
+    if (!scopeLines.has(scope)) scopeLines.set(scope, new Set())
+    const lines = scopeLines.get(scope)
+    if (fact.source_ref.line === undefined || lines.has(fact.source_ref.line)) missingSequence.add(scope)
+    lines.add(fact.source_ref.line)
+  }
   const ordered = [...facts].sort((a, b) => {
     const scopeOrder = compare(agentScope(a), agentScope(b))
     if (scopeOrder) return scopeOrder
-    if (!missingSequence.has(agentScope(a))) return a.source_ref.line - b.source_ref.line || compare(a.identity, b.identity)
+    if (!missingSequence.has(agentScope(a))) return a.source_ref.line - b.source_ref.line
     return compare(a.timestamp, b.timestamp) || compare(a.source_ref.line ?? -1, b.source_ref.line ?? -1) || compare(a.identity, b.identity)
   })
   for (const fact of ordered) {
