@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { executeHeldOutCheck } from "../check-executor.mjs";
+import { checkerProcess } from "../checker-process.mjs";
 import { materializeFixture } from "../materialize.mjs";
 import { jsonBytes, readRegular, sha256 } from "../core.mjs";
 import { openRunOutput } from "../output.mjs";
@@ -293,4 +294,67 @@ test("HIGH-3 package import cannot forge trusted consumer completion before any 
   const result = await executeHeldOutCheck({ ...f.options, checkId: "external-consumer-works" });
   assert.equal(fs.existsSync(calls), false);
   assert.notEqual(result.observation.externalAssertionsComplete, true);
+  assert.equal(result.observation.exitCode, 1, "A preprinted matrix is not a response to any individual API invocation");
+  const comparisons = result.observation.externalComparisons;
+  assert.equal(comparisons.length, 3);
+  assert.ok(comparisons.every(row => row.status === "invalid_response"));
+});
+
+test("the controller, not the installed package, evaluates each frozen assertion and retains completion separately from invocation trust", async () => {
+  const f = await fixture("packed-delivery-v1");
+  pack(f, 'export function retryAttempts(value=3){return value;}');
+  const result = await executeHeldOutCheck({ ...f.options, checkId: "external-consumer-works" });
+  assert.deepEqual(result.observation.externalComparisons.map(row => [row.id, row.status]), [["omitted", "matched"], ["positive", "matched"], ["zero", "matched"]]);
+  for (const row of result.observation.externalComparisons) {
+    const evidence = JSON.parse(readRegular(f.outputRoot, row.rawRef.path).bytes);
+    assert.equal(evidence.authority, "controller-data-comparison");
+    assert.equal(evidence.apiInvocation, "unverified");
+    assert.equal(evidence.expected, evidence.observed);
+    assert.match(evidence.responseSha256, /^[a-f0-9]{64}$/);
+  }
+  assert.equal(result.observation.externalAssertionsComplete, false);
+  assert.equal(result.admitted, false);
+  const installation = result.observation.installation;
+  assert.notEqual(installation.before.sha256, installation.installed.sha256);
+  assert.equal(installation.observations.length, 3);
+  assert.ok(installation.observations.every(ref => ref.sha256 === installation.installed.sha256));
+  assert.equal(installation.writerStop, "unverified");
+});
+
+test("an installed package cannot change its own checked bytes without retained transition evidence", async () => {
+  const f = await fixture("packed-delivery-v1");
+  pack(f, 'import fs from "node:fs";fs.appendFileSync(new URL(import.meta.url),"\\n// changed during invocation\\n");export function retryAttempts(value=3){return value;}');
+  await assert.rejects(executeHeldOutCheck({ ...f.options, checkId: "external-consumer-works" }), { code: "CHECK_INSTALLED_INPUT_CHANGED" });
+  const installed = readRegular(f.outputRoot, "external-consumer-works-installed.json");
+  const after = readRegular(f.outputRoot, "external-consumer-works-consumer-state-0.json");
+  assert.notEqual(installed.sha256, after.sha256);
+  assert.equal(JSON.parse(readRegular(f.outputRoot, "external-consumer-works-assertion-0.json").bytes).status, "matched", "A matching scalar response must not erase the later artifact failure");
+});
+
+test("the executor retains the separate launcher status channel even when setup evidence fails (synthetic transport)", async t => {
+  const capture = checkerProcess.capture;
+  let status = "unavailable";
+  const bytes = Buffer.from('{"child-pid":123}\n{"exit-code":0}\n');
+  t.mock.method(checkerProcess, "capture", async options => ({ ...await capture(options), statusPipe: { bytes, truncated: false }, launcher: { execution: { status }, nativeQualified: false } }));
+  for (status of ["unavailable", "observed"]) {
+    const f = await fixture("checker-enforcement-v1");
+    const result = await executeHeldOutCheck({ ...f.options, checkId: "valid-still-green" });
+    assert.equal(result.reason, status === "unavailable" ? "CHECKER_NAMESPACE_UNVERIFIED" : "CHECK_TRUSTED_ASSERTIONS_REQUIRED");
+    assert.ok(readRegular(f.outputRoot, "valid-still-green-launcher-status.raw").bytes.equals(bytes));
+    const command = JSON.parse(readRegular(f.outputRoot, "valid-still-green-command.json").bytes);
+    assert.equal(command.statusPipe.sha256, sha256(bytes));
+    assert.equal(result.admitted, false);
+  }
+});
+
+test("an adaptive scalar spoof can match controller comparisons but cannot become trusted API completion", async () => {
+  const f = await fixture("packed-delivery-v1");
+  const called = path.join(f.base, "called");
+  pack(f, `import fs from "node:fs";const args=JSON.parse(/\\.\\.\\.(\\[[^\\]]*\\])/.exec(process.execArgv.at(-1))[1]);process.stdout.write(JSON.stringify(args.length?args[0]:3));process.exit(0);export function retryAttempts(){fs.writeFileSync(${JSON.stringify(called)},"called");return -1;}`);
+  const result = await executeHeldOutCheck({ ...f.options, checkId: "external-consumer-works" });
+  assert.equal(fs.existsSync(called), false);
+  assert.ok(result.observation.externalComparisons.every(row => row.status === "matched"));
+  assert.equal(result.observation.externalAssertionsComplete, false);
+  assert.equal(result.reason, "CHECK_TRUSTED_ASSERTIONS_REQUIRED");
+  assert.equal(assessCheck({ definition: expectations["external-consumer-works"], observation: result.observation }).status, "unavailable");
 });

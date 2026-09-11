@@ -9,7 +9,7 @@ export function tracedConnection({ connection, directory, executable = "/usr/bin
   absoluteRoot(directory);
   pathIdentities(directory);
   requireCondition(fs.readdirSync(directory).length === 0 && path.isAbsolute(connection.path) && Array.isArray(connection.args), "TRACE_INPUT_INVALID", "The OS tracer requires a fresh private directory and the actual native executable invocation");
-  return { ...connection, path: executable, args: ["--kill-on-exit", "-ff", "-qq", "-ttt", "-yy", "-s", "65536", "-e", `trace=${calls}`, "-e", `raw=${raw}`, "-o", path.join(directory, "syscalls"), "--", connection.path, ...connection.args] };
+  return { ...connection, path: executable, args: ["--kill-on-exit", "-ff", "-q", "-ttt", "-yy", "-s", "65536", "-e", `trace=${calls}`, "-e", `raw=${raw}`, "-o", path.join(directory, "syscalls"), "--", connection.path, ...connection.args] };
 }
 
 export function readWriterTrace({ directory, retain, ownedSpawns }) {
@@ -30,8 +30,12 @@ export function readWriterTrace({ directory, retain, ownedSpawns }) {
     let exited = false;
     let exitCode = null;
     let pending = "";
+    let activeExec;
+    let executionIndex = 0;
     for (const line of lines) {
       let body = line.replace(/^\d+\.\d+ /, "");
+      const timestamp = Number(/^\d+\.\d+/.exec(line)?.[0]);
+      if (!Number.isFinite(timestamp)) complete = false;
       if (body.endsWith("<unfinished ...>")) {
         if (pending) complete = false;
         pending = body.slice(0, -"<unfinished ...>".length);
@@ -47,14 +51,28 @@ export function readWriterTrace({ directory, retain, ownedSpawns }) {
         exited = true;
         const code = /^(?:exit|exit_group)\((\d+)\)|^\+\+\+ exited with (\d+)/.exec(body);
         if (code) exitCode = Number(code[1] ?? code[2]);
+        if (activeExec && body.startsWith("+++ ") && !pending && Number.isFinite(timestamp)) {
+          const signal = /^\+\+\+ killed by (SIG[A-Z0-9]+)/.exec(body)?.[1] ?? null;
+          activeExec.outcome = { kind: signal ? "signaled" : "exited", timestamp, exitCode: signal ? null : exitCode, signal };
+        }
         continue;
       }
       if (/^--- SIG/.test(body)) continue;
       const match = /^([a-z_0-9]+)\((.*)\)\s+= (.+)$/.exec(body);
       if (!match) { complete = false; continue; }
       const [, call, args, result] = match;
-      operations.push({ pid, call, args, result, timestamp: Number(/^\d+\.\d+/.exec(line)?.[0]) });
-      if (["execve", "execveat"].includes(call)) executions.push({ pid, call, args, result, timestamp: Number(/^\d+\.\d+/.exec(line)?.[0]) });
+      const event = { pid, call, args, result, timestamp };
+      operations.push(event);
+      if (["execve", "execveat"].includes(call)) {
+        executions.push(event);
+        if (result === "0") {
+          event.executionId = `${pid}:${++executionIndex}`;
+          event.identity = "unavailable";
+          event.outcome = { kind: "unavailable" };
+          if (activeExec && Number.isFinite(timestamp)) activeExec.outcome = { kind: "replaced", timestamp, replacement: event.executionId };
+          activeExec = event;
+        }
+      }
       if (["clone", "clone3", "fork", "vfork"].includes(call) && /^[1-9][0-9]*$/.test(result)) parents.set(Number(result), pid);
       const effect = /^(write|writev|pwrite64|pwritev|pwritev2|truncate|ftruncate|rename|renameat|renameat2|unlink|unlinkat|mkdir|mkdirat|rmdir|link|linkat|symlink|symlinkat|chmod|fchmodat|chown|lchown|fchownat|utime|utimes|utimensat|copy_file_range|sendfile|connect|bind|mount|umount2|ptrace|process_vm_writev|creat)$/.test(call) || /^(open|openat|openat2)$/.test(call) && /O_(WRONLY|RDWR|CREAT|TRUNC)/.test(args);
       if (effect) mutations.push({ pid, call, args, result, succeeded: !result.startsWith("-1 ") });

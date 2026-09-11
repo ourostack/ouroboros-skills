@@ -46,7 +46,11 @@ export async function completedControllerFixture(caseId, options = {}) {
       run("npm", ["install", path.join(actor, archive), "--ignore-scripts", "--offline"], consumer);
       run(process.execPath, ["--input-type=module", "-e", 'import { retryAttempts } from "packed-delivery-fixture"; console.log(retryAttempts(), retryAttempts(5), retryAttempts(0));'], consumer);
       const filename_ = path.join(f.opened.traceDirectories[0], "syscalls.4242");
-      const rows = commands.map((argv, index) => `${index + 2}.0 execve(${JSON.stringify(argv[0] === "npm" ? "/usr/bin/npm" : process.execPath)}, ${JSON.stringify(argv)}, 0x0) = 0`);
+      const rows = commands.map((argv, index) => {
+        const pid = 4243 + index;
+        fs.writeFileSync(path.join(f.opened.traceDirectories[0], `syscalls.${pid}`), `${index + 2}.1 execve(${JSON.stringify(argv[0] === "npm" ? "/usr/bin/npm" : process.execPath)}, ${JSON.stringify(argv)}, 0x0) = 0\n${index + 2}.2 +++ exited with 0 +++\n`);
+        return `${index + 2}.0 fork() = ${pid}`;
+      });
       fs.writeFileSync(filename_, ['1.0 execve("/native", ["native"], 0x0) = 0', ...rows, '9.0 exit_group(0) = ?'].join("\n") + "\n");
     }
     if (caseId === "review-recovery-state" && turn === 2) {

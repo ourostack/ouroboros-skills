@@ -59,7 +59,9 @@ export async function executeHeldOutCheck({ fixtureId, checkId, actorRoot, check
     const prefix = `${checkId}${suffix}`;
     const stdout = save(`${prefix}-stdout.raw`, result.stdout.bytes);
     const stderr = save(`${prefix}-stderr.raw`, result.stderr.bytes);
-    save(`${prefix}-command.json`, jsonBytes({ executable, argv, cwd, environment: extraEnv, ...result, stdout, stderr }));
+    const statusPipe = result.statusPipe && save(`${prefix}-launcher-status.raw`, result.statusPipe.bytes);
+    save(`${prefix}-command.json`, jsonBytes({ executable, argv, cwd, environment: extraEnv, ...result, stdout, stderr, ...statusPipe ? { statusPipe } : {} }));
+    requireCondition(!result.launcher || result.launcher.execution.status === "observed", "CHECKER_NAMESPACE_UNVERIFIED", "The private launcher channel did not report setup and initial-child exit");
     requireCondition(result.status === "exited" && Number.isInteger(result.exitCode) && result.signal === null && result.cleanup.unverifiedPids.length === 0, "CHECK_COMMAND_UNAVAILABLE", `Check execution ended without a complete exit: ${result.status}`);
     return result;
   }
@@ -83,27 +85,47 @@ export async function executeHeldOutCheck({ fixtureId, checkId, actorRoot, check
       };
     } else if (checkId === "external-consumer-works") {
       const archives = before.filter(member => !member.path.startsWith(".git/") && member.path.endsWith(".tgz"));
-      observation = { ...observation, archiveAvailable: archives.length === 1, exitCode: 1, matrix: [], externalAssertionsComplete: false };
+      observation = { ...observation, archiveAvailable: archives.length === 1, exitCode: 1, matrix: [], externalComparisons: [], externalAssertionsComplete: false };
       if (archives.length === 1) {
         const archive = archives[0];
         observation.archiveSha256 = archive.sha256;
         const consumer = path.join(workRoot, "consumer");
         fs.mkdirSync(consumer, { mode: 0o700 });
         fs.writeFileSync(path.join(consumer, "package.json"), jsonBytes({ private: true, type: "module" }), { flag: "wx", mode: 0o600 });
+        const consumerState = suffix => save(`${checkId}-${suffix}.json`, jsonBytes(listRegularFiles(consumer)));
+        observation.installation = { before: consumerState("before-install"), observations: [], writerStop: "unverified" };
         const installed = await run("-install", "npm", ["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", path.join(subject, archive.path)], {}, consumer);
         if (installed.exitCode === 0) {
+          observation.installation.installed = consumerState("installed");
           const cases = JSON.parse(readRegular(checkerRoot, "public-matrix.json").bytes).cases;
-          const script = `import {retryAttempts} from "packed-delivery-fixture";const cases=${JSON.stringify(cases.map(value => value.arguments))};process.stdout.write(JSON.stringify(cases.map(args=>({arguments:args,observed:retryAttempts(...args)})))+"\\n");`;
-          const result = await run("-consumer", process.execPath, ["--input-type=module", "-e", script], {}, consumer);
-          try {
-            const matrix = JSON.parse(result.stdout.bytes);
-            if (Array.isArray(matrix) && matrix.length === cases.length && matrix.every((row, index) => canonicalJson(row.arguments) === canonicalJson(cases[index].arguments) && Object.hasOwn(row, "observed"))) {
-              observation.matrix = matrix;
-              // Package stdout is diagnostic data, never proof that our API assertions ran.
-              observation.exitCode = result.exitCode === 0 && matrix.every((row, index) => Object.is(row.observed, cases[index].expected)) ? 0 : 1;
-            }
-          } catch { /* An early process exit or malformed result is not external-consumer completion. */ }
-          observation.externalCompletionRef = save(`${checkId}-external-completion.json`, jsonBytes({ archiveSha256: archive.sha256, consumer, commandExit: result.exitCode, matrix: observation.matrix, externalAssertionsComplete: observation.externalAssertionsComplete, exitCode: observation.exitCode }));
+          for (const [index, item] of cases.entries()) {
+            // Only the API input crosses into the candidate. Expected values and comparisons stay here.
+            const script = `import {retryAttempts} from "packed-delivery-fixture";process.stdout.write(JSON.stringify(retryAttempts(...${JSON.stringify(item.arguments)}))+"\\n");`;
+            const result = await run(`-consumer-${index}`, process.execPath, ["--input-type=module", "-e", script], {}, consumer);
+            let observed = null;
+            let status = "invalid_response";
+            try {
+              const value = JSON.parse(result.stdout.bytes);
+              if (typeof value === "number" && Number.isFinite(value)) {
+                observed = value;
+                status = result.exitCode === 0 && Object.is(value, item.expected) ? "matched" : "mismatched";
+                observation.matrix.push({ arguments: item.arguments, observed });
+              }
+            } catch { /* Raw malformed responses remain retained; they cannot complete an assertion. */ }
+            const rawRef = save(`${checkId}-assertion-${index}.json`, jsonBytes({
+              authority: "controller-data-comparison", apiInvocation: "unverified", id: item.id, arguments: item.arguments,
+              expected: item.expected, observed, status, commandExit: result.exitCode,
+              archiveSha256: archive.sha256, sourceManifestSha256: sha256(jsonBytes(snapshot)),
+              installedPackageManifestSha256: observation.installation.installed.sha256, responseSha256: sha256(result.stdout.bytes),
+            }));
+            observation.externalComparisons.push({ id: item.id, status, rawRef });
+            const after = consumerState(`consumer-state-${index}`);
+            observation.installation.observations.push(after);
+            requireCondition(after.sha256 === observation.installation.installed.sha256, "CHECK_INSTALLED_INPUT_CHANGED", "Installed input bytes changed during the attempted API invocation; retained comparisons cannot admit it");
+          }
+          observation.exitCode = observation.externalComparisons.every(row => row.status === "matched") ? 0 : 1;
+          // Executed controller comparisons do not prove the package invoked its exported API.
+          observation.externalCompletionRef = save(`${checkId}-external-completion.json`, jsonBytes({ archiveSha256: archive.sha256, consumer, installation: observation.installation, comparisons: observation.externalComparisons, matrix: observation.matrix, externalAssertionsComplete: false, exitCode: observation.exitCode }));
         }
       }
     } else if (checkId === "original-contract-preserved") {

@@ -95,12 +95,11 @@ export function observePackagePipeline({ trace, retain }) {
       else unknownConsumer = true;
     }
     if (step) {
-      const terminal = trace.processes.find(process => process.pid === event.pid);
-      if (!Number.isInteger(terminal?.exitCode)) return {};
-      pipelineCandidates.push({ step, exitCode: terminal.exitCode, rawRef: retain(`pipeline-${pipelineCandidates.length}.json`, { event, terminal, rawRefs: trace.rawRefs }) });
+      if (event.outcome?.kind !== "exited" || !Number.isInteger(event.outcome.exitCode)) return {};
+      pipelineCandidates.push({ step, executionId: event.executionId, exitCode: event.outcome.exitCode, rawRef: retain(`pipeline-${pipelineCandidates.length}.json`, { event, rawRefs: trace.rawRefs }) });
     }
   }
-  // Syscall argv/path and a PID's eventual exit do not bind bytes at exec, cwd or artifact transitions.
+  // An image's actual exit still does not bind bytes at exec, cwd or artifact transitions.
   // No caller-supplied "verified" record can fill this missing OS instrumentation.
   return unknownConsumer && !pipelineCandidates.some(value => value.step === "consumer") ? {} : { pipelineCandidates, availability: "unavailable", requiredCapability: "Trusted exec-time executable/script identity, cwd, per-exec exits and build/archive/install/consumer artifact bindings" };
 }

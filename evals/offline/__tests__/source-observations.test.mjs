@@ -13,7 +13,7 @@ import { dataRoot, workRoot } from "./helpers/paths.mjs";
 const retain = (path, value) => ({ path, sha256: sha256(jsonBytes(value)) });
 const trace = () => ({ executions: [], mutations: [], operations: [], processes: [], rawRefs: [], traceCoverage: "complete" });
 function pipeline(commands, exitCode = 0) {
-  return { ...trace(), executions: commands.map((argv, index) => ({ timestamp: index, pid: index + 1, args: `${JSON.stringify(argv[0] === "npm" ? "/usr/bin/npm" : argv[0] === "node" ? process.execPath : "/bin/tool")}, ${JSON.stringify(argv)}, 0x0`, result: "0" })), processes: commands.map((_, index) => ({ pid: index + 1, exitCode })) };
+  return { ...trace(), executions: commands.map((argv, index) => ({ timestamp: index, pid: index + 1, executionId: `${index + 1}:1`, outcome: { kind: "exited", exitCode }, args: `${JSON.stringify(argv[0] === "npm" ? "/usr/bin/npm" : argv[0] === "node" ? process.execPath : "/bin/tool")}, ${JSON.stringify(argv)}, 0x0`, result: "0" })), processes: commands.map((_, index) => ({ pid: index + 1, exitCode })) };
 }
 const consumer = 'import { retryAttempts } from "packed-delivery-fixture"; console.log(retryAttempts(), retryAttempts(5), retryAttempts(0));';
 test("HIGH-4 outside-root and denied mutation attempts cannot be clean authority negatives", () => {
@@ -31,6 +31,14 @@ test("HIGH-5 execve operand cannot be replaced by npm or node argv impersonation
   for (const event of forged.executions) event.args = event.args.replace(/^"[^"]*"/, '"/bin/echo"');
   assert.notEqual(observePackagePipeline({ trace: forged, retain }).pipeline?.length, 4);
   assert.equal(observePackagePipeline({ trace: forged, retain }).pipelineCandidates.length, 0);
+});
+test("a replaced npm image cannot borrow its replacement's successful PID exit", () => {
+  const observed = pipeline([["npm", "pack"]]);
+  observed.executions[0].executionId = "1:1";
+  observed.executions[0].outcome = { kind: "replaced", timestamp: 2, replacement: "1:2" };
+  assert.deepEqual(observePackagePipeline({ trace: observed, retain }), {});
+  delete observed.executions[0].outcome;
+  assert.deepEqual(observePackagePipeline({ trace: observed, retain }), {});
 });
 test("pipeline observations require actual successful execution and terminal records, not command keywords", () => {
   const commands = [["npm", "run", "build"], ["npm", "pack"], ["npm", "install", "--offline", "artifact.tgz"], ["node", "--input-type=module", "-e", consumer]];

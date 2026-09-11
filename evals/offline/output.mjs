@@ -173,7 +173,8 @@ export function readCommittedRun(root) {
   validateReceipt(receipt, marker.runId, receipt.executionKind);
   return { marker, inventory, receipt, receiptSha256: receiptMember.sha256, inventorySha256: inventoryMember.sha256 };
 }
-export async function captureBoundedCommand({ executable, argv, cwd, env, limits, signal }) {
+export async function captureBoundedCommand({ executable, argv, cwd, env, limits, signal, statusPipe = false }) {
+  requireCondition(typeof statusPipe === "boolean", "INVALID_COMMAND", "An optional launcher status pipe must be explicitly selected");
   requireCondition(nonblank(executable) && Array.isArray(argv) && argv.length <= 256 && argv.every(value => typeof value === "string" && value.length <= 65536 && !value.includes("\0")) && plainObject(env) && Object.entries(env).every(([key, value]) => nonblank(key) && typeof value === "string" && !key.includes("=") && !key.includes("\0") && !value.includes("\0")), "INVALID_COMMAND", "Command capture requires executable, argv and explicit environment, never a shell string");
   const directory = absoluteRoot(cwd);
   pathIdentities(directory);
@@ -181,8 +182,10 @@ export async function captureBoundedCommand({ executable, argv, cwd, env, limits
   const cleanupMs = limits.cleanupMs ?? 1000;
   requireCondition(Number.isSafeInteger(cleanupMs) && cleanupMs > 0 && cleanupMs <= 30000, "INVALID_COMMAND_CLEANUP_LIMIT", "Command cleanup must also be bounded");
   return new Promise(resolve => {
-    const captured = { stdout: [], stderr: [] };
-    const lengths = { stdout: 0, stderr: 0 };
+    const names = ["stdout", "stderr", ...(statusPipe ? ["statusPipe"] : [])];
+    const captured = Object.fromEntries(names.map(name => [name, []]));
+    const lengths = Object.fromEntries(names.map(name => [name, 0]));
+    const streams = {};
     const timers = [];
     const errors = [];
     let child;
@@ -201,6 +204,7 @@ export async function captureBoundedCommand({ executable, argv, cwd, env, limits
         status: failure ? failure.status : "exited", exitCode, signal: exitSignal, failure, errors, elapsedMs: Date.now() - startedAt,
         stdout: { bytes: Buffer.concat(captured.stdout), truncated: lengths.stdout >= limits.maxStreamBytes && failure?.code === "COMMAND_OUTPUT_OVERFLOW" },
         stderr: { bytes: Buffer.concat(captured.stderr), truncated: lengths.stderr >= limits.maxStreamBytes && failure?.code === "COMMAND_OUTPUT_OVERFLOW" },
+        ...(statusPipe ? { statusPipe: { bytes: Buffer.concat(captured.statusPipe), truncated: lengths.statusPipe >= limits.maxStreamBytes && failure?.code === "COMMAND_OUTPUT_OVERFLOW" } } : {}),
         cleanup: { ownedSpawns: processIdentity ? [processIdentity] : [], exitObservations: processIdentity && exited ? [{ ...processIdentity, exited: true, exitCode, signal: exitSignal }] : [], unverifiedPids: processIdentity && !exited ? [processIdentity.pid] : [], scope: "captured-direct-child-only" },
       });
     }
@@ -210,7 +214,7 @@ export async function captureBoundedCommand({ executable, argv, cwd, env, limits
       stopping = true;
       child.kill("SIGTERM");
       timers.push(setTimeout(() => child.kill("SIGKILL"), Math.max(1, Math.floor(cleanupMs / 2))));
-      timers.push(setTimeout(() => { child.stdout.destroy(); child.stderr.destroy(); finish(null, null, false); }, cleanupMs));
+      timers.push(setTimeout(() => { for (const stream of Object.values(streams)) stream.destroy(); finish(null, null, false); }, cleanupMs));
     }
     function abort() { stop("cancelled", "COMMAND_CANCELLED", "The owning command run was cancelled"); }
     if (signal?.aborted) {
@@ -218,15 +222,23 @@ export async function captureBoundedCommand({ executable, argv, cwd, env, limits
       finish(null, null, false);
       return;
     }
-    child = spawn(executable, argv, { cwd: directory, env, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+    child = spawn(executable, argv, { cwd: directory, env, shell: false, stdio: ["ignore", "pipe", "pipe", ...(statusPipe ? ["pipe"] : [])] });
     signal?.addEventListener("abort", abort, { once: true });
-    for (const channel of ["stdout", "stderr"]) child[channel].on("data", bytes => {
-      if (settled) return;
-      const prefix = bytes.subarray(0, Math.max(0, limits.maxStreamBytes - lengths[channel]));
-      captured[channel].push(Buffer.from(prefix));
-      lengths[channel] += prefix.length;
-      if (prefix.length !== bytes.length) stop("infrastructure_failure", "COMMAND_OUTPUT_OVERFLOW", "Command output exceeded its raw-byte bound");
-    });
+    for (const channel of names) {
+      streams[channel] = channel === "statusPipe" ? child.stdio[3] : child[channel];
+      streams[channel].on("data", bytes => {
+        if (settled) return;
+        const prefix = bytes.subarray(0, Math.max(0, limits.maxStreamBytes - lengths[channel]));
+        captured[channel].push(Buffer.from(prefix));
+        lengths[channel] += prefix.length;
+        if (prefix.length !== bytes.length) stop("infrastructure_failure", "COMMAND_OUTPUT_OVERFLOW", "Command output exceeded its raw-byte bound");
+      });
+      streams[channel].once("error", error => {
+        if (settled) return;
+        errors.push({ channel, code: error.code, message: error.message });
+        stop("infrastructure_failure", "COMMAND_STREAM_FAILED", "A captured command stream failed");
+      });
+    }
     child.once("error", error => {
       errors.push({ code: error.code, message: error.message });
       failure ??= { status: "infrastructure_failure", code: error.code, message: error.message };

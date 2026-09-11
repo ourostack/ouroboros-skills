@@ -29,6 +29,8 @@ test("checker namespace construction is fail-closed and never treats launcher ou
   await assert.rejects(captureConfinedChecker(options), { code: "EACCES" });
   for (mode of ["owner", "writable", "link"]) await assert.rejects(captureConfinedChecker(options), { code: "CHECKER_OS_BOUNDARY_REQUIRED" });
   mode = "valid";
+  const read = fs.readFileSync;
+  t.mock.method(fs, "readFileSync", (filename, ...args) => filename === "/usr/bin/bwrap" ? Buffer.from("Synthetic binary identity, not native proof") : read(filename, ...args));
   const realpath = fs.realpathSync;
   let runtime = "/opt/node/bin/node";
   t.mock.method(fs, "realpathSync", (filename, ...args) => filename === process.execPath ? runtime : realpath(filename, ...args));
@@ -38,15 +40,16 @@ test("checker namespace construction is fail-closed and never treats launcher ou
   await assert.rejects(captureConfinedChecker(options), { code: "CHECKER_OS_BOUNDARY_REQUIRED" });
   runtime = "/opt/node/bin/node";
   await assert.rejects(captureConfinedChecker({ ...options, subject: "/usr/candidate" }), { code: "CHECKER_OS_BOUNDARY_REQUIRED" });
-  const read = fs.readFileSync;
-  t.mock.method(fs, "readFileSync", (filename, ...args) => filename === "/usr/bin/bwrap" ? Buffer.from("Synthetic binary identity, not native proof") : read(filename, ...args));
   let invocation;
+  let statusBytes = "";
+  let exitSignal = null;
   t.mock.method(childProcess, "spawn", (executable, argv, settings) => {
     invocation = { executable, argv, settings };
-    const child = Object.assign(new EventEmitter(), { pid: 999999, stdout: new PassThrough(), stderr: new PassThrough() });
+    const child = Object.assign(new EventEmitter(), { pid: 999999, stdout: new PassThrough(), stderr: new PassThrough(), stdio: [null, null, null, new PassThrough()] });
     queueMicrotask(() => {
       child.stdout.end("untrusted namespace-looking output");
-      child.emit("close", 1, null);
+      child.stdio[3].end(statusBytes);
+      child.emit("close", 1, exitSignal);
     });
     return child;
   });
@@ -56,8 +59,34 @@ test("checker namespace construction is fail-closed and never treats launcher ou
   assert.equal(result.launcher.nativeQualified, false);
   assert.equal(invocation.executable, "/usr/bin/bwrap");
   assert.deepEqual(invocation.settings.env, { PATH: "/usr/bin:/bin" });
-  assert.deepEqual(invocation.argv.slice(0, 11), ["--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL", "--uid", "65534", "--gid", "65534", "--clearenv", "--ro-bind"]);
+  assert.deepEqual(invocation.argv.slice(0, 13), ["--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL", "--uid", "65534", "--gid", "65534", "--clearenv", "--json-status-fd", "3", "--ro-bind"]);
   assert.ok(invocation.argv.includes("--proc"));
   assert.ok(invocation.argv.includes("--ro-bind"));
   assert.deepEqual(invocation.argv.slice(-4), ["--", options.executable, "-e", "candidate"]);
+  assert.ok(invocation.argv.includes("--json-status-fd"));
+  assert.equal(invocation.settings.stdio[3], "pipe");
+  assert.equal(result.launcher.execution.status, "unavailable", "stdout and wrapper exit cannot replace the private status pipe");
+  statusBytes = '{"child-pid":123,"user-namespace":42}\n{"exit-code":1}\n';
+  const observed = await captureConfinedChecker(options);
+  assert.deepEqual(observed.launcher.execution, { status: "observed", childPid: 123, shellExitCode: 1, scope: "launcher-reported-initial-child-exit-only" });
+  assert.equal(observed.statusPipe.bytes.toString(), statusBytes);
+  assert.equal(observed.launcher.nativeQualified, false);
+  for (statusBytes of [
+    "not json\n",
+    '{"exit-code":1}\n',
+    '{"child-pid":123}\n',
+    '{"child-pid":123}\n{"exit-code":0}\n',
+    '{"child-pid":123}\n{"exit-code":1}',
+    '{"child-pid":123}\n{"exit-code":1}\n{"exit-code":1}\n',
+    '{"child-pid":999999}\n{"exit-code":1}\n',
+    '{"child-pid":-1}\n{"exit-code":1}\n',
+    'null\n{"exit-code":1}\n',
+    '{"child-pid":123}\nnull\n',
+    '{"child-pid":123}\n{"exit-code":-1}\n',
+    '{"child-pid":123}\n{"exit-code":256}\n',
+    '{"child-pid":123}\n{"exit-code":"1"}\n',
+  ]) assert.equal((await captureConfinedChecker(options)).launcher.execution.status, "unavailable");
+  exitSignal = "SIGKILL";
+  assert.equal((await captureConfinedChecker(options)).launcher.execution.status, "unavailable");
+  assert.equal((await captureConfinedChecker({ ...options, signal: AbortSignal.abort() })).launcher.execution.status, "unavailable");
 });

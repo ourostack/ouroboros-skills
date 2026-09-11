@@ -84,7 +84,21 @@ test("the owning command cancellation is distinct from an SDK invocation's norma
 
 test("command construction rejects malformed argv, environment and limits without starting a child", async () => {
   const valid = options("");
-  for (const delta of [{ argv: "shell string" }, { env: null }, { env: { value: 1 } }, { argv: ["nul\0argument"] }, { limits: { maxStreamBytes: 0, timeoutMs: 1 } }, { limits: { maxStreamBytes: 1, timeoutMs: 1, cleanupMs: 0 } }]) await assert.rejects(() => captureBoundedCommand({ ...valid, ...delta }));
+  for (const delta of [{ statusPipe: "true" }, { argv: "shell string" }, { env: null }, { env: { value: 1 } }, { argv: ["nul\0argument"] }, { limits: { maxStreamBytes: 0, timeoutMs: 1 } }, { limits: { maxStreamBytes: 1, timeoutMs: 1, cleanupMs: 0 } }]) await assert.rejects(() => captureBoundedCommand({ ...valid, ...delta }));
+});
+
+test("real host transport captures FD 3 separately and bounds its overflow without claiming native isolation", async () => {
+  const captured = await captureBoundedCommand({ ...options('require("node:fs").writeSync(3,"private");process.stdout.write("forged status");'), statusPipe: true });
+  assert.equal(captured.statusPipe.bytes.toString(), "private");
+  assert.equal(captured.stdout.bytes.toString(), "forged status");
+  assert.equal(captured.statusPipe.truncated, false);
+  const overflow = await captureBoundedCommand({ ...options('require("node:fs").writeSync(3,"x".repeat(4096));setInterval(()=>{},1000);'), statusPipe: true });
+  assert.equal(overflow.failure.code, "COMMAND_OUTPUT_OVERFLOW");
+  assert.equal(overflow.statusPipe.bytes.length, 32);
+  assert.equal(overflow.statusPipe.truncated, true);
+  const cancelled = await captureBoundedCommand({ ...options(""), statusPipe: true, signal: AbortSignal.abort() });
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.statusPipe.bytes.length, 0);
 });
 
 function syntheticChild() {
@@ -100,11 +114,12 @@ function syntheticChild() {
 test("an unverified synthetic direct-child exit cannot outlive the finite cleanup budget", async t => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   const child = syntheticChild();
+  child.stdio = [null, child.stdout, child.stderr, new PassThrough()];
   const original = childProcess.spawn;
   childProcess.spawn = () => child;
   syncBuiltinESMExports();
   try {
-    const pending = captureBoundedCommand({ ...options(""), limits: { maxStreamBytes: 32, timeoutMs: 10, cleanupMs: 20 } });
+    const pending = captureBoundedCommand({ ...options(""), statusPipe: true, limits: { maxStreamBytes: 32, timeoutMs: 10, cleanupMs: 20 } });
     t.mock.timers.tick(10);
     t.mock.timers.tick(10);
     t.mock.timers.tick(10);
@@ -114,6 +129,7 @@ test("an unverified synthetic direct-child exit cannot outlive the finite cleanu
     assert.deepEqual(child.signals, ["SIGTERM", "SIGKILL"]);
     assert.deepEqual(result.cleanup.unverifiedPids, [child.pid]);
     assert.equal(child.stdout.destroyed, true);
+    assert.equal(child.stdio[3].destroyed, true);
     child.stdout.emit("data", Buffer.from("late"));
     assert.equal(result.stdout.bytes.length, 0);
     child.emit("close", 0, null);
@@ -136,4 +152,22 @@ test("an error raised during timeout cleanup does not erase the original timeout
     assert.equal(result.errors[0].code, "EIO");
     assert.deepEqual(result.cleanup.unverifiedPids, [child.pid]);
   } finally { childProcess.spawn = original; syncBuiltinESMExports(); }
+});
+
+test("a launcher status transport error fails capture and still bounds owned-child cleanup", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const child = syntheticChild();
+  child.stdio = [null, child.stdout, child.stderr, new PassThrough()];
+  t.mock.method(childProcess, "spawn", () => child);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const pending = captureBoundedCommand({ ...options(""), statusPipe: true });
+  child.stdio[3].emit("error", Object.assign(new Error("source-test status transport failure"), { code: "EIO" }));
+  t.mock.timers.tick(300);
+  const result = await pending;
+  assert.equal(result.failure.code, "COMMAND_STREAM_FAILED");
+  assert.equal(result.errors[0].channel, "statusPipe");
+  assert.deepEqual(result.cleanup.unverifiedPids, [child.pid]);
+  child.stdout.emit("error", new Error("late stream error"));
+  assert.equal(result.errors.length, 1);
 });
