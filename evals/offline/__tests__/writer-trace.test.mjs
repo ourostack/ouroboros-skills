@@ -37,6 +37,7 @@ test("synthetic syscall parser controls retain writes, denied authority and chil
     '1.5 clone(flags=SIGCHLD) = 124',
     '1.6 --- SIGCHLD {si_signo=SIGCHLD} ---',
     '1.7 exit_group(0) = ?',
+    '1.8 +++ exited with 0 +++',
   ].join("\n"));
   fs.writeFileSync(path.join(dir, "syscalls.124"), '1.2 creat("other", 0600) = 4\n1.4 +++ killed by SIGTERM +++\n');
   const result = readWriterTrace({ directory: dir, retain, ownedSpawns: [{ pid: 123 }] });

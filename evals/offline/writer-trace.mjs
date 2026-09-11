@@ -47,11 +47,13 @@ export function readWriterTrace({ directory, retain, ownedSpawns }) {
         body = pending + resumed[2];
         pending = "";
       }
-      if (/^(exit|exit_group)\(\d+\)\s+= \?$/.test(body) || /^\+\+\+ (exited with \d+|killed by SIG[A-Z0-9]+.*) \+\+\+$/.test(body)) {
+      // An exit syscall records intent, not the tracer's observation that the process terminated.
+      if (/^(exit|exit_group)\(\d+\)\s+= \?$/.test(body)) continue;
+      if (/^\+\+\+ (exited with \d+|killed by SIG[A-Z0-9]+.*) \+\+\+$/.test(body)) {
         exited = true;
-        const code = /^(?:exit|exit_group)\((\d+)\)|^\+\+\+ exited with (\d+)/.exec(body);
-        if (code) exitCode = Number(code[1] ?? code[2]);
-        if (activeExec && body.startsWith("+++ ") && !pending && Number.isFinite(timestamp)) {
+        const code = /^\+\+\+ exited with (\d+)/.exec(body);
+        exitCode = code ? Number(code[1]) : null;
+        if (activeExec && !pending && Number.isFinite(timestamp)) {
           const signal = /^\+\+\+ killed by (SIG[A-Z0-9]+)/.exec(body)?.[1] ?? null;
           activeExec.outcome = { kind: signal ? "signaled" : "exited", timestamp, exitCode: signal ? null : exitCode, signal };
         }

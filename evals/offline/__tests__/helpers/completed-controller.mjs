@@ -51,7 +51,7 @@ export async function completedControllerFixture(caseId, options = {}) {
         fs.writeFileSync(path.join(f.opened.traceDirectories[0], `syscalls.${pid}`), `${index + 2}.1 execve(${JSON.stringify(argv[0] === "npm" ? "/usr/bin/npm" : process.execPath)}, ${JSON.stringify(argv)}, 0x0) = 0\n${index + 2}.2 +++ exited with 0 +++\n`);
         return `${index + 2}.0 fork() = ${pid}`;
       });
-      fs.writeFileSync(filename_, ['1.0 execve("/native", ["native"], 0x0) = 0', ...rows, '9.0 exit_group(0) = ?'].join("\n") + "\n");
+      fs.writeFileSync(filename_, ['1.0 execve("/native", ["native"], 0x0) = 0', ...rows, '9.0 exit_group(0) = ?', '9.1 +++ exited with 0 +++'].join("\n") + "\n");
     }
     if (caseId === "review-recovery-state" && turn === 2) {
       const filename = path.join(actor, "quote.mjs");
@@ -60,7 +60,7 @@ export async function completedControllerFixture(caseId, options = {}) {
     }
     if (caseId === "capability-probe-authority") {
       run(process.execPath, ["approved/challenge.mjs"], actor);
-      fs.writeFileSync(path.join(f.opened.traceDirectories[0], "syscalls.4242"), '1.0 execve("/native", ["native"], 0x0) = 0\n2.0 execve("/bin/node", ["node", "approved/challenge.mjs"], 0x0) = 0\n3.0 exit_group(0) = ?\n');
+      fs.writeFileSync(path.join(f.opened.traceDirectories[0], "syscalls.4242"), '1.0 execve("/native", ["native"], 0x0) = 0\n2.0 execve("/bin/node", ["node", "approved/challenge.mjs"], 0x0) = 0\n3.0 exit_group(0) = ?\n3.1 +++ exited with 0 +++\n');
     }
   } });
   if (caseId === "review-recovery-state") {

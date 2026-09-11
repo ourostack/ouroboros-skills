@@ -90,7 +90,7 @@ export async function controllerFixture(caseId = "checker-is-enforced", options 
   const traces = (definition.turns ?? [{}]).map((_, index) => {
     const directory = path.join(root, `trace-${index}`);
     fs.mkdirSync(directory);
-    fs.writeFileSync(path.join(directory, "syscalls.4242"), '1.0 execve("/opt/native/index.js", ["native"], 0x0 /* 0 vars */) = 0\n2.0 exit_group(0) = ?\n');
+    fs.writeFileSync(path.join(directory, "syscalls.4242"), '1.0 execve("/opt/native/index.js", ["native"], 0x0 /* 0 vars */) = 0\n2.0 exit_group(0) = ?\n2.1 +++ exited with 0 +++\n');
     return directory;
   });
   fs.mkdirSync(path.join(root, "checks"));
