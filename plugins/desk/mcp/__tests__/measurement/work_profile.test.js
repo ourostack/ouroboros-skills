@@ -260,6 +260,39 @@ test("output is deterministic, bounded, sanitized and carries the actual byte ha
   assert.throws(() => renderWorkProfile(p, "html"), /format/i)
 })
 
+test("dense Markdown is a readable summary while JSON retains the complete evidence", () => {
+  const input = richSnapshot()
+  input.source_refs = ["source:synthetic-dense-capture"]
+  input.coverage_refs = ["coverage:synthetic-selected-rows"]
+  input.episodes = [{ episode_id: "correction", label: "Scope correction", class: "inferred", fact_ids: ["user-2", "turn-2-end"], output_refs: ["artifact:synthetic-revision"], evidence_refs: ["evidence:synthetic-correction"] }]
+  for (let index = 0; index < 100; index++) {
+    const call = `opaque-operation-${index}`
+    input.facts.push(
+      fact(`machine-only-start-${index}`, "tool.execution_start", 100 + index * 2, "worker-a", { toolCallId: call, toolName: "synthetic.command" }),
+      fact(`machine-only-end-${index}`, "tool.execution_complete", 101 + index * 2, "worker-a", { toolCallId: call }, { status: "success", exit_code: index % 3 === 0 ? 0 : index % 3 === 1 ? 2 : null }),
+    )
+  }
+  const p = profile(input)
+  const json = renderWorkProfile(p, "json")
+  const markdown = renderWorkProfile(p, "markdown")
+  assert.equal(p.observations.operations.tool.matched, 103)
+  assert.ok(json.includes("machine-only-start-99") && json.includes("opaque-operation-99"))
+  assert.ok(!markdown.includes("machine-only-start-") && !markdown.includes("opaque-operation-"), "full event/operation identities belong in the JSON trail, not wide Markdown tables")
+  assert.match(markdown, /Activity summary/)
+  assert.match(markdown, /Tool calls/)
+  assert.match(markdown, /Scope correction/)
+  assert.match(markdown, /inferred/)
+  assert.match(markdown, /artifact:synthetic-revision/)
+  assert.match(markdown, /source:synthetic-dense-capture/)
+  assert.match(markdown, /coverage:synthetic-selected-rows/)
+  assert.match(markdown, /unassessed/)
+  assert.match(markdown, /JSON output/)
+  assert.ok(!markdown.includes("native&#95;session&#95;id"), "binding must use readable labels rather than a serialized JSON object")
+  for (const line of markdown.split("\n").filter((line) => line.startsWith("|"))) {
+    assert.ok(line.split("|").length <= 7, "summary tables must not exceed five columns")
+  }
+})
+
 test("malformed snapshots, records, counters and annotations refuse instead of dropping errors", () => {
   for (const raw of [Buffer.from(""), Buffer.from("{"), Buffer.from([0xff]), bytes(null), bytes([]), bytes({}), bytes({ schema_version: 2 }), bytes({ ...snapshot(), facts: [] })]) {
     assert.throws(() => buildWorkProfile(raw))

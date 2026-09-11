@@ -402,26 +402,48 @@ export function renderWorkProfile(profile, format) {
       for (const row of values) rows.push(`| ${row.map((value) => escape(value === null ? "unknown" : value)).join(" | ")} |`)
       rows.push("")
     }
-    rows.push(`# Desk work profile: ${escape(profile.binding.title)}`, "", `Input SHA-256: ${profile.source_snapshot_sha256}`, "", "## Binding and coverage", "", `Declared binding: ${escape(JSON.stringify(profile.binding))}`, "", escape(profile.coverage.note), "", `Facts: ${profile.coverage.included_facts} included, ${profile.coverage.excluded_facts} excluded, ${profile.coverage.duplicate_facts} duplicate imports. Missing operation endpoints: ${profile.coverage.missing_operation_endpoints}.`, "")
-    for (const name of ["full_job_usage", "parent_overhead", "independent_acceptance", "causal_productivity"]) rows.push(`${name}: unavailable. ${escape(profile.coverage[name].reason)}`, "")
-    rows.push(`Sources: ${escape(JSON.stringify(profile.coverage.source_refs))}`, "", `Coverage references: ${escape(JSON.stringify(profile.coverage.coverage_refs))}`, "", "## Rooted agents", "")
-    table(["Agent", "Parent", "Dispatch", "Evidence"], profile.observations.agents.map((a) => [a.agent_id, a.parent_agent_id, a.dispatch_tool_call_id, a.evidence_fact_ids.join(", ")]))
-    rows.push("## Operation spans", "", escape(profile.observations.operations.semantics), "", `Combined interval union (ms): ${profile.observations.operations.interval_union_ms ?? "unknown"}`, "")
-    for (const type of ["tool", "hook", "assistant_step"]) {
-      const group = profile.observations.operations[type]
-      rows.push(`### ${type}`, "", `Matched: ${group.matched}; unmatched starts: ${group.unmatched_starts}; unmatched ends: ${group.unmatched_ends}; summed latency (ms): ${group.summed_latency_ms ?? "unknown"}; interval union (ms): ${group.interval_union_ms ?? "unknown"}.`, "")
-      table(["Agent", "Operation", "Interaction", "Start fact", "End fact", "Start", "End", "Latency ms", "Transport", "Command", "Exit code"], group.spans.map((s) => [s.agent_id, s.operation_id, s.interaction, s.start_fact_id, s.end_fact_id, s.started_at, s.ended_at, s.duration_ms, s.transport_status, s.operation_status, s.exit_code]))
+    function references(label, values) {
+      if (values.length) rows.push(`### ${label}`, "", ...values.map((value) => `- ${escape(value)}`), "")
     }
-    rows.push("## Selected native usage", "", escape(profile.observations.usage.scope), "", escape(profile.observations.usage.caution), "")
-    table(["Dimension", "Subtotal", "Unit", "Known rows", "Unknown rows"], Object.entries(profile.observations.usage.dimensions).map(([name, d]) => [name, d.value, d.unit, d.known_rows, d.unknown_rows]))
-    for (const group of profile.observations.usage.groups) rows.push(escape(JSON.stringify(group)), "")
-    rows.push("## Separate aggregates and compactions", "")
-    for (const observation of [...profile.observations.aggregates, ...profile.observations.compactions]) rows.push(escape(JSON.stringify(observation)), "")
-    rows.push(`Assistant messages: ${profile.observations.assistant_messages}. Model calls: unavailable. ${escape(profile.observations.model_calls.reason)}`, "", `Critical path: unavailable. ${escape(profile.observations.critical_path.reason)}`, "", "## Episodes and outcome", "")
+    rows.push(`# Desk work profile: ${escape(profile.binding.title)}`, "", `Input SHA-256: ${profile.source_snapshot_sha256}`, "", "## Outcome and episodes", "", `Outcome: ${escape(profile.outcome.status.replaceAll("_", " "))}. Acceptance: ${escape(profile.outcome.acceptance)}; independent acceptance is unavailable.`, "", `${profile.outcome.artifact_refs.length} artifact references supplied. Publication and a returned worker do not establish acceptance.`, "")
     if (!profile.episodes.length) rows.push("No episode annotations supplied; episode token usage is unavailable.", "")
-    for (const episode of profile.episodes) rows.push(escape(JSON.stringify(episode)), "")
-    rows.push(`Outcome: ${escape(JSON.stringify(profile.outcome))}`, "", "## Event/source trail", "")
-    table(["Fact IDs", "Scope", "Kind", "Agent", "Timestamp", "Source pointer", "Metadata"], profile.observations.events.map((f) => [f.fact_ids.join(", "), f.scope, f.kind, f.agent_id, f.timestamp, JSON.stringify(f.source_ref), JSON.stringify(f.fields)]))
+    for (const episode of profile.episodes) {
+      rows.push(`### ${escape(episode.label)}`, "", `Classification: ${escape(episode.class)}. Cites ${episode.fact_ids.length} source facts and ${episode.output_refs.length} output references. Token allocation: unavailable.`, "")
+    }
+    rows.push("Scope correction is not automatically defect rework. Episode evidence and output references are preserved in the JSON output and the references below.", "", "## Activity summary", "", `${profile.observations.agents.length} structurally bound agents. Facts: ${profile.coverage.included_facts} included, ${profile.coverage.excluded_facts} excluded, ${profile.coverage.duplicate_facts} duplicate imports.`, "")
+    const operationTypes = { tool: "Tool calls", hook: "Hook callbacks", assistant_step: "Assistant steps" }
+    const activity = Object.entries(operationTypes).map(([type, label]) => [label, profile.observations.operations[type]])
+    table(["Observation", "Matched", "Missing start", "Missing end"], activity.map(([label, group]) => [label, group.matched, group.unmatched_ends, group.unmatched_starts]))
+    rows.push("Missing endpoints are gaps, not zero durations. Assistant step IDs are interaction-local; step counts are not external turns or model-call counts.", "", "### Observed intervals", "", escape(profile.observations.operations.semantics), "")
+    table(["Observation", "Sum (ms)", "Union (ms)"], activity.map(([label, group]) => [label, group.summed_latency_ms, group.interval_union_ms]))
+    rows.push(`Combined interval union (ms): ${profile.observations.operations.interval_union_ms ?? "unknown"}. This does not establish job lead time or active reasoning time.`, "")
+    const returns = profile.observations.operations.tool.spans.filter((span) => span.end_fact_id !== null)
+    const knownTransport = returns.filter((span) => span.transport_status !== null)
+    const successfulTransport = knownTransport.filter((span) => span.transport_status === "success").length
+    const knownExits = returns.filter((span) => span.exit_code !== null)
+    const zeroExits = knownExits.filter((span) => span.exit_code === 0).length
+    rows.push("### Tool returns and command evidence", "")
+    table(["Reported signal", "Returns"], [
+      ["Successful transport", successfulTransport],
+      ["Other reported transport status", knownTransport.length - successfulTransport],
+      ["Transport status not reported", returns.length - knownTransport.length],
+      ["Explicit zero exit code", zeroExits],
+      ["Explicit nonzero exit code", knownExits.length - zeroExits],
+      ["Underlying exit code not reported", returns.length - knownExits.length],
+    ])
+    rows.push("Transport success does not establish command success. A nonzero exit can be a probe result or a dependency failure; it is not automatically a product defect.", "", "## Selected native usage", "", escape(profile.observations.usage.scope), "", `${profile.observations.usage.selected_rows} selected rows in ${profile.observations.usage.groups.length} source groups. Unknown rows are not zero; the JSON output retains each group's dimensions and source identities.`, "")
+    table(["Dimension", "Subtotal", "Known / selected", "Unit"], Object.entries(profile.observations.usage.dimensions).map(([name, dimension]) => [name.replaceAll("_", " "), dimension.value, `${dimension.known_rows} / ${dimension.known_rows + dimension.unknown_rows}`, dimension.unit.replaceAll("_", " ")]))
+    rows.push(escape(profile.observations.usage.caution), "", "## Separate observations", "", `Completion aggregates: ${profile.observations.aggregates.length}. They may overlap selected usage, cover only an earlier interaction, and do not establish final job closure.`, "", `Compaction observations: ${profile.observations.compactions.length}. These are not added to usage rows; non-overlap is unproven and the native duration unit is unspecified. Exact quantities remain in the JSON output.`, "", `Assistant messages: ${profile.observations.assistant_messages}. Model calls: unavailable. ${escape(profile.observations.model_calls.reason)}`, "", "## Coverage limits", "", escape(profile.coverage.note), "")
+    for (const name of ["full_job_usage", "parent_overhead", "independent_acceptance", "causal_productivity"]) rows.push(`- ${name.replaceAll("_", " ")}: unavailable. ${escape(profile.coverage[name].reason)}`)
+    rows.push(`- Critical path: unavailable. ${escape(profile.observations.critical_path.reason)}`, "", "## Binding and references", "", `Root agent: ${escape(profile.binding.root_agent_id)}`, "", `Native session: ${escape(profile.binding.native_session_id)}`, "", `Originating dispatch: ${escape(profile.binding.dispatch_tool_call_id)}`, "", `Declared work item: ${escape(profile.binding.work_item_id ?? "not supplied")}. Canonical ledger identity: ${escape(profile.binding.canonical_ledger_identity)}.`, "", `Declared task reference: ${escape(profile.binding.task_ref ?? "not supplied")}`, "", "### Event/source trail", "", `The JSON output with this input hash retains all ${profile.observations.events.length} deduplicated source records, fact-ID aliases, hashes, timestamps, rooted relationships and complete operation spans. This Markdown is a reading summary, not a replacement for that evidence.`, "")
+    references("Source references", profile.coverage.source_refs)
+    references("Coverage references", profile.coverage.coverage_refs)
+    references("Outcome evidence", profile.outcome.evidence_refs)
+    references("Artifact references", profile.outcome.artifact_refs)
+    for (const episode of profile.episodes) {
+      references(`Outputs: ${escape(episode.label)}`, episode.output_refs)
+      references(`Evidence: ${escape(episode.label)}`, episode.evidence_refs)
+    }
     output = `${rows.join("\n")}\n`
   }
   requireFact(Buffer.byteLength(output) <= 32 * 1024 * 1024, "Profile exceeds the 32 MiB output limit")
