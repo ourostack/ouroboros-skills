@@ -1259,6 +1259,21 @@ test("CI workflow YAML parses before its commands are inspected", () => {
   }
 })
 
+test("mechanical CI tests exact alpha pushes without changing PR or default-branch triggers", () => {
+  for (const filename of ["desk-mcp-tests.yml", "validate-skills.yml"]) {
+    const source = loadText(".github", "workflows", filename)
+    const { data } = matter(`---\n${source}\n---\n`)
+    assert.deepEqual(Object.keys(data.on).sort(), ["pull_request", "push"], filename)
+    assert.deepEqual(data.on.push.branches, ["main", "v2-alpha"], filename)
+    assert.equal(Object.hasOwn(data.on, "pull_request"), true, filename)
+    for (const job of Object.values(data.jobs)) {
+      for (const step of job.steps.filter(step => step.uses?.startsWith("actions/checkout@"))) {
+        assert.equal(step.with?.ref, undefined, `${filename} must test the triggering revision`)
+      }
+    }
+  }
+})
+
 test("desk MCP CI runs committed artifact and host manifest verifiers", () => {
   const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
 

@@ -55,6 +55,7 @@ on:
   push:
     branches:
       - main
+      - v2-alpha
     paths:
       - ".gitattributes"
       - "evals/offline/**"
