@@ -60,7 +60,7 @@ The desk plugin (this plugin's home) registers the following skill categories wi
 - Engineering posture: `work-orchestration`, `git-hygiene`, `repo-handling`, `archive-workflow`, `add-workspace-mcp`
 - Interaction: `interaction-style`
 - PR craft: `pr-surface-hygiene`, `pr-feedback-on-own-pr`, `pr-self-review`, `pr-review-interrogation`, `pr-reviewer-audit`, `operator-voice-comments`, `peer-pr-review`
-- Knowledge capture: `friction-management`, `lesson-capture`, `curator`
+- Knowledge capture: `content-routing` (product repository vs workspace vs generic plugin vs context overlay), `friction-management`, `lesson-capture`, `curator`
 - Investigation: `runtime-symptom-investigation`, `evidence-discipline`, `preflight-actions`
 - Browser: `cdp-headed-browser`
 - Onboarding: `codex-onboarding`
