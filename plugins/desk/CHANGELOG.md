@@ -8,6 +8,8 @@ Desk `3.2.0-alpha.4` couples to `desk-mcp@1.4.0-alpha.4` and Plain Language `0.2
 
 Generated activation, the flattened Copilot bundle, Codex activation fixtures, host support matrices and the reviewed-source kernel fingerprint were regenerated once from their existing producers for this candidate. All three runtime packs ship for this version, each produced on the platform and Node ABI it claims: macOS ARM64 on Node ABI 127 from the maintainer's host, Linux x64 on Node 22.23.2 (ABI 127) and Windows x64 on Node 24.18.0 (ABI 137) from their own native runners, which load each pack's native code before publishing it. Generated-artifact verification covers all three. Native runtime qualification, consumer-composition qualification and the alpha's own evaluation stay pending.
 
+`content-routing` now treats the product repository as a first-class home. Product behavior, interfaces, installation contracts, defaults, compatibility promises and release rules belong in that repository's source, documentation and executable tests. Workspace and plugin routing happens only after that product-contract check.
+
 ## 3.2.0-alpha.3 — 2026-09-09
 
 **Opt-in Superpowers source candidate, not a default installation change or native-admission claim.** Desk selects pinned Superpowers 6.3.0 as the sole engineering method. Desk/Crew retain state, existing approvals, delegation limits and intentional alpha/PR-only delivery boundaries. The independent-review contract makes RoboRev a first-class host-provided reviewer with one implementation owner for remediation and re-review. Work Suite remains available as a legacy standalone provider.
