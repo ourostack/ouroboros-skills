@@ -25,7 +25,7 @@ ouroboros-skills/
       SKILL.md
     inch-worm/               # Open-ended improvement loop
       SKILL.md
-    video-editing/           # Remotion-based video production
+    video-editing/           # FCP, Premiere, Remotion, and hybrid video production
       SKILL.md
     word-docs/               # Markdown to Word doc conversion
       SKILL.md
@@ -84,7 +84,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **build-native-apple-app** | Plan, build, audit, and ship native Apple apps for iOS, iPadOS, macOS, watchOS, tvOS, and visionOS. |
 | **seo-titles** | Write HTML title tags that rank and get clicked. |
 | **book-fetch** | Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. |
-| **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
+| **video-editing** | Plan and produce demo, presentation, and product videos across Final Cut Pro, Premiere, Remotion, and hybrid workflows. |
 | **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
 | **product-cloner** | Clone an existing app's look, feel, and behavior from shipped source as ground truth. |
 

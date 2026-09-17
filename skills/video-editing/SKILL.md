@@ -1,15 +1,15 @@
 ---
 name: video-editing
-description: Build and edit videos using Remotion with kinetic typography, VO-synced timing, and motion design. Use this skill when the user asks to create, edit, or fix video content — especially presentation videos, demo reels, or kinetic text films. Complements frontend-design for motion/video work.
+description: Plan and produce demo, presentation, and product videos across Final Cut Pro, Premiere, Remotion, and hybrid workflows. Use when the user asks to create, edit, or fix video content. Covers script-first story design, footage breakdowns, edit packets, VO sync, motion graphics, audio, and visual QA.
 ---
 
-# Video Editing with Remotion
+# Video Editing
 
 ## 1. OVERVIEW
 
-This skill guides the creation of polished, VO-synced video content using Remotion. It covers kinetic typography, demo footage editing, voiceover alignment, music beat-sync, particle/motion design, and the editorial workflow for presentation videos.
+This skill guides the creation of polished demo, presentation, and product videos. It supports human-led NLE edits in Final Cut Pro or Premiere, agent-led Remotion compositions, and hybrids where the human owns the timeline while the agent supplies selects, graphics, audio, captions, and timing evidence.
 
-The core workflow has eight phases: Discovery, Understand Footage, Voiceover, Music, Build Reference Docs, Build Compositions, Beat-Sync & Taste, and QA & Render. Every phase feeds forward — skip one and later phases break.
+Choose the production seat and story order before building. Narrative-led films usually lock the outline and script before footage and timing. Footage-led walkthroughs start from the source recording. The later phases are Understand Footage, Voiceover, Music, Build Reference Docs, Build or Package Visuals, Beat-Sync and Taste, and QA and Render.
 
 **The single most important principle**: write everything down. Context windows compress. If timings, breakdowns, or sync maps exist only in conversation history, they will be lost. Every phase produces a file.
 
@@ -20,27 +20,30 @@ The core workflow has eight phases: Discovery, Understand Footage, Voiceover, Mu
 ```
 project-root/
 ├── PROJECT.md               <- entry point (creative brief, constraints, status)
-├── timing-reference.md      <- THE single-pass edit guide (see Phase 5)
-├── media/                   <- Remotion publicDir (staticFile() reads from here)
+├── edit-packet.md           <- NLE-led source selects, timecodes, overlays, and assembly notes
+├── timing-reference.md      <- Remotion/audio timing source of truth (see Phase 5)
+├── media/                   <- production footage, audio, and design assets
 │   ├── footage/             <- clips + breakdown.md
 │   ├── vo/                  <- wavs + timestamps/ + timestamps.md + master.md + manifest.md + generate-vo.py
 │   ├── music/               <- tracks + analysis.md
 │   └── assets/              <- design files + style-reference.md
 ├── demo-sources/            <- archival originals (not consumed by Remotion)
-├── output/                  <- rendered finals
-└── remotion-demo/           <- code only (publicDir -> ../media)
+├── output/                  <- rendered finals and review proxies
+├── graphics/                <- alpha overlays, title cards, and export-ready motion assets
+├── fcp/                     <- optional FCPXML, marker lists, and editor handoff files
+└── remotion-demo/           <- optional code-only graphics or full composition
 ```
 
 **Why this layout:**
 
-- **`media/` is the Remotion publicDir.** Remotion's `staticFile()` resolves against publicDir. Keeping all runtime assets in one tree means fast renders — Remotion only indexes what it needs. Configure in `remotion.config.ts`: `Config.setPublicDir("../media")`.
+- **`media/` contains production assets.** When Remotion is used, make it the publicDir so `staticFile()` resolves against the same tree. Configure in `remotion.config.ts`: `Config.setPublicDir("../media")`.
 - **`demo-sources/` is archival.** Raw screen recordings, original exports, reference clips. These are NOT in `media/` because Remotion would index them, slowing studio startup and bloating renders.
 - **Each subdirectory has its own reference doc alongside the files it describes.** `footage/breakdown.md`, `vo/timestamps.md`, `music/analysis.md`, `assets/style-reference.md`. These are deep-dive docs for verification. The agent's primary reference is `timing-reference.md` at the root.
-- **`remotion-demo/` contains only code.** Components, compositions, utilities. No media files.
+- **`remotion-demo/` is optional.** Use it for a full Remotion-led edit or for isolated graphics and alpha overlays in an NLE-led project. Components, compositions, and utilities live here. No media files.
 
-## 3. PHASE 1: DISCOVERY — Interview the Human
+## 3. PHASE 1: DISCOVERY — Establish the Story and Production Seat
 
-Before touching any code, have a conversation to understand the project.
+Before touching code or building a timeline, gather the unanswered project facts. Do not repeat questions the user has already answered. If the audience, editor, duration, source footage, and reference are clear, record them and move.
 
 ### Assets & materials
 - **Voiceover**: Is there a recorded VO? What format? Where is it?
@@ -62,7 +65,45 @@ Before touching any code, have a conversation to understand the project.
 - **Energy level**: Meditative? Punchy? Cinematic?
 - **Text role**: Editorial emphasis at key moments, or explanatory narration alongside VO?
 
-**Do not proceed until you understand these answers.** The biggest failures come from building on assumptions.
+Proceed once the material unknowns are settled. Do not gate obvious preparation behind another interview.
+
+### Choose the production seat
+
+Name who owns the editorial timeline before building anything:
+
+**Final Cut Pro-led or Premiere-led.** The human editor owns the timeline, final cuts, speed ramps, and taste. The agent prepares a low-friction edit packet: script drafts, footage breakdowns, source selects with exact in/out points, marker lists, contact sheets, crop instructions, freeze recommendations, caption files, separate VO/music stems, and export-ready graphics. Render motion graphics with transparency when useful. Do not build a competing full Remotion edit unless the user asks for one.
+
+**Remotion-led.** The agent owns the composition, timing, motion, audio placement, renders, and revision loop. The human reviews story and taste.
+
+**Hybrid.** The human assembles in the NLE. The agent uses Remotion or ffmpeg for title cards, magnifiers, diagrams, overlays, freeze clips, audio mixes, captions, and repeatable exports.
+
+Record the chosen seat in `PROJECT.md`. It can change, but do not silently switch editors mid-project.
+
+### Script-first or footage-first
+
+Use **script-first** for narrative product films, hackathon demos, launch videos, explainers, and any story where the argument matters more than preserving a source recording. Lock the outline first. Draft the script next. Build the production storyboard after the human is happy with the story. A style reference supplies visual grammar, not the new film's runtime or asset inventory.
+
+Use **footage-first** for product walkthroughs, rebrands, customer demos built around an existing recording, and edits where the source footage constrains the story. Break down the footage before rewriting narration.
+
+Do not use an animatic to settle a story the human has not read. A motion study is fine for proving a visual treatment, but label it internally and keep it out of the main review path until the script is ready.
+
+### Technical hackathon demos: earn the so what
+
+A technical audience may understand the mechanism and still miss how to use it. Give the practical model enough time:
+
+1. Establish the familiar baseline and the problem.
+2. Explain the operating model in concrete terms.
+3. Show one complete worked example.
+4. Name the behavior the audience should copy in its own work.
+5. End on proof, expansion, or the next capability.
+
+For agent demos, explain how to delegate: give the agent an outcome, constraints, and the human decisions to retain. Show the agent doing routine work without handholding. Show what information reaches the human, what the decision authorizes, and what happens on approval and rejection. Approval count is not the payoff. Useful autonomy with deliberate human judgment is.
+
+### Low-token collaboration
+
+When the human is token constrained or editing directly in an NLE, move detail into files instead of chat. Keep the conversation for story, wording, and taste. Prepare the source selects, frame sheets, edit packet, overlays, stems, captions, and exact paths without asking the human to supervise the mechanics.
+
+Open the one artifact that needs judgment. Do not make the human review scaffolding, implementation notes, failed experiments, or process history. Keep iteration scars in git history and task records, not in the clean creative brief or script.
 
 ### Working backwards from constraints
 
@@ -407,6 +448,8 @@ This anatomy matters for beat-sync decisions in Phase 7.
 
 `timing-reference.md` is THE document an editing session needs. An agent should be able to read it ONCE and have every number needed to build or modify any composition. Subdirectory docs (`breakdown.md`, `timestamps.md`, `analysis.md`) are for deep dives and verification.
 
+For a Final Cut Pro-led or Premiere-led project, use `edit-packet.md` as the human editor's single-pass file. Keep Remotion implementation details out of it. The editor needs composition time, source filename, source in/out, speed, crop, transition, overlay filename, VO line, and the reason the shot exists.
+
 ### What it must contain
 
 1. **VO durations** — every file's total duration (from `ffprobe`, not whisper) and sentence timestamps
@@ -421,7 +464,27 @@ This anatomy matters for beat-sync decisions in Phase 7.
 
 **Update this file every time you change timing.** Stale timing references cause drift.
 
-## 8. PHASE 6: BUILD COMPOSITIONS — Remotion Specifics
+### NLE edit packet
+
+For every source clip, write one row:
+
+| Composition time | Source | Source in/out | Picture | Treatment | Audio | Purpose |
+|---|---|---|---|---|---|---|
+| 0:42-0:49 | `agent-request.mp4` | 1:27.2-1:34.2 | Native approval arrives | Crop to request, 108% push | VO sentence 8 | Proves the decision reaches Teams |
+
+Also deliver:
+
+- a contact sheet labeled in composition time;
+- 10fps frame strips around every cut, click, freeze, or UI transition;
+- FCP marker CSV or FCPXML only when it genuinely saves editor work;
+- separate transparent graphics, title cards, captions, VO stems, and music stems;
+- a short open-decisions list limited to story and taste.
+
+Do not hand the editor a Remotion source tree as the primary deliverable. The packet and rendered assets should be usable without reading code.
+
+## 8. PHASE 6: BUILD COMPOSITIONS OR PACKAGE NLE ASSETS
+
+For Remotion-led projects, build the full composition below. For Final Cut Pro-led or Premiere-led projects, build only the reusable graphics, audio, freeze clips, and exports the edit packet calls for. The NLE owns the final timeline.
 
 ### Remotion configuration
 
@@ -801,22 +864,30 @@ Each card appears at the exact moment the narrator says its first word. This cre
 
 ### FCP / Remotion division of labor
 
-For multicam screen recordings with typing, the human and the agent have different strengths:
+Treat Final Cut Pro as the primary editor when the user says they want to cut the film themselves. The split is not limited to multicam footage.
 
 **Human handles in FCP:**
+- Final story rhythm and taste calls
+- Timeline assembly and shot order
 - Multicam cuts between views (website ↔ Teams)
 - Typing speed ramps (8x speedup in compose boxes)
 - DOM artifact removal (accidental DevTools, console hacks)
 - Agent-thinking dead time cuts
+- Final reframes, transition feel, and editorial trims
 
-**Agent handles in Remotion:**
-- VO generation, placement, and sync to footage moments
-- Freeze frames at answer/summary/reply moments
-- Music bespoke cuts at structural dips
-- Title cards, persona cards, closing card sequences
-- Music ducking based on VO ranges
+**Agent prepares:**
+- Script and source-grounded outline before the production storyboard
+- Select reels, exact source in/out points, contact sheets, and marker lists
+- 10fps frame strips around edit-critical moments
+- Title cards, magnifiers, diagrams, cards, lower thirds, and closing sequences as standalone exports
+- Transparent ProRes 4444 overlays when the NLE should composite the graphic
+- VO generation, transcription, timestamps, and separate sentence files after script lock
+- Music analysis, bespoke cuts, ducked premixes, and separate stems after picture timing is stable
+- Captions, thumbnails, review proxies, QA frames, and the final evidence packet
 
-The human gives the agent a clean clip that plays at 1x throughout. The agent never attempts speed ramps — 1fps frame extraction can't identify precise typing start/stop boundaries, resulting in normal-speed typing leaking through or sped-up non-typing sections.
+The agent does not need to build a shadow edit to be useful. It should make the editor's next action obvious and cheap. When the human is token constrained, prepare the files and open the one script, select reel, or review proxy that needs judgment.
+
+The human gives the agent a clean clip when possible. The agent never attempts typing speed ramps from 1fps evidence. If the human wants the agent to prepare speed-ramp guidance, extract 10fps around the exact typing boundaries and record the range in the edit packet. The human applies the ramp in FCP.
 
 ### VO audit checklist for character changes (v2 → v3)
 

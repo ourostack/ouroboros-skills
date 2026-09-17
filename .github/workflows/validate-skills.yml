@@ -37,6 +37,9 @@ jobs:
       - name: Validate Work Suite
         run: node scripts/test-work-suite-contracts.cjs && node scripts/test-autopilot-state-audit.cjs
 
+      - name: Validate video editing workflow
+        run: node scripts/test-video-editing-contract.cjs
+
       - name: Validate upstream source steward
         run: node scripts/test-upstream-sources.cjs
 
