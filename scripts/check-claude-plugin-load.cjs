@@ -14,30 +14,34 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const repoRoot = path.resolve(__dirname, "..");
-const claude = process.env.CLAUDE_BIN || "claude";
+const defaultRepoRoot = path.resolve(__dirname, "..");
 
-function run(args, env) {
-  return execFileSync(claude, args, { cwd: repoRoot, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+function claudeRunner({ claude, repoRoot }) {
+  return (args, env) => execFileSync(claude, args, {
+    cwd: repoRoot,
+    env,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 }
 
-function checkPlugin(id) {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "claude-plugin-load-"));
+function checkPlugin(id, { run, repoRoot, baseEnv, tmpDir }) {
+  const scratch = fs.mkdtempSync(path.join(tmpDir, "claude-plugin-load-"));
   const home = path.join(scratch, "home");
   fs.mkdirSync(home);
-  const env = { ...process.env, HOME: home, CLAUDE_CONFIG_DIR: path.join(scratch, "config") };
+  const env = { ...baseEnv, HOME: home, CLAUDE_CONFIG_DIR: path.join(scratch, "config") };
 
   try {
     run(["plugin", "marketplace", "add", repoRoot], env);
     try {
       run(["plugin", "install", id], env);
     } catch (error) {
-      return [`${id}: install failed: ${(error.stderr || error.message).trim()}`];
+      return { failures: [`${id}: install failed: ${(error.stderr || error.message).trim()}`] };
     }
 
     // Report errors for the plugin and every dependency it pulled in.
-    const failures = [];
     const installed = JSON.parse(run(["plugin", "list", "--json"], env));
+    const failures = [];
     if (!installed.some((plugin) => plugin.id === id)) {
       failures.push(`${id}: not installed`);
     }
@@ -46,28 +50,62 @@ function checkPlugin(id) {
         failures.push(plugin.id === id ? `${id}: ${error}` : `${id} (dependency ${plugin.id}): ${error}`);
       }
     }
-    if (failures.length === 0) {
-      const loaded = installed.map((plugin) => `${plugin.id} ${plugin.version}`).join(", ");
-      console.log(`ok ${id} (loaded ${loaded})`);
-    }
-    return failures;
+    const loaded = installed.map((plugin) => `${plugin.id} ${plugin.version}`).join(", ");
+    return { failures, loaded };
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
 
-function main() {
+function run({
+  repoRoot = defaultRepoRoot,
+  env = process.env,
+  tmpDir = os.tmpdir(),
+  runClaude = claudeRunner({ claude: env.CLAUDE_BIN || "claude", repoRoot }),
+  stdout = process.stdout,
+  stderr = process.stderr,
+} = {}) {
   const marketplace = JSON.parse(fs.readFileSync(path.join(repoRoot, ".claude-plugin", "marketplace.json"), "utf8"));
-  console.log(`Claude Code ${execFileSync(claude, ["--version"], { encoding: "utf8" }).trim()}`);
+  stdout.write(`Claude Code ${runClaude(["--version"], env).trim()}\n`);
 
-  const failures = marketplace.plugins.flatMap((plugin) => checkPlugin(`${plugin.name}@${marketplace.name}`));
-  if (failures.length > 0) {
-    console.error(`\nClaude Code failed to load ${failures.length} plugin(s) or dependencies:`);
-    for (const failure of failures) {
-      console.error(`  ${failure}`);
+  const failures = [];
+  for (const plugin of marketplace.plugins) {
+    const id = `${plugin.name}@${marketplace.name}`;
+    const result = checkPlugin(id, { run: runClaude, repoRoot, baseEnv: env, tmpDir });
+    if (result.failures.length === 0) {
+      stdout.write(`ok ${id} (loaded ${result.loaded})\n`);
     }
-    process.exitCode = 1;
+    failures.push(...result.failures);
   }
+
+  if (failures.length === 0) {
+    return 0;
+  }
+  stderr.write(`\nClaude Code failed to load ${failures.length} plugin(s) or dependencies:\n`);
+  for (const failure of failures) {
+    stderr.write(`  ${failure}\n`);
+  }
+  return 1;
 }
 
-main();
+function startCli({
+  isMain = require.main === module,
+  runFn = run,
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+} = {}) {
+  if (!isMain) return null;
+  const code = runFn();
+  setExitCode(code);
+  return code;
+}
+
+module.exports = {
+  checkPlugin,
+  claudeRunner,
+  run,
+  startCli,
+};
+
+startCli();

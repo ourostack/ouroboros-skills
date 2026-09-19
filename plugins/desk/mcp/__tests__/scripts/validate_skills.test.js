@@ -517,6 +517,41 @@ test("validatePluginMetadata catches host manifest and marketplace drift", async
     /marketplace version/u,
   )
   await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/.claude-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      hooks: "./hooks/hooks.json",
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /desk: plugins\/desk\/.claude-plugin\/plugin.json must not declare hooks\/hooks.json/u,
+  )
+  await assertThrowsWith(
+    (root) => writeJson(root, "plugins/desk/.claude-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      dependencies: ["missing-plugin"],
+    }),
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /desk: .* depends on missing-plugin, which is not in the marketplace/u,
+  )
+  await assertThrowsWith(
+    (root) => {
+      writeJson(root, ".claude-plugin/marketplace.json", {
+        plugins: [
+          { name: "desk", version: "1.7.3", source: "plugins/desk" },
+          { name: "work-suite", version: "1.4.9", source: "plugins/work-suite" },
+        ],
+      })
+      writeJson(root, "plugins/desk/.claude-plugin/plugin.json", {
+        name: "desk",
+        version: "1.7.3",
+        dependencies: [{ name: "work-suite", version: "1.4.8" }],
+      })
+    },
+    (root) => validator.validatePluginMetadata({ repoRoot: root }),
+    /desk: .* pins work-suite 1.4.8, but the marketplace ships 1.4.9/u,
+  )
+  await assertThrowsWith(
     (root) => removePath(root, ".agents/plugins/marketplace.json"),
     (root) => validator.validatePluginMetadata({ repoRoot: root }),
     /Codex marketplace is missing/u,
@@ -786,4 +821,22 @@ test("run and startCli expose success, Error, non-Error, and no-op CLI paths", a
   } finally {
     process.exitCode = previousExitCode
   }
+})
+
+test("validatePluginMetadata accepts marketplace dependencies with matching or omitted pins", async () => {
+  await withFixtureRepo(async (root) => {
+    writeJson(root, ".claude-plugin/marketplace.json", {
+      plugins: [
+        { name: "desk", version: "1.7.3", source: "plugins/desk" },
+        { name: "work-suite", version: "1.4.9", source: "plugins/work-suite" },
+      ],
+    })
+    writeJson(root, "plugins/desk/.claude-plugin/plugin.json", {
+      name: "desk",
+      version: "1.7.3",
+      hooks: "./hooks/extra-hooks.json",
+      dependencies: ["work-suite", { name: "work-suite" }, { name: "work-suite", version: "1.4.9" }],
+    })
+    assert.doesNotThrow(() => validator.validatePluginMetadata({ repoRoot: root }))
+  })
 })
