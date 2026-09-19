@@ -1,0 +1,3 @@
+# Coverage runs write here; never commit their output.
+.nyc_output/
+coverage/
