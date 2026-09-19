@@ -43,3 +43,23 @@ jobs:
 
       - name: Validate Desk healthy-path docs
         run: node scripts/test-desk-docs.cjs
+
+  claude-code-load:
+    name: Claude Code plugin load
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Latest on purpose: users' Claude Code auto-updates, so a new load rule
+      # should fail here before it fails for them.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code
+
+      - name: Install and load every marketplace plugin
+        run: node scripts/check-claude-plugin-load.cjs

@@ -266,6 +266,27 @@ function validatePluginMetadata(options = {}) {
     if (plugin.version !== manifest.version) {
       throw new Error(`${plugin.name}: marketplace version ${plugin.version} does not match ${pluginPath} version ${manifest.version}`);
     }
+    if (typeof manifest.hooks === "string" && path.posix.normalize(manifest.hooks) === "hooks/hooks.json") {
+      throw new Error(`${plugin.name}: ${pluginPath} must not declare hooks/hooks.json; Claude Code loads it automatically and rejects the duplicate`);
+    }
+  }
+
+  const marketplaceVersions = new Map((marketplace.plugins ?? []).map((plugin) => [plugin.name, plugin.version]));
+  for (const plugin of marketplace.plugins ?? []) {
+    if (typeof plugin.source !== "string") {
+      continue;
+    }
+    const pluginPath = path.join(plugin.source, ".claude-plugin", "plugin.json");
+    for (const dependency of readJson(pluginPath, options).dependencies ?? []) {
+      const name = typeof dependency === "string" ? dependency : dependency.name;
+      const version = typeof dependency === "string" ? undefined : dependency.version;
+      if (!marketplaceVersions.has(name)) {
+        throw new Error(`${plugin.name}: ${pluginPath} depends on ${name}, which is not in the marketplace`);
+      }
+      if (version !== undefined && version !== marketplaceVersions.get(name)) {
+        throw new Error(`${plugin.name}: ${pluginPath} pins ${name} ${version}, but the marketplace ships ${marketplaceVersions.get(name)}`);
+      }
+    }
   }
 
   const codexPluginNames = pluginNames

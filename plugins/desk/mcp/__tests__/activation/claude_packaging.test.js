@@ -220,7 +220,8 @@ test("Claude plugin metadata declares native Desk surfaces and Superpowers depen
   assert.equal(deskPlugin.skills, "./skills/")
   assert.deepEqual(deskPlugin.agents, ["./agents/worker.md"])
   assert.equal(deskPlugin.mcpServers, "./.mcp.json")
-  assert.equal(deskPlugin.hooks, "./hooks/hooks.json")
+  // Claude Code loads hooks/hooks.json automatically and rejects a manifest that declares it again.
+  assert.equal(Object.hasOwn(deskPlugin, "hooks"), false)
   assert.equal(deskPlugin.outputStyles, "./output-styles/")
   assert.deepEqual(deskPlugin.dependencies, [
     {

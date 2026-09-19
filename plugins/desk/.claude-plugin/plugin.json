@@ -21,7 +21,6 @@
     "./agents/worker.md"
   ],
   "mcpServers": "./.mcp.json",
-  "hooks": "./hooks/hooks.json",
   "outputStyles": "./output-styles/",
   "dependencies": [
     {
