@@ -63,3 +63,23 @@ jobs:
 
       - name: Install and load every marketplace plugin
         run: node scripts/check-claude-plugin-load.cjs
+
+  gate:
+    # The single required check for this workflow; see the note in desk-mcp-tests.yml.
+    name: validate skills gate
+    if: always()
+    needs:
+      - validate
+      - claude-code-load
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require every job in this workflow to have succeeded or been skipped
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          printf '%s\n' "$RESULTS"
+          printf '%s' "$RESULTS" | jq -e 'to_entries | length > 0 and all(.value.result == "success" or .value.result == "skipped")' > /dev/null && exit 0
+          printf '%s' "$RESULTS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "::error::job \(.key) reported \(.value.result)"'
+          exit 1

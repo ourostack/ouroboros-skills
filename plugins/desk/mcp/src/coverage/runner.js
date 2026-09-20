@@ -24,6 +24,62 @@ const defaultMcpRoot = path.resolve(moduleDir, "..", "..")
 const defaultRepoRoot = path.resolve(defaultMcpRoot, "..", "..", "..")
 const require = createRequire(import.meta.url)
 
+// Two distinct reasons a test file cannot share the machine with another test worker.
+//
+// Deadline: the file asserts on elapsed wall-clock time, so a worker competing for an
+// instrumented CPU fails it for reasons that have nothing to do with the code under test.
+//
+// Singleton: the file drives the readiness controller, which is a per-user operating-system
+// singleton addressed by a socket path derived from a hashed controller identity. Two test
+// files doing connect-or-start against it at once contend for that endpoint and hang. Running
+// those concurrently is not merely slow, it is wrong.
+//
+// Everything else runs in parallel, which is the whole point: pinning the concurrency for the
+// entire suite cost roughly 4x to protect this handful of files.
+const SUITE_TEST_ROOT = "plugins/desk/mcp/__tests__"
+
+const SERIAL_TEST_FILES = [
+  // deadline
+  "plugins/desk/mcp/__tests__/indexer/vector_packs.test.js",
+  // singleton
+  "plugins/desk/mcp/__tests__/runtime/startup_status.test.js",
+]
+
+// A directory prefix, so a readiness test added later inherits the serial pass instead of
+// silently hanging the suite.
+const SERIAL_TEST_DIRECTORIES = [
+  "plugins/desk/mcp/__tests__/readiness",
+]
+
+export function collectSuiteTestFiles({ repoRoot }) {
+  const absoluteRoot = path.join(repoRoot, ...SUITE_TEST_ROOT.split("/"))
+  if (!existsSync(absoluteRoot)) return []
+  const found = []
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (entry.name.endsWith(".test.js")) found.push(full)
+    }
+  }
+  walk(absoluteRoot)
+  return found
+}
+
+export function partitionTestFiles({ repoRoot, files }) {
+  const serialFiles = new Set(
+    SERIAL_TEST_FILES.map((file) => path.join(repoRoot, ...file.split("/"))),
+  )
+  const serialDirectories = SERIAL_TEST_DIRECTORIES
+    .map((dir) => path.join(repoRoot, ...dir.split("/")) + path.sep)
+  const mustRunAlone = (file) =>
+    serialFiles.has(file) || serialDirectories.some((dir) => file.startsWith(dir))
+  return {
+    parallel: files.filter((file) => !mustRunAlone(file)),
+    serial: files.filter(mustRunAlone),
+  }
+}
+
 export function runCoverageCommand(options = {}) {
   const env = options.env ?? process.env
   const spawn = options.spawn ?? spawnSync
@@ -43,6 +99,7 @@ export function runCoverageCommand(options = {}) {
   const requiredFiles = collectChangedCoverageFiles({
     repoRoot,
     spawn,
+    env,
   })
   const coverageIncludeFiles = filterCoverageIncludeFiles({
     requiredFiles,
@@ -93,8 +150,8 @@ export function runCoverageCommand(options = {}) {
   }
 }
 
-export function collectChangedCoverageFiles({ repoRoot, spawn = spawnSync }) {
-  const changed = new Set(collectChangedFiles({ repoRoot, spawn }))
+export function collectChangedCoverageFiles({ repoRoot, spawn = spawnSync, env = process.env }) {
+  const changed = new Set(collectChangedFiles({ repoRoot, spawn, env }))
   return collectCoverageRequiredFiles({ repoRoot })
     .filter((file) => changed.has(file))
 }
@@ -108,22 +165,32 @@ export function filterCoverageIncludeFiles({ requiredFiles, exclusions = [] }) {
   return requiredFiles.filter((file) => !excludedPaths.has(normalizePath(file)))
 }
 
-export function collectChangedFiles({ repoRoot, spawn = spawnSync }) {
+export function collectChangedFiles({ repoRoot, spawn = spawnSync, env = process.env }) {
   return unique([
-    ...changedSinceMergeBase({ repoRoot, spawn }),
+    ...changedSinceMergeBase({ repoRoot, spawn, env }),
     ...gitLines({ repoRoot, spawn, args: ["diff", "--name-only", "--diff-filter=AM"] }),
     ...gitLines({ repoRoot, spawn, args: ["diff", "--cached", "--name-only", "--diff-filter=AM"] }),
     ...gitLines({ repoRoot, spawn, args: ["ls-files", "--others", "--exclude-standard"] }),
   ].map(normalizePath))
 }
 
-export function changedSinceMergeBase({ repoRoot, spawn = spawnSync }) {
-  const base =
-    gitText({ repoRoot, spawn, args: ["merge-base", "origin/main", "HEAD"] }) ||
-    gitText({ repoRoot, spawn, args: ["merge-base", "main", "HEAD"] })
-  return base
-    ? gitLines({ repoRoot, spawn, args: ["diff", "--name-only", "--diff-filter=AM", `${base}..HEAD`] })
-    : []
+export function changedSinceMergeBase({ repoRoot, spawn = spawnSync, env = process.env }) {
+  for (const ref of mergeBaseCandidates(env)) {
+    const base = gitText({ repoRoot, spawn, args: ["merge-base", ref, "HEAD"] })
+    if (!base) continue
+    return gitLines({ repoRoot, spawn, args: ["diff", "--name-only", "--diff-filter=AM", `${base}..HEAD`] })
+  }
+  return []
+}
+
+// The gate must measure what this pull request changed. On a long-lived release branch such
+// as v2-alpha, diffing against main instead measures everything that branch has accumulated,
+// so an unrelated pull request inherits a 100% coverage debt for files it never touched.
+export function mergeBaseCandidates(env) {
+  const prBase = env.GITHUB_BASE_REF
+  return prBase
+    ? [`origin/${prBase}`, prBase, "origin/main", "main"]
+    : ["origin/main", "main"]
 }
 
 function runInstrumentedTests({
@@ -160,20 +227,7 @@ function runInstrumentedTests({
   const registrationUrl = offline.registrationPath
     ? pathToFileURL(offline.registrationPath).href
     : `data:text/javascript,${encodeURIComponent(registration)}`
-  const args = [
-    require.resolve("nyc/bin/nyc.js"),
-    "--cwd", repoRoot,
-    "--nycrc-path", configPath,
-    process.execPath,
-    "--import", registrationUrl,
-    "--test",
-    // Instrumented fixture children must not compete with other test files for their unchanged startup deadlines.
-    "--test-concurrency=1",
-    path.join(repoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
-    // Separate path arguments run as separate test workers, so the offline suite and the CLI contract keep their own hooks.
-    ...offline.testTargets,
-  ]
-  return spawn(process.execPath, args, {
+  const spawnOptions = {
     cwd: defaultMcpRoot,
     encoding: "utf8",
     env: {
@@ -184,7 +238,44 @@ function runInstrumentedTests({
       ...(offline.registrationPath ? { OFFLINE_COVERAGE_PACKAGE_ROOT: defaultMcpRoot } : {}),
       DESK_COVERAGE_RUNNER_CHILD: "1",
     },
+  }
+  const nycArgs = ({ nycFlags = [], nodeFlags = [], targets }) => [
+    require.resolve("nyc/bin/nyc.js"),
+    "--cwd", repoRoot,
+    "--nycrc-path", configPath,
+    ...nycFlags,
+    process.execPath,
+    "--import", registrationUrl,
+    "--test",
+    ...nodeFlags,
+    // Separate path arguments run as separate test workers, so the offline suite and the CLI contract keep their own hooks.
+    ...targets,
+  ]
+
+  const { parallel, serial } = partitionTestFiles({
+    repoRoot,
+    files: collectSuiteTestFiles({ repoRoot }),
   })
+
+  // Pass one: the bulk of the suite at Node's default concurrency (one worker per CPU).
+  const parallelResult = spawn(process.execPath, nycArgs({
+    targets: [...parallel, ...offline.testTargets],
+  }), spawnOptions)
+  if (parallelResult.status !== 0 || serial.length === 0) return parallelResult
+
+  // Pass two: the deadline-sensitive files, alone and serial, once the machine is quiet.
+  // `--no-clean` preserves pass one's raw coverage in the temp directory, so this pass's
+  // report is the merge of both rather than a replacement for it.
+  const serialResult = spawn(process.execPath, nycArgs({
+    nycFlags: ["--no-clean"],
+    nodeFlags: ["--test-concurrency=1"],
+    targets: serial,
+  }), spawnOptions)
+  return {
+    ...serialResult,
+    stdout: `${parallelResult.stdout ?? ""}${serialResult.stdout ?? ""}`,
+    stderr: `${parallelResult.stderr ?? ""}${serialResult.stderr ?? ""}`,
+  }
 }
 
 function resolveOfflineEvaluationScope({ repoRoot, requiredFiles }) {

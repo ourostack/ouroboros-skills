@@ -96,12 +96,16 @@ export function assertCoverageCommandParity({ packageJsonPath, workflowPath }) {
   if (/run:\s*npm test\b/.test(workflow)) {
     issues.push("desk MCP CI still runs npm test instead of npm run test:coverage")
   }
-  const pathFilters = extractWorkflowPathFilters(workflow)
+  const { events, paths: pathFilters } = extractWorkflowTriggers(workflow)
   for (const eventName of REQUIRED_WORKFLOW_EVENTS) {
-    const eventPaths = pathFilters.get(eventName) ?? []
-    if (!eventPaths.includes(REQUIRED_WORKFLOW_PATH_FILTER)) {
+    if (!events.has(eventName)) {
+      issues.push(`desk MCP CI must run on ${eventName}`)
+      continue
+    }
+    if (!pathFilters.has(eventName)) continue
+    if (!pathFilters.get(eventName).includes(REQUIRED_WORKFLOW_PATH_FILTER)) {
       issues.push(
-        `desk MCP CI ${eventName}.paths must include ${REQUIRED_WORKFLOW_PATH_FILTER}`,
+        `desk MCP CI ${eventName}.paths must include ${REQUIRED_WORKFLOW_PATH_FILTER}, or declare no paths filter at all`,
       )
     }
   }
@@ -161,8 +165,9 @@ function normalizeExclusions(exclusions) {
   return out
 }
 
-function extractWorkflowPathFilters(workflow) {
+function extractWorkflowTriggers(workflow) {
   const filters = new Map()
+  const events = new Set()
   const stack = []
   for (const line of workflow.split("\n")) {
     const clean = stripYamlComment(line)
@@ -187,8 +192,12 @@ function extractWorkflowPathFilters(workflow) {
     if (!keyMatch) continue
     while (stack.length && stack.at(-1).indent >= indent) stack.pop()
     stack.push({ indent, key: keyMatch[2] })
+    const keys = stack.map((entry) => entry.key)
+    if (keys.length === 2 && keys[0] === "on" && REQUIRED_WORKFLOW_EVENTS.includes(keys[1])) {
+      events.add(keys[1])
+    }
   }
-  return filters
+  return { events, paths: filters }
 }
 
 function collectFiles(dir, extension) {
@@ -196,7 +205,12 @@ function collectFiles(dir, extension) {
   const out = []
   for (const entry of readdirSync(dir)) {
     const file = path.join(dir, entry)
-    const stat = statSync(file)
+    // The walk races the suite it is about to measure: tests under evals/offline create and
+    // delete scratch fixtures, so an entry named by readdir can be gone by the time it is
+    // stat'ed. A vanished entry is not a production source file, so skip it rather than
+    // failing the whole discovery. Serial execution hid this; parallel execution does not.
+    const stat = statSync(file, { throwIfNoEntry: false })
+    if (stat === undefined) continue
     if (stat.isDirectory()) {
       out.push(...collectFiles(file, extension))
     } else if (stat.isFile() && file.endsWith(extension)) {

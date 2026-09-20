@@ -668,7 +668,9 @@ function workflowPathFilters(workflow, eventName) {
   ))
   const eventLines = lines.slice(eventStart, eventEnd === -1 ? lines.length : eventEnd)
   const pathsStart = eventLines.findIndex((line) => line === "    paths:")
-  assert.notEqual(pathsStart, -1, `${eventName} must define paths`)
+  // null means the event declares no filter, so it triggers on every change and there is
+  // nothing for a filter to omit. An empty array would wrongly read as "filters an empty set".
+  if (pathsStart === -1) return null
   const paths = []
   for (const line of eventLines.slice(pathsStart + 1)) {
     if (/^\s*$/.test(line)) {
@@ -2675,8 +2677,10 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
   const pushPathFilters = workflowPathFilters(workflow, "push")
   const deskMcpJob = workflowJob(workflow, "desk-mcp-tests")
 
-  assert.throws(
-    () => workflowPathFilters([
+  // A `paths:` key belonging to a job must never be read as the event's filter. The event
+  // here declares none, so the helper reports null rather than borrowing the job's list.
+  assert.equal(
+    workflowPathFilters([
       "name: fake",
       "on:",
       "  push:",
@@ -2689,7 +2693,7 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
       "      - \"plugins/desk/mcp/scripts/build-runtime-deps-pack.js\"",
       "      - \"plugins/desk/mcp/scripts/verify-runtime-deps-pack.js\"",
     ].join("\n"), "push"),
-    /push must define paths/u,
+    null,
   )
   assert.throws(
     () => {
@@ -2800,6 +2804,7 @@ test("CI workflow verifies runtime dependency packs for release-maintained artif
     ["pull_request", pullRequestPathFilters],
     ["push", pushPathFilters],
   ]) {
+    if (pathFilters === null) continue
     assertIncludesAll(pathFilters, [
       "plugins/desk/mcp/artifacts/runtime-deps/**",
       "plugins/desk/mcp/scripts/build-runtime-deps-pack.js",

@@ -367,6 +367,11 @@ function validateTopicCoverage(errors, {
   }
 }
 
+function declaresPathFilters(body) {
+  const [triggerSection] = body.split(/^jobs:/mu);
+  return /^\s+paths:\s*$/mu.test(triggerSection);
+}
+
 function validateWorkflowWiring(errors, {
   requirements = WORKFLOW_REQUIREMENTS,
   readFile = (file) => readRepoFile(file),
@@ -376,6 +381,9 @@ function validateWorkflowWiring(errors, {
     if (!body.includes(requirement.command)) {
       errors.push(`${requirement.path} must run ${requirement.command}`);
     }
+    // A workflow that declares no path filter runs on every change, which covers these
+    // inputs more completely than listing them can. Only a declared filter can omit one.
+    if (!declaresPathFilters(body)) continue;
     for (const requiredPath of requirement.paths ?? []) {
       const pathPattern = new RegExp(`^\\s*-\\s+["']?${escapeRegExp(requiredPath)}["']?\\s*$`, "mu");
       if (!pathPattern.test(body)) {

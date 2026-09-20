@@ -185,8 +185,13 @@ test("the public workflow reports relevant-revision status without carrying any 
   assert.match(job, /permissions:\n {6}contents: read/);
   assert.doesNotMatch(job, /secrets\./);
   assert.doesNotMatch(workflow, /\/Users\/|\.local\/state|private-reports/);
+  // The workflow declares no path filters, so every change starts it and every evaluation
+  // input reaches the status step. If filters are ever reintroduced, each of these inputs
+  // must appear in both the pull_request and push blocks again.
+  const declaredBlocks = workflowPathFilters(workflow);
   for (const trigger of ["evals/offline/**", "evals/*.json", "AGENTIC-ENGINEERING-V2.md"]) {
-    assert.equal(workflow.split(`- "${trigger}"`).length, 3, trigger);
+    const expected = declaredBlocks.length === 0 ? 1 : 3;
+    assert.equal(workflow.split(`- "${trigger}"`).length, expected, trigger);
   }
   // The single existing verified-pack upload stays last; the status step publishes no second artifact.
   assert.equal(job.split("uses: actions/upload-artifact@v4").length, 2);
@@ -290,7 +295,13 @@ test("the public status step refuses a forbidden evaluation state before it publ
 test("every path the status routing calls relevant also starts the public workflow", () => {
   const workflow = fs.readFileSync(path.join(repository, ".github/workflows/desk-mcp-tests.yml"), "utf8");
   const blocks = workflowPathFilters(workflow);
-  assert.equal(blocks.length, 2, "pull_request and push both declare path filters");
+  // An unfiltered workflow starts for every path, so every relevant path starts it by
+  // construction and the per-block checks below have nothing to constrain. When filters
+  // exist, both events must declare them and cover every relevant path.
+  assert.ok(
+    blocks.length === 0 || blocks.length === 2,
+    "either no path filters at all, or pull_request and push both declare them",
+  );
   const probes = [
     "AGENTIC-ENGINEERING-V2.md", "evals/offline/cases/v2-alpha-v1/dataset.json", "evals/engineering-v2-kernel.json",
     "evals/offline/checks.mjs", "evals/offline/fixed-controller.mjs", "evals/investigation-boundaries.json",

@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
@@ -434,6 +435,145 @@ test("coverage command parity rejects CI/local drift", async () => {
   }
 })
 
+test("required-file discovery skips an entry that disappears between readdir and stat", async () => {
+  const { collectCoverageRequiredFiles } = await loadGate()
+  const tmp = makeTempDir()
+  try {
+    const fixtureRoot = path.join(tmp, "repo")
+    const srcDir = path.join(fixtureRoot, "plugins", "desk", "mcp", "src")
+    mkdirSync(srcDir, { recursive: true })
+    writeFileSync(path.join(srcDir, "real.js"), "export const real = true\n")
+    // A dangling symlink is readdir-visible and stat-absent -- the same shape as a scratch
+    // fixture another test deletes mid-walk, which is what parallel execution produces.
+    symlinkSync(path.join(srcDir, "never-existed.js"), path.join(srcDir, "ghost.js"))
+
+    const found = collectCoverageRequiredFiles({ repoRoot: fixtureRoot })
+      .map(file => normalizePaths([file])[0])
+    assert.deepEqual(found, ["plugins/desk/mcp/src/real.js"])
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("workflow trigger parity accepts no paths filter but still requires both events", async () => {
+  const { assertCoverageCommandParity } = await loadGate()
+  const tmp = makeTempDir()
+  try {
+    const packageJsonPath = writeFixture(tmp, "package.json", JSON.stringify({
+      scripts: { "test:coverage": "node scripts/run-coverage.js" },
+    }))
+    const run = (name, lines) => assertCoverageCommandParity({
+      packageJsonPath,
+      workflowPath: writeFixture(tmp, name, lines.join("\n")),
+    })
+
+    // No paths filter at all: every change reaches the gate, which is strictly stronger
+    // than any list of paths could be.
+    const unfiltered = run("unfiltered.yml", [
+      "on:",
+      "  pull_request:",
+      "  push:",
+      "    branches:",
+      "      - main",
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: npm run test:coverage",
+    ])
+    assert.deepEqual(unfiltered.issues, [])
+    assert.equal(unfiltered.ok, true)
+
+    // One event filtered without the root CLI sources still fails, because that filter
+    // can silently skip the gate on a change it is required to cover.
+    const partiallyFiltered = run("partial.yml", [
+      "on:",
+      "  pull_request:",
+      "    paths:",
+      "      - \"plugins/desk/mcp/**\"",
+      "  push:",
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: npm run test:coverage",
+    ])
+    assert.equal(partiallyFiltered.ok, false)
+    assert.match(partiallyFiltered.issues.join("\n"), /pull_request\.paths must include scripts\/\*\.cjs/)
+    assert.doesNotMatch(partiallyFiltered.issues.join("\n"), /push\.paths/)
+
+    // A workflow that never triggers on one of the events cannot gate it, and an absent
+    // filter must not be mistaken for an absent trigger.
+    const missingEvent = run("missing-event.yml", [
+      "on:",
+      "  push:",
+      "    branches:",
+      "      - main",
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: npm run test:coverage",
+    ])
+    assert.equal(missingEvent.ok, false)
+    assert.deepEqual(missingEvent.issues, ["desk MCP CI must run on pull_request"])
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test("the merge base prefers the pull request's own base ref over main", async () => {
+  const { mergeBaseCandidates, changedSinceMergeBase } = await loadRunner()
+
+  assert.deepEqual(mergeBaseCandidates({}), ["origin/main", "main"])
+  assert.deepEqual(
+    mergeBaseCandidates({ GITHUB_BASE_REF: "v2-alpha" }),
+    ["origin/v2-alpha", "v2-alpha", "origin/main", "main"],
+  )
+
+  // On a release-branch pull request the gate must measure this branch's own diff. Diffing
+  // against main would charge the pull request for everything v2-alpha has accumulated.
+  const asked = []
+  const spawn = (_cmd, args) => {
+    const key = args.join(" ")
+    asked.push(key)
+    if (key === "merge-base origin/v2-alpha HEAD") return { status: 0, stdout: "pr-base\n", stderr: "" }
+    if (key === "diff --name-only --diff-filter=AM pr-base..HEAD") {
+      return { status: 0, stdout: "plugins/desk/mcp/src/only-this.js\n", stderr: "" }
+    }
+    throw new Error(`unexpected git args: ${key}`)
+  }
+  assert.deepEqual(
+    changedSinceMergeBase({ repoRoot, spawn, env: { GITHUB_BASE_REF: "v2-alpha" } }),
+    ["plugins/desk/mcp/src/only-this.js"],
+  )
+  assert.equal(asked.includes("merge-base origin/main HEAD"), false, "must not reach main once the PR base resolved")
+})
+
+test("the merge base falls through every unresolved candidate before giving up", async () => {
+  const { changedSinceMergeBase } = await loadRunner()
+  const tried = []
+  const spawn = (_cmd, args) => {
+    const key = args.join(" ")
+    tried.push(key)
+    if (key === "merge-base main HEAD") return { status: 0, stdout: "fallback-base\n", stderr: "" }
+    if (key === "diff --name-only --diff-filter=AM fallback-base..HEAD") {
+      return { status: 0, stdout: "plugins/desk/mcp/src/fallback.js\n", stderr: "" }
+    }
+    return { status: 1, stdout: "", stderr: "unknown revision" }
+  }
+  assert.deepEqual(
+    changedSinceMergeBase({ repoRoot, spawn, env: { GITHUB_BASE_REF: "gone" } }),
+    ["plugins/desk/mcp/src/fallback.js"],
+  )
+  assert.deepEqual(tried.slice(0, 4), [
+    "merge-base origin/gone HEAD",
+    "merge-base gone HEAD",
+    "merge-base origin/main HEAD",
+    "merge-base main HEAD",
+  ])
+})
+
+// These fixtures stub git and throw on any unexpected argument, so they must pass `env: {}`
+// explicitly. Inheriting process.env means CI -- where GITHUB_BASE_REF is set -- asks for the
+// pull request's base ref first and the stub rejects it. CI caught exactly that.
 test("coverage runner discovers changed files from git state and falls back from origin/main to main", async () => {
   const { collectChangedFiles, collectChangedCoverageFiles, changedSinceMergeBase } = await loadRunner()
   const tmp = makeTempDir()
@@ -484,7 +624,7 @@ test("coverage runner discovers changed files from git state and falls back from
     }
 
     assert.deepEqual(
-      normalizePaths(changedSinceMergeBase({ repoRoot: fixtureRoot, spawn })),
+      normalizePaths(changedSinceMergeBase({ repoRoot: fixtureRoot, spawn, env: {} })),
       [
         "plugins/desk/mcp/index.js",
         "plugins/desk/mcp/src/coverage/gate.js",
@@ -494,7 +634,7 @@ test("coverage runner discovers changed files from git state and falls back from
       ],
     )
     assert.deepEqual(
-      normalizePaths(collectChangedFiles({ repoRoot: fixtureRoot, spawn })),
+      normalizePaths(collectChangedFiles({ repoRoot: fixtureRoot, spawn, env: {} })),
       [
         "plugins/desk/mcp/__tests__/coverage/coverage_gate.test.js",
         "plugins/desk/mcp/index.js",
@@ -507,7 +647,7 @@ test("coverage runner discovers changed files from git state and falls back from
       ],
     )
     assert.deepEqual(
-      normalizePaths(collectChangedCoverageFiles({ repoRoot: fixtureRoot, spawn })),
+      normalizePaths(collectChangedCoverageFiles({ repoRoot: fixtureRoot, spawn, env: {} })),
       included.sort(),
     )
   } finally {
@@ -518,7 +658,7 @@ test("coverage runner discovers changed files from git state and falls back from
 test("coverage runner reports no merge-base diff when neither main ref resolves", async () => {
   const { changedSinceMergeBase } = await loadRunner()
   const spawn = () => ({ status: 1, stdout: "", stderr: "missing ref" })
-  assert.deepEqual(changedSinceMergeBase({ repoRoot, spawn }), [])
+  assert.deepEqual(changedSinceMergeBase({ repoRoot, spawn, env: {} }), [])
 })
 
 test("coverage discovery's default Git adapters read a real uncommitted source fixture", async t => {
@@ -530,9 +670,9 @@ test("coverage discovery's default Git adapters read a real uncommitted source f
   assert.equal(initialized.status, 0, initialized.stderr)
   const file = "plugins/desk/mcp/src/changed.js"
   writeFixture(fixtureRoot, file, "export const changed = true\n")
-  assert.deepEqual(collectChangedFiles({ repoRoot: fixtureRoot }), [file])
-  assert.deepEqual(collectChangedCoverageFiles({ repoRoot: fixtureRoot }), [file])
-  assert.deepEqual(changedSinceMergeBase({ repoRoot: fixtureRoot }), [])
+  assert.deepEqual(collectChangedFiles({ repoRoot: fixtureRoot, env: {} }), [file])
+  assert.deepEqual(collectChangedCoverageFiles({ repoRoot: fixtureRoot, env: {} }), [file])
+  assert.deepEqual(changedSinceMergeBase({ repoRoot: fixtureRoot, env: {} }), [])
 })
 
 test("coverage runner preserves the environment and recursion marker at the producer boundary", async () => {
@@ -1031,13 +1171,21 @@ test("Desk MCP package exposes the local test:coverage command contract", () => 
   )
 })
 
-test("Desk MCP CI uses the same local coverage command", () => {
-  const workflow = readFileSync(
-    path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml"),
-    "utf8",
-  )
+test("Desk MCP CI uses the same local coverage command", async () => {
+  const workflowPath = path.join(repoRoot, ".github", "workflows", "desk-mcp-tests.yml")
+  const workflow = readFileSync(workflowPath, "utf8")
 
   assert.match(workflow, /npm run test:coverage/)
-  assert.match(workflow, /scripts\/\*\.cjs/)
   assert.doesNotMatch(workflow, /run:\s*npm test\b/)
+
+  // The shipped workflow must satisfy the guard itself, rather than a string match that
+  // goes stale the moment the trigger shape changes. The workflow declares no paths
+  // filter, so every change -- including root CLI sources -- reaches this gate.
+  const { assertCoverageCommandParity } = await loadGate()
+  const parity = assertCoverageCommandParity({
+    packageJsonPath: path.join(mcpRoot, "package.json"),
+    workflowPath,
+  })
+  assert.deepEqual(parity.issues, [])
+  assert.equal(parity.ok, true)
 })

@@ -1289,11 +1289,16 @@ test("desk MCP CI runs committed artifact and host manifest verifiers", () => {
   )
 })
 
-test("desk MCP CI path filters include every host-facing freshness input", () => {
+test("every host-facing freshness input can trigger desk MCP CI", () => {
   const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
 
   for (const eventName of ["pull_request", "push"]) {
     const filters = workflowPathFilters(workflow, eventName)
+    if (filters.length === 0) {
+      // No filter means every change triggers the workflow, so every freshness input
+      // reaches it. That is strictly broader than any list this test could assert.
+      continue
+    }
     assertPathFiltersCoverAll(
       filters,
       requiredHostFreshnessPathFilters,
@@ -1303,6 +1308,17 @@ test("desk MCP CI path filters include every host-facing freshness input", () =>
       filters.includes("scripts/*.cjs") || filters.includes(hostManifestScript),
       `desk MCP CI ${eventName}.paths must include root host verifier script changes`,
     )
+  }
+})
+
+test("the shipped desk MCP CI triggers on both events with no path filter", () => {
+  const workflow = loadText(".github", "workflows", "desk-mcp-tests.yml")
+
+  // The filters were removed so the jobs always report a conclusion; a workflow that never
+  // triggers cannot back a required status check. If a filter is ever reintroduced, the
+  // test above starts enforcing coverage of the freshness inputs again.
+  for (const eventName of ["pull_request", "push"]) {
+    assert.deepEqual(workflowPathFilters(workflow, eventName), [], `${eventName} must stay unfiltered`)
   }
 })
 

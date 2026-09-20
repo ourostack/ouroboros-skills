@@ -4,130 +4,17 @@ name: desk MCP tests
 # (plugins/desk/mcp `npm run test:coverage`).
 # Skill-manifest validation lives in validate-skills.yml and does NOT exercise
 # the MCP code, so without this job desk-core changes can merge untested.
-# Path-filtered to MCP, offline-evaluation and root validation inputs so related changes run this gate.
+# Deliberately unfiltered. Over the last 100 CI runs a path filter skipped this workflow on 2 of 28
+# pull request commits (7%), while a workflow that does not trigger reports no conclusion at all --
+# and branch protection treats a required check that never reports as forever pending. The `gate` job
+# below is the single required check; always triggering is what lets it be required.
 
 on:
   pull_request:
-    paths:
-      - ".gitattributes"
-      - "evals/offline/**"
-      - "evals/*.json"
-      - "AGENTIC-ENGINEERING-V2.md"
-      - "evals/**"
-      - "skills/**"
-      - "worker/**"
-      - "plugins/**"
-      - "manifest.json"
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - ".github/workflows/**"
-      - "**/package.json"
-      - "**/package-lock.json"
-      - "package.json"
-      - "package-lock.json"
-      - "plugins/desk/mcp/**"
-      - "plugins/desk/activation/**"
-      - "plugins/desk/.claude-plugin/plugin.json"
-      - "plugins/desk/.codex-plugin/plugin.json"
-      - "plugins/desk/.mcp.json"
-      - "plugins/desk/.mcp.copilot.json"
-      - "plugins/desk/agents/**"
-      - "plugins/desk/hooks/**"
-      - "plugins/desk/output-styles/**"
-      - "plugins/desk/plugin.json"
-      - "plugins/desk/principles.md"
-      - "plugins/desk/skills/**"
-      - "plugins/superpowers/**"
-      - "plugins/work-suite/.claude-plugin/plugin.json"
-      - "plugins/work-suite/.codex-plugin/plugin.json"
-      - "plugins/work-suite/plugin.json"
-      - "plugins/work-suite/skills/**"
-      - "plugins/plain-language/**"
-      - "plugins/ponytail-upstream/**"
-      - "upstream-sources.lock.json"
-      - "plugins/desk/mcp/artifacts/runtime-deps/**"
-      - "plugins/desk/artifacts/vector-packs/**"
-      - "plugins/desk/artifacts/snapshots/**"
-      - "plugins/desk/artifacts/tombstones/**"
-      - "plugins/desk/artifacts/publication-policy.json"
-      - "plugins/desk/artifacts/publication-policy.schema.json"
-      - "plugins/desk/README.md"
-      - "plugins/desk/docs/**"
-      - "plugins/desk/mcp/README.md"
-      - "plugins/desk/activation/README.md"
-      - "plugins/desk/mcp/config/performance-budgets.json"
-      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
-      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
-      - "plugins/desk/mcp/scripts/build-vector-pack.js"
-      - "plugins/desk/mcp/scripts/build-snapshot.js"
-      - "plugins/desk/mcp/scripts/verify-snapshot.js"
-      - "plugins/desk/mcp/scripts/validate-artifacts.js"
-      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
-      - "scripts/*.cjs"
-      - "scripts/test-desk-docs.cjs"
-      - ".github/workflows/desk-mcp-tests.yml"
   push:
     branches:
       - main
       - v2-alpha
-    paths:
-      - ".gitattributes"
-      - "evals/offline/**"
-      - "evals/*.json"
-      - "AGENTIC-ENGINEERING-V2.md"
-      - "evals/**"
-      - "skills/**"
-      - "worker/**"
-      - "plugins/**"
-      - "manifest.json"
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - ".github/workflows/**"
-      - "**/package.json"
-      - "**/package-lock.json"
-      - "package.json"
-      - "package-lock.json"
-      - "plugins/desk/mcp/**"
-      - "plugins/desk/activation/**"
-      - "plugins/desk/.claude-plugin/plugin.json"
-      - "plugins/desk/.codex-plugin/plugin.json"
-      - "plugins/desk/.mcp.json"
-      - "plugins/desk/.mcp.copilot.json"
-      - "plugins/desk/agents/**"
-      - "plugins/desk/hooks/**"
-      - "plugins/desk/output-styles/**"
-      - "plugins/desk/plugin.json"
-      - "plugins/desk/principles.md"
-      - "plugins/desk/skills/**"
-      - "plugins/superpowers/**"
-      - "plugins/work-suite/.claude-plugin/plugin.json"
-      - "plugins/work-suite/.codex-plugin/plugin.json"
-      - "plugins/work-suite/plugin.json"
-      - "plugins/work-suite/skills/**"
-      - "plugins/plain-language/**"
-      - "plugins/ponytail-upstream/**"
-      - "upstream-sources.lock.json"
-      - "plugins/desk/mcp/artifacts/runtime-deps/**"
-      - "plugins/desk/artifacts/vector-packs/**"
-      - "plugins/desk/artifacts/snapshots/**"
-      - "plugins/desk/artifacts/tombstones/**"
-      - "plugins/desk/artifacts/publication-policy.json"
-      - "plugins/desk/artifacts/publication-policy.schema.json"
-      - "plugins/desk/README.md"
-      - "plugins/desk/docs/**"
-      - "plugins/desk/mcp/README.md"
-      - "plugins/desk/activation/README.md"
-      - "plugins/desk/mcp/config/performance-budgets.json"
-      - "plugins/desk/mcp/scripts/build-runtime-deps-pack.js"
-      - "plugins/desk/mcp/scripts/verify-runtime-deps-pack.js"
-      - "plugins/desk/mcp/scripts/build-vector-pack.js"
-      - "plugins/desk/mcp/scripts/build-snapshot.js"
-      - "plugins/desk/mcp/scripts/verify-snapshot.js"
-      - "plugins/desk/mcp/scripts/validate-artifacts.js"
-      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"
-      - "scripts/*.cjs"
-      - "scripts/test-desk-docs.cjs"
-      - ".github/workflows/desk-mcp-tests.yml"
 
 jobs:
   desk-mcp-tests:
@@ -466,3 +353,28 @@ jobs:
         working-directory: plugins/desk/mcp
         run: |
           node --test --test-name-pattern "^native[: ]" __tests__/feedback/windows_acl.test.js __tests__/feedback/windows_store.test.js __tests__/feedback/source_mirror.test.js
+
+  gate:
+    # The single required check for this workflow. Branch protection watches this job and
+    # nothing else here, so adding, renaming or skipping a job above never needs a
+    # protection settings change. `if: always()` is load-bearing: a gate that inherits the
+    # default `success()` would itself be skipped when an upstream job fails, and a required
+    # check that never reports leaves the pull request pending forever.
+    name: desk MCP gate
+    if: always()
+    needs:
+      - desk-mcp-tests
+      - desk-runtime-packs
+      - desk-feedback-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require every job in this workflow to have succeeded or been skipped
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          printf '%s\n' "$RESULTS"
+          printf '%s' "$RESULTS" | jq -e 'to_entries | length > 0 and all(.value.result == "success" or .value.result == "skipped")' > /dev/null && exit 0
+          printf '%s' "$RESULTS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "::error::job \(.key) reported \(.value.result)"'
+          exit 1

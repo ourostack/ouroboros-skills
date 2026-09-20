@@ -137,18 +137,68 @@ test("workflow validation requires docs command and host/artifact path filters",
       ],
     }],
     readFile: () => [
-      "run: node scripts/test-desk-docs.cjs",
-      '- "plugins/desk/README.md"',
-      '- "plugins/desk/docs/**"',
-      '- "plugins/desk/mcp/README.md"',
-      '- "plugins/desk/activation/README.md"',
-      '- "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"',
+      "on:",
+      "  pull_request:",
+      "    paths:",
+      '      - "plugins/desk/README.md"',
+      '      - "plugins/desk/docs/**"',
+      '      - "plugins/desk/mcp/README.md"',
+      '      - "plugins/desk/activation/README.md"',
+      '      - "desk/tasks/2026-06-14-1335-planning-desk-dependency-activation.md"',
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: node scripts/test-desk-docs.cjs",
     ].join("\n"),
   })
 
   assert.deepEqual(errors, [
     ".github/workflows/desk-mcp-tests.yml path filters must include scripts/test-desk-docs.cjs",
   ])
+
+  // A workflow that declares no path filter runs on every change, so every required input
+  // reaches it and there is nothing for a filter to omit.
+  const unfilteredErrors = []
+  docsValidator.validateWorkflowWiring(unfilteredErrors, {
+    requirements: [{
+      path: ".github/workflows/desk-mcp-tests.yml",
+      command: "node scripts/test-desk-docs.cjs",
+      paths: ["plugins/desk/README.md", "scripts/test-desk-docs.cjs"],
+    }],
+    readFile: () => [
+      "on:",
+      "  pull_request:",
+      "  push:",
+      "    branches:",
+      "      - main",
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: node scripts/test-desk-docs.cjs",
+    ].join("\n"),
+  })
+  assert.deepEqual(unfilteredErrors, [])
+
+  // A requirement that lists no paths of its own still has its command checked, and a
+  // filtered workflow gives it nothing to verify beyond that.
+  const commandOnlyErrors = []
+  docsValidator.validateWorkflowWiring(commandOnlyErrors, {
+    requirements: [{
+      path: ".github/workflows/desk-mcp-tests.yml",
+      command: "node scripts/test-desk-docs.cjs",
+    }],
+    readFile: () => [
+      "on:",
+      "  pull_request:",
+      "    paths:",
+      '      - "plugins/desk/README.md"',
+      "jobs:",
+      "  tests:",
+      "    steps:",
+      "      - run: node scripts/test-desk-docs.cjs",
+    ].join("\n"),
+  })
+  assert.deepEqual(commandOnlyErrors, [])
 
   const commandErrors = []
   docsValidator.validateWorkflowWiring(commandErrors, {

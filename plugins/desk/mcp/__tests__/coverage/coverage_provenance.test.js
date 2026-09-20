@@ -8,6 +8,7 @@ import TestExclude from "test-exclude"
 import { runCoverageCommand } from "../../src/coverage/runner.js"
 
 const mcpRoot = fileURLToPath(new URL("../../", import.meta.url))
+const realRepoRoot = path.resolve(mcpRoot, "..", "..", "..")
 const sourceFile = "plugins/desk/mcp/src/covered.js"
 const nativeFileRow = `# ${sourceFile} | 100.00 | 100.00 | 100.00 |`
 const nativeOutput = [
@@ -58,7 +59,9 @@ function runFixture(t, summary, options = {}) {
   ].join("\n"))
   write(sourceFile, "export const covered = true\n")
   for (const file of options.additionalFiles ?? []) write(file, "module.exports = true\n")
+  for (const file of options.additionalTestFiles ?? []) write(file, "// fixture test file\n")
   const output = { stdout: "", stderr: "" }
+  const invocations = []
   let invocation
   let reportBytes
   let producerConfig
@@ -94,6 +97,10 @@ function runFixture(t, summary, options = {}) {
     spawn: (command, args, spawnOptions) => {
       if (command === process.execPath) {
         invocation = { command, args, options: spawnOptions }
+        invocations.push(invocation)
+        if (options.failPassIndex === invocations.length) {
+          return { status: 1, stdout: `pass ${invocations.length} failed`, stderr: "pass failure" }
+        }
         const configIndex = args.indexOf("--nycrc-path")
         if (configIndex !== -1) {
           producerConfig = JSON.parse(readFileSync(args[configIndex + 1], "utf8"))
@@ -105,6 +112,7 @@ function runFixture(t, summary, options = {}) {
             options.reportText ?? JSON.stringify(summary),
           )
         }
+        if (options.bareStdio) return { status: 0 }
         return { status: 0, stdout: nativeOutput, stderr: "" }
       }
       assert.equal(command, "git")
@@ -125,7 +133,7 @@ function runFixture(t, summary, options = {}) {
     result = execute()
   }
   assert.equal(existsSync(reportDirectory), false, "owned temporary report must be cleaned")
-  return { result, output, invocation, reportBytes, producerConfig, repoRoot, canonicalRepoRoot: realpathSync(repoRoot), reportDirectory }
+  return { result, output, invocation, invocations, reportBytes, producerConfig, repoRoot, canonicalRepoRoot: realpathSync(repoRoot), reportDirectory }
 }
 
 test("coverage admission refuses missing producer JSON despite perfect stdout percentages", t => {
@@ -216,26 +224,75 @@ test("the actual producer invocation binds the maintained loader, dependency cwd
   assert.equal(registration, `import { register } from "node:module"; register(${JSON.stringify(loader)});`)
   assert.equal(options.env.NODE_OPTIONS, `--import=${args[importIndex + 1]}`)
   assert.equal(options.env.NODE_PATH, path.join(mcpRoot, "node_modules"))
-  assert.deepEqual(args.slice(importIndex + 2), [
-    "--test",
-    "--test-concurrency=1",
-    path.join(run.canonicalRepoRoot, "plugins/desk/mcp/__tests__/**/*.test.js"),
-  ])
+  assert.deepEqual(args.slice(importIndex + 2), ["--test"])
 })
 
-test("instrumented test-file execution stays serial on small and large hosts", async t => {
+test("a repository holding deadline-sensitive files runs both passes and merges their coverage", t => {
+  const run = runFixture(t, { [sourceFile]: metrics(), total: metrics() }, {
+    additionalTestFiles: [
+      "plugins/desk/mcp/__tests__/runtime/startup_status.test.js",
+      "plugins/desk/mcp/__tests__/indexer/vector_packs.test.js",
+      "plugins/desk/mcp/__tests__/tools/ordinary.test.js",
+    ],
+  })
+  assert.equal(run.result, 0)
+  assert.equal(run.invocations.length, 2, "one parallel pass and one serial pass")
+
+  const [bulk, deadline] = run.invocations
+  // The bulk pass carries the ordinary file and no concurrency cap.
+  assert.deepEqual(bulk.args.filter(arg => arg.startsWith("--test-concurrency=")), [])
+  assert.equal(bulk.args.some(arg => arg.endsWith("ordinary.test.js")), true)
+  assert.equal(bulk.args.some(arg => arg.endsWith("startup_status.test.js")), false)
+  assert.equal(bulk.args.includes("--no-clean"), false, "the first pass owns the temp directory")
+
+  // The deadline pass carries only the deadline-sensitive files, serially, and preserves
+  // the first pass's raw coverage so the report it writes is the merge of both.
+  assert.deepEqual(deadline.args.filter(arg => arg.startsWith("--test-concurrency=")), ["--test-concurrency=1"])
+  assert.equal(deadline.args.includes("--no-clean"), true)
+  assert.equal(deadline.args.some(arg => arg.endsWith("ordinary.test.js")), false)
+  assert.deepEqual(
+    deadline.args.filter(arg => arg.endsWith(".test.js")).map(arg => path.basename(arg)).sort(),
+    ["startup_status.test.js", "vector_packs.test.js"],
+  )
+})
+
+test("merging two passes tolerates a producer that reports no stdio", t => {
+  // spawnSync can return undefined stdout/stderr (for example when a caller sets
+  // stdio: "inherit"), and the merge must not turn that into the string "undefined".
+  const run = runFixture(t, { [sourceFile]: metrics(), total: metrics() }, {
+    additionalTestFiles: ["plugins/desk/mcp/__tests__/runtime/startup_status.test.js"],
+    bareStdio: true,
+  })
+  assert.equal(run.result, 0)
+  assert.equal(run.invocations.length, 2)
+  assert.doesNotMatch(run.output.stdout, /undefined/)
+})
+
+test("a failing bulk pass never starts the deadline pass", t => {
+  const run = runFixture(t, { [sourceFile]: metrics(), total: metrics() }, {
+    additionalTestFiles: ["plugins/desk/mcp/__tests__/runtime/startup_status.test.js"],
+    failPassIndex: 1,
+  })
+  assert.equal(run.result, 1)
+  assert.equal(run.invocations.length, 1, "the serial pass must not run after a failed bulk pass")
+})
+
+test("the bulk pass runs in parallel on every host size while deadline-sensitive files run alone", async t => {
   const { default: os } = await import("node:os")
   const { syncBuiltinESMExports } = await import("node:module")
   for (const cpus of [1, 2, 4, 5, 12]) {
-    await t.test(`${cpus} available CPUs use one test worker`, child => {
+    await t.test(`${cpus} available CPUs leave the bulk pass uncapped`, child => {
       const mocked = child.mock.method(os, "availableParallelism", () => cpus)
       syncBuiltinESMExports()
       try {
         const run = runFixture(child, { [sourceFile]: metrics(), total: metrics() })
         assert.equal(run.result, 0)
+        // No concurrency flag at all: Node picks one worker per CPU. Pinning a number here
+        // is what cost the suite roughly 4x, and the deadline assertions it protected are
+        // protected by their own pass instead.
         assert.deepEqual(
           run.invocation.args.filter(arg => arg.startsWith("--test-concurrency=")),
-          ["--test-concurrency=1"],
+          [],
         )
         assert.doesNotMatch(run.invocation.options.env.NODE_OPTIONS, /test-concurrency/u)
       } finally {
@@ -244,6 +301,76 @@ test("instrumented test-file execution stays serial on small and large hosts", a
       }
     })
   }
+})
+
+test("deadline-sensitive test files get their own serial pass that merges into one report", async t => {
+  const { collectSuiteTestFiles, partitionTestFiles } = await import(
+    pathToFileURL(path.join(mcpRoot, "src", "coverage", "runner.js"))
+  )
+  const files = collectSuiteTestFiles({ repoRoot: realRepoRoot })
+  assert.ok(files.length > 100, `expected the real suite, found ${files.length} files`)
+  const { parallel, serial } = partitionTestFiles({ repoRoot: realRepoRoot, files })
+  assert.equal(parallel.length + serial.length, files.length)
+  const relative = serial.map(file => path.relative(realRepoRoot, file).replaceAll(path.sep, "/")).sort()
+
+  // Every readiness test runs alone: they drive one per-user OS controller endpoint, so two
+  // of them at once contend for it and hang. The directory rule means a readiness test added
+  // later inherits the serial pass rather than silently hanging the suite.
+  const readiness = files
+    .map(file => path.relative(realRepoRoot, file).replaceAll(path.sep, "/"))
+    .filter(file => file.startsWith("plugins/desk/mcp/__tests__/readiness/"))
+  assert.ok(readiness.length > 0, "the readiness suite must exist")
+  for (const file of readiness) assert.ok(relative.includes(file), `${file} must run alone`)
+
+  // Plus the named files, which run alone for the other reason: they time themselves.
+  assert.ok(relative.includes("plugins/desk/mcp/__tests__/indexer/vector_packs.test.js"))
+  assert.ok(relative.includes("plugins/desk/mcp/__tests__/runtime/startup_status.test.js"))
+  assert.ok(parallel.length > serial.length, "the parallel pass must still carry the bulk")
+  // Every deadline-sensitive file must exist, or the partition silently stops protecting it.
+  for (const file of serial) assert.ok(existsSync(file), `${file} must exist`)
+  for (const file of parallel) assert.equal(serial.includes(file), false)
+})
+
+test("every test file asserting on elapsed wall-clock time is in the serial pass", async () => {
+  const { collectSuiteTestFiles, partitionTestFiles } = await import(
+    pathToFileURL(path.join(mcpRoot, "src", "coverage", "runner.js"))
+  )
+  const files = collectSuiteTestFiles({ repoRoot: realRepoRoot })
+  const { serial } = partitionTestFiles({ repoRoot: realRepoRoot, files })
+  const serialSet = new Set(serial)
+
+  // A new wall-clock assertion in a parallel file would flake under CPU contention, and
+  // nothing else in the suite would notice. This is that notice: add the file to
+  // DEADLINE_SENSITIVE_TESTS, or assert on the observable outcome instead of the clock.
+  const measuresElapsedTime = /assert[^\n]*\b(elapsedMs|elapsed|durationMs)\b[^\n]*[<>]/u
+  const offenders = files
+    .filter(file => !serialSet.has(file))
+    // This file states the pattern in order to search for it, so it always matches itself.
+    .filter(file => file !== fileURLToPath(import.meta.url))
+    .filter(file => measuresElapsedTime.test(readFileSync(file, "utf8")))
+    .map(file => path.relative(realRepoRoot, file).replaceAll(path.sep, "/"))
+  assert.deepEqual(offenders, [], "these files time themselves but run in the parallel pass")
+
+  // Guard against a vacuous guard: the pattern must still match the files it was written
+  // for, or a regression in the pattern would silently pass this test forever.
+  assert.deepEqual(
+    serial
+      .filter(file => measuresElapsedTime.test(readFileSync(file, "utf8")))
+      .map(file => path.basename(file))
+      .sort(),
+    ["vector_packs.test.js"],
+  )
+})
+
+test("a repository with no test directory runs a single pass", async t => {
+  const { collectSuiteTestFiles, partitionTestFiles } = await import(
+    pathToFileURL(path.join(mcpRoot, "src", "coverage", "runner.js"))
+  )
+  const empty = mkdtempSync(path.join(tmpdir(), "desk-coverage-empty-"))
+  t.after(() => rmSync(empty, { recursive: true, force: true }))
+  const files = collectSuiteTestFiles({ repoRoot: empty })
+  assert.deepEqual(files, [])
+  assert.deepEqual(partitionTestFiles({ repoRoot: empty, files }), { parallel: [], serial: [] })
 })
 
 test("the loader reaches descendants without replacing caller Node options or mutating the parent environment", t => {

@@ -26,8 +26,10 @@ test("another workflow event does not satisfy the required pull-request and push
 
   const result = assertCoverageCommandParity({ packageJsonPath, workflowPath })
   assert.equal(result.ok, false)
+  // `pull_request_target` is a different event. The defect is that neither required event
+  // is declared at all, so the gate never runs -- not that their filters are incomplete.
   assert.deepEqual(result.issues, [
-    "desk MCP CI pull_request.paths must include scripts/*.cjs",
-    "desk MCP CI push.paths must include scripts/*.cjs",
+    "desk MCP CI must run on pull_request",
+    "desk MCP CI must run on push",
   ])
 })

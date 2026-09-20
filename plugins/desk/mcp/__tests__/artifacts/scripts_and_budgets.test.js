@@ -347,7 +347,9 @@ function workflowPathFilters(workflow, eventName) {
   ))
   const eventLines = lines.slice(eventStart, eventEnd === -1 ? lines.length : eventEnd)
   const pathsStart = eventLines.findIndex((line) => line === "    paths:")
-  assert.notEqual(pathsStart, -1, `${eventName} must define paths`)
+  // null means the event declares no filter, so it triggers on every change and there is
+  // nothing for a filter to omit. An empty array would wrongly read as "filters an empty set".
+  if (pathsStart === -1) return null
   const paths = []
   for (const line of eventLines.slice(pathsStart + 1)) {
     if (/^\s*$/u.test(line)) continue
@@ -1351,6 +1353,7 @@ test("CI invokes artifact validation and watches artifact script inputs", () => 
     ["pull_request", workflowPathFilters(workflow, "pull_request")],
     ["push", workflowPathFilters(workflow, "push")],
   ]) {
+    if (pathFilters === null) continue
     assertIncludesAll(pathFilters, [
       "evals/offline/**",
       "plugins/desk/artifacts/vector-packs/**",
