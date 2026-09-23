@@ -9,7 +9,7 @@ import { startLeaseProxy } from '../src/cdp-proxy.mjs';
 import { BrokerError } from '../src/claims.mjs';
 import { createLease, releaseLease } from '../src/leases.mjs';
 import { invokeProvider } from '../src/provider.mjs';
-import { readRegistry } from '../src/registry.mjs';
+import { readRegistry, reconcileContext } from '../src/registry.mjs';
 
 const SECRET_KEY = /(token|secret|password|cookie|authorization|environment|^env$)/i;
 
@@ -178,7 +178,55 @@ async function run(command, options) {
         owner: lease.owner,
         message: 'Lease heartbeat has expired; run cleanup for this exact lease.',
       }));
-    return { ...statusResult(registry), diagnostics };
+    const contextHealth = [];
+    if (options.config) {
+      const config = await loadJson(options.config);
+      const providerInvoker = providerFor(config);
+      for (const observation of Object.values(registry.contexts)) {
+        const declaration = config.contexts?.find(({ id }) => id === observation.contextId);
+        if (!declaration) {
+          contextHealth.push({
+            contextId: observation.contextId,
+            status: 'invalid',
+            reason: 'DECLARATION_MISSING',
+          });
+          diagnostics.push({
+            severity: 'error',
+            code: 'CONTEXT_DECLARATION_MISSING',
+            contextId: observation.contextId,
+            message: 'No configured declaration exists for this registry observation.',
+          });
+          continue;
+        }
+        const health = await reconcileContext(
+          declaration,
+          observation,
+          providerInvoker,
+        );
+        contextHealth.push({
+          contextId: observation.contextId,
+          status: health.status,
+          reason: health.reason,
+          endpoint: health.endpoint,
+        });
+        if (health.status !== 'healthy') {
+          diagnostics.push({
+            severity: 'error',
+            code: 'CONTEXT_ATTESTATION_FAILED',
+            contextId: observation.contextId,
+            reason: health.reason,
+            message: 'Fresh provider attestation did not validate this context observation.',
+          });
+        }
+      }
+    } else if (Object.keys(registry.contexts).length > 0) {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'ATTESTATION_CONFIG_MISSING',
+        message: 'Pass --config to freshly attest context process and endpoint observations.',
+      });
+    }
+    return { ...statusResult(registry), contextHealth, diagnostics };
   }
 
   if (command === 'cleanup') {

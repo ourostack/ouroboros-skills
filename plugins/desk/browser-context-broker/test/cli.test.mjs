@@ -175,6 +175,36 @@ test('doctor reports stale leases without exposing their proxy token', async () 
   assert.ok(!result.stdout.includes(lease.proxyToken));
 });
 
+test('doctor freshly attests registry observations through the configured provider', async () => {
+  const fake = await startFakeCdpServer();
+  const directory = await stateDir();
+  const configPath = await writeConfig(directory, fake.endpoint);
+  await run([
+    'acquire',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--alias', 'default',
+    '--json',
+  ]);
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  config.contexts[0].testAttestation = 'unhealthy';
+  await writeFile(configPath, JSON.stringify(config));
+
+  const result = await run([
+    'doctor',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--json',
+  ]);
+  await fake.close();
+
+  assert.equal(result.exitCode, 0, result.stderr);
+  const envelope = JSON.parse(result.stdout);
+  assert.equal(envelope.result.contextHealth[0].status, 'absent');
+  assert.equal(envelope.result.contextHealth[0].reason, 'TEST_ATTESTATION_FAILED');
+  assert.ok(envelope.result.diagnostics.some(({ code }) => code === 'CONTEXT_ATTESTATION_FAILED'));
+});
+
 test('cleanup expires only the specified stale lease and its owned targets', async () => {
   const fake = await startFakeCdpServer();
   const directory = await stateDir();

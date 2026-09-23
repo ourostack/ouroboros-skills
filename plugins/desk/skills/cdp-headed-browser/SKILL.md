@@ -126,6 +126,7 @@ browser-context-broker status \
   --json
 
 browser-context-broker doctor \
+  --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --json
 ```
