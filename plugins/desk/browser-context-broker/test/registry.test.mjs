@@ -74,15 +74,21 @@ test('withBrokerLock serializes writers and removes its exact lock', async () =>
   const directory = await stateDir();
   const order = [];
   let releaseFirst;
+  let firstEntered;
   const firstHeld = new Promise((resolve) => {
     releaseFirst = resolve;
+  });
+  const firstStarted = new Promise((resolve) => {
+    firstEntered = resolve;
   });
 
   const first = withBrokerLock(directory, async () => {
     order.push('first-start');
+    firstEntered();
     await firstHeld;
     order.push('first-end');
   });
+  await firstStarted;
   const second = withBrokerLock(directory, async () => {
     order.push('second');
   });

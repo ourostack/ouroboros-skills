@@ -36,7 +36,12 @@ export async function withBrokerLock(stateDir, fn, options = {}) {
         const owner = JSON.parse(await readFile(path.join(lockPath, 'owner.json'), 'utf8'));
         lockAge = Date.now() - Date.parse(owner.createdAt);
       } catch {
-        lockAge = Date.now() - (await stat(lockPath)).mtimeMs;
+        try {
+          lockAge = Date.now() - (await stat(lockPath)).mtimeMs;
+        } catch (statError) {
+          if (statError.code === 'ENOENT') continue;
+          throw statError;
+        }
       }
       if (lockAge > staleMs) {
         throw new BrokerError('STALE_BROKER_LOCK', `Broker lock "${name}" is stale`, {
