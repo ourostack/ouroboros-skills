@@ -15,6 +15,11 @@ export async function withBrokerLock(stateDir, fn, options = {}) {
     pollMs = 10,
     staleMs = 30_000,
   } = options;
+  if (!/^[A-Za-z0-9._-]+$/u.test(name)) {
+    throw new BrokerError('INVALID_LOCK_NAME', 'Broker lock name contains unsupported path syntax', {
+      name,
+    });
+  }
   await ensureStateDirectory(stateDir);
   const lockPath = path.join(stateDir, `${name}.lock`);
   const token = randomUUID();

@@ -214,7 +214,7 @@ async function main() {
   } catch (error) {
     const brokerError = error instanceof BrokerError
       ? error
-      : new BrokerError('INTERNAL_ERROR', error.message);
+      : new BrokerError('UNEXPECTED_ERROR', error.message);
     const envelope = {
       ok: false,
       error: {

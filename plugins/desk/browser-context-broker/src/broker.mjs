@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { matchContext } from './claims.mjs';
 import { BrokerError } from './claims.mjs';
 import { reserveEndpoint } from './endpoint.mjs';
@@ -7,7 +9,14 @@ import { readRegistry, reconcileContext, writeRegistry } from './registry.mjs';
 async function updateContext(stateDir, contextId, observation) {
   await withBrokerLock(stateDir, async () => {
     const registry = await readRegistry(stateDir);
-    if (observation) registry.contexts[contextId] = observation;
+    if (observation) {
+      Object.defineProperty(registry.contexts, contextId, {
+        value: observation,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
     else delete registry.contexts[contextId];
     await writeRegistry(stateDir, registry);
   });
@@ -20,6 +29,10 @@ function publicResult(declaration, reconciled, recovery) {
     processIdentity: reconciled.processIdentity,
     recovery,
   };
+}
+
+function contextLockName(contextId) {
+  return `context-${createHash('sha256').update(contextId).digest('hex')}`;
 }
 
 export async function acquireContext({
@@ -115,6 +128,6 @@ export async function acquireContext({
 
       throw new BrokerError('PROVIDER_LAUNCH_FAILED', 'Provider launch attempts were exhausted');
     },
-    { name: `context-${declaration.id}` },
+    { name: contextLockName(declaration.id) },
   );
 }

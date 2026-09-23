@@ -262,3 +262,35 @@ test('does not publish a launch that fails attestation', async () => {
   );
   assert.equal((await readRegistry(directory)).contexts.requested, undefined);
 });
+
+test('context lock paths remain confined when a declaration ID contains path syntax', async () => {
+  const directory = await stateDir();
+  const unusualDeclaration = {
+    ...requestedDeclaration,
+    id: '../requested/context',
+  };
+  const unusualConfig = { contexts: [unusualDeclaration] };
+
+  const result = await acquireContext({
+    config: unusualConfig,
+    request: { surface: 'work', identity: 'requested@example.test' },
+    stateDir: directory,
+    endpointAllocator: async () => 'http://127.0.0.1:48000',
+    providerInvoker: async (operation, payload) => {
+      if (operation === 'discover') return { found: false };
+      if (operation === 'launch') {
+        return {
+          observation: {
+            contextId: unusualDeclaration.id,
+            endpoint: payload.endpoint,
+            processIdentity: processIdentity(unusualDeclaration, 901),
+          },
+        };
+      }
+      if (operation === 'attest') return healthy(unusualDeclaration, payload.observation.endpoint, 901);
+      throw new Error(`unexpected operation ${operation}`);
+    },
+  });
+
+  assert.equal(result.context.id, unusualDeclaration.id);
+});
