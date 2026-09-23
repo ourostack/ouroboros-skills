@@ -37,6 +37,15 @@ function mcpReadmeBody(tools = docsValidator.MCP_TOOL_NAMES) {
   ].join("\n")
 }
 
+function browserPolicyBody() {
+  return [
+    "Use browser-context-broker acquire and proxy.",
+    "Target.createTarget({ url, background: true })",
+    "Use status, doctor, and release for the exact lease.",
+    "A lease exposes only its owned targets.",
+  ].join("\n")
+}
+
 test("Desk docs validator exports a testable contract", () => {
   for (const exportName of [
     "DOCS",
@@ -180,19 +189,27 @@ test("MCP README validation locks the advertised tool surface", () => {
   assert.ok(staleErrors.some((error) => error.includes("stale 12/13 tool counts")))
 })
 
-test("browser focus validation requires background targets and rejects active-tab recipes", () => {
+test("browser focus validation requires broker routing and rejects unsafe discovery or cleanup", () => {
   const errors = []
   docsValidator.validateBrowserFocusPolicy(errors, {
-    readFile: () => "Target.createTarget({ url, background: true })",
+    readFile: () => browserPolicyBody(),
   })
   assert.deepEqual(errors, [])
 
   const staleErrors = []
   docsValidator.validateBrowserFocusPolicy(staleErrors, {
-    readFile: () => 'curl -X PUT "http://localhost:9222/json/new?<URL>"',
+    readFile: () => [
+      'curl -s "http://localhost:9222/json/version"',
+      'nohup browser --remote-debugging-port=9222 &',
+      'pkill -f "user-data-dir=profile"',
+      "const page = ctx.pages().find(candidate => candidate.url().includes(target))",
+    ].join("\n"),
   })
+  assert.ok(staleErrors.some((error) => error.includes("browser context broker")))
   assert.ok(staleErrors.some((error) => error.includes("background target creation")))
-  assert.ok(staleErrors.some((error) => error.includes("foregrounding CDP HTTP endpoints")))
+  assert.ok(staleErrors.some((error) => error.includes("fixed-port or arbitrary endpoint discovery")))
+  assert.ok(staleErrors.some((error) => error.includes("process-pattern cleanup")))
+  assert.ok(staleErrors.some((error) => error.includes("cross-lease page selection")))
 })
 
 test("run and startCli expose success, failure, and no-op CLI paths", () => {
@@ -216,7 +233,7 @@ test("run and startCli expose success, failure, and no-op CLI paths", () => {
       }],
       readFile: (file) => {
         if (file === "plugins/desk/mcp/README.md") return mcpReadmeBody()
-        if (file === "plugins/desk/skills/cdp-headed-browser/SKILL.md") return "Target.createTarget({ url, background: true })"
+        if (file === "plugins/desk/skills/cdp-headed-browser/SKILL.md") return browserPolicyBody()
         return file.endsWith(".yml") ? workflowBody : goodBody
       },
       stdout: { write: (text) => stdout.push(text) },
