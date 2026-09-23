@@ -140,6 +140,30 @@ test('proxy denies attaching to an unowned target', async () => {
   assert.ok(!fake.methods.some(({ method }) => method === 'Target.attachToTarget'));
 });
 
+test('proxy denies commands addressed to an unowned target session', async () => {
+  const { fake, cdp, socket } = await setup();
+  let response;
+  socket.send(JSON.stringify({
+    id: 99,
+    sessionId: 'session-for-another-lease',
+    method: 'Runtime.evaluate',
+    params: { expression: '40 + 2' },
+  }));
+  response = await new Promise((resolve) => {
+    const onMessage = (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.id === 99) {
+        socket.off('message', onMessage);
+        resolve(message);
+      }
+    };
+    socket.on('message', onMessage);
+  });
+  assert.equal(response.error.code, -32003);
+  assert.ok(!fake.methods.some(({ params }) => params?.expression === '40 + 2'));
+  assert.equal(cdp.events.length, 0);
+});
+
 test('proxy suppresses target events for unowned targets', async () => {
   const { fake, cdp } = await setup();
   await cdp.send('Target.getTargets');

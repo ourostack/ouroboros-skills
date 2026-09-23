@@ -55,6 +55,7 @@ export async function startLeaseProxy({
   downstreamServer.on('connection', (downstream) => {
     const upstream = new WebSocket(upstreamMetadata.webSocketDebuggerUrl);
     const requests = new Map();
+    const ownedSessions = new Set();
     const queued = [];
     upstream.on('open', () => {
       for (const message of queued) upstream.send(message);
@@ -65,6 +66,10 @@ export async function startLeaseProxy({
       const message = JSON.parse(raw);
       if (ACTIVATION_METHODS.has(message.method)) {
         downstream.send(errorResponse(message.id, -32001, 'Target activation is denied by the lease proxy'));
+        return;
+      }
+      if (message.sessionId && !ownedSessions.has(message.sessionId)) {
+        downstream.send(errorResponse(message.id, -32003, 'Cannot access a target session owned by another lease'));
         return;
       }
       if (
@@ -98,6 +103,8 @@ export async function startLeaseProxy({
         } else if (request?.method === 'Target.createTarget' && message.result?.targetId) {
           ownedTargets.add(message.result.targetId);
           await addOwnedTarget(stateDir, leaseId, message.result.targetId);
+        } else if (request?.method === 'Target.attachToTarget' && message.result?.sessionId) {
+          ownedSessions.add(message.result.sessionId);
         } else if (
           request?.method === 'Target.closeTarget' &&
           message.result?.success &&
@@ -111,6 +118,21 @@ export async function startLeaseProxy({
       }
 
       const targetInfo = message.params?.targetInfo;
+      if (
+        message.method === 'Target.attachedToTarget' &&
+        targetInfo?.targetId &&
+        ownedTargets.has(targetInfo.targetId)
+      ) {
+        ownedSessions.add(message.params.sessionId);
+      }
+      if (
+        message.method === 'Target.detachedFromTarget' &&
+        message.params?.sessionId
+      ) {
+        if (!ownedSessions.delete(message.params.sessionId)) return;
+      } else if (message.sessionId && !ownedSessions.has(message.sessionId)) {
+        return;
+      }
       if (
         message.method === 'Target.targetCreated' &&
         targetInfo?.openerId &&
