@@ -3,6 +3,39 @@ import { spawn } from 'node:child_process';
 import { BrokerError } from './claims.mjs';
 
 const MAX_DIAGNOSTIC_BYTES = 4_096;
+const APPROVED_PROVIDER_ERROR_CODES = new Set([
+  'ENDPOINT_COLLISION',
+  'UNSUPPORTED_CONTEXT_RECOVERY',
+]);
+
+function providerError(stdout) {
+  let envelope;
+  try {
+    envelope = JSON.parse(stdout);
+  } catch {
+    return undefined;
+  }
+  if (
+    !envelope ||
+    Array.isArray(envelope) ||
+    typeof envelope !== 'object' ||
+    !APPROVED_PROVIDER_ERROR_CODES.has(envelope.code) ||
+    typeof envelope.message !== 'string' ||
+    envelope.message.trim().length === 0 ||
+    (
+      envelope.details !== undefined &&
+      (
+        !envelope.details ||
+        Array.isArray(envelope.details) ||
+        typeof envelope.details !== 'object'
+      )
+    ) ||
+    Object.keys(envelope).some((key) => !['code', 'message', 'details'].includes(key))
+  ) {
+    return undefined;
+  }
+  return new BrokerError(envelope.code, envelope.message, envelope.details ?? {});
+}
 
 export function invokeProvider(command, operation, payload, options = {}) {
   const {
@@ -62,6 +95,11 @@ export function invokeProvider(command, operation, payload, options = {}) {
           return;
         }
         if (exitCode !== 0) {
+          const structuredError = providerError(stdout);
+          if (structuredError) {
+            reject(structuredError);
+            return;
+          }
           reject(new BrokerError('PROVIDER_EXITED', 'Provider process exited unsuccessfully', {
             exitCode,
             signal,

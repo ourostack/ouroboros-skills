@@ -43,6 +43,63 @@ test('invokeProvider reports non-zero exits with bounded stderr diagnostics', as
   );
 });
 
+test('invokeProvider preserves approved structured provider errors', async () => {
+  const cases = [
+    {
+      fixture: 'structured-endpoint-collision',
+      code: 'ENDPOINT_COLLISION',
+      message: 'Selected endpoint was claimed before launch',
+      details: { endpoint: 'http://127.0.0.1:45001', attempt: 1 },
+    },
+    {
+      fixture: 'structured-unsupported-recovery',
+      code: 'UNSUPPORTED_CONTEXT_RECOVERY',
+      message: 'Provider cannot recover this browser generation',
+      details: { contextId: 'requested', reason: 'PROFILE_LOCKED' },
+    },
+    {
+      fixture: 'structured-error-without-details',
+      code: 'ENDPOINT_COLLISION',
+      message: 'Selected endpoint was claimed before launch',
+      details: {},
+    },
+  ];
+
+  for (const expected of cases) {
+    await assert.rejects(
+      invokeProvider(process.execPath, 'launch', { fixture: expected.fixture }, {
+        args: [fixture.pathname],
+      }),
+      (error) => {
+        assert.equal(error.code, expected.code);
+        assert.equal(error.message, expected.message);
+        assert.deepEqual(error.details, expected.details);
+        return true;
+      },
+    );
+  }
+});
+
+test('invokeProvider maps malformed and unapproved provider errors to PROVIDER_EXITED', async () => {
+  for (const fixtureName of [
+    'exit-malformed-error',
+    'exit-unapproved-error',
+    'exit-missing-error-message',
+    'exit-invalid-error-details',
+    'exit-error-extra-field',
+    'exit-blank-error-message',
+  ]) {
+    await assert.rejects(
+      invokeProvider(process.execPath, 'launch', { fixture: fixtureName }, {
+        args: [fixture.pathname],
+      }),
+      (error) =>
+        error.code === 'PROVIDER_EXITED' &&
+        typeof error.details.exitCode === 'number',
+    );
+  }
+});
+
 test('invokeProvider rejects malformed JSON', async () => {
   await assert.rejects(
     invokeProvider(process.execPath, 'discover', { fixture: 'malformed' }, {

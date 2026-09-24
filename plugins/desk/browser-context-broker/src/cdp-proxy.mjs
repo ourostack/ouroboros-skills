@@ -334,8 +334,16 @@ export async function startLeaseProxy({
         message.params?.sessionId
       ) {
         if (!ownedSessions.delete(message.params.sessionId)) return;
-      } else if (message.sessionId && !ownedSessions.has(message.sessionId)) {
-        return;
+      } else if (message.sessionId) {
+        if (!ownedSessions.has(message.sessionId)) return;
+        if (
+          !message.method.startsWith('Target.') &&
+          !message.method.startsWith('Browser.') &&
+          downstream.readyState === WebSocket.OPEN
+        ) {
+          downstream.send(JSON.stringify(message));
+          return;
+        }
       }
       if (
         message.method === 'Target.targetCreated' &&

@@ -172,6 +172,7 @@ Do not terminate browsers by executable name, profile-name pattern, or guessed p
 - **`AMBIGUOUS_CONTEXT_MATCH`** — several declarations match. Make their claims distinct; do not choose by ordering.
 - **`LAUNCH_ATTESTATION_FAILED`** — the provider launched something that did not prove the declared executable, profile, owner, endpoint correlation, or configured visible claims.
 - **`ENDPOINT_COLLISION`** — dynamic allocation could not find a usable endpoint within the configured attempts.
+- **`UNSUPPORTED_CONTEXT_RECOVERY`** — the provider proved the requested context exists but cannot safely recover that exact process generation. Preserve its provider-supplied reason and generation evidence; do not substitute another browser or collapse it to a generic launch failure.
 - **`LEASE_NOT_FOUND`** — the lease was released, expired and cleaned, or the wrong state directory was supplied.
 - **`STALE_LEASE` from `doctor`** — run `cleanup` for that exact lease after confirming it is no longer active.
 - **Cleanup reports `OWNER_GENERATION_GONE`** — the provider freshly proved the lease's original process generation absent/disconnected. The lease record was removed, no replacement endpoint was contacted, and its recorded target IDs could not be closed.

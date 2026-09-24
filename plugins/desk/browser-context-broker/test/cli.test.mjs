@@ -85,6 +85,13 @@ async function run(args, options = {}) {
 }
 
 async function waitForChildExit(child, timeoutMs = 1_000) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return {
+      exited: true,
+      code: child.exitCode,
+      signal: child.signalCode,
+    };
+  }
   return Promise.race([
     new Promise((resolve) => child.once('exit', (code, signal) => {
       resolve({ exited: true, code, signal });

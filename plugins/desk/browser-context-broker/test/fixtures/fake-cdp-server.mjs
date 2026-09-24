@@ -112,6 +112,11 @@ export async function startFakeCdpServer(options = {}) {
         }));
       }
     },
+    emitSessionEvent(sessionId, method, params) {
+      for (const client of sockets.clients) {
+        client.send(JSON.stringify({ sessionId, method, params }));
+      }
+    },
     disconnectClients() {
       for (const client of sockets.clients) client.terminate();
     },

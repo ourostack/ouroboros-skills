@@ -12,3 +12,13 @@ The host overlay owns the runtime contract:
 4. Supply the exact installed executable path to its launcher as `BROWSER_CONTEXT_BROKER_BIN`.
 
 The overlay also supplies the private provider, declarations, state directory, and readiness-file location. The generic Desk package does not claim those host-specific resources or mutate the operator's `PATH`.
+
+## Provider IPC
+
+The broker sends one JSON request on stdin and expects one JSON result on stdout. A provider that cannot complete an operation exits nonzero. To preserve an actionable provider diagnostic, it may write exactly one error envelope to stdout:
+
+```json
+{"code":"ENDPOINT_COLLISION","message":"Selected endpoint was claimed before launch","details":{"attempt":1}}
+```
+
+The envelope contains only `code`, non-empty `message`, and optional object-valued `details`. The broker preserves the approved provider codes `ENDPOINT_COLLISION` and `UNSUPPORTED_CONTEXT_RECOVERY`, including their details. Unknown codes, malformed JSON, invalid field types, and extra fields are reported as `PROVIDER_EXITED`; provider stdout is not copied into that fallback diagnostic.

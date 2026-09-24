@@ -684,6 +684,89 @@ test('proxy transparently forwards commands for an owned target session', async 
   assert.equal(response.result.result.value, 42);
 });
 
+test('proxy forwards Playwright page navigation and lifecycle events for an owned session', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+  const frame = {
+    id: 'frame-1',
+    loaderId: 'loader-1',
+    url: 'https://owned.example.test/',
+    domainAndRegistry: 'example.test',
+    securityOrigin: 'https://owned.example.test',
+    mimeType: 'text/html',
+    adFrameStatus: { adFrameType: 'none' },
+    secureContextType: 'Secure',
+    crossOriginIsolatedContextType: 'NotIsolated',
+    gatedAPIFeatures: [],
+  };
+
+  fake.emitSessionEvent(sessionId, 'Page.frameNavigated', {
+    frame,
+    type: 'Navigation',
+  });
+  fake.emitSessionEvent(sessionId, 'Page.lifecycleEvent', {
+    frameId: frame.id,
+    loaderId: frame.loaderId,
+    name: 'DOMContentLoaded',
+    timestamp: 123.456,
+  });
+
+  await waitFor(
+    () => cdp.events.filter(({ sessionId: eventSession }) => eventSession === sessionId).length === 2,
+    'owned session events were not forwarded',
+  );
+  assert.deepEqual(
+    cdp.events
+      .filter(({ sessionId: eventSession }) => eventSession === sessionId)
+      .map(({ method }) => method),
+    ['Page.frameNavigated', 'Page.lifecycleEvent'],
+  );
+});
+
+test('proxy suppresses ordinary events for an unowned target session', async () => {
+  const { fake, cdp } = await setup();
+  fake.emitSessionEvent('session-for-another-lease', 'Page.frameNavigated', {
+    frame: {
+      id: 'hidden-frame',
+      loaderId: 'hidden-loader',
+      url: 'https://hidden.example.test/',
+      domainAndRegistry: 'example.test',
+      securityOrigin: 'https://hidden.example.test',
+      mimeType: 'text/html',
+    },
+    type: 'Navigation',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(!cdp.events.some(({ sessionId }) => sessionId === 'session-for-another-lease'));
+});
+
+test('proxy retains target ownership filtering for browser-level events with an owned session', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  fake.emitSessionEvent(attached.result.sessionId, 'Target.targetInfoChanged', {
+    targetInfo: {
+      targetId: 'unowned-existing',
+      type: 'page',
+      title: 'Unowned',
+      url: 'https://unowned.example.test/',
+      browserContextId: 'default',
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(!cdp.events.some(
+    ({ method, params }) =>
+      method === 'Target.targetInfoChanged' &&
+      params?.targetInfo?.targetId === 'unowned-existing',
+  ));
+});
+
 test('proxy denies browser termination and browser-global mutation commands', async () => {
   const { fake, cdp } = await setup();
   for (const method of [

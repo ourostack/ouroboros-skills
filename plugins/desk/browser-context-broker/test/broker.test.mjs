@@ -5,8 +5,10 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import { acquireContext } from '../src/broker.mjs';
+import { invokeProvider } from '../src/provider.mjs';
 import { readRegistry, writeRegistry } from '../src/registry.mjs';
 
+const providerFixture = new URL('./fixtures/json-provider.mjs', import.meta.url);
 const scratchRoot = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
   '.broker-state',
@@ -182,6 +184,61 @@ test('retries with a new dynamic endpoint after a collision', async () => {
 
   assert.equal(result.rawEndpoint, 'http://127.0.0.1:45002');
   assert.equal(launchCount, 2);
+});
+
+test('retries after an ENDPOINT_COLLISION reported through provider IPC', async () => {
+  const directory = await stateDir();
+  const endpoints = ['http://127.0.0.1:45011', 'http://127.0.0.1:45012'];
+
+  const result = await acquireContext({
+    config,
+    request: { surface: 'work', identity: 'requested@example.test' },
+    stateDir: directory,
+    endpointAllocator: async () => endpoints.shift(),
+    providerInvoker: (operation, payload) =>
+      invokeProvider(process.execPath, operation, {
+        ...payload,
+        fixture: 'broker-retry',
+      }, {
+        args: [providerFixture.pathname],
+      }),
+  });
+
+  assert.equal(result.rawEndpoint, 'http://127.0.0.1:45012');
+});
+
+test('preserves a precise unsupported recovery diagnostic from provider IPC', async () => {
+  const directory = await stateDir();
+  const observation = {
+    contextId: 'requested',
+    endpoint: 'http://127.0.0.1:45100',
+    processIdentity: processIdentity(requestedDeclaration, 651),
+  };
+  await writeRegistry(directory, {
+    version: 1,
+    contexts: { requested: observation },
+    leases: {},
+  });
+
+  await assert.rejects(
+    acquireContext({
+      config,
+      request: { surface: 'work', identity: 'requested@example.test' },
+      stateDir: directory,
+      providerInvoker: (operation, payload) =>
+        invokeProvider(process.execPath, operation, {
+          ...payload,
+          fixture: 'broker-unsupported-recovery',
+        }, {
+          args: [providerFixture.pathname],
+        }),
+    }),
+    (error) =>
+      error.code === 'UNSUPPORTED_CONTEXT_RECOVERY' &&
+      error.message === 'Existing context cannot be recovered by this provider' &&
+      error.details.contextId === 'requested' &&
+      error.details.reason === 'PROFILE_VERSION_MISMATCH',
+  );
 });
 
 test('repairs stale registry state only for the requested context', async () => {
