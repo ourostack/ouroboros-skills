@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, rm } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import WebSocket from 'ws';
 
@@ -12,6 +13,7 @@ import { readRegistry } from '../src/registry.mjs';
 import { startFakeCdpServer } from './fixtures/fake-cdp-server.mjs';
 
 const scratchRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '.lease-state');
+const holdLeaseLockFixture = new URL('./fixtures/hold-lease-lock.mjs', import.meta.url);
 
 async function stateDir() {
   const directory = path.join(scratchRoot, randomUUID());
@@ -247,6 +249,59 @@ test('release serializes with late target creation and leaves no leaked target',
   assert.equal((await readRegistry(directory)).leases[leaseId], undefined);
   assert.deepEqual([...fake.targets.keys()], ['unowned-existing']);
   await fake.close();
+});
+
+test('release reclaims a stale lease operation lock after its exact owner process terminates', async (t) => {
+  const fake = await startFakeCdpServer();
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const child = spawn(process.execPath, [
+    holdLeaseLockFixture.pathname,
+    directory,
+    lease.id,
+  ], {
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  t.after(() => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+  });
+  child.stdout.setEncoding('utf8');
+  await new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.stdout.once('data', (chunk) => {
+      assert.match(chunk, /locked/u);
+      resolve();
+    });
+  });
+  const lockName = `lease-${createHash('sha256').update(lease.id).digest('hex')}`;
+  const ownerPath = path.join(directory, `${lockName}.lock`, 'owner.json');
+
+  child.kill('SIGTERM');
+  await new Promise((resolve) => child.once('close', resolve));
+  const owner = JSON.parse(await readFile(ownerPath, 'utf8'));
+  await writeFile(
+    ownerPath,
+    JSON.stringify({ ...owner, createdAt: new Date(0).toISOString() }),
+    { mode: 0o600 },
+  );
+
+  const result = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.equal(result.released, true);
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+  assert.ok(!fake.targets.has(lease.targetIds[0]));
 });
 
 test('release closes only owned targets, preserves other leases, and leaves browser alive', async () => {

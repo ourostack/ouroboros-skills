@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { chmod, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -100,6 +100,78 @@ test('withBrokerLock serializes writers and removes its exact lock', async () =>
   assert.deepEqual(order, ['first-start', 'first-end', 'second']);
   assert.deepEqual(await readdir(directory), []);
 });
+
+test('withBrokerLock reclaims a stale lock after proving its PID is a different generation', async () => {
+  const directory = await stateDir();
+  const lockPath = path.join(directory, 'broker.lock');
+  await mkdir(lockPath, { mode: 0o700 });
+  await writeFile(
+    path.join(lockPath, 'owner.json'),
+    JSON.stringify({
+      token: 'stale-owner',
+      pid: process.pid,
+      startIdentity: 'prior-generation',
+      createdAt: new Date(0).toISOString(),
+    }),
+    { mode: 0o600 },
+  );
+  let entered = false;
+
+  await withBrokerLock(
+    directory,
+    async () => {
+      entered = true;
+    },
+    {
+      staleMs: 0,
+      processIdentityReader: async (pid) => {
+        assert.equal(pid, process.pid);
+        return 'current-generation';
+      },
+    },
+  );
+
+  assert.equal(entered, true);
+  assert.deepEqual(await readdir(directory), []);
+});
+
+for (const [ownerState, createProcessIdentityReader] of [
+  ['alive', () => async () => 'exact-generation'],
+  ['unknown', () => {
+    let calls = 0;
+    return async () => {
+      calls += 1;
+      if (calls === 1) return 'exact-generation';
+      throw new Error('process inspection unavailable');
+    };
+  }],
+]) {
+  test(`withBrokerLock fails closed when a stale owner generation is ${ownerState}`, async () => {
+    const directory = await stateDir();
+    const lockPath = path.join(directory, 'broker.lock');
+    await mkdir(lockPath, { mode: 0o700 });
+    await writeFile(
+      path.join(lockPath, 'owner.json'),
+      JSON.stringify({
+        token: 'stale-owner',
+        pid: process.pid,
+        startIdentity: 'exact-generation',
+        createdAt: new Date(0).toISOString(),
+      }),
+      { mode: 0o600 },
+    );
+
+    await assert.rejects(
+      withBrokerLock(directory, async () => {}, {
+        staleMs: 0,
+        processIdentityReader: createProcessIdentityReader(),
+      }),
+      (error) =>
+        error.code === 'STALE_BROKER_LOCK' &&
+        error.details.ownerState === ownerState,
+    );
+  });
+}
 
 test('readRegistry rejects a state directory accessible by other users', async () => {
   const directory = await stateDir();
