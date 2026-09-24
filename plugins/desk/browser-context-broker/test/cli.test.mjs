@@ -506,7 +506,11 @@ test('clean source package installs production dependencies and launches help an
   await mkdir(packageScratchRoot, { recursive: true });
   await cp(packageRoot, copyRoot, {
     recursive: true,
-    filter: (source) => !source.split(path.sep).includes('node_modules'),
+    filter: (source) => {
+      const parts = source.split(path.sep);
+      return !parts.includes('node_modules') &&
+        !parts.some((part) => /^\..+-state$/u.test(part));
+    },
   });
   const packageReadme = await readFile(path.join(copyRoot, 'README.md'), 'utf8');
   assert.match(packageReadme, /plugin-relative source/);

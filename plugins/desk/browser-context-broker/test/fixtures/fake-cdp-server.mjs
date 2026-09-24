@@ -71,7 +71,17 @@ export async function startFakeCdpServer(options = {}) {
           }));
         });
       } else if (message.method === 'Target.closeTarget') {
-        result = { success: targets.delete(message.params.targetId) };
+        try {
+          result = await options.closeTarget?.(message, targets) ??
+            { success: targets.delete(message.params.targetId) };
+        } catch (error) {
+          socket.send(JSON.stringify({
+            id: message.id,
+            error: { code: -32000, message: error.message },
+            sessionId: message.sessionId,
+          }));
+          return;
+        }
       } else if (message.method === 'Target.attachToTarget') {
         result = { sessionId: `session-${message.params.targetId}` };
       } else if (message.method === 'Target.setAutoAttach' && message.params.autoAttach) {

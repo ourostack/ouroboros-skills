@@ -9,6 +9,7 @@ import WebSocket from 'ws';
 import { acquireContext } from '../src/broker.mjs';
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
 import {
+  addOwnedTarget,
   cleanupStaleLease,
   createLease,
   heartbeatLease,
@@ -423,4 +424,137 @@ test('release closes only owned targets, preserves other leases, and leaves brow
   assert.ok(!fake.methods.some(({ method }) => method === 'Browser.close'));
 
   await fake.close();
+});
+
+test('release retains failed target ownership and retries only the failed targets', async (t) => {
+  let failTarget = true;
+  const fake = await startFakeCdpServer({
+    closeTarget: async (message, targets) => {
+      if (message.params.targetId === 'target-retry' && failTarget) {
+        return { success: false };
+      }
+      return { success: targets.delete(message.params.targetId) };
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  fake.emitTargetCreated({
+    targetId: 'target-retry',
+    type: 'page',
+    title: '',
+    url: 'about:blank',
+    browserContextId: 'default',
+  });
+  await addOwnedTarget(directory, lease.id, 'target-retry');
+
+  const partial = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.deepEqual(partial, {
+    leaseId: lease.id,
+    released: false,
+    closedTargetIds: [lease.targetIds[0]],
+    failedTargetIds: ['target-retry'],
+  });
+  const retained = (await readRegistry(directory)).leases[lease.id];
+  assert.deepEqual(retained.targetIds, ['target-retry']);
+  assert.equal(retained.releasing, false);
+  assert.ok(!fake.targets.has(lease.targetIds[0]));
+  assert.ok(fake.targets.has('target-retry'));
+
+  failTarget = false;
+  const retried = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.deepEqual(retried, {
+    leaseId: lease.id,
+    released: true,
+    closedTargetIds: ['target-retry'],
+    failedTargetIds: [],
+  });
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+  assert.ok(!fake.targets.has('target-retry'));
+});
+
+test('stale cleanup retains targets whose close throws and retries only those targets', async (t) => {
+  let throwForTarget = true;
+  const fake = await startFakeCdpServer({
+    closeTarget: async (message, targets) => {
+      if (message.params.targetId === 'target-retry' && throwForTarget) {
+        throw new Error('close failed');
+      }
+      return { success: targets.delete(message.params.targetId) };
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  fake.emitTargetCreated({
+    targetId: 'target-retry',
+    type: 'page',
+    title: '',
+    url: 'about:blank',
+    browserContextId: 'default',
+  });
+  await addOwnedTarget(directory, lease.id, 'target-retry');
+  const registry = await readRegistry(directory);
+  registry.leases[lease.id].expiresAt = new Date(0).toISOString();
+  await writeRegistry(directory, registry);
+
+  const partial = await cleanupStaleLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.deepEqual(partial, {
+    leaseId: lease.id,
+    released: false,
+    closedTargetIds: [lease.targetIds[0]],
+    failedTargetIds: ['target-retry'],
+  });
+  const retained = (await readRegistry(directory)).leases[lease.id];
+  assert.deepEqual(retained.targetIds, ['target-retry']);
+  assert.equal(retained.releasing, false);
+  assert.ok(!fake.targets.has(lease.targetIds[0]));
+  assert.ok(fake.targets.has('target-retry'));
+
+  throwForTarget = false;
+  const retried = await cleanupStaleLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.deepEqual(retried, {
+    leaseId: lease.id,
+    released: true,
+    closedTargetIds: ['target-retry'],
+    failedTargetIds: [],
+  });
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+  assert.ok(!fake.targets.has('target-retry'));
 });

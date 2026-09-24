@@ -94,6 +94,51 @@ function disconnectedLeaseError(lease, reconciled) {
   );
 }
 
+async function closeOwnedTargets(rawEndpoint, targetIds) {
+  const closedTargetIds = [];
+  const failedTargetIds = [];
+  let client;
+  try {
+    client = await CdpClient.connect(rawEndpoint);
+  } catch {
+    return { closedTargetIds, failedTargetIds: [...targetIds] };
+  }
+  try {
+    for (const targetId of targetIds) {
+      try {
+        const result = await client.send('Target.closeTarget', { targetId });
+        if (result?.success === true) closedTargetIds.push(targetId);
+        else failedTargetIds.push(targetId);
+      } catch {
+        failedTargetIds.push(targetId);
+      }
+    }
+  } finally {
+    await client.close().catch(() => {});
+  }
+  return { closedTargetIds, failedTargetIds };
+}
+
+async function recordTargetClosures(stateDir, leaseId, closedTargetIds, failedTargetIds) {
+  return withBrokerLock(stateDir, async () => {
+    const registry = await readRegistry(stateDir);
+    const lease = registry.leases[leaseId];
+    if (!lease) throw new BrokerError('LEASE_NOT_FOUND', `Lease not found: ${leaseId}`, { leaseId });
+    const closed = new Set(closedTargetIds);
+    lease.targetIds = lease.targetIds.filter((targetId) => !closed.has(targetId));
+    const released = failedTargetIds.length === 0 && lease.targetIds.length === 0;
+    if (released) delete registry.leases[leaseId];
+    else lease.releasing = false;
+    await writeRegistry(stateDir, registry);
+    return {
+      leaseId,
+      released,
+      closedTargetIds,
+      failedTargetIds,
+    };
+  });
+}
+
 export async function attestLeaseContext(options) {
   const { lease, reconciled } = await reconcileLeaseContext(options);
   if (!isExactHealthyLease(lease, reconciled)) {
@@ -233,20 +278,16 @@ export async function releaseLease({
       record.releasing = true;
       return structuredClone(record);
     });
-    const client = await CdpClient.connect(lease.rawEndpoint);
-    try {
-      for (const targetId of lease.targetIds) {
-        await client.send('Target.closeTarget', { targetId }).catch(() => {});
-      }
-    } finally {
-      await client.close();
-    }
-    await withBrokerLock(stateDir, async () => {
-      const registry = await readRegistry(stateDir);
-      delete registry.leases[leaseId];
-      await writeRegistry(stateDir, registry);
-    });
-    return { leaseId, released: true, closedTargetIds: lease.targetIds };
+    const { closedTargetIds, failedTargetIds } = await closeOwnedTargets(
+      lease.rawEndpoint,
+      lease.targetIds,
+    );
+    return recordTargetClosures(
+      stateDir,
+      leaseId,
+      closedTargetIds,
+      failedTargetIds,
+    );
   });
 }
 
@@ -292,24 +333,16 @@ export async function cleanupStaleLease({
       if (!isExactHealthyLease(lease, reconciled)) {
         throw disconnectedLeaseError(lease, reconciled);
       }
-      const client = await CdpClient.connect(lease.rawEndpoint);
-      try {
-        for (const targetId of lease.targetIds) {
-          await client.send('Target.closeTarget', { targetId }).catch(() => {});
-        }
-      } finally {
-        await client.close();
-      }
-      await withBrokerLock(stateDir, async () => {
-        const registry = await readRegistry(stateDir);
-        delete registry.leases[leaseId];
-        await writeRegistry(stateDir, registry);
-      });
-      return {
+      const { closedTargetIds, failedTargetIds } = await closeOwnedTargets(
+        lease.rawEndpoint,
+        lease.targetIds,
+      );
+      return recordTargetClosures(
+        stateDir,
         leaseId,
-        released: true,
-        closedTargetIds: lease.targetIds,
-      };
+        closedTargetIds,
+        failedTargetIds,
+      );
     } catch (error) {
       await withBrokerLock(stateDir, async () => {
         const registry = await readRegistry(stateDir);
