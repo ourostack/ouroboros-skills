@@ -58,6 +58,14 @@ async function writeConfig(directory, rawEndpoint) {
   return configPath;
 }
 
+const testProcessIdentity = {
+  pid: 900,
+  startIdentity: 'start-900',
+  owner: 'operator',
+  executable: '/opt/browser',
+  profileRoot: '/profiles/work',
+};
+
 async function run(args, options = {}) {
   try {
     const result = await execFileAsync(process.execPath, [cli, ...args], {
@@ -152,14 +160,45 @@ test('status redacts tokens, secrets, environment, and provider configuration', 
   assert.ok(!output.includes(providerFixture.toLowerCase()));
 });
 
+test('status does not publish a usable authenticated proxy endpoint', async () => {
+  const fake = await startFakeCdpServer();
+  const directory = await stateDir();
+  const configPath = await writeConfig(directory, fake.endpoint);
+  const acquired = JSON.parse((await run([
+    'acquire',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--alias', 'default',
+    '--json',
+  ])).stdout).result;
+  const registry = await readRegistry(directory);
+  registry.leases[acquired.leaseId].proxy = {
+    endpoint: `http://127.0.0.1:12345/${acquired.proxyToken}`,
+    pid: 123,
+    startIdentity: 'proxy-start',
+  };
+  await writeRegistry(directory, registry);
+
+  const result = await run(['status', '--state-dir', directory, '--json']);
+  await fake.close();
+
+  assert.equal(result.exitCode, 0, result.stderr);
+  assert.ok(!result.stdout.includes(acquired.proxyToken));
+  assert.ok(!result.stdout.includes('/devtools/browser/'));
+});
+
 test('doctor reports stale leases without exposing their proxy token', async () => {
   const fake = await startFakeCdpServer();
   const directory = await stateDir();
   const lease = await createLease({
     stateDir: directory,
-    context: { id: 'work', claims: {} },
+    context: {
+      id: 'work',
+      claims: {},
+    },
     owner: 'agent-a',
     rawEndpoint: fake.endpoint,
+    processIdentity: testProcessIdentity,
   });
   const registry = await readRegistry(directory);
   registry.leases[lease.id].expiresAt = new Date(0).toISOString();
@@ -208,17 +247,20 @@ test('doctor freshly attests registry observations through the configured provid
 test('cleanup expires only the specified stale lease and its owned targets', async () => {
   const fake = await startFakeCdpServer();
   const directory = await stateDir();
+  const configPath = await writeConfig(directory, fake.endpoint);
   const first = await createLease({
     stateDir: directory,
     context: { id: 'work', claims: {} },
     owner: 'agent-a',
     rawEndpoint: fake.endpoint,
+    processIdentity: testProcessIdentity,
   });
   const second = await createLease({
     stateDir: directory,
     context: { id: 'work', claims: {} },
     owner: 'agent-b',
     rawEndpoint: fake.endpoint,
+    processIdentity: testProcessIdentity,
   });
   const registry = await readRegistry(directory);
   registry.contexts.work = { contextId: 'work', endpoint: fake.endpoint };
@@ -227,6 +269,7 @@ test('cleanup expires only the specified stale lease and its owned targets', asy
 
   const result = await run([
     'cleanup',
+    '--config', configPath,
     '--state-dir', directory,
     '--lease', first.id,
     '--json',
@@ -241,14 +284,59 @@ test('cleanup expires only the specified stale lease and its owned targets', asy
   assert.ok(fake.targets.has(second.targetIds[0]));
 });
 
+test('cleanup fails disconnected instead of following repaired registry state', async () => {
+  const original = await startFakeCdpServer();
+  const replacement = await startFakeCdpServer();
+  const directory = await stateDir();
+  const configPath = await writeConfig(directory, original.endpoint);
+  const acquired = JSON.parse((await run([
+    'acquire',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--alias', 'default',
+    '--json',
+  ])).stdout).result;
+  const registry = await readRegistry(directory);
+  const ownedTarget = registry.leases[acquired.leaseId].targetIds[0];
+  registry.leases[acquired.leaseId].expiresAt = new Date(0).toISOString();
+  registry.contexts.work.endpoint = replacement.endpoint;
+  registry.contexts.work.processIdentity = {
+    ...registry.contexts.work.processIdentity,
+    startIdentity: 'replacement-generation',
+  };
+  await writeRegistry(directory, registry);
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  config.contexts[0].testAttestation = 'unhealthy';
+  await writeFile(configPath, JSON.stringify(config));
+
+  const result = await run([
+    'cleanup',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--lease', acquired.leaseId,
+    '--json',
+  ]);
+  const after = await readRegistry(directory);
+  await original.close();
+  await replacement.close();
+
+  assert.equal(result.exitCode, 3);
+  assert.equal(JSON.parse(result.stderr).error.code, 'CONTEXT_DISCONNECTED');
+  assert.ok(after.leases[acquired.leaseId]);
+  assert.ok(original.targets.has(ownedTarget));
+  assert.equal(replacement.methods.length, 0);
+});
+
 test('proxy publishes exact readiness metadata for a lease', async () => {
   const fake = await startFakeCdpServer();
   const directory = await stateDir();
+  const configPath = await writeConfig(directory, fake.endpoint);
   const lease = await createLease({
     stateDir: directory,
     context: { id: 'work', claims: {} },
     owner: 'agent-a',
     rawEndpoint: fake.endpoint,
+    processIdentity: testProcessIdentity,
   });
   const registry = await readRegistry(directory);
   registry.contexts.work = { contextId: 'work', endpoint: fake.endpoint };
@@ -257,6 +345,7 @@ test('proxy publishes exact readiness metadata for a lease', async () => {
   const child = spawn(process.execPath, [
     cli,
     'proxy',
+    '--config', configPath,
     '--state-dir', directory,
     '--lease', lease.id,
     '--json-ready', readyPath,

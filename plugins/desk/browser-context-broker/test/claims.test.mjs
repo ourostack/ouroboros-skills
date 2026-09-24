@@ -66,6 +66,57 @@ test('expandRequest rejects explicit claims that conflict with an alias', () => 
   );
 });
 
+test('expandRequest permits identity and tenant allow-lists only when they narrow an alias', () => {
+  const allowListConfig = {
+    aliases: {
+      shared: {
+        surface: 'work',
+        identity: ['operator@example.test', 'backup@example.test'],
+        tenant: ['tenant-a', 'tenant-b'],
+      },
+    },
+  };
+
+  assert.deepEqual(
+    expandRequest(allowListConfig, {
+      alias: 'shared',
+      identity: ['operator@example.test'],
+      tenant: 'tenant-a',
+    }),
+    {
+      alias: 'shared',
+      surface: 'work',
+      identity: ['operator@example.test'],
+      tenant: 'tenant-a',
+    },
+  );
+  assert.throws(
+    () => expandRequest(allowListConfig, {
+      alias: 'shared',
+      identity: ['operator@example.test', 'other@example.test'],
+    }),
+    (error) => error.code === 'CONFLICTING_REQUEST_CLAIMS',
+  );
+  assert.throws(
+    () => expandRequest(allowListConfig, {
+      alias: 'shared',
+      tenant: ['tenant-a', 'tenant-z'],
+    }),
+    (error) => error.code === 'CONFLICTING_REQUEST_CLAIMS',
+  );
+});
+
+test('matchContext rejects empty requests and requests missing required surface evidence', () => {
+  for (const request of [{}, { identity: 'operator@example.test' }]) {
+    assert.throws(
+      () => matchContext(config, request),
+      (error) =>
+        error.code === 'MISSING_REQUIRED_CLAIM' &&
+        error.details.claim === 'surface',
+    );
+  }
+});
+
 test('matchContext accepts exact scalar identity and tenant claims', () => {
   assert.equal(
     matchContext(config, {

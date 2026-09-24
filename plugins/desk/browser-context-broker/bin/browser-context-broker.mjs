@@ -87,7 +87,13 @@ function statusResult(registry) {
       createdAt: lease.createdAt,
       heartbeatAt: lease.heartbeatAt,
       expiresAt: lease.expiresAt,
-      proxy: lease.proxy,
+      proxy: lease.proxy
+        ? {
+            pid: lease.proxy.pid,
+            startIdentity: lease.proxy.startIdentity,
+            heartbeatAt: lease.proxy.heartbeatAt,
+          }
+        : undefined,
       releasing: lease.releasing ?? false,
     })),
   };
@@ -118,6 +124,7 @@ async function run(command, options) {
       context: acquired.context,
       owner: options.owner ?? process.env.USER ?? `pid-${process.pid}`,
       rawEndpoint: acquired.rawEndpoint,
+      processIdentity: acquired.processIdentity,
     });
     return {
       leaseId: lease.id,
@@ -130,14 +137,24 @@ async function run(command, options) {
 
   const registry = await readRegistry(stateDir);
   if (command === 'proxy') {
+    const config = await loadJson(requireOption(options, 'config'));
     const leaseId = requireOption(options, 'lease');
     const lease = registry.leases[leaseId];
     if (!lease) throw new BrokerError('LEASE_NOT_FOUND', `Lease not found: ${leaseId}`);
-    const rawEndpoint = registry.contexts[lease.contextId]?.endpoint;
-    if (!rawEndpoint) {
-      throw new BrokerError('CONTEXT_ENDPOINT_MISSING', `Context endpoint missing for lease: ${leaseId}`);
+    const declaration = config.contexts?.find(({ id }) => id === lease.contextId);
+    if (!declaration) {
+      throw new BrokerError(
+        'CONTEXT_DISCONNECTED',
+        `Context declaration missing for lease: ${leaseId}`,
+        { leaseId, contextId: lease.contextId, reason: 'DECLARATION_MISSING' },
+      );
     }
-    const proxy = await startLeaseProxy({ stateDir, leaseId, rawEndpoint });
+    const proxy = await startLeaseProxy({
+      stateDir,
+      leaseId,
+      declaration,
+      providerInvoker: providerFor(config),
+    });
     const ready = {
       endpoint: proxy.endpoint,
       pid: proxy.pid,
@@ -154,14 +171,24 @@ async function run(command, options) {
   }
 
   if (command === 'release') {
+    const config = await loadJson(requireOption(options, 'config'));
     const leaseId = requireOption(options, 'lease');
     const lease = registry.leases[leaseId];
     if (!lease) throw new BrokerError('LEASE_NOT_FOUND', `Lease not found: ${leaseId}`);
-    const rawEndpoint = registry.contexts[lease.contextId]?.endpoint;
-    if (!rawEndpoint) {
-      throw new BrokerError('CONTEXT_ENDPOINT_MISSING', `Context endpoint missing for lease: ${leaseId}`);
+    const declaration = config.contexts?.find(({ id }) => id === lease.contextId);
+    if (!declaration) {
+      throw new BrokerError(
+        'CONTEXT_DISCONNECTED',
+        `Context declaration missing for lease: ${leaseId}`,
+        { leaseId, contextId: lease.contextId, reason: 'DECLARATION_MISSING' },
+      );
     }
-    return releaseLease({ stateDir, leaseId, rawEndpoint });
+    return releaseLease({
+      stateDir,
+      leaseId,
+      declaration,
+      providerInvoker: providerFor(config),
+    });
   }
 
   if (command === 'status') return statusResult(registry);
@@ -230,17 +257,27 @@ async function run(command, options) {
   }
 
   if (command === 'cleanup') {
+    const config = await loadJson(requireOption(options, 'config'));
     const leaseId = requireOption(options, 'lease');
     const lease = registry.leases[leaseId];
     if (!lease) throw new BrokerError('LEASE_NOT_FOUND', `Lease not found: ${leaseId}`);
     if (Date.parse(lease.expiresAt) > Date.now()) {
       throw new BrokerError('LEASE_NOT_STALE', `Lease is still active: ${leaseId}`, { leaseId });
     }
-    const rawEndpoint = registry.contexts[lease.contextId]?.endpoint;
-    if (!rawEndpoint) {
-      throw new BrokerError('CONTEXT_ENDPOINT_MISSING', `Context endpoint missing for lease: ${leaseId}`);
+    const declaration = config.contexts?.find(({ id }) => id === lease.contextId);
+    if (!declaration) {
+      throw new BrokerError(
+        'CONTEXT_DISCONNECTED',
+        `Context declaration missing for lease: ${leaseId}`,
+        { leaseId, contextId: lease.contextId, reason: 'DECLARATION_MISSING' },
+      );
     }
-    return releaseLease({ stateDir, leaseId, rawEndpoint });
+    return releaseLease({
+      stateDir,
+      leaseId,
+      declaration,
+      providerInvoker: providerFor(config),
+    });
   }
 
   throw new BrokerError('UNKNOWN_COMMAND', `Unknown command: ${command ?? '(missing)'}`);

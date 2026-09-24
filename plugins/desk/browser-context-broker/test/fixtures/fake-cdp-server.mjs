@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 
-export async function startFakeCdpServer() {
+export async function startFakeCdpServer(options = {}) {
   const targets = new Map([
     ['unowned-existing', {
       targetId: 'unowned-existing',
@@ -33,13 +33,14 @@ export async function startFakeCdpServer() {
     });
   });
   sockets.on('connection', (socket) => {
-    socket.on('message', (data) => {
+    socket.on('message', async (data) => {
       const message = JSON.parse(data.toString());
       methods.push({ method: message.method, params: message.params });
       let result = {};
       if (message.method === 'Target.getTargets') {
         result = { targetInfos: [...targets.values()] };
       } else if (message.method === 'Target.createTarget') {
+        await options.beforeCreateTarget?.(message);
         const targetId = `target-${nextTarget++}`;
         const targetInfo = {
           targetId,
@@ -57,10 +58,12 @@ export async function startFakeCdpServer() {
         });
       } else if (message.method === 'Target.closeTarget') {
         result = { success: targets.delete(message.params.targetId) };
+      } else if (message.method === 'Target.attachToTarget') {
+        result = { sessionId: `session-${message.params.targetId}` };
       } else if (message.method === 'Runtime.evaluate') {
         result = { result: { type: 'number', value: 42 } };
       }
-      socket.send(JSON.stringify({ id: message.id, result }));
+      socket.send(JSON.stringify({ id: message.id, result, sessionId: message.sessionId }));
     });
   });
 

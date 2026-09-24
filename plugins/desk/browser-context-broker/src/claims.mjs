@@ -21,7 +21,7 @@ function compatible(aliasValue, requestValue, key) {
   }
   if (ALLOW_LIST_CLAIMS.has(key)) {
     const aliasValues = new Set(values(aliasValue));
-    return values(requestValue).some((value) => aliasValues.has(value));
+    return values(requestValue).every((value) => aliasValues.has(value));
   }
   return aliasValue === requestValue;
 }
@@ -68,6 +68,13 @@ function matchesClaim(declared, requested, key) {
 
 export function matchContext(config, request) {
   const expanded = expandRequest(config, request);
+  if (!expanded.surface) {
+    throw new BrokerError(
+      'MISSING_REQUIRED_CLAIM',
+      'Request must include the required "surface" claim',
+      { claim: 'surface' },
+    );
+  }
   const claims = Object.fromEntries(
     Object.entries(expanded).filter(([key]) => key !== 'alias'),
   );

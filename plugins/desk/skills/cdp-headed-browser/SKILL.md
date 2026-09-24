@@ -53,6 +53,7 @@ browser-context-broker acquire \
   --json
 
 browser-context-broker proxy \
+  --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$LEASE_ID" \
   --json-ready "$PROXY_READY_FILE"
@@ -60,12 +61,13 @@ browser-context-broker proxy \
 npx -y @playwright/mcp@latest --cdp-endpoint "$LEASE_PROXY_ENDPOINT"
 
 browser-context-broker release \
+  --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$LEASE_ID" \
   --json
 ```
 
-Treat `proxyToken` from `acquire` as lease-scoped connection material. Do not place it in logs, status reports, task records, or shared configuration.
+Treat `proxyToken` from `acquire` and the authenticated endpoint from `proxy` as lease-scoped connection material. Do not place either in logs, status reports, task records, or shared configuration.
 
 ## Lease isolation
 
@@ -76,7 +78,8 @@ Every acquisition creates a distinct lease and an initial background target. The
 - Inherits popup descendants whose opener is lease-owned.
 - Rejects attaching to, activating, or closing an unowned target.
 - Rejects commands addressed to an unowned target session.
-- Forwards non-target commands without exposing another lease's pages.
+- Allows only the browser-level commands required to discover, create, attach to, and close owned targets.
+- Rejects browser termination and other browser-global mutation; target-session commands are forwarded only for sessions owned by the lease.
 
 Never search a persistent browser's global page list for a convenient existing tab. Work only through the lease proxy; all pages visible there are owned targets for that lease.
 
@@ -149,6 +152,7 @@ For an expired lease identified by `doctor`, use exact cleanup:
 
 ```bash
 browser-context-broker cleanup \
+  --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$STALE_LEASE_ID" \
   --json

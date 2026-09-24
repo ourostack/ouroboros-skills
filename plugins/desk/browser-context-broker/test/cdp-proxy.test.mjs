@@ -6,11 +6,40 @@ import test from 'node:test';
 import WebSocket from 'ws';
 
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
-import { createLease } from '../src/leases.mjs';
+import { createLease, releaseLease } from '../src/leases.mjs';
+import { readRegistry } from '../src/registry.mjs';
 import { startFakeCdpServer } from './fixtures/fake-cdp-server.mjs';
 
 const scratchRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '.proxy-state');
 const cleanups = [];
+const declaration = {
+  id: 'shared',
+  claims: { surface: 'work' },
+  launch: {
+    executable: '/opt/browser',
+    profileRoot: '/profiles/shared',
+  },
+};
+const processIdentity = {
+  pid: 800,
+  startIdentity: 'start-800',
+  owner: 'operator',
+  executable: declaration.launch.executable,
+  profileRoot: declaration.launch.profileRoot,
+};
+
+async function attestingProvider(operation, payload) {
+  assert.equal(operation, 'attest');
+  return {
+    healthy: true,
+    endpoint: payload.observation.endpoint,
+    processIdentity: payload.observation.processIdentity,
+    endpointProcessIdentity: {
+      pid: payload.observation.processIdentity.pid,
+      startIdentity: payload.observation.processIdentity.startIdentity,
+    },
+  };
+}
 
 async function stateDir() {
   const directory = path.join(scratchRoot, randomUUID());
@@ -26,6 +55,21 @@ async function openSocket(endpoint) {
     socket.once('error', reject);
   });
   return socket;
+}
+
+async function rejectedSocket(endpoint) {
+  const socket = new WebSocket(endpoint);
+  return new Promise((resolve) => {
+    socket.once('unexpected-response', (_request, response) => {
+      resolve(response.statusCode);
+      socket.terminate();
+    });
+    socket.once('open', () => {
+      resolve(101);
+      socket.close();
+    });
+    socket.once('error', () => resolve(0));
+  });
 }
 
 function exchange(socket) {
@@ -65,14 +109,17 @@ async function setup() {
   const directory = await stateDir();
   const lease = await createLease({
     stateDir: directory,
-    context: { id: 'shared', claims: { surface: 'work' } },
+    context: declaration,
     owner: 'agent-a',
     rawEndpoint: fake.endpoint,
+    processIdentity,
   });
   const proxy = await startLeaseProxy({
     stateDir: directory,
     leaseId: lease.id,
     rawEndpoint: fake.endpoint,
+    declaration,
+    providerInvoker: attestingProvider,
   });
   cleanups.push(() => proxy.close());
   const socket = await openSocket(proxy.webSocketEndpoint);
@@ -86,6 +133,49 @@ test('proxy filters target discovery to lease-owned targets', async () => {
   assert.deepEqual(
     response.result.targetInfos.map(({ targetId }) => targetId),
     lease.targetIds,
+  );
+});
+
+test('proxy rejects WebSocket upgrades without the unguessable lease credential', async () => {
+  const { lease, proxy } = await setup();
+  const authenticated = new URL(proxy.webSocketEndpoint);
+  const unauthenticated = new URL(authenticated);
+  unauthenticated.pathname = `/devtools/browser/${lease.id}`;
+  const wrongCredential = new URL(authenticated);
+  wrongCredential.pathname = authenticated.pathname.replace(lease.proxyToken, 'wrong-token');
+
+  assert.equal(await rejectedSocket(unauthenticated), 401);
+  assert.equal(await rejectedSocket(wrongCredential), 401);
+});
+
+test('proxy fails disconnected instead of following a replacement process generation', async () => {
+  const fake = await startFakeCdpServer();
+  cleanups.push(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  await assert.rejects(
+    startLeaseProxy({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: async () => ({
+        healthy: true,
+        endpoint: fake.endpoint,
+        processIdentity: { ...processIdentity, startIdentity: 'replacement-generation' },
+        endpointProcessIdentity: {
+          pid: processIdentity.pid,
+          startIdentity: 'replacement-generation',
+        },
+      }),
+    }),
+    (error) => error.code === 'CONTEXT_DISCONNECTED',
   );
 });
 
@@ -164,6 +254,15 @@ test('proxy denies commands addressed to an unowned target session', async () =>
   assert.equal(cdp.events.length, 0);
 });
 
+test('proxy denies detaching another lease target session', async () => {
+  const { fake, cdp } = await setup();
+  const response = await cdp.send('Target.detachFromTarget', {
+    sessionId: 'session-for-another-lease',
+  });
+  assert.equal(response.error.code, -32003);
+  assert.ok(!fake.methods.some(({ method }) => method === 'Target.detachFromTarget'));
+});
+
 test('proxy suppresses target events for unowned targets', async () => {
   const { fake, cdp } = await setup();
   await cdp.send('Target.getTargets');
@@ -178,8 +277,113 @@ test('proxy suppresses target events for unowned targets', async () => {
   assert.ok(!cdp.events.some(({ params }) => params?.targetInfo?.targetId === 'unowned-popup'));
 });
 
-test('proxy transparently forwards non-target commands', async () => {
-  const { cdp } = await setup();
-  const response = await cdp.send('Runtime.evaluate', { expression: '40 + 2' });
+test('proxy transparently forwards commands for an owned target session', async () => {
+  const { lease, cdp, socket } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const response = await new Promise((resolve) => {
+    const onMessage = (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.id === 100) {
+        socket.off('message', onMessage);
+        resolve(message);
+      }
+    };
+    socket.on('message', onMessage);
+    socket.send(JSON.stringify({
+      id: 100,
+      sessionId: attached.result.sessionId,
+      method: 'Runtime.evaluate',
+      params: { expression: '40 + 2' },
+    }));
+  });
   assert.equal(response.result.result.value, 42);
+});
+
+test('proxy denies browser termination and browser-global mutation commands', async () => {
+  const { fake, cdp } = await setup();
+  for (const method of [
+    'Browser.close',
+    'Browser.setDownloadBehavior',
+    'Browser.grantPermissions',
+    'Security.setIgnoreCertificateErrors',
+  ]) {
+    const response = await cdp.send(method, {});
+    assert.equal(response.error.code, -32004, method);
+  }
+  assert.ok(!fake.methods.some(({ method }) => method === 'Browser.close'));
+  assert.ok(!fake.methods.some(({ method }) => method === 'Browser.setDownloadBehavior'));
+  assert.ok(!fake.methods.some(({ method }) => method === 'Browser.grantPermissions'));
+  assert.ok(!fake.methods.some(({ method }) => method === 'Security.setIgnoreCertificateErrors'));
+});
+
+test('proxy constrains required browser-global auto-attach to avoid pausing other leases', async () => {
+  const { fake, cdp } = await setup();
+  const response = await cdp.send('Target.setAutoAttach', {
+    autoAttach: true,
+    waitForDebuggerOnStart: true,
+    flatten: true,
+  });
+
+  assert.deepEqual(response.result, {});
+  const invocation = fake.methods.findLast(({ method }) => method === 'Target.setAutoAttach');
+  assert.equal(invocation.params.autoAttach, true);
+  assert.equal(invocation.params.waitForDebuggerOnStart, false);
+  assert.equal(invocation.params.flatten, true);
+});
+
+test('late createTarget racing release is compensated without leaking a target', async (t) => {
+  let createCount = 0;
+  let allowLateCreate;
+  let lateCreateStarted;
+  const blocked = new Promise((resolve) => {
+    allowLateCreate = resolve;
+  });
+  const started = new Promise((resolve) => {
+    lateCreateStarted = resolve;
+  });
+  const fake = await startFakeCdpServer({
+    beforeCreateTarget: async () => {
+      createCount += 1;
+      if (createCount === 1) return;
+      lateCreateStarted();
+      await blocked;
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const creating = cdp.send('Target.createTarget', { url: 'https://late.example.test' });
+  await started;
+  const releasing = releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  allowLateCreate();
+  const [createResponse] = await Promise.all([creating, releasing]);
+
+  assert.ok(createResponse.result.targetId);
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+  assert.deepEqual([...fake.targets.keys()], ['unowned-existing']);
 });
