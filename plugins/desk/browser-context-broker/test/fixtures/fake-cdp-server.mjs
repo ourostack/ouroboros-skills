@@ -8,6 +8,7 @@ export async function startFakeCdpServer(options = {}) {
       type: 'page',
       title: 'Unowned',
       url: 'https://unowned.example.test',
+      browserContextId: 'default',
     }],
   ]);
   const methods = [];
@@ -33,12 +34,23 @@ export async function startFakeCdpServer(options = {}) {
     });
   });
   sockets.on('connection', (socket) => {
+    const attachedTargets = new Set();
     socket.on('message', async (data) => {
       const message = JSON.parse(data.toString());
       methods.push({ method: message.method, params: message.params });
       let result = {};
-      if (message.method === 'Target.getTargets') {
+      if (message.method === 'Browser.getVersion') {
+        result = {
+          protocolVersion: '1.3',
+          product: 'Chrome/140.0.0.0',
+          revision: '@fake',
+          userAgent: 'Mozilla/5.0 HeadlessChrome/140.0.0.0',
+          jsVersion: '14.0.0',
+        };
+      } else if (message.method === 'Target.getTargets') {
         result = { targetInfos: [...targets.values()] };
+      } else if (message.method === 'Target.getTargetInfo') {
+        result = { targetInfo: targets.get(message.params.targetId) };
       } else if (message.method === 'Target.createTarget') {
         await options.beforeCreateTarget?.(message);
         const targetId = `target-${nextTarget++}`;
@@ -47,6 +59,7 @@ export async function startFakeCdpServer(options = {}) {
           type: 'page',
           title: '',
           url: message.params.url,
+          browserContextId: 'default',
         };
         targets.set(targetId, targetInfo);
         result = { targetId };
@@ -60,6 +73,21 @@ export async function startFakeCdpServer(options = {}) {
         result = { success: targets.delete(message.params.targetId) };
       } else if (message.method === 'Target.attachToTarget') {
         result = { sessionId: `session-${message.params.targetId}` };
+      } else if (message.method === 'Target.setAutoAttach' && message.params.autoAttach) {
+        for (const targetInfo of targets.values()) {
+          if (attachedTargets.has(targetInfo.targetId)) continue;
+          attachedTargets.add(targetInfo.targetId);
+          queueMicrotask(() => {
+            socket.send(JSON.stringify({
+              method: 'Target.attachedToTarget',
+              params: {
+                sessionId: `session-${targetInfo.targetId}`,
+                targetInfo,
+                waitingForDebugger: false,
+              },
+            }));
+          });
+        }
       } else if (message.method === 'Runtime.evaluate') {
         result = { result: { type: 'number', value: 42 } };
       }

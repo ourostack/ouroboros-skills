@@ -5,7 +5,13 @@ import { BrokerError } from './claims.mjs';
 const MAX_DIAGNOSTIC_BYTES = 4_096;
 
 export function invokeProvider(command, operation, payload, options = {}) {
-  const { args = [], timeoutMs = 10_000, cwd, env } = options;
+  const {
+    args = [],
+    timeoutMs = 10_000,
+    terminationGraceMs = 1_000,
+    cwd,
+    env,
+  } = options;
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -16,11 +22,17 @@ export function invokeProvider(command, operation, payload, options = {}) {
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let timedOut = false;
+    let forceKillTimer;
 
     const finish = (callback) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(forceKillTimer);
+      child.stdin.destroy();
+      child.stdout.destroy();
+      child.stderr.destroy();
       callback();
     };
 
@@ -41,6 +53,14 @@ export function invokeProvider(command, operation, payload, options = {}) {
     });
     child.on('close', (exitCode, signal) => {
       finish(() => {
+        if (timedOut) {
+          reject(new BrokerError('PROVIDER_TIMEOUT', 'Provider operation timed out', {
+            operation,
+            timeoutMs,
+            stderr: stderr.trim(),
+          }));
+          return;
+        }
         if (exitCode !== 0) {
           reject(new BrokerError('PROVIDER_EXITED', 'Provider process exited unsuccessfully', {
             exitCode,
@@ -60,14 +80,11 @@ export function invokeProvider(command, operation, payload, options = {}) {
     });
 
     const timer = setTimeout(() => {
+      timedOut = true;
       child.kill('SIGTERM');
-      finish(() =>
-        reject(new BrokerError('PROVIDER_TIMEOUT', 'Provider operation timed out', {
-          operation,
-          timeoutMs,
-          stderr: stderr.trim(),
-        })),
-      );
+      forceKillTimer = setTimeout(() => {
+        child.kill('SIGKILL');
+      }, terminationGraceMs);
     }, timeoutMs);
 
     child.stdin.end(JSON.stringify({ operation, payload }));

@@ -79,6 +79,7 @@ Every acquisition creates a distinct lease and an initial background target. The
 - Rejects attaching to, activating, or closing an unowned target.
 - Rejects commands addressed to an unowned target session.
 - Allows only the browser-level commands required to discover, create, attach to, and close owned targets.
+- Rewrites browser-level `Target.getTargetInfo` barriers to an owned target, so current Playwright can complete its CDP handshake without learning about another lease's target.
 - Rejects browser termination and other browser-global mutation; target-session commands are forwarded only for sessions owned by the lease.
 
 Never search a persistent browser's global page list for a convenient existing tab. Work only through the lease proxy; all pages visible there are owned targets for that lease.
@@ -158,6 +159,8 @@ browser-context-broker cleanup \
   --json
 ```
 
+Cleanup freshly attests the process generation recorded on that exact lease. If it is still the same live generation, cleanup closes the recorded targets and removes the lease. If the provider proves that original generation is absent or disconnected, cleanup removes the stale lease without connecting to the endpoint and reports the recorded targets as unclosed because their owner generation is gone. A live replacement or mismatched generation remains `CONTEXT_DISCONNECTED`; cleanup never follows it or touches its targets.
+
 Do not terminate browsers by executable name, profile-name pattern, or guessed process identifier. Context termination, when genuinely required, belongs to the attesting provider and must operate only on a process identity it proves it owns.
 
 ## Failure modes
@@ -168,6 +171,7 @@ Do not terminate browsers by executable name, profile-name pattern, or guessed p
 - **`ENDPOINT_COLLISION`** — dynamic allocation could not find a usable endpoint within the configured attempts.
 - **`LEASE_NOT_FOUND`** — the lease was released, expired and cleaned, or the wrong state directory was supplied.
 - **`STALE_LEASE` from `doctor`** — run `cleanup` for that exact lease after confirming it is no longer active.
+- **Cleanup reports `OWNER_GENERATION_GONE`** — the provider freshly proved the lease's original process generation absent/disconnected. The lease record was removed, no replacement endpoint was contacted, and its recorded target IDs could not be closed.
 - **Disconnected context** — reacquire the same requested context. Never attach to a different live browser as a fallback.
 
 ## Cross-references

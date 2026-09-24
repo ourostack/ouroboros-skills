@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises';
+
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
 
@@ -12,6 +14,11 @@ switch (request.payload.fixture) {
     break;
   case 'timeout':
     setTimeout(() => process.stdout.write('{}'), 1_000);
+    break;
+  case 'ignore-sigterm':
+    await writeFile(request.payload.pidFile, `${process.pid}\n`);
+    process.on('SIGTERM', () => {});
+    setInterval(() => {}, 1_000);
     break;
   default:
     process.stdout.write(JSON.stringify({

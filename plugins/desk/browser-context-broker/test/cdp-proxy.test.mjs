@@ -3,6 +3,7 @@ import { chmod, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import { chromium } from 'playwright-core';
 import WebSocket from 'ws';
 
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
@@ -140,6 +141,22 @@ test('proxy filters target discovery to lease-owned targets', async () => {
     response.result.targetInfos.map(({ targetId }) => targetId),
     lease.targetIds,
   );
+});
+
+test('current Playwright connects through the proxy without exposing unowned targets', async () => {
+  const { fake, lease, proxy } = await setup();
+  let browser;
+  try {
+    browser = await chromium.connectOverCDP(proxy.endpoint, { noDefaults: true });
+  } catch (error) {
+    assert.fail(`${error.message}\nMethods: ${JSON.stringify(fake.methods)}`);
+  }
+  cleanups.push(() => browser.close());
+
+  const pages = browser.contexts().flatMap((context) => context.pages());
+  assert.equal(pages.length, 1);
+  const targetInfo = fake.methods.findLast(({ method }) => method === 'Target.getTargetInfo');
+  assert.equal(targetInfo.params.targetId, lease.targetIds[0]);
 });
 
 test('proxy rejects WebSocket upgrades without the unguessable lease credential', async () => {

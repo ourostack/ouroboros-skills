@@ -43,7 +43,7 @@ async function readLease(stateDir, leaseId) {
   return structuredClone(lease);
 }
 
-export async function attestLeaseContext({
+async function reconcileLeaseContext({
   stateDir,
   leaseId,
   declaration,
@@ -71,20 +71,33 @@ export async function attestLeaseContext({
     },
     providerInvoker,
   );
-  if (
-    reconciled.status !== 'healthy' ||
-    reconciled.endpoint !== lease.rawEndpoint ||
-    !sameProcessIdentity(reconciled.processIdentity, lease.processIdentity)
-  ) {
-    throw new BrokerError(
-      'CONTEXT_DISCONNECTED',
-      `Lease context process generation is no longer connected: ${leaseId}`,
-      {
-        leaseId,
-        contextId: lease.contextId,
-        reason: reconciled.reason ?? 'LEASE_PROCESS_GENERATION_CHANGED',
-      },
-    );
+  return { lease, reconciled };
+}
+
+function isExactHealthyLease(lease, reconciled) {
+  return (
+    reconciled.status === 'healthy' &&
+    reconciled.endpoint === lease.rawEndpoint &&
+    sameProcessIdentity(reconciled.processIdentity, lease.processIdentity)
+  );
+}
+
+function disconnectedLeaseError(lease, reconciled) {
+  return new BrokerError(
+    'CONTEXT_DISCONNECTED',
+    `Lease context process generation is no longer connected: ${lease.id}`,
+    {
+      leaseId: lease.id,
+      contextId: lease.contextId,
+      reason: reconciled.reason ?? 'LEASE_PROCESS_GENERATION_CHANGED',
+    },
+  );
+}
+
+export async function attestLeaseContext(options) {
+  const { lease, reconciled } = await reconcileLeaseContext(options);
+  if (!isExactHealthyLease(lease, reconciled)) {
+    throw disconnectedLeaseError(lease, reconciled);
   }
   return lease;
 }
@@ -229,5 +242,62 @@ export async function releaseLease({
       await writeRegistry(stateDir, registry);
     });
     return { leaseId, released: true, closedTargetIds: lease.targetIds };
+  });
+}
+
+export async function cleanupStaleLease({
+  stateDir,
+  leaseId,
+  declaration,
+  providerInvoker,
+}) {
+  return withLeaseOperation(stateDir, leaseId, async () => {
+    const { lease, reconciled } = await reconcileLeaseContext({
+      stateDir,
+      leaseId,
+      declaration,
+      providerInvoker,
+    });
+    if (reconciled.status === 'absent' && reconciled.discardObservation) {
+      await withBrokerLock(stateDir, async () => {
+        const registry = await readRegistry(stateDir);
+        delete registry.leases[leaseId];
+        await writeRegistry(stateDir, registry);
+      });
+      return {
+        leaseId,
+        released: true,
+        closedTargetIds: [],
+        unclosedTargetIds: lease.targetIds,
+        targetsClosed: false,
+        reason: 'OWNER_GENERATION_GONE',
+        contextReason: reconciled.reason,
+      };
+    }
+    if (!isExactHealthyLease(lease, reconciled)) {
+      throw disconnectedLeaseError(lease, reconciled);
+    }
+    const releasingLease = await mutateLease(stateDir, leaseId, (record) => {
+      record.releasing = true;
+      return structuredClone(record);
+    });
+    const client = await CdpClient.connect(releasingLease.rawEndpoint);
+    try {
+      for (const targetId of releasingLease.targetIds) {
+        await client.send('Target.closeTarget', { targetId }).catch(() => {});
+      }
+    } finally {
+      await client.close();
+    }
+    await withBrokerLock(stateDir, async () => {
+      const registry = await readRegistry(stateDir);
+      delete registry.leases[leaseId];
+      await writeRegistry(stateDir, registry);
+    });
+    return {
+      leaseId,
+      released: true,
+      closedTargetIds: releasingLease.targetIds,
+    };
   });
 }

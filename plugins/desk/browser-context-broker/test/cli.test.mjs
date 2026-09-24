@@ -306,7 +306,7 @@ test('cleanup fails disconnected instead of following repaired registry state', 
   };
   await writeRegistry(directory, registry);
   const config = JSON.parse(await readFile(configPath, 'utf8'));
-  config.contexts[0].testAttestation = 'unhealthy';
+  config.contexts[0].testAttestation = 'replacement';
   await writeFile(configPath, JSON.stringify(config));
 
   const result = await run([
@@ -325,6 +325,56 @@ test('cleanup fails disconnected instead of following repaired registry state', 
   assert.ok(after.leases[acquired.leaseId]);
   assert.ok(original.targets.has(ownedTarget));
   assert.equal(replacement.methods.length, 0);
+});
+
+test('cleanup removes a stale lease after proving its owner generation is absent', async () => {
+  const original = await startFakeCdpServer();
+  const replacement = await startFakeCdpServer();
+  const directory = await stateDir();
+  const configPath = await writeConfig(directory, original.endpoint);
+  const acquired = JSON.parse((await run([
+    'acquire',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--alias', 'default',
+    '--json',
+  ])).stdout).result;
+  const registry = await readRegistry(directory);
+  const ownedTarget = registry.leases[acquired.leaseId].targetIds[0];
+  registry.leases[acquired.leaseId].expiresAt = new Date(0).toISOString();
+  registry.contexts.work.endpoint = replacement.endpoint;
+  registry.contexts.work.processIdentity = {
+    ...registry.contexts.work.processIdentity,
+    startIdentity: 'replacement-generation',
+  };
+  await writeRegistry(directory, registry);
+  await original.close();
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  config.contexts[0].testAttestation = 'absent';
+  await writeFile(configPath, JSON.stringify(config));
+
+  const result = await run([
+    'cleanup',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--lease', acquired.leaseId,
+    '--json',
+  ]);
+  const after = await readRegistry(directory);
+  await replacement.close();
+
+  assert.equal(result.exitCode, 0, result.stderr);
+  assert.equal(after.leases[acquired.leaseId], undefined);
+  assert.equal(replacement.methods.length, 0);
+  assert.deepEqual(JSON.parse(result.stdout).result, {
+    leaseId: acquired.leaseId,
+    released: true,
+    closedTargetIds: [],
+    unclosedTargetIds: [ownedTarget],
+    targetsClosed: false,
+    reason: 'OWNER_GENERATION_GONE',
+    contextReason: 'PROCESS_ABSENT',
+  });
 });
 
 test('proxy publishes exact readiness metadata for a lease', async () => {

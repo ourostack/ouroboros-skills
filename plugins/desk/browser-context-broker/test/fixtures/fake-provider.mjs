@@ -26,14 +26,24 @@ if (request.operation === 'discover') {
     },
   }));
 } else if (request.operation === 'attest') {
+  const absent = declaration.testAttestation === 'absent';
+  const replacement = declaration.testAttestation === 'replacement';
+  const processIdentity = replacement
+    ? { ...observation.processIdentity, startIdentity: 'replacement-generation' }
+    : observation.processIdentity;
   process.stdout.write(JSON.stringify({
-    healthy: declaration.testAttestation !== 'unhealthy',
-    reason: declaration.testAttestation === 'unhealthy' ? 'TEST_ATTESTATION_FAILED' : undefined,
+    healthy: declaration.testAttestation !== 'unhealthy' && !absent,
+    reason:
+      declaration.testAttestation === 'unhealthy'
+        ? 'TEST_ATTESTATION_FAILED'
+        : absent
+          ? 'PROCESS_ABSENT'
+          : undefined,
     endpoint: observation.endpoint,
-    processIdentity: observation.processIdentity,
+    processIdentity,
     endpointProcessIdentity: {
-      pid: observation.processIdentity.pid,
-      startIdentity: observation.processIdentity.startIdentity,
+      pid: processIdentity.pid,
+      startIdentity: processIdentity.startIdentity,
     },
   }));
 } else {

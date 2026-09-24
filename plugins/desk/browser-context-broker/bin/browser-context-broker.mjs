@@ -7,7 +7,7 @@ import path from 'node:path';
 import { acquireContext } from '../src/broker.mjs';
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
 import { BrokerError } from '../src/claims.mjs';
-import { createLease, releaseLease } from '../src/leases.mjs';
+import { cleanupStaleLease, createLease, releaseLease } from '../src/leases.mjs';
 import { invokeProvider } from '../src/provider.mjs';
 import { readRegistry, reconcileContext } from '../src/registry.mjs';
 
@@ -272,7 +272,7 @@ async function run(command, options) {
         { leaseId, contextId: lease.contextId, reason: 'DECLARATION_MISSING' },
       );
     }
-    return releaseLease({
+    return cleanupStaleLease({
       stateDir,
       leaseId,
       declaration,

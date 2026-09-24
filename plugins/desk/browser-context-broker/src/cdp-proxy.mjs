@@ -22,6 +22,7 @@ const BROWSER_METHOD_ALLOWLIST = new Set([
   'Target.closeTarget',
   'Target.createTarget',
   'Target.detachFromTarget',
+  'Target.getTargetInfo',
   'Target.getTargets',
   'Target.setAutoAttach',
   'Target.setDiscoverTargets',
@@ -51,7 +52,10 @@ export async function startLeaseProxy({
   const upstreamMetadata = await resolveBrowserWebSocket(lease.rawEndpoint);
   const credentialPath = `/${lease.proxyToken}`;
   const server = http.createServer((request, response) => {
-    if (request.url === `${credentialPath}/json/version`) {
+    if (
+      request.url === `${credentialPath}/json/version` ||
+      request.url === `${credentialPath}/json/version/`
+    ) {
       const address = server.address();
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({
@@ -161,6 +165,14 @@ export async function startLeaseProxy({
             'Cannot access a target session owned by another lease',
           ));
           return;
+        }
+        if (message.method === 'Target.getTargetInfo' && !message.params?.targetId) {
+          const [targetId] = ownedTargets;
+          if (!targetId) {
+            downstream.send(errorResponse(message.id, -32002, 'Lease has no owned target'));
+            return;
+          }
+          message.params = { ...message.params, targetId };
         }
         if (
           message.method?.startsWith('Target.') &&

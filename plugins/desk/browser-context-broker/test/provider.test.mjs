@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict';
+import { mkdir, readFile, rm } from 'node:fs/promises';
+import path from 'node:path';
 import test from 'node:test';
 
 import { invokeProvider } from '../src/provider.mjs';
 
 const fixture = new URL('./fixtures/json-provider.mjs', import.meta.url);
+const scratchRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '.provider-state');
+
+test.before(async () => {
+  await mkdir(scratchRoot, { recursive: true });
+});
+
+test.after(async () => {
+  await rm(scratchRoot, { recursive: true, force: true });
+});
 
 test('invokeProvider exchanges one JSON request and response', async () => {
   const response = await invokeProvider(process.execPath, 'discover', {
@@ -49,4 +60,32 @@ test('invokeProvider enforces a timeout', async () => {
     }),
     (error) => error.code === 'PROVIDER_TIMEOUT',
   );
+});
+
+test('invokeProvider kills a provider that ignores SIGTERM before rejecting', async () => {
+  const pidFile = path.join(scratchRoot, 'ignore-sigterm.pid');
+  let pid;
+  try {
+    await assert.rejects(
+      invokeProvider(process.execPath, 'discover', {
+        fixture: 'ignore-sigterm',
+        pidFile,
+      }, {
+        args: [fixture.pathname],
+        timeoutMs: 150,
+        terminationGraceMs: 25,
+      }),
+      (error) => error.code === 'PROVIDER_TIMEOUT',
+    );
+    pid = Number.parseInt(await readFile(pidFile, 'utf8'), 10);
+    assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+  } finally {
+    if (pid) {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch (error) {
+        if (error.code !== 'ESRCH') throw error;
+      }
+    }
+  }
 });
