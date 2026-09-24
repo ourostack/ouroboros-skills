@@ -83,6 +83,9 @@ export async function startFakeCdpServer(options = {}) {
         }));
       }
     },
+    disconnectClients() {
+      for (const client of sockets.clients) client.terminate();
+    },
     async close() {
       for (const client of sockets.clients) client.close();
       await new Promise((resolve) => sockets.close(resolve));

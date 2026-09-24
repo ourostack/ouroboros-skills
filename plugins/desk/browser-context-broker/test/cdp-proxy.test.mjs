@@ -76,10 +76,16 @@ function exchange(socket) {
   let id = 0;
   const pending = new Map();
   const events = [];
+  socket.on('close', () => {
+    for (const { reject } of pending.values()) {
+      reject(new Error('CDP proxy connection closed'));
+    }
+    pending.clear();
+  });
   socket.on('message', (data) => {
     const message = JSON.parse(data.toString());
     if (message.id) {
-      pending.get(message.id)?.(message);
+      pending.get(message.id)?.resolve(message);
       pending.delete(message.id);
     } else {
       events.push(message);
@@ -90,7 +96,7 @@ function exchange(socket) {
     send(method, params = {}) {
       const requestId = ++id;
       socket.send(JSON.stringify({ id: requestId, method, params }));
-      return new Promise((resolve) => pending.set(requestId, resolve));
+      return new Promise((resolve, reject) => pending.set(requestId, { resolve, reject }));
     },
   };
 }
@@ -386,4 +392,122 @@ test('late createTarget racing release is compensated without leaking a target',
   assert.ok(createResponse.result.targetId);
   assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
   assert.deepEqual([...fake.targets.keys()], ['unowned-existing']);
+});
+
+test('upstream disconnect rejects pending createTarget and releases the lease operation lock', async (t) => {
+  let createCount = 0;
+  let pendingCreateStarted;
+  const started = new Promise((resolve) => {
+    pendingCreateStarted = resolve;
+  });
+  const fake = await startFakeCdpServer({
+    beforeCreateTarget: async () => {
+      createCount += 1;
+      if (createCount === 1) return;
+      pendingCreateStarted();
+      await new Promise(() => {});
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const creating = cdp.send('Target.createTarget', {
+    url: 'https://disconnect.example.test',
+  });
+  await started;
+  fake.disconnectClients();
+
+  await assert.rejects(
+    Promise.race([
+      creating,
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('pending createTarget did not reject promptly')),
+        500,
+      )),
+    ]),
+    /CDP proxy connection closed/u,
+  );
+  await Promise.race([
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('release remained blocked by createTarget')),
+      500,
+    )),
+  ]);
+});
+
+test('internal upstream requests time out and release the lease operation lock', async (t) => {
+  let createCount = 0;
+  const fake = await startFakeCdpServer({
+    beforeCreateTarget: async () => {
+      createCount += 1;
+      if (createCount === 1) return;
+      await new Promise(() => {});
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+    internalRequestTimeoutMs: 50,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const response = await Promise.race([
+    cdp.send('Target.createTarget', {
+      url: 'https://timeout.example.test',
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('internal request did not time out promptly')),
+      500,
+    )),
+  ]);
+  assert.equal(response.error.code, -32005);
+  await Promise.race([
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('release remained blocked after request timeout')),
+      500,
+    )),
+  ]);
 });

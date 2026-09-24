@@ -26,6 +26,7 @@ const BROWSER_METHOD_ALLOWLIST = new Set([
   'Target.setAutoAttach',
   'Target.setDiscoverTargets',
 ]);
+const DEFAULT_INTERNAL_REQUEST_TIMEOUT_MS = 10_000;
 
 function errorResponse(id, code, message) {
   return JSON.stringify({ id, error: { code, message } });
@@ -38,6 +39,7 @@ export async function startLeaseProxy({
   providerInvoker,
   host = '127.0.0.1',
   port = 0,
+  internalRequestTimeoutMs = DEFAULT_INTERNAL_REQUEST_TIMEOUT_MS,
 }) {
   const lease = await attestLeaseContext({
     stateDir,
@@ -77,6 +79,7 @@ export async function startLeaseProxy({
   downstreamServer.on('connection', (downstream) => {
     const upstream = new WebSocket(upstreamMetadata.webSocketDebuggerUrl);
     const requests = new Map();
+    const internalRequestIds = new Set();
     const ownedSessions = new Set();
     const queued = [];
     let nextInternalId = 1_000_000_000;
@@ -87,10 +90,35 @@ export async function startLeaseProxy({
     };
     const requestUpstream = (method, params = {}) => {
       const id = ++nextInternalId;
-      return new Promise((resolve) => {
-        requests.set(id, { method, targetId: params.targetId, resolve });
+      internalRequestIds.add(id);
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          if (!requests.delete(id)) return;
+          internalRequestIds.delete(id);
+          const error = new Error(`Timed out waiting for upstream ${method}`);
+          error.code = 'UPSTREAM_REQUEST_TIMEOUT';
+          reject(error);
+        }, internalRequestTimeoutMs);
+        timer.unref();
+        requests.set(id, {
+          method,
+          targetId: params.targetId,
+          resolve,
+          reject,
+          timer,
+        });
         sendUpstream({ id, method, params });
       });
+    };
+    const rejectInternalRequests = (error) => {
+      for (const id of internalRequestIds) {
+        const request = requests.get(id);
+        if (!request?.reject) continue;
+        clearTimeout(request.timer);
+        requests.delete(id);
+        internalRequestIds.delete(id);
+        request.reject(error);
+      }
     };
     const compensateTarget = async (targetId) => {
       await requestUpstream('Target.closeTarget', { targetId }).catch(() => {});
@@ -99,6 +127,9 @@ export async function startLeaseProxy({
     upstream.on('open', () => {
       for (const message of queued) upstream.send(message);
       queued.length = 0;
+    });
+    upstream.on('error', (error) => {
+      rejectInternalRequests(error);
     });
     downstream.on('message', (data) => {
       void (async () => {
@@ -208,7 +239,10 @@ export async function startLeaseProxy({
         if (message.id) {
           const request = requests.get(message.id);
           requests.delete(message.id);
+          if (!request) return;
           if (request?.resolve) {
+            clearTimeout(request.timer);
+            internalRequestIds.delete(message.id);
             request.resolve(message);
             return;
           }
@@ -282,6 +316,10 @@ export async function startLeaseProxy({
     };
     downstream.on('close', closePeer);
     upstream.on('close', () => {
+      const error = new Error('Upstream CDP connection closed');
+      error.code = 'UPSTREAM_DISCONNECTED';
+      rejectInternalRequests(error);
+      internalRequestIds.clear();
       if (downstream.readyState === WebSocket.OPEN) downstream.close();
     });
   });
