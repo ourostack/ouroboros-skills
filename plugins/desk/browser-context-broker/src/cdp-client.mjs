@@ -113,7 +113,7 @@ export class CdpClient extends EventEmitter {
     return new CdpClient(socket, options);
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, sessionId) {
     const id = ++this.nextId;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -127,7 +127,12 @@ export class CdpClient extends EventEmitter {
       }, this.commandTimeoutMs);
       timer.unref();
       this.pending.set(id, { resolve, reject, timer });
-      this.socket.send(JSON.stringify({ id, method, params }));
+      this.socket.send(JSON.stringify({
+        id,
+        method,
+        params,
+        ...(sessionId ? { sessionId } : {}),
+      }));
     });
   }
 

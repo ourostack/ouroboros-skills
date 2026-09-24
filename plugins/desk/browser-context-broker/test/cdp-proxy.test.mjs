@@ -268,10 +268,11 @@ test('proxy fails disconnected instead of following a replacement process genera
   );
 });
 
-test('proxy owns createTarget results and forces background creation', async () => {
+test('proxy owns createTarget results, preserves the requested URL, and forces background creation', async () => {
   const { fake, cdp } = await setup();
+  const requestedUrl = 'https://owned.example.test/app#/router?view=detail';
   const response = await cdp.send('Target.createTarget', {
-    url: 'https://owned.example.test',
+    url: requestedUrl,
     background: false,
   });
   const discovery = await cdp.send('Target.getTargets');
@@ -279,6 +280,98 @@ test('proxy owns createTarget results and forces background creation', async () 
   assert.ok(discovery.result.targetInfos.some(({ targetId }) => targetId === response.result.targetId));
   const invocation = fake.methods.findLast(({ method }) => method === 'Target.createTarget');
   assert.equal(invocation.params.background, true);
+  assert.match(invocation.params.url, /^data:text\/html,/u);
+  assert.doesNotMatch(invocation.params.url, /owned\.example\.test/u);
+  assert.equal(fake.targets.get(response.result.targetId).url, requestedUrl);
+  const navigate = fake.methods.findLast(({ method }) => method === 'Page.navigate');
+  assert.equal(navigate.params.url, requestedUrl);
+});
+
+test('proxy records ownership before an app immediately redirects after navigation', async (t) => {
+  const redirectedUrl = 'https://login.example.test/redirected';
+  const fake = await startFakeCdpServer({
+    navigateTarget: async (_message, targetInfo) => {
+      targetInfo.url = redirectedUrl;
+      return { loaderId: 'redirect-loader' };
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const response = await cdp.send('Target.createTarget', {
+    url: 'https://app.example.test/#/start',
+  });
+
+  assert.equal(fake.targets.get(response.result.targetId).url, redirectedUrl);
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.ok(persisted.targetIds.includes(response.result.targetId));
+  assert.deepEqual(persisted.pendingTargetCreates, []);
+});
+
+test('proxy reports navigation failure while retaining the marker target for cleanup', async (t) => {
+  let navigations = 0;
+  const fake = await startFakeCdpServer({
+    navigateTarget: async () => {
+      navigations += 1;
+      if (navigations > 1) throw new Error('navigation rejected');
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const response = await cdp.send('Target.createTarget', {
+    url: 'https://navigation-fails.example.test/#/router',
+  });
+
+  assert.equal(response.error.code, -32005);
+  assert.match(response.error.message, /navigation/u);
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(persisted.targetIds.length, 2);
+  const [failure] = Object.values(persisted.targetCreateFailures);
+  assert.equal(failure.status, 'NAVIGATION_FAILED');
+  assert.match(fake.targets.get(failure.targetId).url, /^data:text\/html,/u);
+
+  const released = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  assert.equal(released.released, true);
 });
 
 test('downstream requests reach upstream in arrival order without waiting for earlier responses', async (t) => {
@@ -609,7 +702,11 @@ test('proxy denies attaching to an unowned target', async () => {
     flatten: true,
   });
   assert.equal(response.error.code, -32002);
-  assert.ok(!fake.methods.some(({ method }) => method === 'Target.attachToTarget'));
+  assert.ok(!fake.methods.some(
+    ({ method, params }) =>
+      method === 'Target.attachToTarget' &&
+      params.targetId === 'unowned-existing',
+  ));
 });
 
 test('proxy denies commands addressed to an unowned target session', async () => {
@@ -642,7 +739,11 @@ test('proxy denies detaching another lease target session', async () => {
     sessionId: 'session-for-another-lease',
   });
   assert.equal(response.error.code, -32003);
-  assert.ok(!fake.methods.some(({ method }) => method === 'Target.detachFromTarget'));
+  assert.ok(!fake.methods.some(
+    ({ method, params }) =>
+      method === 'Target.detachFromTarget' &&
+      params.sessionId === 'session-for-another-lease',
+  ));
 });
 
 test('proxy suppresses target events for unowned targets', async () => {
@@ -890,16 +991,17 @@ test('proxy reconciles delayed createTarget success after its upstream timeout',
 
   assert.ok(response.result.targetId);
   const target = fake.targets.get(response.result.targetId);
-  assert.match(
-    target.url,
-    /^https:\/\/proxy-created\.example\.test\/path#existing&__deskLease=/u,
-  );
+  assert.equal(target.url, 'https://proxy-created.example.test/path#existing');
+  const create = fake.methods
+    .filter(({ method }) => method === 'Target.createTarget')
+    .at(-1);
+  assert.match(create.params.url, /^data:text\/html,/u);
   const persisted = (await readRegistry(directory)).leases[lease.id];
   assert.ok(persisted.targetIds.includes(response.result.targetId));
   assert.deepEqual(persisted.pendingTargetCreates, []);
 });
 
-test('upstream disconnect rejects pending createTarget and releases the lease operation lock', async (t) => {
+test('upstream disconnect rejects pending createTarget and preserves indeterminate marker evidence', async (t) => {
   let createCount = 0;
   let pendingCreateStarted;
   const started = new Promise((resolve) => {
@@ -949,21 +1051,29 @@ test('upstream disconnect rejects pending createTarget and releases the lease op
     ]),
     /CDP proxy connection closed/u,
   );
-  await Promise.race([
-    releaseLease({
-      stateDir: directory,
-      leaseId: lease.id,
-      declaration,
-      providerInvoker: attestingProvider,
-    }),
-    new Promise((_, reject) => setTimeout(
-      () => reject(new Error('release remained blocked by createTarget')),
-      500,
-    )),
-  ]);
+  await assert.rejects(
+    Promise.race([
+      releaseLease({
+        stateDir: directory,
+        leaseId: lease.id,
+        declaration,
+        providerInvoker: attestingProvider,
+      }),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('release remained blocked by createTarget')),
+        500,
+      )),
+    ]),
+    (error) =>
+      error.code === 'PARTIAL_RELEASE' &&
+      error.details.pendingTargetCreates[0].diagnostic.status === 'ZERO_MARKER_MATCHES',
+  );
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(persisted.pendingTargetCreates.length, 1);
+  assert.match(persisted.pendingTargetCreates[0].markerUrl, /^data:text\/html,/u);
 });
 
-test('internal upstream requests time out and release the lease operation lock', async (t) => {
+test('internal upstream create timeout releases the lock but preserves marker evidence', async (t) => {
   let createCount = 0;
   const fake = await startFakeCdpServer({
     beforeCreateTarget: async () => {
@@ -1003,16 +1113,23 @@ test('internal upstream requests time out and release the lease operation lock',
     )),
   ]);
   assert.equal(response.error.code, -32005);
-  await Promise.race([
-    releaseLease({
-      stateDir: directory,
-      leaseId: lease.id,
-      declaration,
-      providerInvoker: attestingProvider,
-    }),
-    new Promise((_, reject) => setTimeout(
-      () => reject(new Error('release remained blocked after request timeout')),
-      500,
-    )),
-  ]);
+  await assert.rejects(
+    Promise.race([
+      releaseLease({
+        stateDir: directory,
+        leaseId: lease.id,
+        declaration,
+        providerInvoker: attestingProvider,
+      }),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('release remained blocked after request timeout')),
+        500,
+      )),
+    ]),
+    (error) =>
+      error.code === 'PARTIAL_RELEASE' &&
+      error.details.pendingTargetCreates[0].diagnostic.status === 'ZERO_MARKER_MATCHES',
+  );
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(persisted.pendingTargetCreates.length, 1);
 });

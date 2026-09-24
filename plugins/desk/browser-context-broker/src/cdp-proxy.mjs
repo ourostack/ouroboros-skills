@@ -218,14 +218,19 @@ export async function startLeaseProxy({
             for (const targetId of error?.details?.diagnostic?.candidateTargetIds ?? []) {
               ownedTargets.add(targetId);
             }
-            if (downstream.readyState === WebSocket.OPEN) {
-              downstream.send(errorResponse(
-                message.id,
-                -32005,
-                'Lease was released before target creation completed',
-              ));
-            }
-          })
+          if (error?.details?.targetId) {
+            ownedTargets.add(error.details.targetId);
+          }
+          if (downstream.readyState === WebSocket.OPEN) {
+            downstream.send(errorResponse(
+              message.id,
+              -32005,
+              error?.code === 'TARGET_NAVIGATION_FAILED'
+                ? 'Owned target navigation failed'
+                : 'Target creation remained indeterminate',
+            ));
+          }
+        })
           .finally(markDispatched);
         await upstreamDispatched;
         return;

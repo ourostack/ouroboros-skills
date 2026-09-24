@@ -178,6 +178,26 @@ test('lease persists its acquired endpoint and attested process generation', asy
   assert.deepEqual(persisted.processIdentity, processIdentity);
 });
 
+test('initial lease target finishes at the intended about:blank URL', async (t) => {
+  const fake = await startFakeCdpServer();
+  t.after(() => fake.close());
+  const directory = await stateDir();
+
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  assert.equal(fake.targets.get(lease.targetIds[0]).url, 'about:blank');
+  const create = fake.methods.findLast(({ method }) => method === 'Target.createTarget');
+  assert.match(create.params.url, /^data:text\/html,/u);
+  const navigate = fake.methods.findLast(({ method }) => method === 'Page.navigate');
+  assert.equal(navigate.params.url, 'about:blank');
+});
+
 test('create reconciles a target whose delayed success arrives after the command timeout', async (t) => {
   const fake = await startFakeCdpServer({
     afterCreateTarget: async () => {
@@ -199,16 +219,23 @@ test('create reconciles a target whose delayed success arrives after the command
 
   assert.equal(lease.targetIds.length, 1);
   const target = fake.targets.get(lease.targetIds[0]);
-  assert.match(target.url, /^https:\/\/created\.example\.test\/path\?value=1#existing&__deskLease=/u);
+  assert.equal(target.url, 'https://created.example.test/path?value=1#existing');
+  const create = fake.methods.findLast(({ method }) => method === 'Target.createTarget');
+  assert.match(create.params.url, /^data:text\/html,/u);
+  assert.doesNotMatch(create.params.url, /created\.example\.test/u);
+  const navigate = fake.methods.findLast(({ method }) => method === 'Page.navigate');
+  assert.equal(navigate.params.url, 'https://created.example.test/path?value=1#existing');
   const persisted = (await readRegistry(directory)).leases[lease.id];
   assert.deepEqual(persisted.targetIds, lease.targetIds);
   assert.equal(persisted.creating, false);
   assert.deepEqual(persisted.pendingTargetCreates, []);
 });
 
-test('create safely removes the lease when reconciliation finds no matching target', async (t) => {
+test('create timeout with zero marker matches remains indeterminate and stale cleanup later closes it', async (t) => {
+  let hiddenTarget;
   const fake = await startFakeCdpServer({
     afterCreateTarget: async (_message, targetInfo, targets) => {
+      hiddenTarget = structuredClone(targetInfo);
       targets.delete(targetInfo.targetId);
       await new Promise((resolve) => setTimeout(resolve, 60));
     },
@@ -226,12 +253,31 @@ test('create safely removes the lease when reconciliation finds no matching targ
       cdpClientOptions: { commandTimeoutMs: 25 },
     }),
     (error) =>
-      error.code === 'TARGET_CREATE_FAILED' &&
+      error.code === 'TARGET_CREATE_INDETERMINATE' &&
+      error.details.retained === true &&
       typeof error.details.marker === 'string' &&
-      typeof error.details.markedUrl === 'string',
+      typeof error.details.markerUrl === 'string' &&
+      error.details.diagnostic.status === 'ZERO_MARKER_MATCHES',
   );
 
-  assert.deepEqual((await readRegistry(directory)).leases, {});
+  const [retained] = Object.values((await readRegistry(directory)).leases);
+  assert.equal(retained.pendingTargetCreates.length, 1);
+  assert.equal(retained.pendingTargetCreates[0].markerUrl, hiddenTarget.url);
+  fake.targets.set(hiddenTarget.targetId, hiddenTarget);
+  const registry = await readRegistry(directory);
+  registry.leases[retained.id].expiresAt = new Date(0).toISOString();
+  await writeRegistry(directory, registry);
+
+  const released = await cleanupStaleLease({
+    stateDir: directory,
+    leaseId: retained.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.equal(released.released, true);
+  assert.equal((await readRegistry(directory)).leases[retained.id], undefined);
+  assert.ok(!fake.targets.has(hiddenTarget.targetId));
 });
 
 test('create fails closed and owns every target matching a duplicate durable marker', async (t) => {
@@ -303,7 +349,7 @@ test('create retains its queryable marker when bounded reconciliation also times
   assert.equal(retained.creating, false);
   assert.equal(retained.targetIds.length, 0);
   assert.equal(retained.pendingTargetCreates.length, 1);
-  assert.match(retained.pendingTargetCreates[0].markedUrl, /#__deskLease=/u);
+  assert.match(retained.pendingTargetCreates[0].markerUrl, /^data:text\/html,/u);
   assert.equal(
     retained.pendingTargetCreates[0].diagnostic.status,
     'RECONCILIATION_FAILED',
@@ -312,6 +358,52 @@ test('create retains its queryable marker when bounded reconciliation also times
     retained.pendingTargetCreates[0].diagnostic.reconciliation.code,
     'CDP_COMMAND_TIMEOUT',
   );
+});
+
+test('navigation failure retains the marker target as owned for cleanup', async (t) => {
+  let navigations = 0;
+  const fake = await startFakeCdpServer({
+    navigateTarget: async () => {
+      navigations += 1;
+      if (navigations > 1) throw new Error('navigation rejected');
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  await assert.rejects(
+    createOwnedTarget({
+      stateDir: directory,
+      leaseId: lease.id,
+      rawEndpoint: fake.endpoint,
+      params: { url: 'https://navigation-fails.example.test/#/router' },
+    }),
+    (error) =>
+      error.code === 'TARGET_NAVIGATION_FAILED' &&
+      typeof error.details.targetId === 'string',
+  );
+
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(persisted.targetIds.length, 2);
+  assert.deepEqual(persisted.pendingTargetCreates, []);
+  const [failure] = Object.values(persisted.targetCreateFailures);
+  assert.equal(failure.status, 'NAVIGATION_FAILED');
+  assert.match(fake.targets.get(failure.targetId).url, /^data:text\/html,/u);
+
+  const released = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+  assert.equal(released.released, true);
 });
 
 test('release fails disconnected when fresh attestation observes another process generation', async (t) => {

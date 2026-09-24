@@ -21,15 +21,9 @@ seconds. Callers and tests may override `discoveryTimeoutMs`,
 `connectTimeoutMs`, and `commandTimeoutMs` when connecting. A timed-out command
 is removed from the pending-request map and closes the socket.
 
-Mutating target commands reconcile that indeterminate result before ownership
-changes. Target creation first writes a unique lease marker into the requested
-target URL and records the marker in the lease. After a create timeout or
-error, the broker reconnects and queries `Target.getTargets`: one exact marker
-match becomes owned, no match fails safely, and multiple matches fail closed
-while retaining every candidate target plus the diagnostic. If reconciliation
-itself cannot complete within the configured transport bounds, the lease keeps
-the pending marker and exact failure evidence for later release or stale
-cleanup.
+Mutating target commands reconcile indeterminate results before ownership changes. Target creation records the caller's original URL plus a unique inert `data:` marker URL in the lease, creates the browser target only at that marker, establishes target-ID ownership from the response or bounded `Target.getTargets` reconciliation, and only then uses bounded `Target.attachToTarget` plus `Page.navigate` to reach the original URL unchanged. Fragments and client-side router state are never modified, redirecting applications cannot erase ownership before it is recorded, proxy callers still receive the created target ID, and the initial lease target finishes at `about:blank`.
+
+After a create timeout or error, one exact marker match becomes owned and continues through navigation; multiple matches fail closed while retaining every candidate target plus the diagnostic. Zero matches remain indeterminate because execution may still have happened: the lease preserves the queryable marker and exact cause for later release or stale cleanup instead of deleting ownership evidence. If reconciliation itself cannot complete within the configured transport bounds, the same pending evidence remains. A navigation failure also leaves the marker target durably owned with an exact diagnostic so cleanup can close it by target ID.
 
 Target close timeout or error also reconnects and queries the target list. An
 absent target is reconciled as successfully closed, including target-not-found

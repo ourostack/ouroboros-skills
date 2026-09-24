@@ -35,6 +35,7 @@ export async function startFakeCdpServer(options = {}) {
   });
   sockets.on('connection', (socket) => {
     const attachedTargets = new Set();
+    const sessionTargets = new Map();
     socket.on('message', async (data) => {
       const message = JSON.parse(data.toString());
       methods.push({ id: message.id, method: message.method, params: message.params });
@@ -86,7 +87,32 @@ export async function startFakeCdpServer(options = {}) {
         }
         await options.afterCloseTarget?.(message, result, targets);
       } else if (message.method === 'Target.attachToTarget') {
-        result = { sessionId: `session-${message.params.targetId}` };
+        const sessionId = `session-${message.params.targetId}`;
+        sessionTargets.set(sessionId, message.params.targetId);
+        result = { sessionId };
+      } else if (message.method === 'Target.detachFromTarget') {
+        sessionTargets.delete(message.params.sessionId);
+      } else if (message.method === 'Page.navigate') {
+        const targetId = sessionTargets.get(message.sessionId);
+        const targetInfo = targets.get(targetId);
+        try {
+          const previousUrl = targetInfo?.url;
+          result = await options.navigateTarget?.(message, targetInfo, targets) ?? {};
+          if (
+            targetInfo &&
+            result.errorText === undefined &&
+            targetInfo.url === previousUrl
+          ) {
+            targetInfo.url = message.params.url;
+          }
+        } catch (error) {
+          socket.send(JSON.stringify({
+            id: message.id,
+            error: { code: -32000, message: error.message },
+            sessionId: message.sessionId,
+          }));
+          return;
+        }
       } else if (message.method === 'Target.setAutoAttach' && message.params.autoAttach) {
         for (const targetInfo of targets.values()) {
           if (attachedTargets.has(targetInfo.targetId)) continue;

@@ -102,10 +102,9 @@ function errorDiagnostic(error) {
   };
 }
 
-function markedTargetUrl(url, marker) {
-  const requestedUrl = url || 'about:blank';
-  const separator = requestedUrl.includes('#') ? '&' : '#';
-  return `${requestedUrl}${separator}__deskLease=${encodeURIComponent(marker)}`;
+function markerTargetUrl(marker) {
+  const html = `<!doctype html><meta charset="utf-8"><title>Desk target marker</title><meta name="desk-target-marker" content="${marker}">`;
+  return `data:text/html,${encodeURIComponent(html)}`;
 }
 
 async function listTargets(rawEndpoint, cdpClientOptions) {
@@ -120,7 +119,7 @@ async function listTargets(rawEndpoint, cdpClientOptions) {
 
 async function beginTargetCreate(stateDir, leaseId, requestedUrl) {
   const marker = `${leaseId}:${randomUUID()}`;
-  const markedUrl = markedTargetUrl(requestedUrl, marker);
+  const markerUrl = markerTargetUrl(marker);
   await mutateLease(stateDir, leaseId, (lease) => {
     if (lease.releasing) {
       throw new BrokerError('LEASE_RELEASING', `Lease is being released: ${leaseId}`);
@@ -129,11 +128,11 @@ async function beginTargetCreate(stateDir, leaseId, requestedUrl) {
     lease.pendingTargetCreates.push({
       marker,
       requestedUrl,
-      markedUrl,
+      markerUrl,
       startedAt: new Date().toISOString(),
     });
   });
-  return { marker, markedUrl };
+  return { marker, markerUrl };
 }
 
 async function settleTargetCreate(
@@ -163,19 +162,27 @@ async function retainPendingCreateDiagnostic(stateDir, leaseId, marker, diagnost
   });
 }
 
+async function recordTargetCreateFailure(stateDir, leaseId, marker, diagnostic) {
+  return mutateLease(stateDir, leaseId, (lease) => {
+    lease.targetCreateFailures ??= {};
+    if (diagnostic) lease.targetCreateFailures[marker] = diagnostic;
+    else delete lease.targetCreateFailures[marker];
+  });
+}
+
 async function reconcileTargetCreate({
   stateDir,
   leaseId,
   rawEndpoint,
   marker,
-  markedUrl,
+  markerUrl,
   cause,
   cdpClientOptions,
 }) {
   let matches;
   try {
     const targetInfos = await listTargets(rawEndpoint, cdpClientOptions);
-    matches = targetInfos.filter(({ url }) => url === markedUrl);
+    matches = targetInfos.filter(({ url }) => url === markerUrl);
   } catch (error) {
     const diagnostic = {
       status: 'RECONCILIATION_FAILED',
@@ -186,21 +193,25 @@ async function reconcileTargetCreate({
     throw new BrokerError(
       'TARGET_CREATE_INDETERMINATE',
       `Target creation could not be reconciled for lease ${leaseId}`,
-      { leaseId, marker, markedUrl, diagnostic },
+      { leaseId, marker, markerUrl, diagnostic },
     );
   }
 
   if (matches.length === 1) {
     const [match] = matches;
     await settleTargetCreate(stateDir, leaseId, marker, [match.targetId]);
-    return { targetId: match.targetId, marker, markedUrl, reconciled: true };
+    return { targetId: match.targetId, marker, markerUrl, reconciled: true };
   }
   if (matches.length === 0) {
-    await settleTargetCreate(stateDir, leaseId, marker, []);
+    const diagnostic = {
+      status: 'ZERO_MARKER_MATCHES',
+      cause: errorDiagnostic(cause),
+    };
+    await retainPendingCreateDiagnostic(stateDir, leaseId, marker, diagnostic);
     throw new BrokerError(
-      'TARGET_CREATE_FAILED',
-      `Target creation failed without leaving a matching target for lease ${leaseId}`,
-      { leaseId, marker, markedUrl, cause: errorDiagnostic(cause) },
+      'TARGET_CREATE_INDETERMINATE',
+      `Target creation has not produced a queryable marker target for lease ${leaseId}`,
+      { leaseId, marker, markerUrl, diagnostic },
     );
   }
 
@@ -220,8 +231,70 @@ async function reconcileTargetCreate({
   throw new BrokerError(
     'TARGET_CREATE_INDETERMINATE',
     `Multiple targets matched a unique create marker for lease ${leaseId}`,
-    { leaseId, marker, markedUrl, diagnostic },
+    { leaseId, marker, markerUrl, diagnostic },
   );
+}
+
+async function navigateOwnedTarget({
+  stateDir,
+  leaseId,
+  rawEndpoint,
+  targetId,
+  marker,
+  markerUrl,
+  requestedUrl,
+  cdpClientOptions,
+}) {
+  let client;
+  let sessionId;
+  try {
+    client = await CdpClient.connect(rawEndpoint, cdpClientOptions);
+    const attached = await client.send('Target.attachToTarget', {
+      targetId,
+      flatten: true,
+    });
+    sessionId = attached?.sessionId;
+    if (!sessionId) {
+      throw new BrokerError(
+        'CDP_COMMAND_FAILED',
+        'Target.attachToTarget omitted sessionId',
+        { method: 'Target.attachToTarget', targetId },
+      );
+    }
+    const navigated = await client.send(
+      'Page.navigate',
+      { url: requestedUrl },
+      sessionId,
+    );
+    if (navigated?.errorText) {
+      throw new BrokerError(
+        'CDP_COMMAND_FAILED',
+        `Page.navigate failed: ${navigated.errorText}`,
+        { method: 'Page.navigate', targetId, errorText: navigated.errorText },
+      );
+    }
+    await recordTargetCreateFailure(stateDir, leaseId, marker, undefined);
+    return { targetId, marker, markerUrl, requestedUrl };
+  } catch (error) {
+    const diagnostic = {
+      status: 'NAVIGATION_FAILED',
+      targetId,
+      markerUrl,
+      requestedUrl,
+      cause: errorDiagnostic(error),
+    };
+    await recordTargetCreateFailure(stateDir, leaseId, marker, diagnostic);
+    throw new BrokerError(
+      'TARGET_NAVIGATION_FAILED',
+      `Owned target could not be navigated for lease ${leaseId}`,
+      { leaseId, targetId, marker, markerUrl, requestedUrl, diagnostic },
+    );
+  } finally {
+    if (client && sessionId) {
+      await client.send('Target.detachFromTarget', { sessionId }).catch(() => {});
+    }
+    await client?.close().catch(() => {});
+  }
 }
 
 export async function createOwnedTarget({
@@ -232,19 +305,23 @@ export async function createOwnedTarget({
   cdpClientOptions,
   onDispatched,
 }) {
-  const { marker, markedUrl } = await beginTargetCreate(
+  const requestedUrl = params.url ?? 'about:blank';
+  const { marker, markerUrl } = await beginTargetCreate(
     stateDir,
     leaseId,
-    params.url ?? 'about:blank',
+    requestedUrl,
   );
   let client;
+  let created;
+  let dispatched = false;
   try {
     client = await CdpClient.connect(rawEndpoint, cdpClientOptions);
     const response = client.send('Target.createTarget', {
       ...params,
-      url: markedUrl,
+      url: markerUrl,
       background: true,
     });
+    dispatched = true;
     onDispatched?.();
     const result = await response;
     if (!result?.targetId) {
@@ -255,20 +332,40 @@ export async function createOwnedTarget({
       );
     }
     await settleTargetCreate(stateDir, leaseId, marker, [result.targetId]);
-    return { targetId: result.targetId, marker, markedUrl, reconciled: false };
+    created = {
+      targetId: result.targetId,
+      marker,
+      markerUrl,
+      reconciled: false,
+    };
   } catch (error) {
-    return reconcileTargetCreate({
+    if (!dispatched) {
+      await settleTargetCreate(stateDir, leaseId, marker, []);
+      throw error;
+    }
+    created = await reconcileTargetCreate({
       stateDir,
       leaseId,
       rawEndpoint,
       marker,
-      markedUrl,
+      markerUrl,
       cause: error,
       cdpClientOptions,
     });
   } finally {
     await client?.close().catch(() => {});
   }
+  const navigated = await navigateOwnedTarget({
+    stateDir,
+    leaseId,
+    rawEndpoint,
+    targetId: created.targetId,
+    marker,
+    markerUrl,
+    requestedUrl,
+    cdpClientOptions,
+  });
+  return { ...created, ...navigated };
 }
 
 async function closeTargetWithReconciliation(
@@ -376,7 +473,26 @@ async function reconcilePendingTargetCreates(
   for (const pending of lease.pendingTargetCreates ?? []) {
     try {
       const targetInfos = await listTargets(rawEndpoint, cdpClientOptions);
-      const matches = targetInfos.filter(({ url }) => url === pending.markedUrl);
+      const markerUrl = pending.markerUrl ?? pending.markedUrl;
+      const matches = targetInfos.filter(({ url }) => url === markerUrl);
+      if (matches.length === 0) {
+        const diagnostic = {
+          status: 'ZERO_MARKER_MATCHES',
+          ...(pending.diagnostic?.cause ? { cause: pending.diagnostic.cause } : {}),
+        };
+        await retainPendingCreateDiagnostic(
+          stateDir,
+          leaseId,
+          pending.marker,
+          diagnostic,
+        );
+        failed.push({
+          marker: pending.marker,
+          markerUrl,
+          diagnostic,
+        });
+        continue;
+      }
       const targetIds = matches.map(({ targetId }) => targetId);
       const diagnostic = matches.length > 1
         ? {
@@ -404,7 +520,7 @@ async function reconcilePendingTargetCreates(
       );
       failed.push({
         marker: pending.marker,
-        markedUrl: pending.markedUrl,
+        markerUrl: pending.markerUrl ?? pending.markedUrl,
         diagnostic,
       });
     }
