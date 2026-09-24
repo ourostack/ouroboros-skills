@@ -119,7 +119,13 @@ async function closeOwnedTargets(rawEndpoint, targetIds) {
   return { closedTargetIds, failedTargetIds };
 }
 
-async function recordTargetClosures(stateDir, leaseId, closedTargetIds, failedTargetIds) {
+async function recordTargetClosures(
+  stateDir,
+  leaseId,
+  closedTargetIds,
+  failedTargetIds,
+  { retainReleasing = false } = {},
+) {
   return withBrokerLock(stateDir, async () => {
     const registry = await readRegistry(stateDir);
     const lease = registry.leases[leaseId];
@@ -128,7 +134,7 @@ async function recordTargetClosures(stateDir, leaseId, closedTargetIds, failedTa
     lease.targetIds = lease.targetIds.filter((targetId) => !closed.has(targetId));
     const released = failedTargetIds.length === 0 && lease.targetIds.length === 0;
     if (released) delete registry.leases[leaseId];
-    else lease.releasing = false;
+    else if (!retainReleasing) lease.releasing = false;
     await writeRegistry(stateDir, registry);
     return {
       leaseId,
@@ -282,12 +288,21 @@ export async function releaseLease({
       lease.rawEndpoint,
       lease.targetIds,
     );
-    return recordTargetClosures(
+    const result = await recordTargetClosures(
       stateDir,
       leaseId,
       closedTargetIds,
       failedTargetIds,
+      { retainReleasing: true },
     );
+    if (!result.released) {
+      throw new BrokerError(
+        'PARTIAL_RELEASE',
+        `Lease release incomplete: ${leaseId}`,
+        { leaseId, failedTargetIds: result.failedTargetIds },
+      );
+    }
+    return result;
   });
 }
 

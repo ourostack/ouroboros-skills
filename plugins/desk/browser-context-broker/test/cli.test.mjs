@@ -457,6 +457,99 @@ test('proxy publishes exact readiness metadata for a lease', async () => {
   assert.ok(ready.startIdentity);
 });
 
+test('partial CLI release fails, proxy cannot renew it, and exact retry deletes the lease', async (t) => {
+  let failRelease = true;
+  const fake = await startFakeCdpServer({
+    closeTarget: async (message, targets) => {
+      if (failRelease) throw new Error('synthetic close failure');
+      return { success: targets.delete(message.params.targetId) };
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const configPath = await writeConfig(directory, fake.endpoint);
+  const lease = await createLease({
+    stateDir: directory,
+    context: { id: 'work', claims: {} },
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity: testProcessIdentity,
+  });
+  const registry = await readRegistry(directory);
+  registry.contexts.work = { contextId: 'work', endpoint: fake.endpoint };
+  await writeRegistry(directory, registry);
+  const readyPath = path.join(directory, 'proxy-ready.json');
+  const child = spawn(process.execPath, [
+    cli,
+    'proxy',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--lease', lease.id,
+    '--json-ready', readyPath,
+  ], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    await waitForChildExit(child);
+  });
+
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      await readFile(readyPath, 'utf8');
+      break;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  const beforeRelease = (await readRegistry(directory)).leases[lease.id];
+  const partial = await run([
+    'release',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--lease', lease.id,
+    '--json',
+  ]);
+
+  assert.equal(partial.exitCode, 3);
+  assert.deepEqual(JSON.parse(partial.stderr), {
+    ok: false,
+    error: {
+      code: 'PARTIAL_RELEASE',
+      message: `Lease release incomplete: ${lease.id}`,
+      details: {
+        leaseId: lease.id,
+        failedTargetIds: lease.targetIds,
+      },
+    },
+  });
+  const retained = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(retained.releasing, true);
+  assert.equal(retained.expiresAt, beforeRelease.expiresAt);
+
+  await new Promise((resolve) => setTimeout(resolve, 10_500));
+  const afterHeartbeat = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(afterHeartbeat.releasing, true);
+  assert.equal(afterHeartbeat.expiresAt, beforeRelease.expiresAt);
+
+  failRelease = false;
+  const retried = await run([
+    'release',
+    '--config', configPath,
+    '--state-dir', directory,
+    '--lease', lease.id,
+    '--json',
+  ]);
+
+  assert.equal(retried.exitCode, 0, retried.stderr);
+  assert.deepEqual(JSON.parse(retried.stdout).result, {
+    leaseId: lease.id,
+    released: true,
+    closedTargetIds: lease.targetIds,
+    failedTargetIds: [],
+  });
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+});
+
 test('proxy exits and releases its listener when ready-file publication fails', async () => {
   const fake = await startFakeCdpServer();
   const directory = await stateDir();

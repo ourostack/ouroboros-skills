@@ -454,22 +454,22 @@ test('release retains failed target ownership and retries only the failed target
   });
   await addOwnedTarget(directory, lease.id, 'target-retry');
 
-  const partial = await releaseLease({
-    stateDir: directory,
-    leaseId: lease.id,
-    declaration,
-    providerInvoker: attestingProvider,
-  });
-
-  assert.deepEqual(partial, {
-    leaseId: lease.id,
-    released: false,
-    closedTargetIds: [lease.targetIds[0]],
-    failedTargetIds: ['target-retry'],
-  });
+  await assert.rejects(
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    (error) =>
+      error.code === 'PARTIAL_RELEASE' &&
+      error.details.leaseId === lease.id &&
+      error.details.failedTargetIds.length === 1 &&
+      error.details.failedTargetIds[0] === 'target-retry',
+  );
   const retained = (await readRegistry(directory)).leases[lease.id];
   assert.deepEqual(retained.targetIds, ['target-retry']);
-  assert.equal(retained.releasing, false);
+  assert.equal(retained.releasing, true);
   assert.ok(!fake.targets.has(lease.targetIds[0]));
   assert.ok(fake.targets.has('target-retry'));
 
