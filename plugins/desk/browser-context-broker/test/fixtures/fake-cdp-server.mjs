@@ -64,7 +64,9 @@ export async function startFakeCdpServer(options = {}) {
         };
         targets.set(targetId, targetInfo);
         result = { targetId };
+        await options.afterCreateTarget?.(message, targetInfo, targets);
         queueMicrotask(() => {
+          if (socket.readyState !== socket.OPEN) return;
           socket.send(JSON.stringify({
             method: 'Target.targetCreated',
             params: { targetInfo },
@@ -82,6 +84,7 @@ export async function startFakeCdpServer(options = {}) {
           }));
           return;
         }
+        await options.afterCloseTarget?.(message, result, targets);
       } else if (message.method === 'Target.attachToTarget') {
         result = { sessionId: `session-${message.params.targetId}` };
       } else if (message.method === 'Target.setAutoAttach' && message.params.autoAttach) {
@@ -102,7 +105,9 @@ export async function startFakeCdpServer(options = {}) {
       } else if (message.method === 'Runtime.evaluate') {
         result = { result: { type: 'number', value: 42 } };
       }
-      socket.send(JSON.stringify({ id: message.id, result, sessionId: message.sessionId }));
+      if (socket.readyState === socket.OPEN) {
+        socket.send(JSON.stringify({ id: message.id, result, sessionId: message.sessionId }));
+      }
     });
   });
 

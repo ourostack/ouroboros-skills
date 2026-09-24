@@ -12,6 +12,7 @@ import {
   addOwnedTarget,
   cleanupStaleLease,
   createLease,
+  createOwnedTarget,
   heartbeatLease,
   releaseLease,
   withLeaseOperation,
@@ -177,6 +178,142 @@ test('lease persists its acquired endpoint and attested process generation', asy
   assert.deepEqual(persisted.processIdentity, processIdentity);
 });
 
+test('create reconciles a target whose delayed success arrives after the command timeout', async (t) => {
+  const fake = await startFakeCdpServer({
+    afterCreateTarget: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+    initialUrl: 'https://created.example.test/path?value=1#existing',
+    cdpClientOptions: { commandTimeoutMs: 25 },
+  });
+
+  assert.equal(lease.targetIds.length, 1);
+  const target = fake.targets.get(lease.targetIds[0]);
+  assert.match(target.url, /^https:\/\/created\.example\.test\/path\?value=1#existing&__deskLease=/u);
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.deepEqual(persisted.targetIds, lease.targetIds);
+  assert.equal(persisted.creating, false);
+  assert.deepEqual(persisted.pendingTargetCreates, []);
+});
+
+test('create safely removes the lease when reconciliation finds no matching target', async (t) => {
+  const fake = await startFakeCdpServer({
+    afterCreateTarget: async (_message, targetInfo, targets) => {
+      targets.delete(targetInfo.targetId);
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+
+  await assert.rejects(
+    createLease({
+      stateDir: directory,
+      context: declaration,
+      owner: 'agent-a',
+      rawEndpoint: fake.endpoint,
+      processIdentity,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    (error) =>
+      error.code === 'TARGET_CREATE_FAILED' &&
+      typeof error.details.marker === 'string' &&
+      typeof error.details.markedUrl === 'string',
+  );
+
+  assert.deepEqual((await readRegistry(directory)).leases, {});
+});
+
+test('create fails closed and owns every target matching a duplicate durable marker', async (t) => {
+  const fake = await startFakeCdpServer({
+    afterCreateTarget: async (_message, targetInfo, targets) => {
+      targets.set('duplicate-marker-target', {
+        ...targetInfo,
+        targetId: 'duplicate-marker-target',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+
+  await assert.rejects(
+    createLease({
+      stateDir: directory,
+      context: declaration,
+      owner: 'agent-a',
+      rawEndpoint: fake.endpoint,
+      processIdentity,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    (error) =>
+      error.code === 'TARGET_CREATE_INDETERMINATE' &&
+      error.details.retained === true &&
+      error.details.diagnostic.status === 'MULTIPLE_MARKER_MATCHES',
+  );
+
+  const [retained] = Object.values((await readRegistry(directory)).leases);
+  assert.equal(retained.creating, false);
+  assert.deepEqual(retained.pendingTargetCreates, []);
+  assert.equal(retained.targetIds.length, 2);
+  assert.ok(retained.targetIds.includes('duplicate-marker-target'));
+  const [failure] = Object.values(retained.targetCreateFailures);
+  assert.equal(failure.status, 'MULTIPLE_MARKER_MATCHES');
+  assert.deepEqual(new Set(failure.candidateTargetIds), new Set(retained.targetIds));
+});
+
+test('create retains its queryable marker when bounded reconciliation also times out', async (t) => {
+  const fake = await startFakeCdpServer({
+    beforeRequest: async (message) => {
+      if (message.method === 'Target.getTargets') await new Promise(() => {});
+    },
+    afterCreateTarget: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+
+  await assert.rejects(
+    createLease({
+      stateDir: directory,
+      context: declaration,
+      owner: 'agent-a',
+      rawEndpoint: fake.endpoint,
+      processIdentity,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    (error) =>
+      error.code === 'TARGET_CREATE_INDETERMINATE' &&
+      error.details.retained === true &&
+      error.details.diagnostic.status === 'RECONCILIATION_FAILED',
+  );
+
+  const [retained] = Object.values((await readRegistry(directory)).leases);
+  assert.equal(retained.creating, false);
+  assert.equal(retained.targetIds.length, 0);
+  assert.equal(retained.pendingTargetCreates.length, 1);
+  assert.match(retained.pendingTargetCreates[0].markedUrl, /#__deskLease=/u);
+  assert.equal(
+    retained.pendingTargetCreates[0].diagnostic.status,
+    'RECONCILIATION_FAILED',
+  );
+  assert.equal(
+    retained.pendingTargetCreates[0].diagnostic.reconciliation.code,
+    'CDP_COMMAND_TIMEOUT',
+  );
+});
+
 test('release fails disconnected when fresh attestation observes another process generation', async (t) => {
   const fake = await startFakeCdpServer();
   t.after(() => fake.close());
@@ -286,6 +423,41 @@ test('heartbeat serializes with and refuses a releasing lease', async (t) => {
   const current = (await readRegistry(directory)).leases[lease.id];
   assert.equal(current.releasing, true);
   assert.equal(current.expiresAt, lease.expiresAt);
+});
+
+test('target creation refuses a lease whose release has already begun', async (t) => {
+  const fake = await startFakeCdpServer();
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const registry = await readRegistry(directory);
+  registry.leases[lease.id].releasing = true;
+  await writeRegistry(directory, registry);
+
+  await assert.rejects(
+    createOwnedTarget({
+      stateDir: directory,
+      leaseId: lease.id,
+      rawEndpoint: fake.endpoint,
+      params: { url: 'https://too-late.example.test' },
+    }),
+    (error) => error.code === 'LEASE_RELEASING',
+  );
+
+  assert.deepEqual([...fake.targets.keys()].sort(), [
+    'unowned-existing',
+    ...lease.targetIds,
+  ].sort());
+  assert.deepEqual(
+    (await readRegistry(directory)).leases[lease.id].pendingTargetCreates,
+    [],
+  );
 });
 
 test('release serializes with late target creation and leaves no leaked target', async () => {
@@ -542,6 +714,82 @@ test('release records a silent close as failed and releases its operation lock f
   ]);
 
   assert.equal(retried.released, true);
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+});
+
+test('release reconciles a target whose delayed close success arrives after the command timeout', async (t) => {
+  const fake = await startFakeCdpServer({
+    afterCloseTarget: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  const result = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+    cdpClientOptions: { commandTimeoutMs: 25 },
+  });
+
+  assert.deepEqual(result, {
+    leaseId: lease.id,
+    released: true,
+    closedTargetIds: lease.targetIds,
+    failedTargetIds: [],
+  });
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+  assert.ok(!fake.targets.has(lease.targetIds[0]));
+});
+
+test('release treats target-not-found on retry as reconciled close success', async (t) => {
+  let rejectClose = false;
+  const fake = await startFakeCdpServer({
+    closeTarget: async (message, targets) => {
+      if (rejectClose) throw new Error('No target with given id');
+      return { success: false, targetStillPresent: targets.has(message.params.targetId) };
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  await assert.rejects(
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    (error) => error.code === 'PARTIAL_RELEASE',
+  );
+  fake.targets.delete(lease.targetIds[0]);
+  rejectClose = true;
+
+  const retried = await releaseLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+  });
+
+  assert.equal(retried.released, true);
+  assert.deepEqual(retried.closedTargetIds, lease.targetIds);
   assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
 });
 

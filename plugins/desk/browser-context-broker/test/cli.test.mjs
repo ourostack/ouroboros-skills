@@ -511,17 +511,20 @@ test('partial CLI release fails, proxy cannot renew it, and exact retry deletes 
   ]);
 
   assert.equal(partial.exitCode, 3);
-  assert.deepEqual(JSON.parse(partial.stderr), {
-    ok: false,
-    error: {
-      code: 'PARTIAL_RELEASE',
-      message: `Lease release incomplete: ${lease.id}`,
-      details: {
-        leaseId: lease.id,
-        failedTargetIds: lease.targetIds,
-      },
-    },
-  });
+  const partialError = JSON.parse(partial.stderr);
+  assert.equal(partialError.ok, false);
+  assert.equal(partialError.error.code, 'PARTIAL_RELEASE');
+  assert.equal(partialError.error.message, `Lease release incomplete: ${lease.id}`);
+  assert.equal(partialError.error.details.leaseId, lease.id);
+  assert.deepEqual(partialError.error.details.failedTargetIds, lease.targetIds);
+  assert.equal(
+    partialError.error.details.targetFailures[lease.targetIds[0]].status,
+    'TARGET_STILL_PRESENT',
+  );
+  assert.equal(
+    partialError.error.details.targetFailures[lease.targetIds[0]].cause.code,
+    'CDP_COMMAND_FAILED',
+  );
   const retained = (await readRegistry(directory)).leases[lease.id];
   assert.equal(retained.releasing, true);
   assert.equal(retained.expiresAt, beforeRelease.expiresAt);

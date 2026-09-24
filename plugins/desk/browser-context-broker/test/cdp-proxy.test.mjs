@@ -129,7 +129,7 @@ function exchange(socket) {
 async function waitFor(condition, message) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 5));
   }
   throw new Error(message);
 }
@@ -851,6 +851,52 @@ test('late createTarget racing release is compensated without leaking a target',
   assert.ok(createResponse.result.targetId);
   assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
   assert.deepEqual([...fake.targets.keys()], ['unowned-existing']);
+});
+
+test('proxy reconciles delayed createTarget success after its upstream timeout', async (t) => {
+  let createCount = 0;
+  const fake = await startFakeCdpServer({
+    afterCreateTarget: async () => {
+      createCount += 1;
+      if (createCount > 1) {
+        await new Promise((resolve) => setTimeout(resolve, 60));
+      }
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+    internalRequestTimeoutMs: 25,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const response = await cdp.send('Target.createTarget', {
+    url: 'https://proxy-created.example.test/path#existing',
+  });
+
+  assert.ok(response.result.targetId);
+  const target = fake.targets.get(response.result.targetId);
+  assert.match(
+    target.url,
+    /^https:\/\/proxy-created\.example\.test\/path#existing&__deskLease=/u,
+  );
+  const persisted = (await readRegistry(directory)).leases[lease.id];
+  assert.ok(persisted.targetIds.includes(response.result.targetId));
+  assert.deepEqual(persisted.pendingTargetCreates, []);
 });
 
 test('upstream disconnect rejects pending createTarget and releases the lease operation lock', async (t) => {

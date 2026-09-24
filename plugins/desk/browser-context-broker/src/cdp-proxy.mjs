@@ -6,6 +6,8 @@ import { BrokerError } from './claims.mjs';
 import {
   addOwnedTarget,
   attestLeaseContext,
+  closeOwnedTarget,
+  createOwnedTarget,
   heartbeatLease,
   recordProxy,
   removeOwnedTarget,
@@ -89,52 +91,11 @@ export async function startLeaseProxy({
     let downstreamMessageProcessing = Promise.resolve();
     let upstreamMessageProcessing = Promise.resolve();
     let nextDownstreamUpstreamId = 0;
-    let nextInternalId = 0;
     const sendUpstream = (message) => {
       const serialized = JSON.stringify(message);
       if (upstream.readyState === WebSocket.OPEN) upstream.send(serialized);
       else queued.push(serialized);
     };
-    const requestWithResponse = ({
-      id,
-      method,
-      params,
-      downstreamId,
-      sessionId,
-    }) => {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          if (!requests.delete(id)) return;
-          const error = new Error(`Timed out waiting for upstream ${method}`);
-          error.code = 'UPSTREAM_REQUEST_TIMEOUT';
-          reject(error);
-        }, internalRequestTimeoutMs);
-        timer.unref();
-        requests.set(id, {
-          method,
-          targetId: params.targetId,
-          downstreamId,
-          resolve,
-          reject,
-          timer,
-        });
-        sendUpstream({ id, method, params, sessionId });
-      });
-    };
-    const requestInternal = (method, params = {}) =>
-      requestWithResponse({
-        id: --nextInternalId,
-        method,
-        params,
-      });
-    const requestManagedDownstream = (message, params) =>
-      requestWithResponse({
-        id: ++nextDownstreamUpstreamId,
-        method: message.method,
-        params,
-        downstreamId: message.id,
-        sessionId: message.sessionId,
-      });
     const rejectPendingRequests = (error) => {
       for (const [id, request] of requests) {
         if (!request?.reject) continue;
@@ -144,8 +105,18 @@ export async function startLeaseProxy({
       }
     };
     const compensateTarget = async (targetId) => {
-      await requestInternal('Target.closeTarget', { targetId }).catch(() => {});
-      ownedTargets.delete(targetId);
+      const result = await closeOwnedTarget({
+        stateDir,
+        leaseId,
+        rawEndpoint: lease.rawEndpoint,
+        targetId,
+        cdpClientOptions: {
+          discoveryTimeoutMs: internalRequestTimeoutMs,
+          connectTimeoutMs: internalRequestTimeoutMs,
+          commandTimeoutMs: internalRequestTimeoutMs,
+        },
+      }).catch(() => ({ closed: false }));
+      if (result.closed) ownedTargets.delete(targetId);
     };
     upstream.on('open', () => {
       for (const message of queued) upstream.send(message);
@@ -223,42 +194,95 @@ export async function startLeaseProxy({
             declaration,
             providerInvoker,
           });
-          const responsePromise = requestManagedDownstream(message, {
-            ...message.params,
-            background: true,
+          const result = await createOwnedTarget({
+            stateDir,
+            leaseId,
+            rawEndpoint: lease.rawEndpoint,
+            params: message.params,
+            cdpClientOptions: {
+              discoveryTimeoutMs: internalRequestTimeoutMs,
+              connectTimeoutMs: internalRequestTimeoutMs,
+              commandTimeoutMs: internalRequestTimeoutMs,
+            },
+            onDispatched: markDispatched,
           });
-          markDispatched();
-          const response = await responsePromise;
-          if (response.error || !response.result?.targetId) {
-            if (downstream.readyState === WebSocket.OPEN) {
-              downstream.send(JSON.stringify(response));
-            }
-            return;
+          ownedTargets.add(result.targetId);
+          if (downstream.readyState === WebSocket.OPEN) {
+            downstream.send(JSON.stringify({
+              id: message.id,
+              result: { targetId: result.targetId },
+            }));
           }
-          const targetId = response.result.targetId;
-          try {
-            await addOwnedTarget(stateDir, leaseId, targetId);
-            ownedTargets.add(targetId);
-            if (downstream.readyState === WebSocket.OPEN) {
-              downstream.send(JSON.stringify(response));
+        })
+          .catch((error) => {
+            for (const targetId of error?.details?.diagnostic?.candidateTargetIds ?? []) {
+              ownedTargets.add(targetId);
             }
-          } catch {
-            await compensateTarget(targetId);
             if (downstream.readyState === WebSocket.OPEN) {
               downstream.send(errorResponse(
                 message.id,
                 -32005,
-                'Lease was released before target ownership could be recorded',
+                'Lease was released before target creation completed',
               ));
             }
+          })
+          .finally(markDispatched);
+        await upstreamDispatched;
+        return;
+      }
+      if (message.method === 'Target.closeTarget') {
+        let markDispatched;
+        let dispatched = false;
+        const upstreamDispatched = new Promise((resolve) => {
+          markDispatched = () => {
+            if (dispatched) return;
+            dispatched = true;
+            resolve();
+          };
+        });
+        void withLeaseOperation(stateDir, leaseId, async () => {
+          await attestLeaseContext({
+            stateDir,
+            leaseId,
+            declaration,
+            providerInvoker,
+          });
+          const result = await closeOwnedTarget({
+            stateDir,
+            leaseId,
+            rawEndpoint: lease.rawEndpoint,
+            targetId: message.params.targetId,
+            cdpClientOptions: {
+              discoveryTimeoutMs: internalRequestTimeoutMs,
+              connectTimeoutMs: internalRequestTimeoutMs,
+              commandTimeoutMs: internalRequestTimeoutMs,
+            },
+            onDispatched: markDispatched,
+          });
+          if (!result.closed) {
+            if (downstream.readyState === WebSocket.OPEN) {
+              downstream.send(errorResponse(
+                message.id,
+                -32006,
+                'Target close remained indeterminate after reconciliation',
+              ));
+            }
+            return;
+          }
+          ownedTargets.delete(message.params.targetId);
+          if (downstream.readyState === WebSocket.OPEN) {
+            downstream.send(JSON.stringify({
+              id: message.id,
+              result: { success: true },
+            }));
           }
         })
           .catch(() => {
             if (downstream.readyState === WebSocket.OPEN) {
               downstream.send(errorResponse(
                 message.id,
-                -32005,
-                'Lease was released before target creation completed',
+                -32006,
+                'Target close failed before reconciliation completed',
               ));
             }
           })

@@ -19,9 +19,23 @@ The internal `CdpClient` bounds every remote wait: HTTP discovery defaults to
 5 seconds, WebSocket connection to 5 seconds, and command responses to 10
 seconds. Callers and tests may override `discoveryTimeoutMs`,
 `connectTimeoutMs`, and `commandTimeoutMs` when connecting. A timed-out command
-is removed from the pending-request map and closes the socket so lease release
-or cleanup can record that target as failed, unwind its operation lock, and be
-retried rather than hanging indefinitely.
+is removed from the pending-request map and closes the socket.
+
+Mutating target commands reconcile that indeterminate result before ownership
+changes. Target creation first writes a unique lease marker into the requested
+target URL and records the marker in the lease. After a create timeout or
+error, the broker reconnects and queries `Target.getTargets`: one exact marker
+match becomes owned, no match fails safely, and multiple matches fail closed
+while retaining every candidate target plus the diagnostic. If reconciliation
+itself cannot complete within the configured transport bounds, the lease keeps
+the pending marker and exact failure evidence for later release or stale
+cleanup.
+
+Target close timeout or error also reconnects and queries the target list. An
+absent target is reconciled as successfully closed, including target-not-found
+on an exact retry. A still-present or unqueryable target remains durably owned
+with its close/reconciliation diagnostic; explicit release remains failed and
+retryable rather than deleting the lease.
 
 ## Provider IPC
 
