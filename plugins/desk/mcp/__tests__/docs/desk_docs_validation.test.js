@@ -204,6 +204,7 @@ test("browser focus validation requires broker routing and rejects unsafe discov
     readFile: () => [
       'curl -s "http://localhost:9222/json/version"',
       'nohup browser --remote-debugging-port=9222 &',
+      "browser-context-broker acquire --alias corporate-default",
       'pkill -f "user-data-dir=profile"',
       "const page = ctx.pages().find(candidate => candidate.url().includes(target))",
     ].join("\n"),
@@ -214,6 +215,7 @@ test("browser focus validation requires broker routing and rejects unsafe discov
   assert.ok(staleErrors.some((error) => error.includes("process-pattern cleanup")))
   assert.ok(staleErrors.some((error) => error.includes("cross-lease page selection")))
   assert.ok(staleErrors.some((error) => error.includes("plugin-relative broker executable")))
+  assert.ok(staleErrors.some((error) => error.includes("bare PATH command")))
 })
 
 test("run and startCli expose success, failure, and no-op CLI paths", () => {
