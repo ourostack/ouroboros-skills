@@ -86,6 +86,7 @@ export async function startLeaseProxy({
     const internalRequestIds = new Set();
     const ownedSessions = new Set();
     const queued = [];
+    let upstreamMessageProcessing = Promise.resolve();
     let nextInternalId = 1_000_000_000;
     const sendUpstream = (message) => {
       const serialized = JSON.stringify(message);
@@ -245,83 +246,86 @@ export async function startLeaseProxy({
         if (downstream.readyState === WebSocket.OPEN) downstream.close();
       });
     });
-    upstream.on('message', (data) => {
-      void (async () => {
-        const message = JSON.parse(data.toString());
-        if (message.id) {
-          const request = requests.get(message.id);
-          requests.delete(message.id);
-          if (!request) return;
-          if (request?.resolve) {
-            clearTimeout(request.timer);
-            internalRequestIds.delete(message.id);
-            request.resolve(message);
-            return;
-          }
-          if (request?.method === 'Target.getTargets' && message.result?.targetInfos) {
-            message.result.targetInfos = message.result.targetInfos.filter(({ targetId }) =>
-              ownedTargets.has(targetId),
-            );
-          } else if (request?.method === 'Target.createTarget' && message.result?.targetId) {
-            ownedTargets.add(message.result.targetId);
-            await addOwnedTarget(stateDir, leaseId, message.result.targetId);
-          } else if (request?.method === 'Target.attachToTarget' && message.result?.sessionId) {
-            ownedSessions.add(message.result.sessionId);
-          } else if (
-            request?.method === 'Target.closeTarget' &&
-            message.result?.success &&
-            request.targetId
-          ) {
-            ownedTargets.delete(request.targetId);
-            await removeOwnedTarget(stateDir, leaseId, request.targetId);
-          }
-          if (downstream.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
+    const processUpstreamMessage = async (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.id) {
+        const request = requests.get(message.id);
+        requests.delete(message.id);
+        if (!request) return;
+        if (request?.resolve) {
+          clearTimeout(request.timer);
+          internalRequestIds.delete(message.id);
+          request.resolve(message);
           return;
         }
-
-        const targetInfo = message.params?.targetInfo;
-        if (
-          message.method === 'Target.attachedToTarget' &&
-          targetInfo?.targetId &&
-          ownedTargets.has(targetInfo.targetId)
+        if (request?.method === 'Target.getTargets' && message.result?.targetInfos) {
+          message.result.targetInfos = message.result.targetInfos.filter(({ targetId }) =>
+            ownedTargets.has(targetId),
+          );
+        } else if (request?.method === 'Target.createTarget' && message.result?.targetId) {
+          ownedTargets.add(message.result.targetId);
+          await addOwnedTarget(stateDir, leaseId, message.result.targetId);
+        } else if (request?.method === 'Target.attachToTarget' && message.result?.sessionId) {
+          ownedSessions.add(message.result.sessionId);
+        } else if (
+          request?.method === 'Target.closeTarget' &&
+          message.result?.success &&
+          request.targetId
         ) {
-          ownedSessions.add(message.params.sessionId);
-        }
-        if (
-          message.method === 'Target.detachedFromTarget' &&
-          message.params?.sessionId
-        ) {
-          if (!ownedSessions.delete(message.params.sessionId)) return;
-        } else if (message.sessionId && !ownedSessions.has(message.sessionId)) {
-          return;
-        }
-        if (
-          message.method === 'Target.targetCreated' &&
-          targetInfo?.openerId &&
-          ownedTargets.has(targetInfo.openerId)
-        ) {
-          try {
-            await withLeaseOperation(stateDir, leaseId, async () => {
-              await addOwnedTarget(stateDir, leaseId, targetInfo.targetId);
-              ownedTargets.add(targetInfo.targetId);
-            });
-          } catch {
-            await compensateTarget(targetInfo.targetId);
-            return;
-          }
-        }
-        const targetId =
-          targetInfo?.targetId ??
-          message.params?.targetId;
-        if (!targetId || !ownedTargets.has(targetId)) return;
-        if (message.method === 'Target.targetDestroyed') {
-          ownedTargets.delete(targetId);
-          await removeOwnedTarget(stateDir, leaseId, targetId).catch(() => {});
+          ownedTargets.delete(request.targetId);
+          await removeOwnedTarget(stateDir, leaseId, request.targetId);
         }
         if (downstream.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
-      })().catch(() => {
-        if (downstream.readyState === WebSocket.OPEN) downstream.close();
-      });
+        return;
+      }
+
+      const targetInfo = message.params?.targetInfo;
+      if (
+        message.method === 'Target.attachedToTarget' &&
+        targetInfo?.targetId &&
+        ownedTargets.has(targetInfo.targetId)
+      ) {
+        ownedSessions.add(message.params.sessionId);
+      }
+      if (
+        message.method === 'Target.detachedFromTarget' &&
+        message.params?.sessionId
+      ) {
+        if (!ownedSessions.delete(message.params.sessionId)) return;
+      } else if (message.sessionId && !ownedSessions.has(message.sessionId)) {
+        return;
+      }
+      if (
+        message.method === 'Target.targetCreated' &&
+        targetInfo?.openerId &&
+        ownedTargets.has(targetInfo.openerId)
+      ) {
+        try {
+          await withLeaseOperation(stateDir, leaseId, async () => {
+            await addOwnedTarget(stateDir, leaseId, targetInfo.targetId);
+            ownedTargets.add(targetInfo.targetId);
+          });
+        } catch {
+          await compensateTarget(targetInfo.targetId);
+          return;
+        }
+      }
+      const targetId =
+        targetInfo?.targetId ??
+        message.params?.targetId;
+      if (!targetId || !ownedTargets.has(targetId)) return;
+      if (message.method === 'Target.targetDestroyed') {
+        ownedTargets.delete(targetId);
+        await removeOwnedTarget(stateDir, leaseId, targetId).catch(() => {});
+      }
+      if (downstream.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
+    };
+    upstream.on('message', (data) => {
+      upstreamMessageProcessing = upstreamMessageProcessing
+        .then(() => processUpstreamMessage(data))
+        .catch(() => {
+          if (downstream.readyState === WebSocket.OPEN) downstream.close();
+        });
     });
     const closePeer = () => {
       if (upstream.readyState === WebSocket.OPEN) upstream.close();

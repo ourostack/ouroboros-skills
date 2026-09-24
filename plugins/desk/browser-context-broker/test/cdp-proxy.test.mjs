@@ -8,6 +8,7 @@ import WebSocket from 'ws';
 
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
 import { createLease, releaseLease } from '../src/leases.mjs';
+import { withBrokerLock } from '../src/lock.mjs';
 import { readRegistry } from '../src/registry.mjs';
 import { startFakeCdpServer } from './fixtures/fake-cdp-server.mjs';
 
@@ -100,6 +101,14 @@ function exchange(socket) {
       return new Promise((resolve, reject) => pending.set(requestId, { resolve, reject }));
     },
   };
+}
+
+async function waitFor(condition, message) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (condition()) return;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  throw new Error(message);
 }
 
 test.afterEach(async () => {
@@ -229,6 +238,124 @@ test('proxy inherits popup descendants of owned targets', async () => {
 
   const discovery = await cdp.send('Target.getTargets');
   assert.ok(discovery.result.targetInfos.some(({ targetId }) => targetId === 'popup-1'));
+});
+
+test('targetCreated ownership persists before a later discovery response is filtered', async () => {
+  const { fake, directory, lease, cdp } = await setup();
+  let releasePersistence;
+  let persistenceBlocked;
+  const gate = new Promise((resolve) => {
+    releasePersistence = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    persistenceBlocked = resolve;
+  });
+  const lock = withBrokerLock(directory, async () => {
+    persistenceBlocked();
+    await gate;
+  });
+  await blocked;
+
+  const getTargetsBefore = fake.methods.filter(
+    ({ method }) => method === 'Target.getTargets',
+  ).length;
+  fake.emitTargetCreated({
+    targetId: 'delayed-popup',
+    openerId: lease.targetIds[0],
+    type: 'page',
+    title: 'Delayed popup',
+    url: 'https://delayed-popup.example.test',
+  });
+  const discovering = cdp.send('Target.getTargets');
+  try {
+    await waitFor(
+      () => fake.methods.filter(({ method }) => method === 'Target.getTargets').length >
+        getTargetsBefore,
+      'discovery request did not reach upstream',
+    );
+  } finally {
+    releasePersistence();
+    await lock;
+  }
+
+  const discovery = await discovering;
+  assert.ok(
+    discovery.result.targetInfos.some(({ targetId }) => targetId === 'delayed-popup'),
+  );
+  assert.ok(
+    (await readRegistry(directory)).leases[lease.id].targetIds.includes('delayed-popup'),
+  );
+});
+
+test('upstream targetCreated bursts preserve descendant and discovery arrival order', async () => {
+  const { fake, directory, lease, cdp } = await setup();
+  let releasePersistence;
+  let persistenceBlocked;
+  const gate = new Promise((resolve) => {
+    releasePersistence = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    persistenceBlocked = resolve;
+  });
+  const lock = withBrokerLock(directory, async () => {
+    persistenceBlocked();
+    await gate;
+  });
+  await blocked;
+
+  const targetInfos = [
+    {
+      targetId: 'burst-popup-1',
+      openerId: lease.targetIds[0],
+      type: 'page',
+      title: 'Burst popup 1',
+      url: 'https://burst-1.example.test',
+    },
+    {
+      targetId: 'burst-popup-2',
+      openerId: 'burst-popup-1',
+      type: 'page',
+      title: 'Burst popup 2',
+      url: 'https://burst-2.example.test',
+    },
+    {
+      targetId: 'burst-popup-3',
+      openerId: 'burst-popup-2',
+      type: 'page',
+      title: 'Burst popup 3',
+      url: 'https://burst-3.example.test',
+    },
+  ];
+  const getTargetsBefore = fake.methods.filter(
+    ({ method }) => method === 'Target.getTargets',
+  ).length;
+  for (const targetInfo of targetInfos) fake.emitTargetCreated(targetInfo);
+  const discovering = cdp.send('Target.getTargets');
+  try {
+    await waitFor(
+      () => fake.methods.filter(({ method }) => method === 'Target.getTargets').length >
+        getTargetsBefore,
+      'burst discovery request did not reach upstream',
+    );
+  } finally {
+    releasePersistence();
+    await lock;
+  }
+
+  const discovery = await discovering;
+  const burstIds = targetInfos.map(({ targetId }) => targetId);
+  assert.deepEqual(
+    cdp.events
+      .filter(({ method }) => method === 'Target.targetCreated')
+      .map(({ params }) => params.targetInfo.targetId),
+    burstIds,
+  );
+  assert.deepEqual(
+    discovery.result.targetInfos
+      .map(({ targetId }) => targetId)
+      .filter((targetId) => burstIds.includes(targetId)),
+    burstIds,
+  );
 });
 
 test('proxy denies activation commands and unowned target closure', async () => {
