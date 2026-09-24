@@ -94,12 +94,12 @@ function disconnectedLeaseError(lease, reconciled) {
   );
 }
 
-async function closeOwnedTargets(rawEndpoint, targetIds) {
+async function closeOwnedTargets(rawEndpoint, targetIds, cdpClientOptions) {
   const closedTargetIds = [];
   const failedTargetIds = [];
   let client;
   try {
-    client = await CdpClient.connect(rawEndpoint);
+    client = await CdpClient.connect(rawEndpoint, cdpClientOptions);
   } catch {
     return { closedTargetIds, failedTargetIds: [...targetIds] };
   }
@@ -277,6 +277,7 @@ export async function releaseLease({
   leaseId,
   declaration,
   providerInvoker,
+  cdpClientOptions,
 }) {
   return withLeaseOperation(stateDir, leaseId, async () => {
     await attestLeaseContext({ stateDir, leaseId, declaration, providerInvoker });
@@ -287,6 +288,7 @@ export async function releaseLease({
     const { closedTargetIds, failedTargetIds } = await closeOwnedTargets(
       lease.rawEndpoint,
       lease.targetIds,
+      cdpClientOptions,
     );
     const result = await recordTargetClosures(
       stateDir,
@@ -311,6 +313,7 @@ export async function cleanupStaleLease({
   leaseId,
   declaration,
   providerInvoker,
+  cdpClientOptions,
 }) {
   return withLeaseOperation(stateDir, leaseId, async () => {
     await mutateLease(stateDir, leaseId, (record) => {
@@ -351,6 +354,7 @@ export async function cleanupStaleLease({
       const { closedTargetIds, failedTargetIds } = await closeOwnedTargets(
         lease.rawEndpoint,
         lease.targetIds,
+        cdpClientOptions,
       );
       return recordTargetClosures(
         stateDir,

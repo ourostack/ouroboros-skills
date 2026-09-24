@@ -491,6 +491,60 @@ test('release retains failed target ownership and retries only the failed target
   assert.ok(!fake.targets.has('target-retry'));
 });
 
+test('release records a silent close as failed and releases its operation lock for retry', async (t) => {
+  let silenceClose = true;
+  const fake = await startFakeCdpServer({
+    beforeRequest: async (message) => {
+      if (message.method === 'Target.closeTarget' && silenceClose) {
+        await new Promise(() => {});
+      }
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+
+  await assert.rejects(
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    (error) =>
+      error.code === 'PARTIAL_RELEASE' &&
+      error.details.failedTargetIds[0] === lease.targetIds[0],
+  );
+  const retained = (await readRegistry(directory)).leases[lease.id];
+  assert.deepEqual(retained.targetIds, lease.targetIds);
+  assert.equal(retained.releasing, true);
+
+  silenceClose = false;
+  const retried = await Promise.race([
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('release operation lock was not released')),
+      500,
+    )),
+  ]);
+
+  assert.equal(retried.released, true);
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
+});
+
 test('stale cleanup retains targets whose close throws and retries only those targets', async (t) => {
   let throwForTarget = true;
   const fake = await startFakeCdpServer({
@@ -557,4 +611,63 @@ test('stale cleanup retains targets whose close throws and retries only those ta
   });
   assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
   assert.ok(!fake.targets.has('target-retry'));
+});
+
+test('stale cleanup records a silent close as failed and releases its operation lock for retry', async (t) => {
+  let silenceClose = true;
+  const fake = await startFakeCdpServer({
+    beforeRequest: async (message) => {
+      if (message.method === 'Target.closeTarget' && silenceClose) {
+        await new Promise(() => {});
+      }
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const registry = await readRegistry(directory);
+  registry.leases[lease.id].expiresAt = new Date(0).toISOString();
+  await writeRegistry(directory, registry);
+
+  const partial = await cleanupStaleLease({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+    cdpClientOptions: { commandTimeoutMs: 25 },
+  });
+
+  assert.deepEqual(partial, {
+    leaseId: lease.id,
+    released: false,
+    closedTargetIds: [],
+    failedTargetIds: lease.targetIds,
+  });
+  const retained = (await readRegistry(directory)).leases[lease.id];
+  assert.deepEqual(retained.targetIds, lease.targetIds);
+  assert.equal(retained.releasing, false);
+
+  silenceClose = false;
+  const retried = await Promise.race([
+    cleanupStaleLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+      cdpClientOptions: { commandTimeoutMs: 25 },
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('cleanup operation lock was not released')),
+      500,
+    )),
+  ]);
+
+  assert.equal(retried.released, true);
+  assert.equal((await readRegistry(directory)).leases[lease.id], undefined);
 });

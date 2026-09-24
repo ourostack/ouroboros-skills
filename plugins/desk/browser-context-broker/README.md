@@ -13,6 +13,16 @@ The host overlay owns the runtime contract:
 
 The overlay also supplies the private provider, declarations, state directory, and readiness-file location. The generic Desk package does not claim those host-specific resources or mutate the operator's `PATH`.
 
+## CDP transport bounds
+
+The internal `CdpClient` bounds every remote wait: HTTP discovery defaults to
+5 seconds, WebSocket connection to 5 seconds, and command responses to 10
+seconds. Callers and tests may override `discoveryTimeoutMs`,
+`connectTimeoutMs`, and `commandTimeoutMs` when connecting. A timed-out command
+is removed from the pending-request map and closes the socket so lease release
+or cleanup can record that target as failed, unwind its operation lock, and be
+retried rather than hanging indefinitely.
+
 ## Provider IPC
 
 The broker sends one JSON request on stdin and expects one JSON result on stdout. A provider that cannot complete an operation exits nonzero. To preserve an actionable provider diagnostic, it may write exactly one error envelope to stdout:
