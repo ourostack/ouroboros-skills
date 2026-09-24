@@ -27,10 +27,13 @@ Keep the default isolated browser when it works. Broker setup has a persistent-c
 
 The consuming overlay supplies:
 
+- The exact executable path in `BROWSER_CONTEXT_BROKER_BIN`.
 - A user-private broker configuration containing aliases and context declarations.
 - An external provider command implementing discovery, launch, health, and attestation.
 - A user-private state directory.
 - A launcher that requests the intended alias or claim set.
+
+The released Desk package is the canonical plugin-relative source at `browser-context-broker/`. An ordinary Desk install does not place `browser-context-broker` on `PATH`. A host overlay that offers this optional capability owns a runtime installer: it copies or installs that plugin-relative package, installs production dependencies, and supplies the resulting executable path to its launcher as `BROWSER_CONTEXT_BROKER_BIN`.
 
 Aliases are convenience only. The broker expands them to claims and applies the same exact, conjunctive comparison. Missing evidence, zero matches, and ambiguous matches fail closed.
 
@@ -38,21 +41,21 @@ Aliases are convenience only. The broker expands them to claims and applies the 
 
 The installed launcher performs this sequence:
 
-1. Run `browser-context-broker acquire` with the exact alias or JSON claim request.
-2. Start `browser-context-broker proxy` for the returned lease and wait for its readiness file.
+1. Run `"$BROWSER_CONTEXT_BROKER_BIN" acquire` with the exact alias or JSON claim request.
+2. Start `"$BROWSER_CONTEXT_BROKER_BIN" proxy` for the returned lease and wait for its owner-private readiness file.
 3. Start Playwright MCP with `--cdp-endpoint` set to the lease proxy endpoint from that file.
-4. Run `browser-context-broker release` for the exact lease when Playwright MCP exits.
+4. Run `"$BROWSER_CONTEXT_BROKER_BIN" release` for the exact lease when Playwright MCP exits.
 
 Example contract:
 
 ```bash
-browser-context-broker acquire \
+"$BROWSER_CONTEXT_BROKER_BIN" acquire \
   --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --alias "$BROWSER_CONTEXT_ALIAS" \
   --json
 
-browser-context-broker proxy \
+"$BROWSER_CONTEXT_BROKER_BIN" proxy \
   --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$LEASE_ID" \
@@ -60,14 +63,14 @@ browser-context-broker proxy \
 
 npx -y @playwright/mcp@latest --cdp-endpoint "$LEASE_PROXY_ENDPOINT"
 
-browser-context-broker release \
+"$BROWSER_CONTEXT_BROKER_BIN" release \
   --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$LEASE_ID" \
   --json
 ```
 
-Treat `proxyToken` from `acquire` and the authenticated endpoint from `proxy` as lease-scoped connection material. Do not place either in logs, status reports, task records, or shared configuration.
+`acquire` returns only non-secret lease and context metadata. The proxy reads its raw endpoint and credential from the owner-private registry, then publishes the authenticated endpoint only through the mode-0600 readiness file. Treat that endpoint as lease-scoped connection material; do not place it in logs, status reports, task records, or shared configuration.
 
 ## Lease isolation
 
@@ -125,17 +128,17 @@ For an attached client, `browser.close()` detaches that client; it does not term
 Use broker diagnostics rather than inspecting ports or process-name patterns:
 
 ```bash
-browser-context-broker status \
+"$BROWSER_CONTEXT_BROKER_BIN" status \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --json
 
-browser-context-broker doctor \
+"$BROWSER_CONTEXT_BROKER_BIN" doctor \
   --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --json
 ```
 
-`status` reports non-secret context observations, claims, endpoints, owners, and leases. `doctor` identifies expired leases and actionable reconciliation problems without exposing provider environment, credentials, cookies, or tokens.
+`status` reports non-secret context observations, claims, process identities, owners, and leases. `doctor` identifies expired leases and actionable reconciliation problems without exposing raw endpoints, provider environment, credentials, cookies, or tokens.
 
 Recovery is requested-context-only:
 
@@ -152,7 +155,7 @@ Normal completion uses `release` for the exact lease. It closes only targets rec
 For an expired lease identified by `doctor`, use exact cleanup:
 
 ```bash
-browser-context-broker cleanup \
+"$BROWSER_CONTEXT_BROKER_BIN" cleanup \
   --config "$BROWSER_CONTEXT_CONFIG" \
   --state-dir "$BROWSER_CONTEXT_STATE" \
   --lease "$STALE_LEASE_ID" \

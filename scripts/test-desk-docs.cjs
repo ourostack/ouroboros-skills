@@ -420,6 +420,17 @@ function validateBrowserFocusPolicy(errors, {
   if (!/\blease\b[\s\S]+\bowned targets?\b/iu.test(body)) {
     errors.push("cdp-headed-browser must describe lease-owned target isolation");
   }
+  if (
+    !body.includes("$BROWSER_CONTEXT_BROKER_BIN") ||
+    !lower.includes("plugin-relative") ||
+    !lower.includes("does not place") ||
+    !lower.includes("path")
+  ) {
+    errors.push("cdp-headed-browser must document the overlay-supplied plugin-relative broker executable contract without claiming PATH installation");
+  }
+  if (/\bbrowser-context-broker (?:acquire|proxy|release|status|doctor|cleanup)\b/u.test(body)) {
+    errors.push("cdp-headed-browser must not assume the broker is available as a bare PATH command");
+  }
   if (!body.includes("Target.createTarget") || !/background:\s*true/u.test(body)) {
     errors.push("cdp-headed-browser must document background target creation");
   }

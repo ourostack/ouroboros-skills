@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { randomUUID } from 'node:crypto';
-import { chmod, readFile, rename, writeFile } from 'node:fs/promises';
+import { chmod, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { acquireContext } from '../src/broker.mjs';
@@ -12,6 +12,16 @@ import { invokeProvider } from '../src/provider.mjs';
 import { readRegistry, reconcileContext } from '../src/registry.mjs';
 
 const SECRET_KEY = /(token|secret|password|cookie|authorization|environment|^env$)/i;
+const HELP = `browser-context-broker <command> [options]
+
+Commands:
+  acquire  Acquire a context lease
+  proxy    Publish an authenticated lease proxy through a private readiness file
+  release  Release an exact lease
+  status   Report non-secret context and lease metadata
+  doctor   Attest contexts and report non-secret diagnostics
+  cleanup  Clean up one expired lease
+`;
 
 function parseArguments(argv) {
   const [command, ...rest] = argv;
@@ -74,7 +84,6 @@ function statusResult(registry) {
     contexts: Object.values(registry.contexts).map((context) => ({
       contextId: context.contextId,
       claims: context.claims ?? {},
-      endpoint: context.endpoint,
       processIdentity: context.processIdentity,
       lastAttestedAt: context.lastAttestedAt,
       health: context.processIdentity ? 'observed' : 'unknown',
@@ -101,9 +110,14 @@ function statusResult(registry) {
 
 async function atomicJson(file, value) {
   const temporary = path.join(path.dirname(file), `.${path.basename(file)}-${randomUUID()}`);
-  await writeFile(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600, flag: 'wx' });
-  await chmod(temporary, 0o600);
-  await rename(temporary, file);
+  try {
+    await writeFile(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600, flag: 'wx' });
+    await chmod(temporary, 0o600);
+    await rename(temporary, file);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
 }
 
 async function run(command, options) {
@@ -130,8 +144,6 @@ async function run(command, options) {
       leaseId: lease.id,
       contextId: acquired.context.id,
       claims: acquired.context.claims,
-      rawEndpoint: acquired.rawEndpoint,
-      proxyToken: lease.proxyToken,
     };
   }
 
@@ -160,14 +172,17 @@ async function run(command, options) {
       pid: proxy.pid,
       startIdentity: proxy.startIdentity,
     };
-    await atomicJson(requireOption(options, 'json-ready'), ready);
-    await new Promise((resolve) => {
-      const stop = () => resolve();
-      process.once('SIGINT', stop);
-      process.once('SIGTERM', stop);
-    });
-    await proxy.close();
-    return ready;
+    try {
+      await atomicJson(requireOption(options, 'json-ready'), ready);
+      await new Promise((resolve) => {
+        const stop = () => resolve();
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+      });
+      return ready;
+    } finally {
+      await proxy.close();
+    }
   }
 
   if (command === 'release') {
@@ -234,7 +249,6 @@ async function run(command, options) {
           contextId: observation.contextId,
           status: health.status,
           reason: health.reason,
-          endpoint: health.endpoint,
         });
         if (health.status !== 'healthy') {
           diagnostics.push({
@@ -288,6 +302,10 @@ async function main() {
   try {
     const parsed = parseArguments(process.argv.slice(2));
     command = parsed.command;
+    if (command === '--help' || command === '-h' || command === 'help') {
+      process.stdout.write(HELP);
+      return;
+    }
     const result = await run(command, parsed.options);
     if (command !== 'proxy') {
       process.stdout.write(`${JSON.stringify({

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chmod, mkdir, rm } from 'node:fs/promises';
+import net from 'node:net';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
@@ -71,6 +72,28 @@ async function rejectedSocket(endpoint) {
       socket.close();
     });
     socket.once('error', () => resolve(0));
+  });
+}
+
+async function availablePort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const { port } = server.address();
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+async function canConnect(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: '127.0.0.1', port });
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
   });
 }
 
@@ -178,6 +201,40 @@ test('proxy rejects WebSocket upgrades without the unguessable lease credential'
 
   assert.equal(await rejectedSocket(unauthenticated), 401);
   assert.equal(await rejectedSocket(wrongCredential), 401);
+});
+
+test('proxy startup closes its listener when registry publication fails', async () => {
+  const fake = await startFakeCdpServer();
+  cleanups.push(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const port = await availablePort();
+  let proxy;
+  let failure;
+  try {
+    proxy = await startLeaseProxy({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+      port,
+      recordProxyFn: async () => {
+        throw new Error('record proxy failed');
+      },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  if (proxy) await proxy.close();
+
+  assert.match(failure?.message ?? '', /record proxy failed/);
+  assert.equal(await canConnect(port), false);
 });
 
 test('proxy fails disconnected instead of following a replacement process generation', async () => {

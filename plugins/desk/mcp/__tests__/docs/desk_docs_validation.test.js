@@ -39,7 +39,10 @@ function mcpReadmeBody(tools = docsValidator.MCP_TOOL_NAMES) {
 
 function browserPolicyBody() {
   return [
-    "Use browser-context-broker acquire and proxy.",
+    "The browser-context-broker owns acquisition, proxying, status, doctor, and release.",
+    "The plugin-relative source is canonical; an ordinary Desk install does not place the broker on PATH.",
+    'The host overlay supplies "$BROWSER_CONTEXT_BROKER_BIN" as the executable path.',
+    'Use "$BROWSER_CONTEXT_BROKER_BIN" acquire and proxy.',
     "Target.createTarget({ url, background: true })",
     "Use status, doctor, and release for the exact lease.",
     "A lease exposes only its owned targets.",
@@ -210,6 +213,7 @@ test("browser focus validation requires broker routing and rejects unsafe discov
   assert.ok(staleErrors.some((error) => error.includes("fixed-port or arbitrary endpoint discovery")))
   assert.ok(staleErrors.some((error) => error.includes("process-pattern cleanup")))
   assert.ok(staleErrors.some((error) => error.includes("cross-lease page selection")))
+  assert.ok(staleErrors.some((error) => error.includes("plugin-relative broker executable")))
 })
 
 test("run and startCli expose success, failure, and no-op CLI paths", () => {

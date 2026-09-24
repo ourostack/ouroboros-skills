@@ -41,6 +41,7 @@ export async function startLeaseProxy({
   host = '127.0.0.1',
   port = 0,
   internalRequestTimeoutMs = DEFAULT_INTERNAL_REQUEST_TIMEOUT_MS,
+  recordProxyFn = recordProxy,
 }) {
   const lease = await attestLeaseContext({
     stateDir,
@@ -387,8 +388,27 @@ export async function startLeaseProxy({
   const address = server.address();
   const listener = { host, port: address.port };
   const endpoint = `http://${host}:${address.port}${credentialPath}`;
-  const recordedLease = await recordProxy(stateDir, leaseId, listener);
-  const heartbeat = setInterval(() => {
+  let heartbeat;
+  let closing;
+  async function close() {
+    if (closing) return closing;
+    closing = (async () => {
+      if (heartbeat) clearInterval(heartbeat);
+      for (const client of downstreamServer.clients) client.terminate();
+      downstreamServer.close(() => {});
+      await new Promise((resolve) => server.close(resolve));
+    })();
+    return closing;
+  }
+
+  let recordedLease;
+  try {
+    recordedLease = await recordProxyFn(stateDir, leaseId, listener);
+  } catch (error) {
+    await close();
+    throw error;
+  }
+  heartbeat = setInterval(() => {
     heartbeatLease(stateDir, leaseId).catch(async (error) => {
       if (error.code === 'LEASE_NOT_FOUND') {
         clearInterval(heartbeat);
@@ -397,18 +417,6 @@ export async function startLeaseProxy({
     });
   }, 10_000);
   heartbeat.unref();
-
-  let closing;
-  async function close() {
-    if (closing) return closing;
-    closing = (async () => {
-      clearInterval(heartbeat);
-      for (const client of downstreamServer.clients) client.close();
-      await new Promise((resolve) => downstreamServer.close(resolve));
-      await new Promise((resolve) => server.close(resolve));
-    })();
-    return closing;
-  }
 
   return {
     endpoint,
