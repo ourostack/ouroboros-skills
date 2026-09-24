@@ -31,6 +31,13 @@ on an exact retry. A still-present or unqueryable target remains durably owned
 with its close/reconciliation diagnostic; explicit release remains failed and
 retryable rather than deleting the lease.
 
+Browser-global commands are restricted independently of flattened target
+session ownership. `Browser.getVersion` is the only allowed `Browser.*`
+method; `Browser.close` and every other browser-global mutation are rejected
+whether sent at the root or through an owned target session. Ordinary
+session-scoped Page, Runtime, and Network commands remain available for owned
+sessions.
+
 ## Provider IPC
 
 The broker sends one JSON request on stdin and expects one JSON result on stdout. A provider that cannot complete an operation exits nonzero. To preserve an actionable provider diagnostic, it may write exactly one error envelope to stdout:

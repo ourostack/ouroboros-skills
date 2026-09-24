@@ -18,8 +18,11 @@ const ACTIVATION_METHODS = new Set([
   'Target.activateTarget',
   'Page.bringToFront',
 ]);
-const BROWSER_METHOD_ALLOWLIST = new Set([
+const SAFE_BROWSER_METHODS = new Set([
   'Browser.getVersion',
+]);
+const ROOT_METHOD_ALLOWLIST = new Set([
+  ...SAFE_BROWSER_METHODS,
   'Target.attachToTarget',
   'Target.closeTarget',
   'Target.createTarget',
@@ -135,7 +138,18 @@ export async function startLeaseProxy({
         downstream.send(errorResponse(message.id, -32003, 'Cannot access a target session owned by another lease'));
         return;
       }
-      if (!message.sessionId && !BROWSER_METHOD_ALLOWLIST.has(message.method)) {
+      if (
+        message.method?.startsWith('Browser.') &&
+        !SAFE_BROWSER_METHODS.has(message.method)
+      ) {
+        downstream.send(errorResponse(
+          message.id,
+          -32004,
+          'Browser-global command is denied by the lease proxy',
+        ));
+        return;
+      }
+      if (!message.sessionId && !ROOT_METHOD_ALLOWLIST.has(message.method)) {
         downstream.send(errorResponse(
           message.id,
           -32004,

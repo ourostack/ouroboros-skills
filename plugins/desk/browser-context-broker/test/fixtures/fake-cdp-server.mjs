@@ -38,10 +38,18 @@ export async function startFakeCdpServer(options = {}) {
     const sessionTargets = new Map();
     socket.on('message', async (data) => {
       const message = JSON.parse(data.toString());
-      methods.push({ id: message.id, method: message.method, params: message.params });
+      methods.push({
+        id: message.id,
+        method: message.method,
+        params: message.params,
+        sessionId: message.sessionId,
+      });
       await options.beforeRequest?.(message);
       let result = {};
-      if (message.method === 'Browser.getVersion') {
+      if (message.method === 'Browser.close') {
+        socket.close();
+        return;
+      } else if (message.method === 'Browser.getVersion') {
         result = {
           protocolVersion: '1.3',
           product: 'Chrome/140.0.0.0',

@@ -118,9 +118,14 @@ function exchange(socket) {
   });
   return {
     events,
-    send(method, params = {}) {
+    send(method, params = {}, sessionId) {
       const requestId = ++id;
-      socket.send(JSON.stringify({ id: requestId, method, params }));
+      socket.send(JSON.stringify({
+        id: requestId,
+        method,
+        params,
+        ...(sessionId ? { sessionId } : {}),
+      }));
       return new Promise((resolve, reject) => pending.set(requestId, { resolve, reject }));
     },
   };
@@ -883,6 +888,35 @@ test('proxy denies browser termination and browser-global mutation commands', as
   assert.ok(!fake.methods.some(({ method }) => method === 'Browser.setDownloadBehavior'));
   assert.ok(!fake.methods.some(({ method }) => method === 'Browser.grantPermissions'));
   assert.ok(!fake.methods.some(({ method }) => method === 'Security.setIgnoreCertificateErrors'));
+});
+
+test('proxy denies browser-global mutations through an owned session without disconnecting upstream', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+
+  const close = await cdp.send('Browser.close', {}, sessionId);
+  assert.equal(close.error.code, -32004);
+  const mutate = await cdp.send(
+    'Browser.setDownloadBehavior',
+    { behavior: 'allow', downloadPath: '/owned-session-downloads' },
+    sessionId,
+  );
+  assert.equal(mutate.error.code, -32004);
+  assert.ok(!fake.methods.some(({ method }) => method === 'Browser.close'));
+  assert.ok(!fake.methods.some(({ method }) => method === 'Browser.setDownloadBehavior'));
+
+  const safeBrowser = await cdp.send('Browser.getVersion', {}, sessionId);
+  assert.equal(safeBrowser.result.product, 'Chrome/140.0.0.0');
+  const safeSession = await cdp.send(
+    'Runtime.evaluate',
+    { expression: '40 + 2' },
+    sessionId,
+  );
+  assert.equal(safeSession.result.result.value, 42);
 });
 
 test('proxy constrains required browser-global auto-attach to avoid pausing other leases', async () => {
