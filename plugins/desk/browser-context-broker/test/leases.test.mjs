@@ -8,8 +8,14 @@ import WebSocket from 'ws';
 
 import { acquireContext } from '../src/broker.mjs';
 import { startLeaseProxy } from '../src/cdp-proxy.mjs';
-import { createLease, releaseLease } from '../src/leases.mjs';
-import { readRegistry } from '../src/registry.mjs';
+import {
+  cleanupStaleLease,
+  createLease,
+  heartbeatLease,
+  releaseLease,
+  withLeaseOperation,
+} from '../src/leases.mjs';
+import { readRegistry, writeRegistry } from '../src/registry.mjs';
 import { startFakeCdpServer } from './fixtures/fake-cdp-server.mjs';
 
 const scratchRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '.lease-state');
@@ -201,6 +207,84 @@ test('release fails disconnected when fresh attestation observes another process
   );
   assert.ok((await readRegistry(directory)).leases[lease.id]);
   assert.ok(fake.targets.has(lease.targetIds[0]));
+});
+
+test('cleanup rejects when a heartbeat renews a lease after stale observation', async (t) => {
+  const fake = await startFakeCdpServer();
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const registry = await readRegistry(directory);
+  registry.leases[lease.id].expiresAt = new Date(0).toISOString();
+  await writeRegistry(directory, registry);
+
+  const observedByCleanupCli = (await readRegistry(directory)).leases[lease.id];
+  assert.ok(Date.parse(observedByCleanupCli.expiresAt) <= Date.now());
+  await heartbeatLease(directory, lease.id);
+
+  await assert.rejects(
+    cleanupStaleLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    (error) => error.code === 'LEASE_NOT_STALE',
+  );
+
+  const current = (await readRegistry(directory)).leases[lease.id];
+  assert.ok(current);
+  assert.ok(Date.parse(current.expiresAt) > Date.now());
+  assert.ok(fake.targets.has(lease.targetIds[0]));
+});
+
+test('heartbeat serializes with and refuses a releasing lease', async (t) => {
+  const fake = await startFakeCdpServer();
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  let entered;
+  let unblock;
+  const operationEntered = new Promise((resolve) => {
+    entered = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    unblock = resolve;
+  });
+  const releasing = withLeaseOperation(directory, lease.id, async () => {
+    const registry = await readRegistry(directory);
+    registry.leases[lease.id].releasing = true;
+    await writeRegistry(directory, registry);
+    entered();
+    await blocked;
+  });
+  await operationEntered;
+
+  let heartbeatSettled = false;
+  const heartbeat = heartbeatLease(directory, lease.id).finally(() => {
+    heartbeatSettled = true;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(heartbeatSettled, false);
+
+  unblock();
+  await releasing;
+  await assert.rejects(heartbeat, (error) => error.code === 'LEASE_RELEASING');
+  const current = (await readRegistry(directory)).leases[lease.id];
+  assert.equal(current.releasing, true);
+  assert.equal(current.expiresAt, lease.expiresAt);
 });
 
 test('release serializes with late target creation and leaves no leaked target', async () => {

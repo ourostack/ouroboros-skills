@@ -208,11 +208,16 @@ export async function recordProxy(stateDir, leaseId, endpoint) {
 }
 
 export async function heartbeatLease(stateDir, leaseId, ttlMs = 300_000) {
-  return mutateLease(stateDir, leaseId, (lease) => {
-    const now = new Date();
-    lease.heartbeatAt = now.toISOString();
-    lease.expiresAt = new Date(now.getTime() + ttlMs).toISOString();
-    if (lease.proxy) lease.proxy.heartbeatAt = now.toISOString();
+  return withLeaseOperation(stateDir, leaseId, () => {
+    return mutateLease(stateDir, leaseId, (lease) => {
+      if (lease.releasing) {
+        throw new BrokerError('LEASE_RELEASING', `Lease is being released: ${leaseId}`);
+      }
+      const now = new Date();
+      lease.heartbeatAt = now.toISOString();
+      lease.expiresAt = new Date(now.getTime() + ttlMs).toISOString();
+      if (lease.proxy) lease.proxy.heartbeatAt = now.toISOString();
+    });
   });
 }
 
@@ -252,13 +257,49 @@ export async function cleanupStaleLease({
   providerInvoker,
 }) {
   return withLeaseOperation(stateDir, leaseId, async () => {
-    const { lease, reconciled } = await reconcileLeaseContext({
-      stateDir,
-      leaseId,
-      declaration,
-      providerInvoker,
+    await mutateLease(stateDir, leaseId, (record) => {
+      if (record.releasing) {
+        throw new BrokerError('LEASE_RELEASING', `Lease is being released: ${leaseId}`);
+      }
+      if (Date.parse(record.expiresAt) > Date.now()) {
+        throw new BrokerError('LEASE_NOT_STALE', `Lease is still active: ${leaseId}`, { leaseId });
+      }
+      record.releasing = true;
     });
-    if (reconciled.status === 'absent' && reconciled.discardObservation) {
+    try {
+      const { lease, reconciled } = await reconcileLeaseContext({
+        stateDir,
+        leaseId,
+        declaration,
+        providerInvoker,
+      });
+      if (reconciled.status === 'absent' && reconciled.discardObservation) {
+        await withBrokerLock(stateDir, async () => {
+          const registry = await readRegistry(stateDir);
+          delete registry.leases[leaseId];
+          await writeRegistry(stateDir, registry);
+        });
+        return {
+          leaseId,
+          released: true,
+          closedTargetIds: [],
+          unclosedTargetIds: lease.targetIds,
+          targetsClosed: false,
+          reason: 'OWNER_GENERATION_GONE',
+          contextReason: reconciled.reason,
+        };
+      }
+      if (!isExactHealthyLease(lease, reconciled)) {
+        throw disconnectedLeaseError(lease, reconciled);
+      }
+      const client = await CdpClient.connect(lease.rawEndpoint);
+      try {
+        for (const targetId of lease.targetIds) {
+          await client.send('Target.closeTarget', { targetId }).catch(() => {});
+        }
+      } finally {
+        await client.close();
+      }
       await withBrokerLock(stateDir, async () => {
         const registry = await readRegistry(stateDir);
         delete registry.leases[leaseId];
@@ -267,37 +308,18 @@ export async function cleanupStaleLease({
       return {
         leaseId,
         released: true,
-        closedTargetIds: [],
-        unclosedTargetIds: lease.targetIds,
-        targetsClosed: false,
-        reason: 'OWNER_GENERATION_GONE',
-        contextReason: reconciled.reason,
+        closedTargetIds: lease.targetIds,
       };
+    } catch (error) {
+      await withBrokerLock(stateDir, async () => {
+        const registry = await readRegistry(stateDir);
+        const lease = registry.leases[leaseId];
+        if (lease?.releasing) {
+          lease.releasing = false;
+          await writeRegistry(stateDir, registry);
+        }
+      });
+      throw error;
     }
-    if (!isExactHealthyLease(lease, reconciled)) {
-      throw disconnectedLeaseError(lease, reconciled);
-    }
-    const releasingLease = await mutateLease(stateDir, leaseId, (record) => {
-      record.releasing = true;
-      return structuredClone(record);
-    });
-    const client = await CdpClient.connect(releasingLease.rawEndpoint);
-    try {
-      for (const targetId of releasingLease.targetIds) {
-        await client.send('Target.closeTarget', { targetId }).catch(() => {});
-      }
-    } finally {
-      await client.close();
-    }
-    await withBrokerLock(stateDir, async () => {
-      const registry = await readRegistry(stateDir);
-      delete registry.leases[leaseId];
-      await writeRegistry(stateDir, registry);
-    });
-    return {
-      leaseId,
-      released: true,
-      closedTargetIds: releasingLease.targetIds,
-    };
   });
 }
