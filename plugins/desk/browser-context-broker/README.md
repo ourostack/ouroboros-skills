@@ -34,9 +34,24 @@ retryable rather than deleting the lease.
 Browser-global commands are restricted independently of flattened target
 session ownership. `Browser.getVersion` is the only allowed `Browser.*`
 method; `Browser.close` and every other browser-global mutation are rejected
-whether sent at the root or through an owned target session. Ordinary
-session-scoped Page, Runtime, and Network commands remain available for owned
-sessions.
+whether sent at the root or through an owned target session.
+
+Owned target sessions also have an explicit profile-storage boundary.
+`Network.getAllCookies`, `Network.getCookies`, cookie set/delete/clear methods,
+browser-cache clearing, cookie-control and device-bound-session methods are
+rejected before upstream dispatch. The proxy rejects all data access and
+mutation in the `Storage`, `DOMStorage`, `IndexedDB`, `CacheStorage`,
+`Database`, `FileSystem`, `ServiceWorker`, `BackgroundService`, and `Autofill`
+domains. The narrow exceptions are frame-to-storage-key lookup
+(`Storage.getStorageKeyForFrame` and `Storage.getStorageKey`) and event
+subscription toggles (`DOMStorage.enable`/`disable` and
+`IndexedDB.enable`/`disable`).
+
+Ordinary frame-local Playwright commands remain available for owned sessions,
+including `Runtime.*`, `Page.*`, and non-profile-wide `Network.*` commands such
+as `Network.enable`. This method boundary prevents CDP-level profile
+enumeration or mutation; code executing in an owned frame can still interact
+with that frame's loaded origin under normal browser origin rules.
 
 ## Provider IPC
 

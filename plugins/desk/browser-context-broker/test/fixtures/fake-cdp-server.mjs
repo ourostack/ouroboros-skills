@@ -138,6 +138,28 @@ export async function startFakeCdpServer(options = {}) {
         }
       } else if (message.method === 'Runtime.evaluate') {
         result = { result: { type: 'number', value: 42 } };
+      } else if (
+        message.method === 'Network.getAllCookies' ||
+        message.method === 'Network.getCookies' ||
+        message.method === 'Storage.getCookies'
+      ) {
+        result = {
+          cookies: [{
+            name: 'profile-wide-secret',
+            value: 'must-not-leak',
+            domain: '.example.test',
+            path: '/',
+          }],
+        };
+      } else if (
+        message.method === 'Storage.getUsageAndQuota' ||
+        message.method === 'DOMStorage.getDOMStorageItems' ||
+        message.method === 'IndexedDB.requestDatabaseNames' ||
+        message.method === 'CacheStorage.requestCacheNames' ||
+        message.method === 'Database.getDatabaseTableNames' ||
+        message.method === 'FileSystem.getDirectory'
+      ) {
+        result = { profileWideStorage: 'must-not-leak' };
       }
       if (socket.readyState === socket.OPEN) {
         socket.send(JSON.stringify({ id: message.id, result, sessionId: message.sessionId }));

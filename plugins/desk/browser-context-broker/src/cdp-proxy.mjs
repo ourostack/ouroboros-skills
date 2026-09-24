@@ -21,6 +21,34 @@ const ACTIVATION_METHODS = new Set([
 const SAFE_BROWSER_METHODS = new Set([
   'Browser.getVersion',
 ]);
+const SAFE_SESSION_STORAGE_METHODS = new Set([
+  'DOMStorage.disable',
+  'DOMStorage.enable',
+  'IndexedDB.disable',
+  'IndexedDB.enable',
+  'Storage.getStorageKey',
+  'Storage.getStorageKeyForFrame',
+]);
+const PROFILE_STORAGE_DOMAINS = new Set([
+  'Autofill',
+  'BackgroundService',
+  'CacheStorage',
+  'Database',
+  'FileSystem',
+  'ServiceWorker',
+]);
+const PROFILE_STORAGE_NETWORK_METHODS = new Set([
+  'Network.clearBrowserCache',
+  'Network.clearBrowserCookies',
+  'Network.deleteCookies',
+  'Network.deleteDeviceBoundSession',
+  'Network.enableDeviceBoundSessions',
+  'Network.getAllCookies',
+  'Network.getCookies',
+  'Network.setCookie',
+  'Network.setCookieControls',
+  'Network.setCookies',
+]);
 const ROOT_METHOD_ALLOWLIST = new Set([
   ...SAFE_BROWSER_METHODS,
   'Target.attachToTarget',
@@ -33,6 +61,19 @@ const ROOT_METHOD_ALLOWLIST = new Set([
   'Target.setDiscoverTargets',
 ]);
 const DEFAULT_INTERNAL_REQUEST_TIMEOUT_MS = 10_000;
+
+function isProfileStorageSessionMethod(method) {
+  if (!method) return false;
+  if (PROFILE_STORAGE_NETWORK_METHODS.has(method)) return true;
+  if (SAFE_SESSION_STORAGE_METHODS.has(method)) return false;
+  const [domain] = method.split('.', 1);
+  return (
+    domain === 'Storage' ||
+    domain === 'DOMStorage' ||
+    domain === 'IndexedDB' ||
+    PROFILE_STORAGE_DOMAINS.has(domain)
+  );
+}
 
 function errorResponse(id, code, message) {
   return JSON.stringify({ id, error: { code, message } });
@@ -146,6 +187,17 @@ export async function startLeaseProxy({
           message.id,
           -32004,
           'Browser-global command is denied by the lease proxy',
+        ));
+        return;
+      }
+      if (
+        message.sessionId &&
+        isProfileStorageSessionMethod(message.method)
+      ) {
+        downstream.send(errorResponse(
+          message.id,
+          -32004,
+          'Profile-wide storage command is denied by the lease proxy',
         ));
         return;
       }

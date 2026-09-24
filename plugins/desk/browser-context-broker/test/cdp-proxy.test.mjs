@@ -919,6 +919,123 @@ test('proxy denies browser-global mutations through an owned session without dis
   assert.equal(safeSession.result.result.value, 42);
 });
 
+test('proxy denies profile-wide cookie reads through an owned session without response leakage', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+  const methods = [
+    'Network.getAllCookies',
+    'Network.getCookies',
+    'Storage.getCookies',
+  ];
+
+  for (const method of methods) {
+    const response = await cdp.send(method, {}, sessionId);
+    assert.equal(response.error.code, -32004, method);
+    assert.equal(response.result, undefined, method);
+  }
+  assert.ok(!fake.methods.some(({ method }) => methods.includes(method)));
+});
+
+test('proxy denies profile-wide cookie mutation through an owned session', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+  const methods = [
+    'Network.setCookie',
+    'Network.setCookies',
+    'Network.deleteCookies',
+    'Network.clearBrowserCookies',
+    'Storage.setCookies',
+    'Storage.clearCookies',
+  ];
+
+  for (const method of methods) {
+    const response = await cdp.send(method, {}, sessionId);
+    assert.equal(response.error.code, -32004, method);
+  }
+  assert.ok(!fake.methods.some(({ method }) => methods.includes(method)));
+});
+
+test('proxy denies profile-wide storage reads through an owned session without response leakage', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+  const methods = [
+    'Storage.getUsageAndQuota',
+    'Storage.getTrustTokens',
+    'Storage.getSharedStorageEntries',
+    'DOMStorage.getDOMStorageItems',
+    'IndexedDB.requestDatabaseNames',
+    'CacheStorage.requestCacheNames',
+    'Database.getDatabaseTableNames',
+    'FileSystem.getDirectory',
+  ];
+
+  for (const method of methods) {
+    const response = await cdp.send(method, {}, sessionId);
+    assert.equal(response.error.code, -32004, method);
+    assert.equal(response.result, undefined, method);
+  }
+  assert.ok(!fake.methods.some(({ method }) => methods.includes(method)));
+});
+
+test('proxy denies profile-wide storage clearing through an owned session', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+  const methods = [
+    'Storage.clearDataForOrigin',
+    'Storage.clearDataForStorageKey',
+    'Storage.clearTrustTokens',
+    'Storage.clearSharedStorageEntries',
+    'DOMStorage.clear',
+    'IndexedDB.clearObjectStore',
+    'IndexedDB.deleteDatabase',
+    'CacheStorage.deleteCache',
+    'Database.executeSQL',
+  ];
+
+  for (const method of methods) {
+    const response = await cdp.send(method, {}, sessionId);
+    assert.equal(response.error.code, -32004, method);
+  }
+  assert.ok(!fake.methods.some(({ method }) => methods.includes(method)));
+});
+
+test('proxy preserves representative frame-local Playwright commands for an owned session', async () => {
+  const { fake, lease, cdp } = await setup();
+  const attached = await cdp.send('Target.attachToTarget', {
+    targetId: lease.targetIds[0],
+    flatten: true,
+  });
+  const sessionId = attached.result.sessionId;
+
+  const runtime = await cdp.send(
+    'Runtime.evaluate',
+    { expression: '40 + 2' },
+    sessionId,
+  );
+  assert.equal(runtime.result.result.value, 42);
+  assert.deepEqual((await cdp.send('Page.enable', {}, sessionId)).result, {});
+  assert.deepEqual((await cdp.send('Network.enable', {}, sessionId)).result, {});
+  assert.ok(fake.methods.some(({ method }) => method === 'Runtime.evaluate'));
+  assert.ok(fake.methods.some(({ method }) => method === 'Page.enable'));
+  assert.ok(fake.methods.some(({ method }) => method === 'Network.enable'));
+});
+
 test('proxy constrains required browser-global auto-attach to avoid pausing other leases', async () => {
   const { fake, cdp } = await setup();
   const response = await cdp.send('Target.setAutoAttach', {
