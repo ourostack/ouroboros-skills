@@ -87,6 +87,8 @@ Every acquisition creates a distinct lease and an initial background target. The
 
 Never search a persistent browser's global page list for a convenient existing tab. Work only through the lease proxy; all pages visible there are owned targets for that lease.
 
+The persistent profile is the security-principal boundary. Leases separate target visibility, ownership, and cleanup for cooperating callers that intentionally share that profile; they do not make those callers mutually untrusted. A caller that can navigate its owned page can act with the authentication that profile presents to the loaded origin. Different identities, tenants, trust postures, or mutually untrusted callers require separate declarations backed by provider-isolated profiles or browsers.
+
 ## Focus preservation
 
 The headed browser is background infrastructure, not a remote-control surface. Never call `page.bringToFront()` or `Target.activateTarget` during unattended automation. The lease proxy rejects those activation commands.

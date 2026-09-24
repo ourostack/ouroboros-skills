@@ -53,6 +53,15 @@ as `Network.enable`. This method boundary prevents CDP-level profile
 enumeration or mutation; code executing in an owned frame can still interact
 with that frame's loaded origin under normal browser origin rules.
 
+A persistent browser profile is the security-principal boundary. Leases isolate
+target ownership and concurrent cleanup; they do not make callers sharing one
+authenticated profile mutually untrusted principals. Any caller allowed to
+navigate an owned page can act with credentials that profile presents to the
+loaded origin. Different identities, tenants, trust postures, or mutual-trust
+requirements therefore require separate declarations backed by separate
+provider-isolated profiles or browsers. The broker never substitutes one such
+context for another.
+
 ## Provider IPC
 
 The broker sends one JSON request on stdin and expects one JSON result on stdout. A provider that cannot complete an operation exits nonzero. To preserve an actionable provider diagnostic, it may write exactly one error envelope to stdout:
