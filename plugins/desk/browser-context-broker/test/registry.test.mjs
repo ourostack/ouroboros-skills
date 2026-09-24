@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -99,6 +106,102 @@ test('withBrokerLock serializes writers and removes its exact lock', async () =>
   await Promise.all([first, second]);
   assert.deepEqual(order, ['first-start', 'first-end', 'second']);
   assert.deepEqual(await readdir(directory), []);
+});
+
+test('withBrokerLock removes a just-created lock directory when owner publication fails', async () => {
+  const directory = await stateDir();
+  let entered = false;
+
+  await assert.rejects(
+    withBrokerLock(directory, async () => {
+      entered = true;
+    }, {
+      ownerPublisher: async (lockPath) => {
+        await writeFile(path.join(lockPath, '.owner-crash.tmp'), '{', {
+          mode: 0o600,
+        });
+        throw Object.assign(new Error('simulated owner write failure'), {
+          code: 'EIO',
+        });
+      },
+    }),
+    /simulated owner write failure/u,
+  );
+
+  assert.equal(entered, false);
+  assert.deepEqual(await readdir(directory), []);
+  await withBrokerLock(directory, async () => {
+    entered = true;
+  });
+  assert.equal(entered, true);
+});
+
+for (const ownerState of ['missing', 'malformed']) {
+  test(`withBrokerLock reclaims a stale ${ownerState} owner after initialization grace`, async () => {
+    const directory = await stateDir();
+    const lockPath = path.join(directory, 'broker.lock');
+    await mkdir(lockPath, { mode: 0o700 });
+    if (ownerState === 'malformed') {
+      await writeFile(path.join(lockPath, 'owner.json'), '{', { mode: 0o600 });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    let entered = false;
+
+    await withBrokerLock(directory, async () => {
+      entered = true;
+    }, {
+      staleMs: 10,
+      processIdentityReader: async () => 'current-generation',
+    });
+
+    assert.equal(entered, true);
+    assert.deepEqual(await readdir(directory), []);
+  });
+}
+
+test('withBrokerLock does not reclaim a missing owner during initialization grace', async () => {
+  const directory = await stateDir();
+  const lockPath = path.join(directory, 'broker.lock');
+  await mkdir(lockPath, { mode: 0o700 });
+
+  await assert.rejects(
+    withBrokerLock(directory, async () => {}, {
+      timeoutMs: 20,
+      pollMs: 2,
+      staleMs: 60_000,
+      processIdentityReader: async () => 'current-generation',
+    }),
+    (error) => error.code === 'BROKER_LOCK_TIMEOUT',
+  );
+  assert.deepEqual(await readdir(directory), ['broker.lock']);
+});
+
+test('withBrokerLock preserves a stale initializing lock with a live exact temp owner', async () => {
+  const directory = await stateDir();
+  const lockPath = path.join(directory, 'broker.lock');
+  await mkdir(lockPath, { mode: 0o700 });
+  await writeFile(
+    path.join(lockPath, '.owner-live.tmp'),
+    JSON.stringify({
+      token: 'live-owner',
+      pid: process.pid,
+      startIdentity: 'live-generation',
+      createdAt: new Date(0).toISOString(),
+    }),
+    { mode: 0o600 },
+  );
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  await assert.rejects(
+    withBrokerLock(directory, async () => {}, {
+      staleMs: 1,
+      processIdentityReader: async () => 'live-generation',
+    }),
+    (error) =>
+      error.code === 'STALE_BROKER_LOCK' &&
+      error.details.ownerState === 'alive',
+  );
+  assert.deepEqual(await readdir(lockPath), ['.owner-live.tmp']);
 });
 
 test('withBrokerLock reclaims a stale lock after proving its PID is a different generation', async () => {

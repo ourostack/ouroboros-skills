@@ -1,6 +1,14 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -67,6 +75,62 @@ async function inspectOwner(owner, processIdentityReader) {
   }
 }
 
+function parseOwner(content) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return undefined;
+  }
+}
+
+function isCompleteOwner(owner) {
+  return Boolean(
+    owner &&
+    typeof owner.token === 'string' &&
+    Number.isSafeInteger(owner.pid) &&
+    owner.pid > 0 &&
+    typeof owner.startIdentity === 'string' &&
+    owner.startIdentity &&
+    typeof owner.createdAt === 'string' &&
+    Number.isFinite(Date.parse(owner.createdAt)),
+  );
+}
+
+async function readLockEvidence(lockPath) {
+  const lockStat = await stat(lockPath);
+  const names = (await readdir(lockPath)).sort();
+  const files = [];
+  for (const name of names) {
+    if (name !== 'owner.json' && !/^\.owner-.*\.tmp$/u.test(name)) continue;
+    const content = await readFile(path.join(lockPath, name), 'utf8').catch(
+      () => undefined,
+    );
+    files.push({ name, content });
+  }
+  const ownerContent = files.find(({ name }) => name === 'owner.json')?.content;
+  const tempOwners = files
+    .filter(({ name }) => name !== 'owner.json')
+    .map(({ content }) => parseOwner(content))
+    .filter(isCompleteOwner);
+  return {
+    lockStat,
+    owner: parseOwner(ownerContent),
+    tempOwners,
+    fingerprint: JSON.stringify({
+      dev: lockStat.dev,
+      ino: lockStat.ino,
+      mtimeMs: lockStat.mtimeMs,
+      files,
+    }),
+  };
+}
+
+async function publishOwnerAtomically(lockPath, owner) {
+  const temporaryPath = path.join(lockPath, `.owner-${owner.token}.tmp`);
+  await writeFile(temporaryPath, JSON.stringify(owner), { mode: 0o600 });
+  await rename(temporaryPath, path.join(lockPath, 'owner.json'));
+}
+
 export async function withBrokerLock(stateDir, fn, options = {}) {
   const {
     name = 'broker',
@@ -74,6 +138,7 @@ export async function withBrokerLock(stateDir, fn, options = {}) {
     pollMs = 10,
     staleMs = 30_000,
     processIdentityReader = readProcessStartIdentity,
+    ownerPublisher = publishOwnerAtomically,
   } = options;
   if (!/^[A-Za-z0-9._-]+$/u.test(name)) {
     throw new BrokerError('INVALID_LOCK_NAME', 'Broker lock name contains unsupported path syntax', {
@@ -105,34 +170,48 @@ export async function withBrokerLock(stateDir, fn, options = {}) {
   for (;;) {
     try {
       await mkdir(lockPath, { mode: 0o700 });
-      await writeFile(
-        path.join(lockPath, 'owner.json'),
-        JSON.stringify({
+      try {
+        await ownerPublisher(lockPath, {
           token,
           pid: process.pid,
           startIdentity,
           createdAt: new Date().toISOString(),
-        }),
-        { mode: 0o600 },
-      );
+        });
+      } catch (error) {
+        await rm(lockPath, { recursive: true, force: true });
+        throw error;
+      }
       break;
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
-      let lockAge;
-      let owner;
+      let evidence;
       try {
-        owner = JSON.parse(await readFile(path.join(lockPath, 'owner.json'), 'utf8'));
-        lockAge = Date.now() - Date.parse(owner.createdAt);
-      } catch {
-        try {
-          lockAge = Date.now() - (await stat(lockPath)).mtimeMs;
-        } catch (statError) {
-          if (statError.code === 'ENOENT') continue;
-          throw statError;
-        }
+        evidence = await readLockEvidence(lockPath);
+      } catch (evidenceError) {
+        if (evidenceError.code === 'ENOENT') continue;
+        throw evidenceError;
       }
+      const owner = isCompleteOwner(evidence.owner) ? evidence.owner : undefined;
+      const createdAtMs = owner
+        ? Date.parse(owner.createdAt)
+        : evidence.lockStat.birthtimeMs || evidence.lockStat.ctimeMs;
+      const lockAge = Date.now() - createdAtMs;
       if (lockAge > staleMs) {
-        const ownerState = await inspectOwner(owner, processIdentityReader);
+        let ownerState = owner
+          ? await inspectOwner(owner, processIdentityReader)
+          : 'absent';
+        if (!owner) {
+          for (const tempOwner of evidence.tempOwners) {
+            const tempOwnerState = await inspectOwner(
+              tempOwner,
+              processIdentityReader,
+            );
+            if (tempOwnerState === 'alive' || tempOwnerState === 'unknown') {
+              ownerState = tempOwnerState;
+              break;
+            }
+          }
+        }
         if (ownerState !== 'absent' && ownerState !== 'replaced') {
           throw new BrokerError('STALE_BROKER_LOCK', `Broker lock "${name}" is stale`, {
             name,
@@ -140,14 +219,14 @@ export async function withBrokerLock(stateDir, fn, options = {}) {
             ownerState,
           });
         }
-        const currentOwner = await readFile(path.join(lockPath, 'owner.json'), 'utf8')
-          .then((content) => JSON.parse(content))
-          .catch(() => undefined);
-        if (
-          currentOwner?.token !== owner.token ||
-          currentOwner?.pid !== owner.pid ||
-          currentOwner?.startIdentity !== owner.startIdentity
-        ) {
+        const currentEvidence = await readLockEvidence(lockPath).catch(
+          (currentError) => {
+            if (currentError.code === 'ENOENT') return undefined;
+            throw currentError;
+          },
+        );
+        if (!currentEvidence) continue;
+        if (currentEvidence.fingerprint !== evidence.fingerprint) {
           throw new BrokerError(
             'STALE_BROKER_LOCK',
             `Broker lock "${name}" changed during stale-owner verification`,

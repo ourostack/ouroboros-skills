@@ -37,7 +37,8 @@ export async function startFakeCdpServer(options = {}) {
     const attachedTargets = new Set();
     socket.on('message', async (data) => {
       const message = JSON.parse(data.toString());
-      methods.push({ method: message.method, params: message.params });
+      methods.push({ id: message.id, method: message.method, params: message.params });
+      await options.beforeRequest?.(message);
       let result = {};
       if (message.method === 'Browser.getVersion') {
         result = {

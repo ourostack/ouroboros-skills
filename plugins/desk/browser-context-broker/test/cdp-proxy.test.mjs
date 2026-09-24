@@ -224,6 +224,181 @@ test('proxy owns createTarget results and forces background creation', async () 
   assert.equal(invocation.params.background, true);
 });
 
+test('downstream requests reach upstream in arrival order without waiting for earlier responses', async (t) => {
+  let releaseCreateResponse;
+  let releaseCreateValidation;
+  let validationStarted;
+  const createResponseGate = new Promise((resolve) => {
+    releaseCreateResponse = resolve;
+  });
+  const validationGate = new Promise((resolve) => {
+    releaseCreateValidation = resolve;
+  });
+  const validationBlocked = new Promise((resolve) => {
+    validationStarted = resolve;
+  });
+  let createCount = 0;
+  const fake = await startFakeCdpServer({
+    beforeCreateTarget: async () => {
+      createCount += 1;
+      if (createCount > 1) await createResponseGate;
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  let attestations = 0;
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: async (operation, payload) => {
+      attestations += 1;
+      if (attestations === 2) {
+        validationStarted();
+        await validationGate;
+      }
+      return attestingProvider(operation, payload);
+    },
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const cdp = exchange(socket);
+
+  const creating = cdp.send('Target.createTarget', {
+    url: 'https://ordered.example.test',
+  });
+  await validationBlocked;
+  const discovering = cdp.send('Target.getTargets');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const discoveryOvertookValidation =
+    fake.methods.some(({ method }) => method === 'Target.getTargets');
+
+  releaseCreateValidation();
+  try {
+    await waitFor(
+      () => fake.methods.some(({ method }) => method === 'Target.getTargets'),
+      'later downstream request did not reach upstream',
+    );
+    assert.equal(discoveryOvertookValidation, false);
+    assert.deepEqual(
+      fake.methods
+        .filter(({ method }) =>
+          method === 'Target.createTarget' || method === 'Target.getTargets')
+        .slice(-2)
+        .map(({ method }) => method),
+      ['Target.createTarget', 'Target.getTargets'],
+    );
+    await discovering;
+  } finally {
+    releaseCreateResponse();
+  }
+  assert.ok((await creating).result.targetId);
+});
+
+test('proxy remaps colliding downstream IDs without stranding internal target creation', async (t) => {
+  let releaseCreate;
+  let createStarted;
+  const createGate = new Promise((resolve) => {
+    releaseCreate = resolve;
+  });
+  const createBlocked = new Promise((resolve) => {
+    createStarted = resolve;
+  });
+  let createCount = 0;
+  const fake = await startFakeCdpServer({
+    beforeCreateTarget: async () => {
+      createCount += 1;
+      if (createCount === 1) return;
+      createStarted();
+      await createGate;
+    },
+  });
+  t.after(() => fake.close());
+  const directory = await stateDir();
+  const lease = await createLease({
+    stateDir: directory,
+    context: declaration,
+    owner: 'agent-a',
+    rawEndpoint: fake.endpoint,
+    processIdentity,
+  });
+  const proxy = await startLeaseProxy({
+    stateDir: directory,
+    leaseId: lease.id,
+    declaration,
+    providerInvoker: attestingProvider,
+    internalRequestTimeoutMs: 200,
+  });
+  t.after(() => proxy.close());
+  const socket = await openSocket(proxy.webSocketEndpoint);
+  t.after(() => socket.close());
+  const responses = new Map();
+  socket.on('message', (data) => {
+    const message = JSON.parse(data.toString());
+    if (message.id !== undefined) responses.set(message.id, message);
+  });
+
+  socket.send(JSON.stringify({
+    id: 77,
+    method: 'Target.createTarget',
+    params: { url: 'https://collision.example.test' },
+  }));
+  await createBlocked;
+  socket.send(JSON.stringify({
+    id: 1_000_000_001,
+    method: 'Target.getTargets',
+    params: {},
+  }));
+  socket.send(JSON.stringify({
+    id: -1,
+    method: 'Target.getTargets',
+    params: {},
+  }));
+  try {
+    await waitFor(
+      () => responses.has(1_000_000_001) && responses.has(-1),
+      'colliding downstream response was not remapped',
+    );
+  } finally {
+    releaseCreate();
+  }
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  assert.equal(responses.get(1_000_000_001).id, 1_000_000_001);
+  assert.equal(responses.get(-1).id, -1);
+  assert.ok(responses.has(77), 'internal target creation did not settle');
+  assert.equal(responses.get(77).id, 77);
+  assert.ok(responses.get(77).result.targetId);
+  const forwardedIds = fake.methods
+    .filter(({ method }) =>
+      method === 'Target.createTarget' || method === 'Target.getTargets')
+    .slice(-3)
+    .map(({ id }) => id);
+  assert.ok(!forwardedIds.includes(77));
+  assert.ok(!forwardedIds.includes(1_000_000_001));
+  assert.ok(!forwardedIds.includes(-1));
+  await Promise.race([
+    releaseLease({
+      stateDir: directory,
+      leaseId: lease.id,
+      declaration,
+      providerInvoker: attestingProvider,
+    }),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('lease lock remained held after colliding IDs')),
+      500,
+    )),
+  ]);
+});
+
 test('proxy inherits popup descendants of owned targets', async () => {
   const { fake, lease, cdp } = await setup();
   await cdp.send('Target.getTargets');

@@ -83,23 +83,27 @@ export async function startLeaseProxy({
   downstreamServer.on('connection', (downstream) => {
     const upstream = new WebSocket(upstreamMetadata.webSocketDebuggerUrl);
     const requests = new Map();
-    const internalRequestIds = new Set();
     const ownedSessions = new Set();
     const queued = [];
+    let downstreamMessageProcessing = Promise.resolve();
     let upstreamMessageProcessing = Promise.resolve();
-    let nextInternalId = 1_000_000_000;
+    let nextDownstreamUpstreamId = 0;
+    let nextInternalId = 0;
     const sendUpstream = (message) => {
       const serialized = JSON.stringify(message);
       if (upstream.readyState === WebSocket.OPEN) upstream.send(serialized);
       else queued.push(serialized);
     };
-    const requestUpstream = (method, params = {}) => {
-      const id = ++nextInternalId;
-      internalRequestIds.add(id);
+    const requestWithResponse = ({
+      id,
+      method,
+      params,
+      downstreamId,
+      sessionId,
+    }) => {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           if (!requests.delete(id)) return;
-          internalRequestIds.delete(id);
           const error = new Error(`Timed out waiting for upstream ${method}`);
           error.code = 'UPSTREAM_REQUEST_TIMEOUT';
           reject(error);
@@ -108,25 +112,38 @@ export async function startLeaseProxy({
         requests.set(id, {
           method,
           targetId: params.targetId,
+          downstreamId,
           resolve,
           reject,
           timer,
         });
-        sendUpstream({ id, method, params });
+        sendUpstream({ id, method, params, sessionId });
       });
     };
-    const rejectInternalRequests = (error) => {
-      for (const id of internalRequestIds) {
-        const request = requests.get(id);
+    const requestInternal = (method, params = {}) =>
+      requestWithResponse({
+        id: --nextInternalId,
+        method,
+        params,
+      });
+    const requestManagedDownstream = (message, params) =>
+      requestWithResponse({
+        id: ++nextDownstreamUpstreamId,
+        method: message.method,
+        params,
+        downstreamId: message.id,
+        sessionId: message.sessionId,
+      });
+    const rejectPendingRequests = (error) => {
+      for (const [id, request] of requests) {
         if (!request?.reject) continue;
         clearTimeout(request.timer);
         requests.delete(id);
-        internalRequestIds.delete(id);
         request.reject(error);
       }
     };
     const compensateTarget = async (targetId) => {
-      await requestUpstream('Target.closeTarget', { targetId }).catch(() => {});
+      await requestInternal('Target.closeTarget', { targetId }).catch(() => {});
       ownedTargets.delete(targetId);
     };
     upstream.on('open', () => {
@@ -134,99 +151,108 @@ export async function startLeaseProxy({
       queued.length = 0;
     });
     upstream.on('error', (error) => {
-      rejectInternalRequests(error);
+      rejectPendingRequests(error);
     });
-    downstream.on('message', (data) => {
-      void (async () => {
-        const message = JSON.parse(data.toString());
-        if (ACTIVATION_METHODS.has(message.method)) {
-          downstream.send(errorResponse(message.id, -32001, 'Target activation is denied by the lease proxy'));
+    const processDownstreamMessage = async (data) => {
+      const message = JSON.parse(data.toString());
+      if (ACTIVATION_METHODS.has(message.method)) {
+        downstream.send(errorResponse(message.id, -32001, 'Target activation is denied by the lease proxy'));
+        return;
+      }
+      if (message.sessionId && !ownedSessions.has(message.sessionId)) {
+        downstream.send(errorResponse(message.id, -32003, 'Cannot access a target session owned by another lease'));
+        return;
+      }
+      if (!message.sessionId && !BROWSER_METHOD_ALLOWLIST.has(message.method)) {
+        downstream.send(errorResponse(
+          message.id,
+          -32004,
+          'Browser-global command is denied by the lease proxy',
+        ));
+        return;
+      }
+      if (
+        message.method === 'Target.detachFromTarget' &&
+        message.params?.sessionId &&
+        !ownedSessions.has(message.params.sessionId)
+      ) {
+        downstream.send(errorResponse(
+          message.id,
+          -32003,
+          'Cannot access a target session owned by another lease',
+        ));
+        return;
+      }
+      if (message.method === 'Target.getTargetInfo' && !message.params?.targetId) {
+        const [targetId] = ownedTargets;
+        if (!targetId) {
+          downstream.send(errorResponse(message.id, -32002, 'Lease has no owned target'));
           return;
         }
-        if (message.sessionId && !ownedSessions.has(message.sessionId)) {
-          downstream.send(errorResponse(message.id, -32003, 'Cannot access a target session owned by another lease'));
-          return;
-        }
-        if (!message.sessionId && !BROWSER_METHOD_ALLOWLIST.has(message.method)) {
-          downstream.send(errorResponse(
-            message.id,
-            -32004,
-            'Browser-global command is denied by the lease proxy',
-          ));
-          return;
-        }
-        if (
-          message.method === 'Target.detachFromTarget' &&
-          message.params?.sessionId &&
-          !ownedSessions.has(message.params.sessionId)
-        ) {
-          downstream.send(errorResponse(
-            message.id,
-            -32003,
-            'Cannot access a target session owned by another lease',
-          ));
-          return;
-        }
-        if (message.method === 'Target.getTargetInfo' && !message.params?.targetId) {
-          const [targetId] = ownedTargets;
-          if (!targetId) {
-            downstream.send(errorResponse(message.id, -32002, 'Lease has no owned target'));
+        message.params = { ...message.params, targetId };
+      }
+      if (
+        message.method?.startsWith('Target.') &&
+        message.params?.targetId &&
+        !ownedTargets.has(message.params?.targetId)
+      ) {
+        downstream.send(errorResponse(message.id, -32002, 'Cannot access a target owned by another lease'));
+        return;
+      }
+      if (message.method === 'Target.setAutoAttach') {
+        message.params = {
+          ...message.params,
+          waitForDebuggerOnStart: false,
+        };
+      }
+      if (message.method === 'Target.createTarget') {
+        let markDispatched;
+        let dispatched = false;
+        const upstreamDispatched = new Promise((resolve) => {
+          markDispatched = () => {
+            if (dispatched) return;
+            dispatched = true;
+            resolve();
+          };
+        });
+        void withLeaseOperation(stateDir, leaseId, async () => {
+          await attestLeaseContext({
+            stateDir,
+            leaseId,
+            declaration,
+            providerInvoker,
+          });
+          const responsePromise = requestManagedDownstream(message, {
+            ...message.params,
+            background: true,
+          });
+          markDispatched();
+          const response = await responsePromise;
+          if (response.error || !response.result?.targetId) {
+            if (downstream.readyState === WebSocket.OPEN) {
+              downstream.send(JSON.stringify(response));
+            }
             return;
           }
-          message.params = { ...message.params, targetId };
-        }
-        if (
-          message.method?.startsWith('Target.') &&
-          message.params?.targetId &&
-          !ownedTargets.has(message.params?.targetId)
-        ) {
-          downstream.send(errorResponse(message.id, -32002, 'Cannot access a target owned by another lease'));
-          return;
-        }
-        if (message.method === 'Target.setAutoAttach') {
-          message.params = {
-            ...message.params,
-            waitForDebuggerOnStart: false,
-          };
-        }
-        if (message.method === 'Target.createTarget') {
+          const targetId = response.result.targetId;
           try {
-            await withLeaseOperation(stateDir, leaseId, async () => {
-              await attestLeaseContext({
-                stateDir,
-                leaseId,
-                declaration,
-                providerInvoker,
-              });
-              const response = await requestUpstream('Target.createTarget', {
-                ...message.params,
-                background: true,
-              });
-              if (response.error || !response.result?.targetId) {
-                if (downstream.readyState === WebSocket.OPEN) {
-                  downstream.send(JSON.stringify({ ...response, id: message.id }));
-                }
-                return;
-              }
-              const targetId = response.result.targetId;
-              try {
-                await addOwnedTarget(stateDir, leaseId, targetId);
-                ownedTargets.add(targetId);
-                if (downstream.readyState === WebSocket.OPEN) {
-                  downstream.send(JSON.stringify({ ...response, id: message.id }));
-                }
-              } catch {
-                await compensateTarget(targetId);
-                if (downstream.readyState === WebSocket.OPEN) {
-                  downstream.send(errorResponse(
-                    message.id,
-                    -32005,
-                    'Lease was released before target ownership could be recorded',
-                  ));
-                }
-              }
-            });
+            await addOwnedTarget(stateDir, leaseId, targetId);
+            ownedTargets.add(targetId);
+            if (downstream.readyState === WebSocket.OPEN) {
+              downstream.send(JSON.stringify(response));
+            }
           } catch {
+            await compensateTarget(targetId);
+            if (downstream.readyState === WebSocket.OPEN) {
+              downstream.send(errorResponse(
+                message.id,
+                -32005,
+                'Lease was released before target ownership could be recorded',
+              ));
+            }
+          }
+        })
+          .catch(() => {
             if (downstream.readyState === WebSocket.OPEN) {
               downstream.send(errorResponse(
                 message.id,
@@ -234,17 +260,27 @@ export async function startLeaseProxy({
                 'Lease was released before target creation completed',
               ));
             }
-          }
-          return;
-        }
-        requests.set(message.id, {
-          method: message.method,
-          targetId: message.params?.targetId,
-        });
-        sendUpstream(message);
-      })().catch(() => {
-        if (downstream.readyState === WebSocket.OPEN) downstream.close();
+          })
+          .finally(markDispatched);
+        await upstreamDispatched;
+        return;
+      }
+      const upstreamId = ++nextDownstreamUpstreamId;
+      requests.set(upstreamId, {
+        method: message.method,
+        targetId: message.params?.targetId,
+        downstreamId: message.id,
       });
+      sendUpstream({ ...message, id: upstreamId });
+    };
+    downstream.on('message', (data) => {
+      downstreamMessageProcessing = downstreamMessageProcessing
+        .then(() => processDownstreamMessage(data))
+        .catch(() => {
+          if (downstream.readyState === WebSocket.OPEN) {
+            downstream.close();
+          }
+        });
     });
     const processUpstreamMessage = async (data) => {
       const message = JSON.parse(data.toString());
@@ -254,8 +290,11 @@ export async function startLeaseProxy({
         if (!request) return;
         if (request?.resolve) {
           clearTimeout(request.timer);
-          internalRequestIds.delete(message.id);
-          request.resolve(message);
+          request.resolve(
+            request.downstreamId === undefined
+              ? message
+              : { ...message, id: request.downstreamId },
+          );
           return;
         }
         if (request?.method === 'Target.getTargets' && message.result?.targetInfos) {
@@ -275,7 +314,9 @@ export async function startLeaseProxy({
           ownedTargets.delete(request.targetId);
           await removeOwnedTarget(stateDir, leaseId, request.targetId);
         }
-        if (downstream.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
+        if (downstream.readyState === WebSocket.OPEN) {
+          downstream.send(JSON.stringify({ ...message, id: request.downstreamId }));
+        }
         return;
       }
 
@@ -334,8 +375,7 @@ export async function startLeaseProxy({
     upstream.on('close', () => {
       const error = new Error('Upstream CDP connection closed');
       error.code = 'UPSTREAM_DISCONNECTED';
-      rejectInternalRequests(error);
-      internalRequestIds.clear();
+      rejectPendingRequests(error);
       if (downstream.readyState === WebSocket.OPEN) downstream.close();
     });
   });
