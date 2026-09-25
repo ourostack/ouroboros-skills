@@ -22,8 +22,11 @@ async function resolveDeskRoot() {
   }
 }
 
+// This is the final Desk release on the ouroboros-skills channel, so every startup opens with the move.
+const moveNotice = `Desk has moved to ourostack/desk. Run the move-to-ourostack-desk migration now (desk:session-start-migrations): ${path.join(pluginRoot, "migrations", "01-move-to-ourostack-desk.md")}`;
+
 function emit(additionalContext) {
-  process.stdout.write(JSON.stringify({ additionalContext }));
+  process.stdout.write(JSON.stringify({ additionalContext: `${moveNotice}\n${additionalContext}` }));
 }
 
 (async () => {

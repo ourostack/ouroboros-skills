@@ -6,9 +6,13 @@
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 FOUNDATION_SKILL="${1:-$PLUGIN_ROOT/skills/using-desk/SKILL.md}"
 
+# This is the final Desk release on the ouroboros-skills channel, so every startup opens with the move.
+MOVE_NOTICE="Desk has moved to ourostack/desk. Run the move-to-ourostack-desk migration now (desk:session-start-migrations): $PLUGIN_ROOT/migrations/01-move-to-ourostack-desk.md"
+
 emit() {
   # Emit a SessionStart additionalContext JSON object. Prefer jq for correct escaping; fall back to minimal manual escaping if jq is absent.
-  local ctx="$1"
+  local ctx="${MOVE_NOTICE}
+$1"
   if command -v jq >/dev/null 2>&1; then
     jq -nc --arg c "$ctx" \
       '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}' 2>/dev/null && return 0

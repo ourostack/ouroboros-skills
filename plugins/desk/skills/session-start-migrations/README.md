@@ -8,7 +8,7 @@ the framework lives here in `desk`; the actual migrations live in each plugin's 
 
 drop a file at `<your-plugin-root>/migrations/<NN>-<slug>.md`. pick the next available `NN` across every active plugin (alphabetical sort by filename gives global ordering — coordinate by reading current migrations on `main` before picking a number). the slug is short kebab-case describing what the migration does (e.g. `rename-workspace-dir`, `move-plugin-clone`).
 
-the file has YAML frontmatter (`id`, `description`, `safety`, `needs_restart`) and four required body sections — each a level-2 heading followed by a fenced bash code block: `## Detect`, `## Safety check`, `## Migrate`, `## Announce`. the first three contain bash that exits 0/non-zero; the fourth is plain text shown to the operator on success. see `SKILL.md` in this directory for the full schema and driver semantics.
+the file has YAML frontmatter (`id`, `description`, `safety`, `needs_restart`) and four required body sections, each a level-2 heading: `## Detect`, `## Safety check`, `## Migrate`, `## Announce`. the first three each hold one fenced bash code block that exits 0/non-zero; the fourth is plain text (no code fence) shown to the operator on success. see `SKILL.md` in this directory for the full schema and driver semantics.
 
 **two hard constraints worth saying upfront:**
 

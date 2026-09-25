@@ -53,6 +53,9 @@ jobs:
       - name: Validate Desk healthy-path docs
         run: node scripts/test-desk-docs.cjs
 
+      - name: Validate Desk session-start migrations
+        run: node scripts/test-desk-migrations.cjs
+
   claude-code-load:
     name: Claude Code plugin load
     runs-on: ubuntu-latest

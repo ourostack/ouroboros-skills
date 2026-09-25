@@ -1,5 +1,20 @@
 # desk plugin — changelog
 
+## 3.2.0-alpha.10.1 — 2026-09-24
+
+The final Desk release on the `ouroboros-skills` `v2-alpha` channel: Desk now lives in [ourostack/desk](https://github.com/ourostack/desk), and this release moves existing V2 installs there. The Desk MCP stays at `desk-mcp@1.4.0-alpha.6`; its source and runtime packs are unchanged.
+
+- **Move migration.** `migrations/01-move-to-ourostack-desk.md` runs through `desk:session-start-migrations` and moves only V2 installs.
+  - Claude Code: it runs whenever `desk@ouroboros-skills` is installed from a marketplace that tracks `v2-alpha`, including when `desk@ourostack` was already installed out of band. It adds the `ourostack/desk` marketplace with automatic updates on and copies the saved desk binding to `plugins/data/desk-ourostack/`, never overwriting an existing one. It then reinstalls Crew, Superpowers, Plain Language and, last, Desk from `@ourostack` in their original scopes and project directories, skipping any already installed there, and uninstalls the old copies while keeping their data.
+  - V1 plugins: it never uninstalls an old companion (Crew, Superpowers, Plain Language) that a plugin staying in `ouroboros-skills` depends on. It reads those dependencies from each staying plugin's installed manifest and keeps every companion if a manifest cannot be read. Work Suite therefore keeps its `plain-language@ouroboros-skills`. The old Desk is never a V1 dependency, so it is always removed, and its startup line goes with it. The old marketplace is removed only when nothing from it remains; otherwise the report names the V1 plugins that stay, says that V2 replaces V1, and gives the exact commands to remove them, prefixed with `cd <project> &&` for project-scope plugins.
+  - Failures: a failed uninstall stops the migration with the command to run, and the next session retries while the old Desk is still installed.
+  - Agency: it rewrites only `github:ourostack/ouroboros-skills:plugins/<desk|superpowers|plain-language|crew>@v2-alpha` to `github:ourostack/desk:plugins/<name>@main`. `@main` and no-ref (V1) coordinates stay. It writes a `.pre-ourostack-desk` backup once, never touches an existing `agency.toml.bak`, and keeps a symlinked `agency.toml` a symlink. Only a V2 Claude Code move needs `jq`.
+  - Report: Migrate prints what it changed on this machine (Claude Code, Agency or both), and Announce stays true everywhere.
+- **Startup pointer.** Both startup hooks open with "Desk has moved to ourostack/desk. Run the move-to-ourostack-desk migration now (desk:session-start-migrations):" followed by the installed path of the migration file.
+- **Migration format.** `session-start-migrations` now states the format consistently: Detect, Safety check and Migrate each hold one fenced bash block, and Announce is plain text. The driver shows Migrate's report of what it changed on this machine before Announce.
+- **Pointers.** The repository `README.md` and `AGENTIC-ENGINEERING-V2.md` on `v2-alpha` point to ourostack/desk.
+- **Migration harness.** `scripts/test-desk-migrations.cjs` runs every Desk migration against a fake `claude` on `PATH` that models installed manifests and marketplace-scoped dependency errors and can fail chosen commands, with temporary `HOME`, `CLAUDE_CONFIG_DIR` and `AGENCY_TOML`, across first runs, reruns, failures, Work Suite users and V1 installs. CI runs it in Validate skills.
+
 ## 3.2.0-alpha.10 — 2026-09-24
 
 Brings the claims-based browser context broker and bounded validation artifacts from main. The Desk MCP stays at `desk-mcp@1.4.0-alpha.6`; its source and runtime packs are unchanged.

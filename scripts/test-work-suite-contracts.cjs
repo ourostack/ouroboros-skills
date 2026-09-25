@@ -439,8 +439,8 @@ for (const file of [
   "plugins/desk/.claude-plugin/plugin.json",
   "plugins/desk/.codex-plugin/plugin.json",
 ]) {
-  contract(`${file} releases Desk 3.2.0-alpha.10`, () => {
-    assert.equal(json(file).version, "3.2.0-alpha.10");
+  contract(`${file} releases Desk 3.2.0-alpha.10.1`, () => {
+    assert.equal(json(file).version, "3.2.0-alpha.10.1");
   });
 }
 
@@ -452,7 +452,8 @@ contract("direct Copilot companion versions match their manifests", () => {
   assert.match(readme, new RegExp(`Ponytail v${ponytailVersion.replaceAll(".", "\\.")}`, "u"));
 });
 
-for (const file of ["README.md", "plugins/work-suite/README.md"]) {
+// The root README on v2-alpha is a pointer to ourostack/desk; the V1 catalog README on main keeps the Work Suite guide.
+for (const file of ["plugins/work-suite/README.md"]) {
   contract(`${file} runtime audit names every Work Suite skill`, () => {
     const activeSkills = (text(file).match(/--active-skills (?<skills>[^\n\\]+)/u)?.groups?.skills ?? "").trim();
     for (const skill of workSuiteSkillNames) assert.match(activeSkills, new RegExp(`(?:^|,)${skill}(?:,|$)`, "u"));
@@ -477,16 +478,9 @@ contract("marketplace metadata no longer advertises Work Suite 2", () => {
   assert.doesNotMatch(text(".claude-plugin/marketplace.json"), /Work Suite 2\b/u);
 });
 
-requires(
-  "README.md",
-  "README documents complete Doer proof",
-  /work-doer[\s\S]{0,160}test-first[\s\S]{0,120}repository-required coverage[\s\S]{0,120}primary outcome/iu,
-);
-requires(
-  "README.md",
-  "README documents host-portable waiting",
-  /stay-in-turn[\s\S]{0,180}native notification[\s\S]{0,120}foreground fallback/iu,
-);
+contract("root README points to ourostack/desk", () => {
+  assert.match(text("README.md"), /https:\/\/github\.com\/ourostack\/desk/u);
+});
 
 contract("coverage exclusion list has no campaign additions", () => {
   assert.deepEqual(

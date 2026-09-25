@@ -47,9 +47,9 @@ Field semantics:
 - `safety` — see the **Safety semantics** section below.
 - `needs_restart` — if `true`, after a successful migration the session hard-stops with a "please restart" message. If `false`, the session continues into the next migration / normal session-start flow.
 
-### Body: four required fenced bash code blocks
+### Body: three fenced bash code blocks and a plain-text Announce
 
-Each section is a level-2 markdown heading followed by exactly one fenced bash code block.
+Each section is a level-2 markdown heading. `Detect`, `Safety check` and `Migrate` each hold exactly one fenced bash code block; `Announce` holds plain text.
 
 ```
 ## Detect
@@ -65,7 +65,7 @@ Each section is a level-2 markdown heading followed by exactly one fenced bash c
 <plain text — the message the operator sees after the migration runs successfully>
 ```
 
-The `## Announce` block is plain markdown text, not a code fence. The driver reads everything between `## Announce` and end-of-file (trimmed) and prints it verbatim.
+The `## Announce` block is plain markdown text, not a code fence. The driver reads everything between `## Announce` and end-of-file (trimmed) and prints it verbatim. A migration whose outcome differs by machine prints a report of what it changed on stdout from Migrate; the driver shows that report first, then the Announce text, so Announce stays true on every machine.
 
 ### Why exactly four sections
 
@@ -97,7 +97,7 @@ splitting these out means the driver can run Detect cheaply against every migrat
    - run **Detect**. exit 0 = migration is needed; non-zero = skip silently.
    - run **Safety check**. exit 0 = safe. non-zero = surface the printed reason to the operator and **hard-stop** (do NOT run Migrate; do NOT continue to subsequent migrations — the operator needs to resolve the safety issue first).
    - run **Migrate**. if it exits non-zero, surface the stdout+stderr and **hard-stop** with a clear "Migration `<id>` failed mid-run; manual intervention needed" message.
-   - on Migrate success, print the **Announce** text verbatim.
+   - on Migrate success, show Migrate's stdout (the migration's report of what it changed on this machine, if any), then print the **Announce** text verbatim.
    - if frontmatter `needs_restart: true`, **hard-stop the session** with a clean "please restart this session" message after the announcement.
 
 3. **after all applicable migrations applied (or none needed)**, continue with normal `desk:session-start` flow.
