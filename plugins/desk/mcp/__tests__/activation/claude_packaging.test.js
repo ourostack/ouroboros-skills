@@ -479,6 +479,13 @@ test("Claude-facing manifests stay version-aligned with activation and marketpla
   // repo's own marketplace entry no longer carries a version to align
   // against; the local plugin.json here still serves Copilot and Codex only.
   assert.equal(marketplacePlugin("desk").version, undefined)
+  // Every install on this channel follows this source, so pin its exact shape.
+  assert.deepEqual(marketplacePlugin("desk").source, {
+    source: "git-subdir",
+    url: "https://github.com/ourostack/desk",
+    path: "plugins/desk",
+    ref: "main",
+  })
   assert.equal(superpowersClaude.version, superpowersCodex.version)
   assert.equal(superpowersClaude.version, marketplacePlugin("superpowers").version)
   assert.equal(superpowersClaude.version, activation.dependencies.find((dependency) => (
