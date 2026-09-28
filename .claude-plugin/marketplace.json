@@ -12,9 +12,13 @@
   "plugins": [
     {
       "name": "desk",
-      "source": "./plugins/desk",
-      "description": "A quiet workspace substrate for long-running engineering agents: tracks, tasks, friction notes, lessons, lifecycle skills, and an MCP server for desk CRUD plus search. Ships a default 'worker' agent that makes the plugin standalone-functional; overlays (corporate, autonomous, personal-coding) layer their own agents on top.",
-      "version": "3.2.0-alpha.10.1",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/ourostack/desk",
+        "path": "plugins/desk",
+        "ref": "main"
+      },
+      "description": "Desk moved to ourostack/desk. This entry now fetches that repository's plugins/desk directly from its main channel, instead of a copy pinned in this repository, so an update here converges to the same plugin the ourostack marketplace serves; that plugin's own hook-driven migration then completes the rename to desk@ourostack. A quiet workspace substrate for long-running engineering agents: tracks, tasks, friction notes, lessons, lifecycle skills, and an MCP server for desk CRUD plus search. Ships a default 'worker' agent that makes the plugin standalone-functional; overlays (corporate, autonomous, personal-coding) layer their own agents on top.",
       "category": "agent-substrate",
       "tags": [
         "workspace",
@@ -61,8 +65,8 @@
     {
       "name": "plain-language",
       "source": "./plugins/plain-language",
-      "description": "A first-party output policy that makes human-readable agent prose easy to find, understand, and use without weakening evidence, uncertainty, safety, precision, schemas, quotations, or requested voice.",
-      "version": "0.2.1",
+      "description": "Refreshed to 0.2.5 (vendored from ourostack/desk) because the repointed desk plugin above now requires plain-language ^0.2.5, which the previously pinned 0.2.1 copy here could not satisfy; a git-tagged dependency check is what desk's own move needs, and this repository has no release tags, so plain-language stays a local pinned copy rather than a live-tracking one. A first-party output policy that makes human-readable agent prose easy to find, understand, and use without weakening evidence, uncertainty, safety, precision, schemas, quotations, or requested voice.",
+      "version": "0.2.5",
       "category": "productivity",
       "tags": [
         "writing",

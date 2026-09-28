@@ -70,6 +70,8 @@ In agent handoffs, preserve owners, evidence, authority, blocked state, and next
 
 Keep the voice, level of detail, and structure appropriate for the reader and destination. Improve clarity without flattening the speaker's style, changing the requested format, or weakening a more specific requirement.
 
+Never hard-wrap authored prose. Keep each paragraph, list item, blockquote, message, task card paragraph, commit body paragraph, and pull request body paragraph on one physical line, and let the renderer or editor wrap it. Use a newline only for genuine structure: a new paragraph, list item, heading, table row, code line, or a semantic break preserved from the source. Before finishing, join any line breaks created only by column width in the prose changed in the current task; leave quoted, generated, historical, or other source-preserved text as it is.
+
 ## Check before sending
 
 Read the draft once and fix these failures:

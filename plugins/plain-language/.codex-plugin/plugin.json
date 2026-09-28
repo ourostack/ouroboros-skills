@@ -1,13 +1,13 @@
 {
   "name": "plain-language",
-  "version": "0.2.1",
+  "version": "0.2.5",
   "description": "A first-party output policy that makes human-readable agent prose easy to find, understand, and use without weakening evidence, uncertainty, safety, precision, schemas, quotations, or requested voice.",
   "author": {
     "name": "ourostack",
-    "url": "https://github.com/ourostack/ouroboros-skills"
+    "url": "https://github.com/ourostack/desk"
   },
-  "homepage": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/plain-language",
-  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "homepage": "https://github.com/ourostack/desk/tree/main/plugins/plain-language",
+  "repository": "https://github.com/ourostack/desk",
   "license": "MIT",
   "keywords": [
     "writing",
@@ -25,9 +25,9 @@
     "capabilities": [
       "Read"
     ],
-    "websiteURL": "https://github.com/ourostack/ouroboros-skills/tree/main/plugins/plain-language",
-    "privacyPolicyURL": "https://github.com/ourostack/ouroboros-skills",
-    "termsOfServiceURL": "https://github.com/ourostack/ouroboros-skills",
+    "websiteURL": "https://github.com/ourostack/desk/tree/main/plugins/plain-language",
+    "privacyPolicyURL": "https://github.com/ourostack/desk",
+    "termsOfServiceURL": "https://github.com/ourostack/desk",
     "defaultPrompt": [
       "Apply Plain Language while preserving evidence, precision, schemas, and approved voice."
     ],

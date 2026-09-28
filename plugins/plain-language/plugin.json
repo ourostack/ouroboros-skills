@@ -1,12 +1,12 @@
 {
   "name": "plain-language",
-  "version": "0.2.1",
+  "version": "0.2.5",
   "description": "A first-party output policy that makes human-readable agent prose easy to find, understand, and use without weakening evidence, uncertainty, safety, precision, schemas, quotations, or requested voice.",
   "author": {
     "name": "ourostack",
-    "url": "https://github.com/ourostack/ouroboros-skills"
+    "url": "https://github.com/ourostack/desk"
   },
   "license": "MIT",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/copilot-hooks.json"
 }
