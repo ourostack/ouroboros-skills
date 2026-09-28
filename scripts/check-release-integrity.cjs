@@ -58,6 +58,10 @@ function checkReleaseIntegrity({ repoRoot = process.cwd(), base = null, git = de
   const problems = [];
   const marketplace = readJsonAt({ git, ref: null, file: MARKETPLACE, repoRoot });
   for (const entry of marketplace.plugins) {
+    // A remote source (github, url, git-subdir) has no local directory to
+    // check manifests against or diff for changes: that plugin's release
+    // integrity is the other repository's own concern.
+    if (typeof entry.source !== "string") continue;
     const dir = path.posix.normalize(entry.source.replace(/^\.\//u, ""));
     const versions = { [`${MARKETPLACE} ${entry.name} entry`]: entry.version };
     for (const manifest of VERSIONED_MANIFESTS) {

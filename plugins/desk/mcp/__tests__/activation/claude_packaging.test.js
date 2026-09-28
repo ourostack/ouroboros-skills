@@ -264,7 +264,7 @@ test("Claude plugin metadata declares native Desk surfaces and Superpowers depen
     },
     {
       name: "plain-language",
-      version: "0.2.1",
+      version: "0.2.5",
     },
   ])
   assert.equal(Object.hasOwn(deskPlugin, "activation"), false)
@@ -474,7 +474,18 @@ test("Claude-facing manifests stay version-aligned with activation and marketpla
 
   assert.equal(deskClaude.version, activation.version)
   assert.equal(deskClaude.version, deskCodex.version)
-  assert.equal(deskClaude.version, marketplacePlugin("desk").version)
+  // Claude Code now resolves desk from ourostack/desk main directly (a
+  // git-subdir marketplace source with no static version field), so this
+  // repo's own marketplace entry no longer carries a version to align
+  // against; the local plugin.json here still serves Copilot and Codex only.
+  assert.equal(marketplacePlugin("desk").version, undefined)
+  // Every install on this channel follows this source, so pin its exact shape.
+  assert.deepEqual(marketplacePlugin("desk").source, {
+    source: "git-subdir",
+    url: "https://github.com/ourostack/desk",
+    path: "plugins/desk",
+    ref: "main",
+  })
   assert.equal(superpowersClaude.version, superpowersCodex.version)
   assert.equal(superpowersClaude.version, marketplacePlugin("superpowers").version)
   assert.equal(superpowersClaude.version, activation.dependencies.find((dependency) => (

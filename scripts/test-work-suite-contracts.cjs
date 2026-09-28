@@ -420,7 +420,7 @@ for (const file of [
 
 contract("Work Suite root manifest omits inert dependency metadata", () => {
   const plugin = json("plugins/work-suite/plugin.json");
-  assert.equal(plugin.version, "4.0.0-alpha.2");
+  assert.equal(plugin.version, "4.0.0-alpha.3");
   assert.equal(Object.hasOwn(plugin, "dependencies"), false);
   assert.equal(Object.hasOwn(plugin, "activation"), false);
 });
@@ -429,8 +429,8 @@ for (const file of [
   "plugins/work-suite/.claude-plugin/plugin.json",
   "plugins/work-suite/.codex-plugin/plugin.json",
 ]) {
-  contract(`${file} releases Work Suite 4.0.0-alpha.2`, () => {
-    assert.equal(json(file).version, "4.0.0-alpha.2");
+  contract(`${file} releases Work Suite 4.0.0-alpha.3`, () => {
+    assert.equal(json(file).version, "4.0.0-alpha.3");
   });
 }
 
@@ -489,7 +489,7 @@ contract("coverage exclusion list has no campaign additions", () => {
   );
 });
 
-assert.equal(json("plugins/plain-language/plugin.json").version, "0.2.1");
+assert.equal(json("plugins/plain-language/plugin.json").version, "0.2.5");
 assert.equal(json("plugins/ponytail-upstream/plugin.json").version, "4.9.0");
 assert.equal(json("plugins/desk/mcp/package.json").version, "1.4.0-alpha.6");
 

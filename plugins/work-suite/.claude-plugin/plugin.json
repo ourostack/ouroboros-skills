@@ -1,6 +1,6 @@
 {
   "name": "work-suite",
-  "version": "4.0.0-alpha.2",
+  "version": "4.0.0-alpha.3",
   "description": "An opt-in engineering preview with explicit alignment/go, test-first native execution, repository quality policy, semantic outcome evidence, and scoped terminal delivery. Uses pinned Ponytail and Plain Language.",
   "author": {
     "name": "ourostack",
@@ -10,7 +10,7 @@
   "dependencies": [
     {
       "name": "plain-language",
-      "version": "0.2.1"
+      "version": "0.2.5"
     },
     {
       "name": "ponytail-upstream",

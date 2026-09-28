@@ -5,7 +5,7 @@ import { buildCopilotBundle, validateCopilotPackagingContract } from "../../src/
 import { materializeCodexActivation } from "../../src/activation/adapters/codex.js"
 
 const read = (file) => JSON.parse(readFileSync(new URL(`../../../../../${file}`, import.meta.url), "utf8"))
-const legacy = { id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.2", provenance: { source: "plugins/work-suite/.codex-plugin/plugin.json", package: "ourostack/work-suite" }, lock: { version: "4.0.0-alpha.2", integrity: "sha256-legacy-fixture" } }
+const legacy = { id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.3", provenance: { source: "plugins/work-suite/.codex-plugin/plugin.json", package: "ourostack/work-suite" }, lock: { version: "4.0.0-alpha.3", integrity: "sha256-legacy-fixture" } }
 function fixture() {
   const activation = read("plugins/desk/activation/desk.activation.json")
   activation.dependencies = activation.dependencies.filter((entry) => !["work-suite", "superpowers"].includes(entry.id))

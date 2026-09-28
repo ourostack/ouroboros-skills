@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/inject.cjs\" sessionStart",
+        "powershell": "node \"${PLUGIN_ROOT}\\hooks\\inject.cjs\" sessionStart",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}
