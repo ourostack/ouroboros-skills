@@ -251,7 +251,11 @@ test("Copilot root plugin metadata exposes Desk worker and MCP without manual re
 
   assert.equal(deskPlugin.name, "desk")
   assert.equal(deskPlugin.version, activation.version)
-  assert.equal(deskPlugin.version, marketplacePlugin("desk").version)
+  // Claude Code now resolves desk from ourostack/desk main directly (a
+  // git-subdir marketplace source with no static version field); this local
+  // plugin.json still serves Copilot only and no longer has a marketplace
+  // version to align with.
+  assert.equal(marketplacePlugin("desk").version, undefined)
   assert.equal(deskPlugin.agents, "./agents/")
   assert.equal(deskPlugin.skills, "./skills/")
   assert.equal(deskPlugin.mcpServers, "./.mcp.copilot.json")
@@ -275,7 +279,7 @@ test("Work Suite root plugin metadata omits inert dependency metadata", () => {
   const workSuitePlugin = loadJson("plugins", "work-suite", "plugin.json")
 
   assert.equal(workSuitePlugin.name, "work-suite")
-  assert.equal(workSuitePlugin.version, "4.0.0-alpha.2")
+  assert.equal(workSuitePlugin.version, "4.0.0-alpha.3")
   assert.equal(workSuitePlugin.version, marketplacePlugin("work-suite").version)
   assert.equal(workSuitePlugin.skills, "./skills/")
   assert.equal(Object.hasOwn(workSuitePlugin, "dependencies"), false)
@@ -300,7 +304,7 @@ test("Copilot root packaging declares a generated flattened dependency closure",
   })
   assert.deepEqual(deskPlugin.activation?.copilot?.dependencies?.["plain-language"], {
     path: "../plain-language",
-    version: "0.2.1",
+    version: "0.2.5",
     resolution: "flattened",
     bundleMetadata: copilotBundlePath,
   })
@@ -435,7 +439,7 @@ test("Copilot packaging validation rejects missing root surfaces and stale versi
   stalePlainLanguageVersion.plainLanguagePlugin.version = "0.0.9"
   assert.deepEqual(
     validateCopilotPackagingContract(stalePlainLanguageVersion),
-    ["Copilot root Plain Language version must match activation lock 0.2.1"],
+    ["Copilot root Plain Language version must match activation lock 0.2.5"],
   )
 
   const stalePonytailVersion = withPonytailSelected(clone(currentCopilotPackagingInput()))

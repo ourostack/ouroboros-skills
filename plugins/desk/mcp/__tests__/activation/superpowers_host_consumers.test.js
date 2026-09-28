@@ -17,14 +17,14 @@ function legacyActivation() {
   value.dependencies = value.dependencies.filter((entry) => entry.id !== "superpowers")
   // Explicit legacy configuration using the declaration retained at 0d4d583; the shipped alpha does not declare Work Suite.
   value.dependencies.push({
-    id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.2",
+    id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.3",
     provenance: { source: "plugins/work-suite/.codex-plugin/plugin.json", package: "ourostack/work-suite" },
-    lock: { version: "4.0.0-alpha.2", integrity: "sha256-work-suite-activation-manifest-v1" },
+    lock: { version: "4.0.0-alpha.3", integrity: "sha256-work-suite-activation-manifest-v1" },
   })
   value.provides.activation_targets[0].depends_on = ["desk", "work-suite", "plain-language", "ponytail-upstream"]
   for (const host of Object.values(value.host_activation)) {
     if (host.dependencies?.superpowers) {
-      host.dependencies["work-suite"] = { ...host.dependencies.superpowers, path: "../work-suite", version: "4.0.0-alpha.2" }
+      host.dependencies["work-suite"] = { ...host.dependencies.superpowers, path: "../work-suite", version: "4.0.0-alpha.3" }
       delete host.dependencies.superpowers
     }
   }
@@ -116,7 +116,7 @@ test("existing cache audit CLI accepts the alpha set without changing its legacy
 })
 test("Claude validates an explicitly declared legacy configuration, not the shipped alpha", () => {
   const input = claude(legacyActivation())
-  input.deskPlugin.dependencies[0] = { name: "work-suite", version: "^4.0.0-alpha.2" }
+  input.deskPlugin.dependencies[0] = { name: "work-suite", version: "^4.0.0-alpha.3" }
   assert.deepEqual(validateClaudePackagingContract(input), [])
 })
 test("Ouroboros retains its legacy provider route without enabling Superpowers", () => {

@@ -984,13 +984,13 @@ test("root host verifier selects an explicit legacy configuration across all thr
   const verifier = loadHostManifestVerifier()
   await withHostFreshnessFixture(async (root) => {
     // A temporary, explicitly declared legacy packaging configuration, not the shipped alpha or a native session.
-    const legacyText = (text) => text.replaceAll("superpowers", "work-suite").replaceAll("Superpowers", "Work Suite").replaceAll("6.3.0", "4.0.0-alpha.2")
+    const legacyText = (text) => text.replaceAll("superpowers", "work-suite").replaceAll("Superpowers", "Work Suite").replaceAll("6.3.0", "4.0.0-alpha.3")
     const manifestPath = "plugins/desk/activation/desk.activation.json"
     const manifest = JSON.parse(legacyText(loadText(...manifestPath.split("/"))))
     const declaration = {
-      id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.2",
+      id: "work-suite", kind: "plugin", version_range: "^4.0.0-alpha.3",
       provenance: { source: "plugins/work-suite/.codex-plugin/plugin.json", package: "ourostack/work-suite" },
-      lock: { version: "4.0.0-alpha.2", integrity: "sha256-work-suite-activation-manifest-v1" },
+      lock: { version: "4.0.0-alpha.3", integrity: "sha256-work-suite-activation-manifest-v1" },
     }
     manifest.dependencies = manifest.dependencies.map((entry) => entry.id === "work-suite" ? declaration : entry)
     assert.equal(declaration.provenance.source, "plugins/work-suite/.codex-plugin/plugin.json")
@@ -1033,7 +1033,7 @@ test("root host verifier selects an explicit legacy configuration across all thr
     assert.equal(current.ok, true, current.errors.join("\n"))
     assert.deepEqual(current.checked, requiredHostManifestChecks)
     for (const [file, diagnostic] of [
-      ["plugins/work-suite/plugin.json", /Copilot root Work Suite version must match activation lock 4\.0\.0-alpha\.2/u],
+      ["plugins/work-suite/plugin.json", /Copilot root Work Suite version must match activation lock 4\.0\.0-alpha\.3/u],
       ["plugins/work-suite/.codex-plugin/plugin.json", /codex-plugin Work Suite provider lock drift/u],
       ["plugins/work-suite/.claude-plugin/plugin.json", /claude-plugin Work Suite provider lock drift/u],
     ]) {

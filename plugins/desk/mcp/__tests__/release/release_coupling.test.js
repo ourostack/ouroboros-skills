@@ -56,7 +56,6 @@ test("Desk 3.2.0-alpha.10.1 and MCP 1.4.0-alpha.6 candidate surfaces move togeth
     ["plugins/desk/plugin.json", deskPlugin.version],
     ["plugins/desk/.claude-plugin/plugin.json", claudePlugin.version],
     ["plugins/desk/.codex-plugin/plugin.json", codexPlugin.version],
-    [".claude-plugin/marketplace.json desk entry", marketplaceDesk?.version],
     ["plugins/desk/activation/desk.activation.json", activation.version],
     ["plugins/desk/activation/desk.activation.json desk dependency", activationDesk?.version],
     ["plugins/desk/activation/desk.activation.json desk lock", activationDesk?.lock?.version],
@@ -64,6 +63,12 @@ test("Desk 3.2.0-alpha.10.1 and MCP 1.4.0-alpha.6 candidate surfaces move togeth
   ]) {
     recordMismatch(errors, label, version, expectedPluginVersion)
   }
+
+  // Claude Code now resolves desk from ourostack/desk main directly (a
+  // git-subdir marketplace source), so this repo's marketplace entry no
+  // longer carries a static version to move in lockstep with the local
+  // snapshot above, which still serves Copilot and Codex only.
+  recordMismatch(errors, ".claude-plugin/marketplace.json desk entry", marketplaceDesk?.version, undefined)
 
   for (const [label, version] of [
     ["plugins/desk/mcp/package.json", packageJson.version],
