@@ -29,7 +29,7 @@
     },
     {
       "id": "plain-language",
-      "version": "0.2.1",
+      "version": "0.2.5",
       "plugin": "plugins/plain-language/plugin.json",
       "skills": "plugins/plain-language/skills/"
     }

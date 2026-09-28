@@ -32,13 +32,13 @@
     {
       "id": "plain-language",
       "kind": "plugin",
-      "version_range": "0.2.1",
+      "version_range": "0.2.5",
       "provenance": {
         "source": "plugins/plain-language/.codex-plugin/plugin.json",
         "package": "ourostack/plain-language"
       },
       "lock": {
-        "version": "0.2.1",
+        "version": "0.2.5",
         "integrity": "sha256-plain-language-activation-manifest-v1"
       }
     },

@@ -17,7 +17,7 @@ The preview replaces a universal changed-code coverage percentage with the repos
 
 ## Ponytail dependency
 
-Work Suite uses Plain Language v0.2.1 for human-readable output and the packaged `ponytail-upstream` plugin, pinned to Ponytail v4.9.0. Coding work follows Ponytail's ladder: question whether code needs to exist, reuse the codebase, prefer standard-library/native/already-installed capabilities, choose the simplest viable approach, and write custom machinery only when necessary.
+Work Suite uses Plain Language v0.2.5 for human-readable output and the packaged `ponytail-upstream` plugin, pinned to Ponytail v4.9.0. Coding work follows Ponytail's ladder: question whether code needs to exist, reuse the codebase, prefer standard-library/native/already-installed capabilities, choose the simplest viable approach, and write custom machinery only when necessary.
 
 Ponytail applies to coding work, including implementation, refactoring, debugging, tests, and code review. It does not truncate requested research, documentation, analysis, or operational work. Plain Language remains the authority for human-readable output.
 
@@ -62,7 +62,7 @@ Pick the command for your engine:
 # top-level skills/ directory using the skill-management flow instead.
 ```
 
-Copilot-compatible hosts normally receive Work Suite through Desk's generated flattened bundle metadata. A direct Copilot load of this preview must explicitly include Work Suite 4.0.0-alpha.2, Plain Language v0.2.1, and Ponytail v4.9.0 because the root Copilot manifest does not resolve plugin dependencies.
+Copilot-compatible hosts normally receive Work Suite through Desk's generated flattened bundle metadata. A direct Copilot load of this preview must explicitly include Work Suite 4.0.0-alpha.3, Plain Language v0.2.5, and Ponytail v4.9.0 because the root Copilot manifest does not resolve plugin dependencies.
 
 ## Relationship to `skills/`
 

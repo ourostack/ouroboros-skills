@@ -40,7 +40,7 @@
       "name": "work-suite",
       "source": "./plugins/work-suite",
       "description": "Legacy standalone Work Suite technical preview. Retained for existing installations; not selected alongside Superpowers by the Desk alpha.",
-      "version": "4.0.0-alpha.2",
+      "version": "4.0.0-alpha.3",
       "category": "workflow",
       "tags": [
         "ponytail",

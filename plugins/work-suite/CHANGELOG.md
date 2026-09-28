@@ -1,5 +1,9 @@
 # Work Suite changelog
 
+## 4.0.0-alpha.3 — 2026-09-27
+
+Its pinned Plain Language companion moves to 0.2.5 so it stays on the same version the repointed `desk` channel now requires; no behavior in Work Suite itself changes.
+
 ## 4.0.0-alpha.2 — 2026-09-24
 
 Brings bounded validation artifacts from main (#215). `work-doer` treats coverage and fully instrumented builds as an exact-SHA final gate, copies proved outputs to a commit-addressed path before deleting the original, and removes test-owned build roots, containers and images once their proof is captured. The existing confidence packet and agreed-terminal-state wording are unchanged.
