@@ -1,6 +1,6 @@
 ---
 name: sign-apple-apps
-description: Set up Apple app signing, notarization, stapling, Mac App Store signing, and release-channel checks for native Apple apps. Use when a user asks to sign, notarize, distribute, renew Apple Developer membership, configure notarytool credentials, create Developer ID or App Store certificates, unblock Gatekeeper warnings, submit to App Store Connect, or support direct-download macOS releases alongside App Store/TestFlight channels.
+description: Use when signing, notarizing or distributing native Apple apps; configuring certificates, provisioning profiles or notary credentials; inspecting or rotating Apple Developer authentication keys; configuring Sign in with Apple or Services IDs; renewing membership; resolving Gatekeeper failures; or submitting App Store/TestFlight releases.
 ---
 
 # Sign Apple Apps
@@ -40,6 +40,59 @@ not source files:
 - `APP_STORE_CONNECT_PROVIDER_PUBLIC_ID` when Transporter/altool needs a
   provider short name or public provider id.
 
+## Agent-First Apple Operations
+
+Use terminal commands for routine operations, not browser controls. Discover the
+installed kit's capabilities with `apple-distribution-kit --help`; missing commands
+are a kit capability/version gap, not evidence that Apple needs a human. Reuse or
+extend the shared kit instead of creating another task-local portal script.
+
+Keep the two authentication lanes separate:
+
+| Resource | Authentication and tool |
+|---|---|
+| Supported App Store Connect, certificates and profiles | Existing ASC JWT/config and `asc` / `signing` commands |
+| Developer authentication keys and supported Services ID operations | Separately enrolled Developer session and `developer` commands |
+
+Do not assume ASC JWT credentials cover Sign in with Apple key or Services ID
+management. Discover actual command support before proposing a write.
+
+For an already enrolled session, inspect directly:
+
+```bash
+apple-distribution-kit developer status --team-id "$APPLE_TEAM_ID" --session-file "$APPLE_DEVELOPER_SESSION" --json
+apple-distribution-kit developer keys list --team-id "$APPLE_TEAM_ID" --session-file "$APPLE_DEVELOPER_SESSION" --json
+apple-distribution-kit developer keys get --team-id "$APPLE_TEAM_ID" --session-file "$APPLE_DEVELOPER_SESSION" --key-id "$APPLE_AUTH_KEY_ID" --json
+```
+
+Enrollment is a separate, one-time authorized handoff:
+`apple-distribution-kit developer session import --team-id "$APPLE_TEAM_ID" --session-file "$APPLE_DEVELOPER_SESSION" --input "$APPLE_DEVELOPER_ENROLLMENT" --json`.
+Use an admitted, explicitly owned authenticated context, reusing the existing
+browser-context broker where available. Transfer only eligible secure Developer
+cookies to the approved private input; do not scan/decrypt unrelated profiles.
+Never place cookies in argv, screenshots, logs or Git. The current kit store is
+plaintext owner-only macOS/Linux storage, not encrypted Keychain storage; its
+parent must be private. Windows is refused without a platform-store adapter.
+
+`status` proves a scoped key-list request, not program membership or readiness of
+every Apple service. HTTP 200 alone is not success: inspect the structured outcome
+and Apple `resultCode`. Numeric 2100 is an agreement-required manual gate, never
+an invitation to accept terms automatically. Expired authentication requires
+fresh authorized enrollment; preserve valid existing sessions and report the
+specific gate instead of repeatedly starting browser flows.
+
+For CI with an imported long-lived distribution certificate, use the kit's
+`signing import` state followed by `signing profiles` with the correct team, bundle
+IDs, channel profile type, xcconfig and export-options paths. Its CLI help and
+README define the options. Do not recreate certificates per build or open a CSR
+upload form merely to fetch profiles.
+
+Key changes must use the kit's supported dry-run plan/apply path, exact team and
+resource binding, and verified postconditions. An environment label is not an
+Apple-side isolation barrier. Never replay an uncertain create/revoke/one-time
+download: retain its operation identity and reconcile first. Keep private keys in
+the approved secret destination, never in receipts or task cards.
+
 ## Human Boundary
 
 Stop for the operator for:
@@ -50,18 +103,25 @@ Stop for the operator for:
 - App Review contact phone number. Apple requires `contactPhone` in international `+<country code> ...` format before review details can be created; never invent or scrape a personal phone number.
 - Saving secrets into GitHub, Keychain, App Store Connect, or another external account unless the operator explicitly authorized that exact destination.
 
+Consume existing destination authorization; do not ask for the same permission
+again. An unavailable command or broken local browser/session adapter is an
+agent-owned capability gap, not an Apple-mandated human gate.
+
 Do not ask the operator to switch branches or manage worktrees. Do that yourself.
 
 ## First Checks
 
-1. Confirm the account state in [developer.apple.com/account](https://developer.apple.com/account):
-   - Team ID.
-   - Program: Apple Developer Program.
-   - Enrolled as Individual or Organization.
-   - Membership active, expired, or processing.
-2. If renewal was just purchased, expect a propagation gap. Apple may show an order confirmation while Certificates, Identifiers & Profiles still says the team is ineligible. Poll the certificate portal instead of assuming the renewal failed.
-3. Check certificate access at `https://developer.apple.com/account/resources/certificates/list`.
-4. Record Team ID and blockers durably in the task card, never in source code.
+1. Select the resource/authentication lane above and verify the exact intended
+   team with an actual read, reusing existing authorized credentials.
+2. Check the capability needed for this operation. Developer key inspection does
+   not require visiting a certificate page; ASC/signing work does not require
+   re-enrolling an otherwise unused Developer session.
+3. If membership state matters, verify it separately: program, enrollment type
+   and active/expired/processing state are not implied by `developer status`.
+   A recently purchased renewal may still be propagating; use read-only API
+   capability checks rather than assuming a successful order made issuance ready.
+4. Record non-secret scope, blockers and verified outcomes on the task; credentials
+   and private account evidence stay in approved private storage.
 
 ## Preferred Direct-Download Path
 
@@ -113,7 +173,10 @@ Do not flip `OURO_RELEASE_SIGNING_MODE=developer-id` or `OURO_REQUIRE_NOTARIZATI
 
 ## Developer ID Certificate Creation
 
-When creating a Developer ID Application certificate:
+Use the kit/API lane where the required certificate operation is supported. The
+following is a portal-only fallback, not the default when an API adapter is missing:
+
+When Apple actually requires a portal issuance flow for a Developer ID Application certificate:
 
 1. Generate the CSR/private key locally in a locked-down directory.
 2. In Apple Certificates, choose `Developer ID Application`.
@@ -366,16 +429,18 @@ Use the modern review-submission flow. The older `POST /v1/appStoreVersionSubmis
 
 ## Apple Portal Automation Discipline
 
-Browser control against Apple account pages is brittle. Use the most deterministic control surface available and avoid restarting a logged-in browser unless it is already unrecoverable.
+Routine resource operations belong in terminal CLI/API tooling. A session
+enrollment may reuse an authenticated browser, but subsequent operations must not
+depend on navigating, rendering or clicking its UI. API resources require their
+own success schemas; do not infer a write contract from a guessed endpoint.
 
-Preferred order:
+Use browser interaction for genuine Apple account/password/2FA/CAPTCHA/payment
+or agreement gates, and for a specifically verified portal-only flow. Missing
+tool coverage or an authentication-transfer fault goes back to the reusable
+adapter, not straight to an operator click handoff. Preserve the already-owned
+signed-in context while diagnosing it.
 
-1. Official/local CLI or API path, when the needed operation supports it.
-2. Browser automation with first-class DOM and file upload support, using an authenticated session.
-3. Live browser UI with keyboard navigation and screenshot gates.
-4. Human handoff only for account prompts, 2FA, CAPTCHA, payment, legal agreements, or a browser-auth state that cannot be transferred.
-
-When using a live browser:
+When a real account gate requires a live browser:
 
 - Do not close or restart a browser that the operator just authenticated unless it is already wedged and unusable.
 - Prefer direct portal URLs over coordinate clicks for navigation.
