@@ -174,7 +174,7 @@
     {
       "name": "sign-apple-apps",
       "path": "skills/sign-apple-apps/SKILL.md",
-      "description": "Set up Apple app signing, notarization, stapling, App Store/TestFlight lanes, and shared apple-distribution-kit checks for native Apple apps. Use when a user asks to sign, notarize, distribute, renew Apple Developer membership, configure notarytool credentials, create certificates, unblock Gatekeeper warnings, submit to App Store Connect, or support direct-download macOS releases alongside App Store/TestFlight channels.",
+      "description": "Use when signing, notarizing or distributing native Apple apps; configuring certificates, provisioning profiles or notary credentials; inspecting or rotating Apple Developer authentication keys; configuring Sign in with Apple or Services IDs; renewing membership; resolving Gatekeeper failures; or submitting App Store/TestFlight releases.",
       "tags": [
         "native",
         "apple",

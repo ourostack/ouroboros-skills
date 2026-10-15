@@ -184,36 +184,7 @@ async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }
       "plugins/plain-language/skills/plain-language/SKILL.md",
       plainLanguage,
     )
-    writeText(
-      fixtureRoot,
-      "skills/sign-apple-apps/SKILL.md",
-      `---
-name: sign-apple-apps
-description: fixture skill
----
-# sign-apple-apps
-
-apple-distribution-kit
-distribution/apple-distribution.json
-scripts/apple-distribution-kit.sh
-bot.ouro.md
-bot.ouro.workbench
-app.spoonjoy
-APP_STORE_CONNECT_API_KEY_ID
-APP_STORE_CONNECT_PROVIDER_PUBLIC_ID
-TestFlight Submission Lane
-testflight plan
-testflight publish
-asc get
-ExportOptions.testflight.plist
-method = app-store-connect
-Stop for the operator for:
-not source files
-non-secret CI/preflight gate
-Use app-neutral names for reusable materials
-For non-Ouro apps, rename these env vars
-`,
-    )
+    copyRepoFile("skills/sign-apple-apps/SKILL.md", fixtureRoot)
 
     for (const script of [
       "scripts/test-autopilot-state-audit.cjs",
