@@ -93,6 +93,25 @@ Apple-side isolation barrier. Never replay an uncertain create/revoke/one-time
 download: retain its operation identity and reconcile first. Keep private keys in
 the approved secret destination, never in receipts or task cards.
 
+For an existing Services ID, bind both its internal ID and expected identifier:
+
+```bash
+apple-distribution-kit developer services get --team-id "$APPLE_TEAM_ID" --session-file "$APPLE_DEVELOPER_SESSION" --service-id "$APPLE_SERVICE_ID" --identifier "$APPLE_SERVICE_IDENTIFIER" --json
+apple-distribution-kit developer services plan --team-id "$APPLE_TEAM_ID" --environment "$APPLE_ENVIRONMENT" --session-file "$APPLE_DEVELOPER_SESSION" --plan-file "$APPLE_SERVICE_PLAN" --config "$APPLE_SERVICE_CONFIG" --json
+apple-distribution-kit developer services apply --team-id "$APPLE_TEAM_ID" --environment "$APPLE_ENVIRONMENT" --session-file "$APPLE_DEVELOPER_SESSION" --plan-file "$APPLE_SERVICE_PLAN" --json
+apple-distribution-kit developer services reconcile --team-id "$APPLE_TEAM_ID" --environment "$APPLE_ENVIRONMENT" --session-file "$APPLE_DEVELOPER_SESSION" --plan-file "$APPLE_SERVICE_PLAN" --json
+```
+
+`get`, `plan` and `reconcile` perform reads, not Apple configuration writes.
+The owner-only desired JSON contains exactly `serviceId`, `identifier`,
+`primaryAppId`, `primaryAppIdentifier`, `domains` and `returnUrls`. Lists are exact
+desired state, not additions. Plan before an authorized apply; apply/reconcile
+accept no new desired-state overrides. Retain the plan and uncertain operation;
+reconcile rather than issuing another PATCH. Services use JSON API resource
+validation, not the keys protocol's numeric success code. Incomplete linkage or
+`invalid_response` without a human gate needs contract/tool diagnosis, not a fresh
+sign-in. This lane does not create/delete Services IDs or manage consent grants.
+
 ## Human Boundary
 
 Stop for the operator for:

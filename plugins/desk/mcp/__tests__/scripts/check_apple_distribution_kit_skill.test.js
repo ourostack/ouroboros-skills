@@ -99,3 +99,17 @@ test("apple distribution kit skill checker exposes a CLI entrypoint", () => {
   assert.equal(process.exitCode, 0)
   process.exitCode = previousExitCode
 })
+
+for (const command of ["developer services get", "developer services plan", "developer services apply", "developer services reconcile"]) {
+  test(`apple distribution kit skill checker refuses guidance missing ${command}`, () => {
+    withFixtureSkill(completeSkillBody().replace(command, ""), (fixtureRoot) => {
+      const stderr = []
+      assert.equal(checker.checkAppleDistributionKitSkill({
+        repoRoot: fixtureRoot,
+        stdout: { write() {} },
+        stderr: { write: text => stderr.push(text) },
+      }), 1)
+      assert.ok(stderr.join("").includes(command))
+    })
+  })
+}
