@@ -3,7 +3,7 @@
     {
       "name": "draining-issues",
       "path": "skills/draining-issues/SKILL.md",
-      "description": "Use when assigned to draining issues, an issue drain, a repository issue queue, or prompt requests, including resuming an existing drain.",
+      "description": "Use when assigned to draining issues, an issue drain, a repository issue queue, or prompt requests, including resuming a drain or watching for new issues.",
       "tags": ["workflow", "issues", "issue-drain", "prompt-requests", "delivery"]
     },
     {
