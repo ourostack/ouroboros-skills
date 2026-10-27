@@ -1,6 +1,12 @@
 {
   "skills": [
     {
+      "name": "draining-issues",
+      "path": "skills/draining-issues/SKILL.md",
+      "description": "Use when assigned to draining issues, an issue drain, a repository issue queue, or prompt requests, including resuming an existing drain.",
+      "tags": ["workflow", "issues", "issue-drain", "prompt-requests", "delivery"]
+    },
+    {
       "name": "anneal",
       "path": "skills/anneal/SKILL.md",
       "description": "Drive a defined codebase scope to a rigorously-defined, defect-free FIXED POINT via gated, convergent, parallel multi-agent autopilot. Measures a scope against an objective rubric, backlogs every violation, plans the fixes as a dependency graph (PERT), executes them through the work-suite (ideator→planner→doer→adversarial-review→merger) in parallel with serialized merges, and re-measures — looping until the rubric is fully satisfied (the energy function reaches zero) or a safety cap trips. Use when the user wants a scope driven to \"perfect\" with no handwaving. NOT for opportunistic one-off fixes (use inch-worm) or a one-shot audit (use full-systems-audit) — anneal is the convergence ENGINE that uses both.",
