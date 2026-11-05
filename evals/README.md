@@ -15,3 +15,10 @@ The pilot fingerprints each declared owner as a whole file; do not add section o
 Run `node scripts/skill-evals.cjs validate`, `node scripts/skill-evals.cjs fingerprint evals/investigation-boundaries.json`, or `node scripts/skill-evals.cjs verify path/to/result.json`. The fingerprint command prints both hashes a receipt must carry; use its output instead of reserializing the contract.
 
 Add scenarios from observed regressions, not to inflate counts.
+
+`core-meeting-capture.json` exercises receipt-only publication, useful recording
+stills, excluded private screens, unknown multipart clocks, and absent,
+unavailable or irrelevant video. Its inputs are synthetic. Run fresh-context
+no-guidance controls before guided samples; manually inspect each output for
+invented decisions, progress, pixels and completion. Simulated adapter plans
+prove instruction-following only, not actual media retrieval or visual inspection.
