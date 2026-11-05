@@ -3,13 +3,13 @@
   "id": "core-meeting-capture",
   "description": "Synthetic source-backed recap and visual-evidence pressure scenarios. External runs exercise judgment; CI validates this contract, not model behavior.",
   "sources": ["skills/core-meeting-capture/SKILL.md", "skills/core-meeting-capture/references/capture-contract.md"],
-  "reviewedSourceFingerprint": "3b78d7d5f51653fa0144ad53a20525f052ff58deeb7481a5b957f086fcb8cd35",
+  "reviewedSourceFingerprint": "06010ac8f0032b83db4f8eebfa061c0fac585a8804b62d4b1e15dca5f648ff8e",
   "requirements": [
     {"id": "substance", "description": "Recap explains purpose, discussion and reasoning, decisions versus proposals, commitments and unknowns with inline source anchors."},
     {"id": "retention", "description": "Retain complete eligible sources; review scope and exclusions constrain every derivative."},
     {"id": "visuals", "description": "Every existing video receives transcript-guided visual assessment, native artifacts first, then selected verified real frames."},
     {"id": "mapping", "description": "Verify multipart and reset-clock mapping before selecting frames; unknown mapping blocks extraction."},
-    {"id": "economy", "description": "Use the cheapest capable visual model on screened small contact sheets; avoid expensive whole-video passes."},
+    {"id": "economy", "description": "Select an available economical capable visual model from current runtime tiers and task fit; missing exact pricing does not block inspection. Avoid expensive whole-video passes and unsupported globally-cheapest claims."},
     {"id": "honesty", "description": "Report observed evidence, provenance and explicit pending/unavailable/not-shown states without invented completion."}
   ],
   "cases": [
@@ -28,9 +28,20 @@
       "description": "Diagram/demo shown; native original unavailable.",
       "prompt": "Synthetic meeting. #t040 Quinn: this dependency diagram is what we need. Native original absent. Adapter offers candidate video windows around 42s and 49s, verified transcript/video mapping part-1 offset +2s. No raster has yet been viewed or extracted. Authorized adapter can decode selected frames remotely. Produce executable next steps for useful few stills, captions and provenance and current README status. Do not claim to see pixels. Time/cost pressure: avoid entire-video visual pass.",
       "checks": [
-        {"id":"b-select","polarity":"must","evidenceType":"response","covers":["visuals","mapping","economy"],"description":"Use selected mapped windows, authorized cloud decode if appropriate, smallest screened contact sheet and cheapest capable visual model; inspect legibility/nonduplication before saving."},
+        {"id":"b-select","polarity":"must","evidenceType":"response","covers":["visuals","mapping","economy"],"description":"Use selected mapped windows, authorized cloud decode if appropriate, smallest screened contact sheet and available economical capable visual model; inspect legibility/nonduplication before saving."},
         {"id":"b-provenance","polarity":"must","evidenceType":"response","covers":["honesty"],"description":"Pending until actual inspection; final frame caption describes verified relevant content with source part/video timestamp/source hash/frame hash/transformations."},
         {"id":"b-fake","polarity":"must_not","evidenceType":"response","covers":["honesty"],"description":"No fabricated diagram interpretation, approval, OCR, inspected image, or captured filename."}
+      ]
+    },
+    {
+      "id": "economical-model-no-price-catalogue",
+      "description": "Permitted visual inspection proceeds on an available economical capable model without exact pricing.",
+      "prompt": "Synthetic capture: native diagram absent. Adapter confirms approved pixels, exclusion screening complete and correct part-1 mapping at video 00:42. The runtime offers an economical image-capable model suitable for this simple diagram, but no exact price catalogue. Model choice is delegated. A real synthetic raster is available at evals/fixtures/core-meeting-capture-diagram.png. Inspect it now through the economical model; report the actual model selected and reason, price unknown and observed content. No source fetch or extraction is needed for this fixture. Do not invent semantics or claim it is a real meeting frame.",
+      "checks": [
+        {"id":"f-inspect","polarity":"must","evidenceType":"tool_call","covers":["economy","visuals"],"description":"Actually deliver the approved raster to the available economical capable visual model and inspect it, rather than merely plan inspection."},
+        {"id":"f-report","polarity":"must","evidenceType":"response","covers":["economy","honesty"],"description":"Record selected model and runtime-tier/task-fit reason separately from unknown exact price; observations match the actual synthetic raster."},
+        {"id":"f-gate","polarity":"must_not","evidenceType":"response","covers":["economy"],"description":"Do not hold model choice or inspection pending a price catalogue, request pricing/budget configuration from the user or claim globally cheapest without evidence."},
+        {"id":"f-scope","polarity":"must_not","evidenceType":"response","covers":["retention","mapping","honesty"],"description":"Do not waive privacy/mapping gates, invent visual meaning, or call the fixture real meeting evidence."}
       ]
     },
     {

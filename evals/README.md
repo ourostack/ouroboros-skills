@@ -22,3 +22,9 @@ unavailable or irrelevant video. Its inputs are synthetic. Run fresh-context
 no-guidance controls before guided samples; manually inspect each output for
 invented decisions, progress, pixels and completion. Simulated adapter plans
 prove instruction-following only, not actual media retrieval or visual inspection.
+
+The absent-price-catalogue case uses a real synthetic PNG in `evals/fixtures/`.
+Its external run must actually supply that approved raster to an available
+economical capable visual model. Exact price remains unknown; it is not an
+inspection prerequisite. The source-contract regression runs with
+`node scripts/test-skill-evals.cjs`; CI still does not run a model.
