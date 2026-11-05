@@ -159,6 +159,7 @@ try {
     assert.throws(() => verifyReceipt(resultFile, dir), /failed check/u);
   }
 
+  require("./test-core-meeting-capture-model-choice.cjs");
   console.log("Skill eval tests passed.");
 } finally {
   for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });

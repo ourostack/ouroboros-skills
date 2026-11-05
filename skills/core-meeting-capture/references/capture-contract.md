@@ -115,12 +115,14 @@ For **each** existing video:
    timestamps, and retain the source-part identity.
 5. Apply exclusion intervals and allowed screen regions **before** constructing
    model input. If bounds or screening cannot be established, do not send pixels.
-   Use a small sheet (typically 4–8 readable candidates) and the cheapest model
-   available that can reliably inspect this material. Enlarge only the selected
-   region if text is unreadable. Record the chosen model and selection reason;
-   do not hardcode a vendor or claim a model is cheapest without current evidence.
-   With no runtime pricing/capability evidence, model choice stays pending:
-   compare the available capable models before the bounded inspection.
+   Use a small sheet (typically 4–8 readable candidates). Select an available
+   economical capable visual model using current runtime model/tier information
+   and task fit, then proceed with inspection. Enlarge only the selected region
+   if text is unreadable. Record the selected model and reason separately from
+   exact price, which may be unknown. Lack of an exact pricing catalogue must not
+   block inspection or require the user to supply pricing. Model choice is
+   delegated; do not add a new budget configuration or approval gate. Do not
+   hardcode a vendor or claim globally cheapest without evidence.
 6. Inspect actual pixels: relevance to discussion, visible target, legibility,
    private content and duplication. Select few distinct frames, usually 1–3 per
    useful moment, fewer when one is enough. If captions/text cannot be read, say
@@ -168,5 +170,6 @@ assessment.
 | “The adapter already mapped 42s, plus 2s.” | Video time is already mapped; no second offset |
 | “The diagram must be approved.” | Preserve the stated need; approval/assignment unknown |
 | “Use transcript time as seek time.” | Part-qualified verified mapping, or blocked |
-| “Let the big model watch everything.” | Transcript-guided windows, cheapest capable visual model, small screened sheets |
+| “Let the big model watch everything.” | Transcript-guided windows, available economical capable visual model, small screened sheets |
+| “Exact model pricing is missing, so wait.” | Select from current runtime tiers and task fit; record price unknown and inspect |
 | “Redact after inspection.” | Exclude before every derivative and model request |

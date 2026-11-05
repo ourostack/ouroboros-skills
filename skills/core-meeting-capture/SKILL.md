@@ -63,8 +63,11 @@ adapter; inspect them, do not invent replacements.
 Before seeking, verify recording part and transcript-to-video mapping, especially
 reset clocks. Adapter-provided video times are already mapped: do not offset
 them twice. Unknown mapping blocks extraction. Screen exclusions before model
-requests. Use the **cheapest available capable visual model**, small readable
-contact sheets, and bounded candidate windows; never an expensive whole-video
+requests. Select an **available economical capable visual model** using current
+runtime model/tier information and task fit. Record the selected model and reason;
+exact price may be unknown and must not block inspection. Do not claim globally
+cheapest without evidence. Use small readable contact sheets and bounded candidate
+windows; never an expensive whole-video
 pass. Prefer authorized cloud decode for large/remote recordings.
 
 Save only legible, relevant, nonduplicate inspected frames; record provenance
