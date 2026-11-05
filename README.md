@@ -74,6 +74,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | Skill | Description |
 |-------|-------------|
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
+| **core-meeting-capture** | Source-backed substantive meeting recaps and transcript-guided visual evidence; provider access stays in thin adapters. |
 | **autopilot** | Keep authorized long-horizon work moving through terminal delivery and the continuation scan. |
 | **stay-in-turn** | Keep long-running work in the same turn with a native notification path or bounded foreground fallback. |
 | **work-ideator** | Resolve material ambiguity and choose the smallest viable shape; skip when the task is clear. |
