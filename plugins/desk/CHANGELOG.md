@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 3.2.2 — 2026-11-05
+
+**`evidence-discipline` "Discover before invent" now covers investigation inputs.** When validating or diagnosing against a system where the reporter already shared a repro (a query, dashboard, recorded command, or identifier/tag), the agent runs that artifact first and passes it into the investigation prompt verbatim; it builds a fresh query only if the provided one is absent or insufficient. Starting from scratch when the exact repro was handed over reinvents a worse version (wrong table, wrong identifier) and can report "couldn't confirm" on something the shared repro confirms immediately. Prose-only (skill body; no MCP or code surface). `desk-mcp@1.3.4`, Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
+
 ## 3.2.1 — 2026-11-05
 
 **`repo-handling` auto-discovery now probes Windows `src` roots and matches clones on the remote, not the directory name.** A clone kept at a drive-rooted path (`C:\src\`, `Q:\src\`) or under a name other than `<repo-name>` (for example two clones of one upstream, one per long-lived branch) was undiscoverable, so the worker asked the operator a question the filesystem already answered. The probe now includes the Windows roots and, before falling back to asking, scans each conventional root's children for any directory whose `origin` remote matches the target upstream. Prose-only (skill body; no MCP or code surface). `desk-mcp@1.3.4`, Work Suite v3.0.0, Plain Language v0.2.0, and Ponytail v4.9.0 remain unchanged.
