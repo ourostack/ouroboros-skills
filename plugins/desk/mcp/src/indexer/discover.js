@@ -1,12 +1,19 @@
 // discover.js — walk a desk root and enumerate the .md files that get indexed.
 //
-// Per planning Unit 4 + desk-search-design §2:
+// Per planning Unit 4 + desk-search-design §2 + 1.1 archive-search amendment:
 //   In scope: task.md, planning.md, doing.md, feedback.md, friction notes
 //             (cross-cutting at _meta/friction.md + track-local under
-//             _friction/*.md), lesson notes at _meta/tips/*.md.
-//   Skipped: node_modules/, .state/, .git/, anything under _archive (we
-//            don't index archived content per "Indexing strategy"), and
-//            .bak files.
+//             _friction/*.md), lesson notes at _meta/tips/*.md. Docs under
+//             any _archive/ ancestor ARE indexed too, but flagged
+//             `is_archived: true` so search tools can scope them in or out.
+//   Skipped: node_modules/, .state/, .git/, and .bak files.
+//
+// 1.1 rationale: archive = preserve for future recall, not delete. The
+// reason we move things to _archive/ is precisely so we can come back to
+// them later — making them searchable is the whole point. v1.0 erroneously
+// skipped archive at index time, which made historical recall impossible.
+// 1.1 indexes everything; per-tool defaults in search.js decide whether
+// archive is included by default (desk_recall: yes, desk_search: no).
 //
 // For each match we compute kind/track/task_slug from the path shape, parse
 // frontmatter (tolerant — falls back to {} on parse failure), hash the
@@ -63,8 +70,9 @@ async function walk(deskRoot, dir, out) {
     const name = ent.name
     if (ent.isDirectory()) {
       if (SKIP_DIRS.has(name)) continue
-      // Archive directories anywhere in the tree are off-limits.
-      if (name === "_archive" || name.startsWith("_archive")) continue
+      // 1.1: archive dirs DO get walked. Docs under them are flagged
+      // is_archived=true in describeDoc and per-tool search defaults
+      // decide whether to include them.
       const sub = path.join(dir, name)
       await walk(deskRoot, sub, out)
       continue
@@ -85,11 +93,23 @@ async function walk(deskRoot, dir, out) {
 /**
  * Decide whether a relative path is one of the doc shapes we index. Exposed
  * for tests.
+ *
+ * 1.1 amendment: any `.md` file under any `_archive/` ancestor is indexable
+ * regardless of basename. Migrated archive content preserves legacy filenames
+ * (`<date>-<slug>-planning-<topic>.md`) that don't match the new shape grammar
+ * but is still semantically valuable for historical recall.
  */
 export function isIndexable(relPath) {
   const segments = relPath.split(path.sep)
   const base = segments[segments.length - 1]
   if (TASK_DOC_BASENAMES.has(base)) return true
+
+  // 1.1: any .md file under an _archive/ ancestor counts. Archived = preserved
+  // for future recall, the whole point is searchability.
+  const underArchive = segments
+    .slice(0, -1)
+    .some((s) => s === "_archive" || s.startsWith("_archive"))
+  if (underArchive && base.endsWith(".md")) return true
 
   // Lessons: _meta/tips/<topic>.md (any depth under _meta/tips ok)
   const tipsIdx = segments.indexOf("tips")
@@ -135,6 +155,19 @@ export function classify(relPath) {
     return { kind: base.replace(/\.md$/, ""), track: null, task_slug: null }
   }
 
+  // 1.1: archived legacy filenames. Infer kind from the basename pattern
+  // (`<date>-planning-<topic>.md`, `<date>-doing-<topic>.md`); fall back to
+  // `archive` for anything else.
+  const underArchive = segments.some((s) => s === "_archive" || s.startsWith("_archive"))
+  if (underArchive && base.endsWith(".md")) {
+    const stem = base.replace(/\.md$/, "")
+    let kind = "archive"
+    if (/-planning-/.test(stem) || stem.startsWith("planning-")) kind = "planning"
+    else if (/-doing-/.test(stem) || stem.startsWith("doing-")) kind = "doing"
+    else if (/-feedback-/.test(stem) || stem.startsWith("feedback-")) kind = "feedback"
+    return { kind, track: null, task_slug: null }
+  }
+
   // Lessons under _meta/tips/.
   if (segments.includes("_meta") && segments.includes("tips")) {
     return { kind: "lesson", track: null, task_slug: null }
@@ -175,6 +208,13 @@ async function describeDoc(deskRoot, abs, rel) {
   const body = parsed.content ?? ""
   const hash = createHash("sha256").update(raw).digest("hex")
   const { kind, track, task_slug } = classify(rel)
+  // is_archived: any ancestor directory in the path is named `_archive`
+  // (or starts with `_archive`). Matches the v1.0 skip predicate but
+  // now stored as a flag instead of an exclusion.
+  const segments = rel.split(path.sep)
+  const is_archived = segments
+    .slice(0, -1) // exclude the filename itself
+    .some((s) => s === "_archive" || s.startsWith("_archive"))
 
   return {
     path: rel,
@@ -189,6 +229,7 @@ async function describeDoc(deskRoot, abs, rel) {
     updated_at: normalizeDate(fm.updated ?? fm.updated_at ?? null),
     hash,
     mtime: Math.floor(stat.mtimeMs),
+    is_archived,
     frontmatter: fm,
     body,
     raw,

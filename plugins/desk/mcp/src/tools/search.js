@@ -185,9 +185,39 @@ function decodeEmbedding(buf) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Resolve the `scope` parameter to a docs-level filter clause.
+ *
+ * `scope` values:
+ *   "active"   — is_archived = 0 (default for desk_search)
+ *   "archived" — is_archived = 1
+ *   "all"      — no filter (default for desk_recall, desk_similar, desk_timeline)
+ *
+ * If the caller passes an unrecognized value, falls back to the toolDefault.
+ *
+ * @param {string|undefined} scope  caller-supplied value
+ * @param {"active"|"archived"|"all"} toolDefault per-tool default
+ * @param {string} alias SQL table alias
+ * @returns {{sql: string, params: Array}}
+ */
+function resolveScopeFilter(scope, toolDefault, alias = "d") {
+  const resolved = ["active", "archived", "all"].includes(scope)
+    ? scope
+    : toolDefault
+  if (resolved === "all") return { sql: "", params: [] }
+  if (resolved === "archived") {
+    return { sql: ` AND ${alias}.is_archived = 1`, params: [] }
+  }
+  // "active" (the default)
+  return { sql: ` AND ${alias}.is_archived = 0`, params: [] }
+}
+
+/**
  * Build the `WHERE` clause + bind values for the docs-level filter set.
  * Returns `{ sql, params }`. `sql` is empty string when no filters; else
  * starts with " AND ...".
+ *
+ * Note: `scope` is handled separately by `resolveScopeFilter()` so per-tool
+ * defaults can differ. Callers compose the two: `${filterFragment}${scopeFragment}`.
  */
 function buildDocsFilter(filters, alias = "d") {
   if (!filters || typeof filters !== "object") return { sql: "", params: [] }
@@ -286,7 +316,7 @@ function hydrateChunks(db, chunkIds) {
     .prepare(
       `SELECT c.id AS chunk_id, c.text, c.heading, c.doc_id,
               d.path AS doc_path, d.kind, d.track, d.task_slug,
-              d.status, d.updated_at,
+              d.status, d.updated_at, d.is_archived,
               v.embedding AS embedding
        FROM chunks c
        JOIN docs d ON d.id = c.doc_id
@@ -330,6 +360,18 @@ function passesFilter(row, filters) {
   return true
 }
 
+/**
+ * Post-filter a hydrated row by scope. Used after KNN gather where the
+ * is_archived filter couldn't be expressed inside the vec0 MATCH.
+ */
+function passesScope(row, scope, toolDefault) {
+  const resolved = ["active", "archived", "all"].includes(scope) ? scope : toolDefault
+  if (resolved === "all") return true
+  const archived = row.is_archived ? true : false
+  if (resolved === "archived") return archived
+  return !archived
+}
+
 // ---------------------------------------------------------------------------
 // Tool: desk_search
 // ---------------------------------------------------------------------------
@@ -358,6 +400,7 @@ export async function desk_search({ deskRoot, input, opts }) {
   }
   const limit = clampLimit(input?.limit)
   const filters = input?.filters ?? null
+  const scope = input?.scope
   const now = opts?.now ?? Date.now()
 
   await ensureIndex(deskRoot)
@@ -365,6 +408,8 @@ export async function desk_search({ deskRoot, input, opts }) {
   try {
     const { matchExpr, terms } = buildFtsQuery(query)
     const filter = buildDocsFilter(filters)
+    // desk_search default: active. Day-to-day signal; archive on opt-in.
+    const scopeFilter = resolveScopeFilter(scope, "active")
 
     // Embed the query (with caller-injectable opts for tests).
     const { vector: queryVec, available: semanticAvailable } = await embedQuery(
@@ -376,8 +421,8 @@ export async function desk_search({ deskRoot, input, opts }) {
     const ftsCandidates = gatherFtsCandidates(
       db,
       matchExpr,
-      filter.sql,
-      filter.params,
+      filter.sql + scopeFilter.sql,
+      [...filter.params, ...scopeFilter.params],
       limit * 4,
     )
     const vecCandidates = semanticAvailable
@@ -419,6 +464,7 @@ export async function desk_search({ deskRoot, input, opts }) {
       const row = hydrated.get(id)
       if (!row) continue
       if (!passesFilter(row, filters)) continue
+      if (!passesScope(row, scope, "active")) continue
       const parts = {
         semantic: cosByChunk.get(id) ?? 0,
         bm25: bm25ByChunk.get(id) ?? 0,
@@ -483,6 +529,7 @@ export async function desk_recall({ deskRoot, input, opts }) {
     return { results: [], note: "empty topic" }
   }
   const limit = clampLimit(input?.limit)
+  const scope = input?.scope
 
   await ensureIndex(deskRoot)
   const db = openDb(deskRoot)
@@ -497,7 +544,9 @@ export async function desk_recall({ deskRoot, input, opts }) {
     }
 
     // Over-fetch a wider net (limit * 3 per spec) — clustering would dedupe
-    // down; MVP just dedupes by doc_id and takes top-limit.
+    // down; MVP just dedupes by doc_id and takes top-limit. desk_recall
+    // default: "all" — this IS the historical/lookback tool; archive
+    // should be searched by default.
     const vecRows = gatherVecCandidates(db, queryVec, limit * 3)
     const chunkIds = vecRows.map((r) => r.chunk_id)
     const hydrated = hydrateChunks(db, chunkIds)
@@ -506,6 +555,7 @@ export async function desk_recall({ deskRoot, input, opts }) {
     for (const r of vecRows) {
       const row = hydrated.get(r.chunk_id)
       if (!row || !row.embedding) continue
+      if (!passesScope(row, scope, "all")) continue
       const score = clipCosine(cosine(queryVec, row.embedding))
       const existing = bestByDoc.get(row.doc_id)
       if (!existing || score > existing.score) {
@@ -560,6 +610,7 @@ export async function desk_similar({ deskRoot, input, opts }) {
     return { error: "invalid_input", note: "`path` is required" }
   }
   const limit = clampLimit(input?.limit)
+  const scope = input?.scope
 
   await ensureIndex(deskRoot)
   const db = openDb(deskRoot)
@@ -620,6 +671,9 @@ export async function desk_similar({ deskRoot, input, opts }) {
       if (!row) continue
       if (row.doc_id === seedDoc.id) continue
       if (!row.embedding) continue
+      // desk_similar default: "all" — similarity has no time/status semantic;
+      // when asking "what's like this doc" we want the full corpus.
+      if (!passesScope(row, scope, "all")) continue
       const score = clipCosine(cosine(centroid, row.embedding))
       const existing = bestByDoc.get(row.doc_id)
       if (!existing || score > existing.score) {
@@ -668,12 +722,15 @@ export async function desk_timeline({ deskRoot, input, opts }) {
   const to = String(input?.to ?? "").trim() || null
   const query = String(input?.query ?? "").trim()
   const limit = clampLimit(input?.limit)
+  const scope = input?.scope
   const now = opts?.now ?? Date.now()
 
   await ensureIndex(deskRoot)
   const db = openDb(deskRoot)
   try {
-    // Window filter clauses for the docs table.
+    // Window filter clauses for the docs table + scope filter.
+    // desk_timeline default: "all" — timeline is already temporally bounded;
+    // archive items in the window are legitimate timeline entries.
     const params = []
     const clauses = []
     if (from) {
@@ -684,7 +741,9 @@ export async function desk_timeline({ deskRoot, input, opts }) {
       clauses.push("d.updated_at <= ?")
       params.push(to)
     }
-    const windowSql = clauses.length ? " AND " + clauses.join(" AND ") : ""
+    const scopeFilter = resolveScopeFilter(scope, "all")
+    const windowSql = (clauses.length ? " AND " + clauses.join(" AND ") : "") + scopeFilter.sql
+    params.push(...scopeFilter.params)
 
     let semanticAvailable = false
     let queryVec = null
@@ -737,9 +796,10 @@ export async function desk_timeline({ deskRoot, input, opts }) {
       for (const id of chunkIds) {
         const row = hydrated.get(id)
         if (!row) continue
-        // Re-apply window check (vec candidates aren't filtered upstream).
+        // Re-apply window + scope checks (vec candidates aren't filtered upstream).
         if (from && row.updated_at && row.updated_at < from) continue
         if (to && row.updated_at && row.updated_at > to) continue
+        if (!passesScope(row, scope, "all")) continue
         const parts = {
           semantic: cosByChunk.get(id) ?? 0,
           bm25: bm25ByChunk.get(id) ?? 0,

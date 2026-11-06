@@ -55,12 +55,27 @@ export function openDb(deskRoot, opts = {}) {
 }
 
 /**
- * Apply schema.sql. Idempotent — every statement uses IF NOT EXISTS so
- * repeated invocations are safe.
+ * Apply schema.sql + run additive migrations.
+ *
+ * The base schema is idempotent (every statement uses IF NOT EXISTS).
+ * Additive migrations for columns added after v1.0 are guarded by checking
+ * sqlite_master / table_info so they're also idempotent.
  */
 export function runMigrations(db) {
   const sql = readSchemaSql()
   db.exec(sql)
+
+  // 1.1 migration: docs.is_archived column. Older indexes (built under
+  // v1.0) don't have it; add it idempotently so callers can WHERE-filter.
+  // Pre-existing rows get is_archived=0; the next reindex updates them.
+  // The new index is also added defensively.
+  const docCols = db.prepare("PRAGMA table_info(docs)").all()
+  if (!docCols.some((c) => c.name === "is_archived")) {
+    db.exec(
+      "ALTER TABLE docs ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0",
+    )
+    db.exec("CREATE INDEX IF NOT EXISTS idx_docs_is_archived ON docs(is_archived)")
+  }
 }
 
 /** Clean shutdown — close DB handle. Safe to call multiple times. */

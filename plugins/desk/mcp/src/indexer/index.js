@@ -126,9 +126,9 @@ async function indexOneDoc(db, doc, opts, summary) {
     // Upsert docs row.
     const upsert = db.prepare(
       `INSERT INTO docs (path, kind, track, task_slug, status, schema_version,
-                         created_at, updated_at, hash, mtime, frontmatter)
+                         created_at, updated_at, hash, mtime, is_archived, frontmatter)
        VALUES (@path, @kind, @track, @task_slug, @status, @schema_version,
-               @created_at, @updated_at, @hash, @mtime, @frontmatter)
+               @created_at, @updated_at, @hash, @mtime, @is_archived, @frontmatter)
        ON CONFLICT(path) DO UPDATE SET
          kind=excluded.kind,
          track=excluded.track,
@@ -139,6 +139,7 @@ async function indexOneDoc(db, doc, opts, summary) {
          updated_at=excluded.updated_at,
          hash=excluded.hash,
          mtime=excluded.mtime,
+         is_archived=excluded.is_archived,
          frontmatter=excluded.frontmatter
        RETURNING id`,
     )
@@ -153,6 +154,7 @@ async function indexOneDoc(db, doc, opts, summary) {
       updated_at: doc.updated_at,
       hash: doc.hash,
       mtime: doc.mtime,
+      is_archived: doc.is_archived ? 1 : 0,
       frontmatter: JSON.stringify(doc.frontmatter ?? {}),
     })
     const docId = row.id

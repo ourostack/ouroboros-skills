@@ -46,9 +46,12 @@ test("discover picks up only the indexable shapes", async () => {
   const docs = await discover(root)
   const paths = docs.map((d) => d.path).sort()
 
+  // 1.1: _archive content is included; per-tool search defaults scope it
+  // in/out. node_modules/, .state/, .bak files still skipped.
   assert.deepEqual(paths, [
     "_meta/friction.md",
     "_meta/tips/some-topic.md",
+    "trackA/_archive/old-task/task.md",
     "trackA/_friction/2026-05-01-flaky.md",
     "trackA/task-1/doing.md",
     "trackA/task-1/feedback.md",
@@ -56,6 +59,20 @@ test("discover picks up only the indexable shapes", async () => {
     "trackA/task-1/task.md",
     "trackB/task-2/task.md",
   ])
+})
+
+test("discover flags _archive docs with is_archived=true", async () => {
+  const root = await buildFixture()
+  const docs = await discover(root)
+  const byPath = Object.fromEntries(docs.map((d) => [d.path, d]))
+
+  // _archive content is flagged
+  assert.equal(byPath["trackA/_archive/old-task/task.md"].is_archived, true)
+
+  // Active content is not
+  assert.equal(byPath["trackA/task-1/task.md"].is_archived, false)
+  assert.equal(byPath["_meta/friction.md"].is_archived, false)
+  assert.equal(byPath["trackA/_friction/2026-05-01-flaky.md"].is_archived, false)
 })
 
 test("discover classifies each doc correctly + extracts frontmatter", async () => {

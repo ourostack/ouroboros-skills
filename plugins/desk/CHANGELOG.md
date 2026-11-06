@@ -1,5 +1,24 @@
 # desk plugin — changelog
 
+## 1.1.0 — 2026-05-22
+
+**Archive is now searchable.** Reversed the v1.0 Unit 4 decision to skip `_archive/` at index time. Archive content was always meant to be preserved for future recall — making it unsearchable defeated the purpose.
+
+What changed:
+
+- **Indexer**: walks under `_archive/` ancestors. Loose `.md` files there (migrated legacy filenames like `2026-02-23-planning-foo.md`) are also indexed — basename pattern infers kind (`-planning-` → planning, `-doing-` → doing, etc.) or falls back to `kind: archive`. Each indexed doc gets a new `is_archived: bool` flag.
+- **Search tools**: all five accept an optional `scope: "active" | "archived" | "all"` parameter. **Per-tool defaults match each tool's purpose:**
+  - `desk_search` → `active` (day-to-day signal beats archive noise)
+  - `desk_recall` → `all` (this IS the historical lookback tool)
+  - `desk_similar` → `all` (similarity has no time/status semantic)
+  - `desk_timeline` → `all` (already temporally scoped by window)
+  - `desk_thread` → no scope param; always walks across (refs don't respect archive boundaries)
+- **DB schema**: new `is_archived` column on `docs` table + index. Migration is idempotent: opening an existing v1.0 DB ALTER-ADDs the column with default 0; next reindex populates correctly.
+
+Operator-visible: `desk_recall("teams bot integration")` now finds archived planning/doing notes from months ago. `desk_search("teams bot")` still defaults to active-only — agents asking "what should I do next" get current work, not archived history. Override per-call with `scope: "all"` when historical breadth matters.
+
+Migration: existing indexes auto-upgrade their schema on next open. To populate archive embeddings, run `ouro desk reindex --force` once per bundle (or `mcp call ... desk_reindex --args '{"force":true}'`).
+
 ## 1.0.0 — 2026-05-22
 
 **v1.0 declared.** Substrate validated end-to-end on a real ouroboros agent bundle:
