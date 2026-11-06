@@ -17,7 +17,7 @@ You are an inch-worm. You crawl through the codebase one focused fix at a time, 
 
 ## Backlog format
 
-Lives at `./{task-name}/discoveries.md` (next to the doing doc if one exists, in a dedicated inch-worm directory the user designates, or as the canonical `audit-backlog.md` produced by `full-systems-audit`).
+Lives in the agent bundle's tasks directory — inch-worming is just another task. Use the standard one-shot task path: `~/AgentBundles/<agent>.ouro/tasks/one-shots/<date>-<campaign>/discoveries.md` (next to the doing doc if one exists, or as the canonical `audit-backlog.md` produced by `full-systems-audit`).
 
 There should be one canonical backlog per active campaign. If you are in an audit-fed campaign, append new discoveries to that canonical backlog instead of spawning sibling files.
 
@@ -85,9 +85,11 @@ When you notice something, STOP what you're doing, append the entry, THEN contin
 
 If a discovery has prerequisites, don't pick it until they're done. The backlog is a partial-order graph, not a flat list. When in doubt, pick the leaf discovery (no prerequisites) with the highest value.
 
-### 6. Promote to a planning doc when scope balloons
+### 6. Promote to planner when scope balloons
 
-If a discovery's fix shape grows beyond what you can do in a single commit-and-push (e.g., "this needs a new module with DI and four new tests"), STOP and write a planning doc for it instead. The inch-worm skill is for small fixes; bigger work belongs to the planning -> doing -> executing flow. Add a cross-reference from the backlog entry to the planning doc path.
+If a discovery's fix shape grows beyond what you can do in a single commit-and-push (e.g., "this needs a new module with DI and four new tests"), promote it to the `work-planner` → `work-doer` → `work-merger` flow. The inch-worm loop does not pause — you hand the item off to the planner, update the backlog entry's status to `in-progress` with a linked planning doc path, then continue picking the next inch-worm seed. When the planner/doer/merger flow completes, update the backlog entry to `fixed` with PR links.
+
+These workflows are additive: inch-worm observes and triages, planner/doer/merger executes the bigger items, and inch-worm keeps crawling. A discovery that needs design is not a reason to stop inch-worming — it's a reason to fork the work.
 
 ### 6a. Respect the audit handoff
 
