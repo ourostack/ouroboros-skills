@@ -21,6 +21,9 @@ ouroboros-skills/
       SKILL.md
     video-editing/           # Remotion-based video production
       SKILL.md
+    word-docs/               # Markdown to Word doc conversion
+      SKILL.md
+      md_to_docx.py
 ```
 
 Each skill lives in its own directory under `skills/` and contains a `SKILL.md` file with YAML frontmatter (`name`, `description`) followed by the skill's workflow instructions.
@@ -64,3 +67,4 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **work-merger** | Sync-and-merge agent. Creates PRs, waits for CI, merges to main. |
 | **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
 | **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
+| **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
