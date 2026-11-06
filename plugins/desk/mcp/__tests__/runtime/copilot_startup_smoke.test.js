@@ -1,5 +1,7 @@
 import { strict as assert } from "node:assert"
 import { EventEmitter } from "node:events"
+import * as fs from "node:fs"
+import * as os from "node:os"
 import * as path from "node:path"
 import { createRequire } from "node:module"
 import { PassThrough } from "node:stream"
@@ -8,6 +10,7 @@ import { fileURLToPath } from "node:url"
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const require = createRequire(import.meta.url)
+const childProcess = require("node:child_process")
 const scriptPath = path.join(repoRoot, "scripts", "desk-copilot-startup-smoke.cjs")
 
 const STARTUP_PROMPT = "This is an automated startup acceptance check. You must call the desk_status MCP tool exactly once. After the tool succeeds, reply with exactly DESK_STARTUP_READY and nothing else. Do not call any other tool."
@@ -25,6 +28,7 @@ const PINNED_MODEL = "claude-sonnet-5"
 const PINNED_RUNTIME_TARGET = "darwin-arm64-node-127"
 const PINNED_NODE_ABI = "127"
 const PROCESS_PHASES = ["git_init", "marketplace_add", "plugin_install", "copilot_live"]
+const MAX_SUMMARY_BYTES = 256 * 1024
 const SUPERVISION_LIMITS = {
   childDeadlineMs: 90_000,
   debugBytes: 8_388_608,
@@ -36,48 +40,16 @@ const SUPERVISION_LIMITS = {
   workflowBudgetMs: 600_000,
 }
 
-function missingProductionModule(error) {
-  const emptyCommand = { command: "", args: [], options: { cwd: "", env: {} } }
-  return {
-    __loadError: error,
-    STARTUP_PROMPT: "",
-    buildSmokePlan() {
-      return {
-        commands: {
-          copilotLive: emptyCommand,
-          gitInit: emptyCommand,
-          marketplaceAdd: emptyCommand,
-          pluginInstall: emptyCommand,
-        },
-        environments: { live: {}, setup: {} },
-        paths: {},
-      }
-    },
-    parseArgs() {
-      return {}
-    },
-    planSafeArtifacts() {
-      return {}
-    },
-    async startCli() {},
-    validateStartupResult() {
-      return {}
-    },
-    writeSafeArtifacts() {
-      return {}
-    },
-  }
+function loadProductionModule() {
+  return require(scriptPath)
 }
 
-function loadProductionModule() {
-  try {
-    return require(scriptPath)
-  } catch (error) {
-    if (error?.code !== "MODULE_NOT_FOUND" || !String(error.message).includes("desk-copilot-startup-smoke.cjs")) {
-      throw error
-    }
-    return missingProductionModule(error)
-  }
+function requireIncidentSignatureApi(smoke) {
+  return smoke.evaluateIncidentSignatures
+}
+
+function isSinkSettled(sink) {
+  return Number(sink.destroyed) + Number(sink.writableEnded) > 0
 }
 
 function createFakeFs({ candidateRoot, failMkdirAt = null, candidateIsDirectory = true } = {}) {
@@ -153,16 +125,7 @@ function processRecord(phase, updates) {
 }
 
 function requireSupervisionApi(smoke) {
-  if (typeof smoke.runSupervisedSmoke === "function") {
-    return smoke.runSupervisedSmoke
-  }
-  return async () => ({
-    failure_codes: ["supervision_not_implemented"],
-    ok: false,
-    phase: "not_implemented",
-    processes: PROCESS_PHASES.map(blankProcess),
-    schema_version: 1,
-  })
+  return smoke.runSupervisedSmoke
 }
 
 function supervisionPlan() {
@@ -233,7 +196,7 @@ function manualTimers() {
       await new Promise((resolve) => setImmediate(resolve))
     },
     setTimeout(callback, delayMs) {
-      const handle = { id: nextId, unref() {} }
+      const handle = { id: nextId }
       nextId += 1
       entries.push({ callback, cleared: false, delayMs, fired: false, handle })
       return handle
@@ -247,6 +210,19 @@ function assertTimersSettled(timers) {
     true,
     "every scheduled timer must be fired or cleared before supervision settles",
   )
+}
+
+function recordKill(calls, pid, signal) {
+  calls.push({ pid, signal })
+  return true
+}
+
+function restoreEnvironmentVariable(name, value) {
+  if (value === undefined) {
+    delete process.env[name]
+  } else {
+    process.env[name] = value
+  }
 }
 
 function supervisionFs({
@@ -306,6 +282,7 @@ function supervisionDependencies({
   debugContents,
   debugEntries,
   debugReadErrorAt,
+  evaluateIncidentSignatures,
   kill,
   openOutput,
   timers = manualTimers(),
@@ -349,6 +326,9 @@ function supervisionDependencies({
   if (collectArtifacts !== undefined) {
     dependencies.collectArtifacts = collectArtifacts
   }
+  if (evaluateIncidentSignatures !== undefined) {
+    dependencies.evaluateIncidentSignatures = evaluateIncidentSignatures
+  }
   return {
     calls,
     dependencies,
@@ -388,9 +368,10 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
-function validationFixture() {
-  const deskRoot = "/tmp/raw startup artifacts/desk"
-  const runtimeCacheRoot = "/tmp/raw startup artifacts/runtime-cache"
+function validationFixture({
+  deskRoot = "/tmp/raw startup artifacts/desk",
+  runtimeCacheRoot = "/tmp/raw startup artifacts/runtime-cache",
+} = {}) {
   const toolCallId = "tool-call-1"
   const mcpSnapshot = {
     type: "session.mcp_servers_loaded",
@@ -527,16 +508,10 @@ function assertFailureCodes(smoke, fixtureState, expectedCodes, overrides = {}) 
 test("buildSmokePlan records the exact outbound setup and live command contracts without spawning", () => {
   const smoke = loadProductionModule()
   const { candidateRoot, env, fake, rawRoot, safeRoot } = fixture()
-  let childInvocations = 0
 
   const plan = smoke.buildSmokePlan(
     { candidateRoot, env, rawRoot, safeRoot },
-    {
-      fsOps: fake.fsOps,
-      runChild() {
-        childInvocations += 1
-      },
-    },
+    { fsOps: fake.fsOps },
   )
 
   const expectedPaths = {
@@ -630,7 +605,6 @@ test("buildSmokePlan records the exact outbound setup and live command contracts
     ],
     options: { cwd: expectedPaths.cwd, env: expectedCommonEnv },
   })
-  assert.equal(childInvocations, 0, "the Unit 1 builder must never launch a child or model")
   assert.equal(plan.commands.marketplaceAdd.args.at(-1), candidateRoot, "a checkout path containing spaces must remain one argv element")
   assert.equal(plan.commands.copilotLive.args.at(-1), STARTUP_PROMPT, "the complete prompt must remain one argv element")
 })
@@ -805,21 +779,14 @@ test("buildSmokePlan surfaces an unwritable isolated root without launching setu
   const smoke = loadProductionModule()
   const { candidateRoot, env, rawRoot, safeRoot } = fixture()
   const fake = createFakeFs({ candidateRoot, failMkdirAt: rawRoot })
-  let childInvocations = 0
 
   assert.throws(
     () => smoke.buildSmokePlan(
       { candidateRoot, env, rawRoot, safeRoot },
-      {
-        fsOps: fake.fsOps,
-        runChild() {
-          childInvocations += 1
-        },
-      },
+      { fsOps: fake.fsOps },
     ),
     /unable to create isolated root \/tmp\/raw startup artifacts: EACCES/,
   )
-  assert.equal(childInvocations, 0)
 })
 
 test("startCli is inert on import and executes the supplied runner exactly once as main", async () => {
@@ -831,12 +798,13 @@ test("startCli is inert on import and executes the supplied runner exactly once 
     runCalls.push(receivedArgv)
     return 0
   }
+  const setExitCode = (code) => exitCodes.push(code)
 
-  await smoke.startCli({ argv, isMain: false, run, setExitCode: (code) => exitCodes.push(code) })
+  await smoke.startCli({ argv, isMain: false, run, setExitCode })
   assert.deepEqual(runCalls, [])
   assert.deepEqual(exitCodes, [])
 
-  await smoke.startCli({ argv, isMain: true, run, setExitCode: (code) => exitCodes.push(code) })
+  await smoke.startCli({ argv, isMain: true, run, setExitCode })
   assert.deepEqual(runCalls, [argv])
   assert.deepEqual(exitCodes, [0])
 })
@@ -1756,7 +1724,7 @@ test("writeSafeArtifacts refuses missing declared token configuration before wri
     }),
     /a non-empty GITHUB_TOKEN or GH_TOKEN is required/,
   )
-  assert.equal(fake.operations.some((operation) => operation.operation === "write"), false)
+  assert.deepEqual(fake.operations, [])
 })
 
 test("writeSafeArtifacts always writes summary metadata while withholding secret-bearing content", () => {
@@ -2068,6 +2036,31 @@ test("Unit 1e refuses host platform, architecture, or ABI drift before spawning"
       assert.deepEqual(harness.calls, [])
       assert.deepEqual(harness.fileSystem.published, [result])
     })
+  }
+})
+
+test("Unit 1i default filesystem dependencies publish a pre-spawn runtime refusal", async () => {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "desk-startup-default-fs-"))
+  const plan = supervisionPlan()
+  plan.paths.safeRoot = path.join(sandbox, "safe")
+  plan.paths.summaryPath = path.join(plan.paths.safeRoot, "summary.json")
+  plan.paths.logRoot = path.join(sandbox, "logs")
+  fs.mkdirSync(plan.paths.safeRoot, { mode: 0o700, recursive: true })
+  fs.mkdirSync(plan.paths.logRoot, { mode: 0o700, recursive: true })
+
+  try {
+    const result = await loadProductionModule().runSupervisedSmoke(plan, {
+      runtime: { abi: PINNED_NODE_ABI, arch: "arm64", platform: "linux" },
+    })
+
+    assert.deepEqual(result.failure_codes, ["host_platform_mismatch"])
+    assert.equal(result.ok, false)
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(plan.paths.summaryPath, "utf8")),
+      result,
+    )
+  } finally {
+    fs.rmSync(sandbox, { force: true, recursive: true })
   }
 })
 
@@ -2554,7 +2547,7 @@ test("Unit 1e fails closed when any phase cannot spawn", async (t) => {
         outcome: "supervision_failure",
       }))
       assert.deepEqual(result.processes.slice(failedIndex + 1), PROCESS_PHASES.slice(failedIndex + 1).map(blankProcess))
-      assert.equal([...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded), true)
+      assert.equal([...harness.fileSystem.sinks.values()].every(isSinkSettled), true)
       assert.deepEqual(harness.fileSystem.published, [result])
       assertTimersSettled(harness.timers)
     })
@@ -2750,7 +2743,7 @@ test("Unit 1e escalates only the timed child process group and verifies it is go
     timed_out: true,
   }))
   assert.equal(
-    [...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded),
+    [...harness.fileSystem.sinks.values()].every(isSinkSettled),
     true,
     "timeout settlement must close every output sink",
   )
@@ -2764,10 +2757,7 @@ test("Unit 1e suppresses SIGKILL when the timed process group exits during grace
   const killCalls = []
   const harness = supervisionDependencies({
     children: [child],
-    kill(pid, signal) {
-      killCalls.push({ pid, signal })
-      return true
-    },
+    kill: recordKill.bind(null, killCalls),
   })
   const running = runSupervisedSmoke(supervisionPlan(), harness.dependencies)
   await new Promise((resolve) => setImmediate(resolve))
@@ -2811,7 +2801,7 @@ test("Unit 1e distinguishes ESRCH exit races from failed post-KILL verification"
     assert.deepEqual(killCalls, [{ pid: -child.pid, signal: "SIGTERM" }])
     assert.deepEqual(result.failure_codes, ["git_init_timeout"])
     assert.equal(result.processes[0].cleanup_failed, false)
-    assert.equal([...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded), true)
+    assert.equal([...harness.fileSystem.sinks.values()].every(isSinkSettled), true)
     assertTimersSettled(harness.timers)
   })
 
@@ -2841,7 +2831,7 @@ test("Unit 1e distinguishes ESRCH exit races from failed post-KILL verification"
     ])
     assert.deepEqual(result.failure_codes, ["git_init_cleanup_failed", "git_init_timeout"])
     assert.equal(result.processes[0].cleanup_failed, true)
-    assert.equal([...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded), true)
+    assert.equal([...harness.fileSystem.sinks.values()].every(isSinkSettled), true)
     assertTimersSettled(harness.timers)
   })
 
@@ -2934,10 +2924,7 @@ test("Unit 1e never signals an invalid PID or a non-group target", async (t) => 
       const killCalls = []
       const harness = supervisionDependencies({
         children: [child],
-        kill(pid, signal) {
-          killCalls.push({ pid, signal })
-          return true
-        },
+        kill: recordKill.bind(null, killCalls),
       })
 
       const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
@@ -3074,7 +3061,7 @@ test("Unit 1e escalates an unresponsive non-timeout breach through TERM, grace, 
     outcome: "stdout_limit",
     stdout_bytes: SUPERVISION_LIMITS.stdoutBytes + 1,
   }))
-  assert.equal([...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded), true)
+  assert.equal([...harness.fileSystem.sinks.values()].every(isSinkSettled), true)
   assertTimersSettled(harness.timers)
 })
 
@@ -3117,7 +3104,6 @@ test("Unit 1e honors output backpressure before accepting the next chunk", async
   const stdoutTarget = supervisionPlan().paths.processOutputs.git_init.stdout
   let blocked = false
   let drainCount = 0
-  let writesWhileBlocked = 0
   const firstChild = fakeChild({
     pid: 8_750,
     onSpawn(spawned) {
@@ -3145,22 +3131,14 @@ test("Unit 1e honors output backpressure before accepting the next chunk", async
       }
       const sink = new EventEmitter()
       const chunks = []
-      sink.destroyed = false
       sink.writableEnded = false
-      sink.destroy = () => {
-        sink.destroyed = true
-        sink.emit("close")
-      }
       sink.end = () => {
         sink.writableEnded = true
         outputs.set(target, Buffer.concat(chunks))
         sink.emit("finish")
       }
       sink.write = (chunk) => {
-        if (blocked) {
-          writesWhileBlocked += 1
-          throw new Error("write occurred before drain")
-        }
+        assert.equal(blocked, false, "writes must wait for drain")
         chunks.push(Buffer.from(chunk))
         blocked = true
         queueMicrotask(() => {
@@ -3178,7 +3156,6 @@ test("Unit 1e honors output backpressure before accepting the next chunk", async
 
   assert.equal(result.ok, true)
   assert.deepEqual(result.failure_codes, [])
-  assert.equal(writesWhileBlocked, 0)
   assert.equal(drainCount, 2)
   assert.equal(harness.fileSystem.outputs.get(stdoutTarget)?.toString("utf8"), "firstsecond")
   assert.equal(result.processes[0].stdout_bytes, Buffer.byteLength("firstsecond"))
@@ -3202,10 +3179,7 @@ test("Unit 1e bounds output settlement without signaling a child that already cl
   const killCalls = []
   const harness = supervisionDependencies({
     children: [child],
-    kill(pid, signal) {
-      killCalls.push({ pid, signal })
-      return true
-    },
+    kill: recordKill.bind(null, killCalls),
     openOutput({ target }) {
       if (target !== stdoutTarget) {
         return new PassThrough()
@@ -3261,6 +3235,7 @@ test("Unit 1e observes an aggregate regular-file debug threshold and performs a 
     }))
     const harness = supervisionDependencies({
       children,
+      collectArtifacts: () => [],
       debugEntries: [
         { kind: "file", path: "a.log", size: 4_194_304 },
         { kind: "file", path: "nested/b.log", size: 4_194_304 },
@@ -3469,7 +3444,7 @@ test("Unit 1e fails closed on spawn, stream, sink, timer, clock, debug, and clea
       code: "git_init_clock_regressed",
       configure(harness, child) {
         const samples = [1_000, 999]
-        harness.dependencies.clock.nowMs = () => samples.shift() ?? 999
+        harness.dependencies.clock.nowMs = () => samples.shift()
         child.start = () => {
           closeChild(child)
         }
@@ -3678,7 +3653,7 @@ test("Unit 1e fails closed on spawn, stream, sink, timer, clock, debug, and clea
     assert.deepEqual(result.failure_codes, ["git_init_cleanup_failed", "git_init_timeout"])
     assert.equal(result.processes[0].cleanup_failed, true)
     assert.equal(harness.calls.length, 1)
-    assert.equal([...harness.fileSystem.sinks.values()].every((sink) => sink.destroyed || sink.writableEnded), true)
+    assert.equal([...harness.fileSystem.sinks.values()].every(isSinkSettled), true)
     assertTimersSettled(harness.timers)
   })
 })
@@ -3695,10 +3670,7 @@ test("Unit 1e cleared deadline callbacks cannot signal a completed or reused pro
   const killCalls = []
   const harness = supervisionDependencies({
     children,
-    kill(pid, signal) {
-      killCalls.push({ pid, signal })
-      return true
-    },
+    kill: recordKill.bind(null, killCalls),
   })
   const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
   const deadlines = harness.timers.entries.filter((entry) => entry.delayMs === SUPERVISION_LIMITS.childDeadlineMs)
@@ -3724,10 +3696,7 @@ test("Unit 1e settles once across stream-error, child-error, close, and deadline
   const killCalls = []
   const harness = supervisionDependencies({
     children: [child],
-    kill(pid, signal) {
-      killCalls.push({ pid, signal })
-      return true
-    },
+    kill: recordKill.bind(null, killCalls),
   })
   const running = runSupervisedSmoke(supervisionPlan(), harness.dependencies)
   await new Promise((resolve) => setImmediate(resolve))
@@ -3760,10 +3729,7 @@ test("Unit 1e a failed timer clear cannot signal after the phase has settled", a
   const killCalls = []
   const harness = supervisionDependencies({
     children: [child],
-    kill(pid, signal) {
-      killCalls.push({ pid, signal })
-      return true
-    },
+    kill: recordKill.bind(null, killCalls),
   })
   harness.dependencies.timers.clearTimeout = () => {
     throw new Error("timer clear failed")
@@ -3808,6 +3774,87 @@ test("Unit 1e preserves the precreated fail-closed summary when final publicatio
   assert.deepEqual(harness.fileSystem.published, [initialSummary])
 })
 
+test("Unit 1f supervision publication reserves summary control filenames case-insensitively", async (t) => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const fileNames = [
+    "summary.json",
+    "summary.json.tmp",
+    "SUMMARY.JSON",
+    "SUMMARY.JSON.TMP",
+  ]
+
+  for (const fileName of fileNames) {
+    await t.test(fileName, async () => {
+      const plan = supervisionPlan()
+      const fake = createFakeFs()
+      fake.directories.add(plan.paths.safeRoot)
+      fake.files.set(plan.paths.summaryPath, "{\"failure_codes\":[\"harness_incomplete\"]}\n")
+
+      const result = await runSupervisedSmoke(plan, {
+        collectArtifacts: () => [{
+          content: "debug evidence",
+          fileName,
+          source: "debug_log",
+        }],
+        fsOps: fake.fsOps,
+        limits: SUPERVISION_LIMITS,
+        runtime: { abi: PINNED_NODE_ABI, arch: "arm64", platform: "linux" },
+      })
+
+      assert.deepEqual(result.failure_codes, ["artifact_metadata_invalid", "host_platform_mismatch"])
+      assert.deepEqual(result.retained_files, [])
+      assert.deepEqual(result.omitted_files, [{
+        bytes: Buffer.byteLength("debug evidence"),
+        file_name: fileName,
+        reason: "metadata_invalid",
+        source: "debug_log",
+      }])
+      assert.deepEqual(
+        fake.operations
+          .filter((operation) => operation.operation === "write")
+          .map((operation) => operation.target),
+        [`${plan.paths.summaryPath}.tmp`],
+      )
+      assert.deepEqual(JSON.parse(fake.files.get(plan.paths.summaryPath)), result)
+    })
+  }
+})
+
+test("Unit 1f supervision publication degrades oversized summary metadata before artifact writes", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const plan = supervisionPlan()
+  const fake = createFakeFs()
+  const sources = Array.from({ length: 3_000 }, (_, index) => ({
+    content: "x",
+    fileName: `debug-${String(index).padStart(4, "0")}.log`,
+    source: "debug_log",
+  }))
+  fake.directories.add(plan.paths.safeRoot)
+  fake.files.set(plan.paths.summaryPath, "{\"failure_codes\":[\"harness_incomplete\"]}\n")
+
+  const result = await runSupervisedSmoke(plan, {
+    collectArtifacts: () => sources,
+    fsOps: fake.fsOps,
+    limits: SUPERVISION_LIMITS,
+    runtime: { abi: PINNED_NODE_ABI, arch: "arm64", platform: "linux" },
+  })
+
+  assert.deepEqual(result.failure_codes, ["summary_metadata_invalid"])
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.retained_files, [])
+  assert.deepEqual(result.omitted_files, [])
+  assert.ok(Buffer.byteLength(fake.files.get(plan.paths.summaryPath)) <= MAX_SUMMARY_BYTES)
+  assert.deepEqual(
+    fake.operations
+      .filter((operation) => operation.operation === "write")
+      .map((operation) => operation.target),
+    [`${plan.paths.summaryPath}.tmp`],
+  )
+  assert.deepEqual(JSON.parse(fake.files.get(plan.paths.summaryPath)), result)
+})
+
 test("Unit 1e uses only injected children, clocks, timers, signals, and filesystem seams", async () => {
   const smoke = loadProductionModule()
   const runSupervisedSmoke = requireSupervisionApi(smoke)
@@ -3825,4 +3872,1290 @@ test("Unit 1e uses only injected children, clocks, timers, signals, and filesyst
   assert.equal(harness.calls.length, 4)
   assert.equal(harness.calls.every((call) => call.command.startsWith("/fixture/")), true)
   assert.equal(harness.timers.entries.every((entry) => [250, 2_000, 90_000].includes(entry.delayMs)), true)
+})
+
+const REAL_INITIALIZATION_FAILURE = "Failed to start MCP client for desk: Error: failed to connect to MCP server \"desk\": failed to initialize MCP client: connection closed: initialize response"
+
+function incidentSource(source, content, fileName = `${source}.log`) {
+  return { content, fileName, source }
+}
+
+function evaluateIncidentFixture({
+  sources,
+  startupSucceeded = true,
+}) {
+  const smoke = loadProductionModule()
+  const evaluate = requireIncidentSignatureApi(smoke)
+  return evaluate({ sources, startupSucceeded })
+}
+
+const incidentSignatureCases = [
+  {
+    name: "real static-context overflow",
+    expected: ["static_context_overflow"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "Static context is using 124% of available input tokens.\n",
+      ),
+    ],
+  },
+  {
+    name: "static-context usage at the full input limit",
+    expected: ["static_context_overflow"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "Static context is using 100% of available input tokens.\n",
+      ),
+    ],
+  },
+  {
+    name: "repeated real Desk initialization failure",
+    expected: ["mcp_initialization_retry_storm"],
+    sources: [
+      incidentSource(
+        "debug_log",
+        [
+          `2026-07-22T18:27:49.191Z [ERROR] ${REAL_INITIALIZATION_FAILURE}`,
+          `2026-07-22T18:27:59.242Z [ERROR] ${REAL_INITIALIZATION_FAILURE}`,
+        ].join("\n"),
+      ),
+    ],
+  },
+  {
+    name: "destroyed native MCP host handle",
+    expected: ["mcp_host_handle_destroyed"],
+    sources: [
+      incidentSource(
+        "debug_log",
+        "2026-07-22T18:28:01.000Z [ERROR] Failed to start MCP server enghub: Error: NativeMcpHostHandle has been destroyed\n",
+      ),
+    ],
+  },
+  {
+    name: "unknown MCP host state handle",
+    expected: ["mcp_host_state_handle_unknown"],
+    sources: [
+      incidentSource(
+        "debug_log",
+        "2026-07-22T18:28:02.000Z [ERROR] Failed to start MCP server desk: Error: Unknown MCP host state handle: 2\n",
+      ),
+    ],
+  },
+  {
+    name: "operating-system memory exhaustion",
+    expected: ["process_out_of_memory"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "Error: spawn /opt/homebrew/bin/node ENOMEM\n",
+      ),
+    ],
+  },
+  {
+    name: "operating-system memory exhaustion in a debug log",
+    expected: ["process_out_of_memory"],
+    sources: [
+      incidentSource(
+        "debug_log",
+        "2026-07-22T18:28:03.000Z [ERROR] Error: spawn /opt/homebrew/bin/node ENOMEM\n",
+      ),
+    ],
+  },
+  {
+    name: "JavaScript reached-heap-limit failure",
+    expected: ["javascript_heap_out_of_memory"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\n",
+      ),
+    ],
+  },
+  {
+    name: "JavaScript ineffective-mark-compacts failure",
+    expected: ["javascript_heap_out_of_memory"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory\n",
+      ),
+    ],
+  },
+  {
+    name: "destroyed native MCP host handle on stderr",
+    expected: ["mcp_host_handle_destroyed"],
+    sources: [
+      incidentSource(
+        "stderr",
+        "Failed to start MCP server enghub: Error: NativeMcpHostHandle has been destroyed\n",
+      ),
+    ],
+  },
+  {
+    name: "unexpected JSONL warning event",
+    expected: ["unexpected_warning_event"],
+    sources: [
+      incidentSource(
+        "jsonl",
+        `${JSON.stringify({ type: "warning", data: { message: "plugin startup is degraded" } })}\n`,
+        "copilot.jsonl",
+      ),
+    ],
+  },
+  {
+    name: "unexpected JSONL error event",
+    expected: ["unexpected_error_event"],
+    sources: [
+      incidentSource(
+        "jsonl",
+        `${JSON.stringify({ type: "error", data: { message: "plugin startup failed" } })}\n`,
+        "copilot.jsonl",
+      ),
+    ],
+  },
+  {
+    name: "unexpected debug-log error",
+    expected: ["unexpected_debug_error"],
+    sources: [
+      incidentSource(
+        "debug_log",
+        "2026-07-23T20:05:11.000Z [ERROR] A new unclassified startup failure occurred\n",
+      ),
+    ],
+  },
+]
+
+for (const fixtureCase of incidentSignatureCases) {
+  test(`evaluateIncidentSignatures rejects ${fixtureCase.name}`, () => {
+    const result = evaluateIncidentFixture(fixtureCase)
+    assert.equal(result.ok, false)
+    assert.deepEqual(result.failure_codes, fixtureCase.expected)
+  })
+}
+
+test("evaluateIncidentSignatures deduplicates and sorts independently detected incident families", () => {
+  const result = evaluateIncidentFixture({
+    sources: [
+      incidentSource(
+        "debug_log",
+        [
+          `2026-07-22T18:27:49.191Z [ERROR] ${REAL_INITIALIZATION_FAILURE}`,
+          `2026-07-22T18:27:59.242Z [ERROR] ${REAL_INITIALIZATION_FAILURE}`,
+          "2026-07-22T18:28:01.000Z [ERROR] Failed to start MCP server enghub: Error: NativeMcpHostHandle has been destroyed",
+          "2026-07-22T18:28:02.000Z [ERROR] Failed to start MCP server docs: Error: NativeMcpHostHandle has been destroyed",
+        ].join("\n"),
+      ),
+      incidentSource(
+        "stderr",
+        "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\n",
+      ),
+    ],
+  })
+
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.failure_codes, [
+    "javascript_heap_out_of_memory",
+    "mcp_host_handle_destroyed",
+    "mcp_initialization_retry_storm",
+  ])
+})
+
+const healthySignatureCases = [
+  {
+    name: "empty bounded evidence",
+    sources: [],
+  },
+  {
+    name: "generic retry configuration fields",
+    sources: [
+      incidentSource(
+        "debug_log",
+        [
+          "\"retryPolicy\":{\"maxAttempts\":3}",
+          "\"errorCodesToRetry\":[429,500,502,503]",
+          "\"rateLimitRetryPolicy\":{\"enabled\":true}",
+        ].join("\n"),
+      ),
+    ],
+  },
+  {
+    name: "generic graceful reconnect text",
+    sources: [
+      incidentSource(
+        "debug_log",
+        "2026-07-23T20:05:05.000Z [DEBUG] sse stream ended gracefully, reconnecting {\"interval\":\"1s\"}\n",
+      ),
+    ],
+  },
+  {
+    name: "static-context usage below the input limit",
+    sources: [
+      incidentSource(
+        "stderr",
+        "Static context is using 99% of available input tokens.\n",
+      ),
+    ],
+  },
+  {
+    name: "repeated identical MCP load snapshots",
+    sources: [
+      incidentSource(
+        "jsonl",
+        [
+          JSON.stringify({
+            type: "session.mcp_servers_loaded",
+            data: {
+              configured: ["desk"],
+              disabled: ["github-mcp-server"],
+              failed: [],
+              loaded: ["desk"],
+            },
+          }),
+          JSON.stringify({
+            type: "session.mcp_servers_loaded",
+            data: {
+              configured: ["desk"],
+              disabled: ["github-mcp-server"],
+              failed: [],
+              loaded: ["desk"],
+            },
+          }),
+        ].join("\n"),
+        "copilot.jsonl",
+      ),
+    ],
+  },
+  {
+    name: "the exact expected no-remote warning event",
+    sources: [
+      incidentSource(
+        "jsonl",
+        `${JSON.stringify({ type: "warning", data: { message: EXPECTED_REMOTE_WARNING } })}\n`,
+        "copilot.jsonl",
+      ),
+    ],
+  },
+  {
+    name: "known normal MCP startup logger records",
+    sources: [
+      incidentSource(
+        "debug_log",
+        [
+          "2026-07-23T20:05:02.670Z [ERROR] Starting MCP client for desk with command: node and args: ./mcp/index.js",
+          "2026-07-23T20:05:02.670Z [ERROR] Connecting MCP client for desk...",
+          "2026-07-23T20:05:03.180Z [ERROR] MCP client for desk connected, took 510ms",
+          "2026-07-23T20:05:03.182Z [ERROR] Started MCP client for desk",
+          "2026-07-23T20:05:03.185Z [ERROR] Starting remote MCP client for github-mcp-server with url: https://api.enterprise.githubcopilot.com/mcp/readonly",
+          "2026-07-23T20:05:03.185Z [ERROR] Connecting MCP client for github-mcp-server...",
+          "2026-07-23T20:05:04.205Z [ERROR] MCP client for github-mcp-server connected, took 1020ms",
+          "2026-07-23T20:05:04.206Z [ERROR] MCP server github-mcp-server provided instructions: The GitHub MCP Server provides tools to interact with GitHub platform.",
+          "2026-07-23T20:05:04.206Z [ERROR] Started MCP client for remote server github-mcp-server",
+          "2026-07-23T20:05:04.206Z [ERROR] GitHub MCP server configured after authentication",
+          "2026-07-23T20:05:11.886Z [ERROR] Failed to shut down shell processes: Error: unknown taskRegistry handle 1",
+          "2026-07-23T20:05:12.078Z [ERROR] MCP connection for github-mcp-server closed",
+        ].join("\n"),
+      ),
+    ],
+  },
+  {
+    name: "a single transient Desk initialization failure",
+    sources: [
+      incidentSource(
+        "debug_log",
+        `2026-07-22T18:27:49.191Z [ERROR] ${REAL_INITIALIZATION_FAILURE}\n`,
+      ),
+    ],
+  },
+]
+
+for (const fixtureCase of healthySignatureCases) {
+  test(`evaluateIncidentSignatures accepts ${fixtureCase.name}`, () => {
+    const result = evaluateIncidentFixture(fixtureCase)
+    assert.equal(result.ok, true)
+    assert.deepEqual(result.failure_codes, [])
+  })
+}
+
+test("evaluateIncidentSignatures allows the exact Desk close diagnostic only after startup success", () => {
+  const sources = [
+    incidentSource(
+      "debug_log",
+      "2026-07-23T20:05:11.946Z [ERROR] MCP connection for desk closed\n",
+    ),
+  ]
+
+  const successful = evaluateIncidentFixture({
+    sources,
+    startupSucceeded: true,
+  })
+  assert.equal(successful.ok, true)
+  assert.deepEqual(successful.failure_codes, [])
+
+  const unsuccessful = evaluateIncidentFixture({
+    sources,
+    startupSucceeded: false,
+  })
+  assert.equal(unsuccessful.ok, false)
+  assert.deepEqual(unsuccessful.failure_codes, ["unexpected_debug_error"])
+})
+
+test("evaluateIncidentSignatures does not broadly allow retry, reconnect, or connection-closed errors", () => {
+  for (const content of [
+    "2026-07-23T20:05:05.000Z [ERROR] retrying failed plugin startup",
+    "2026-07-23T20:05:05.000Z [ERROR] reconnecting after startup failure",
+    "2026-07-23T20:05:05.000Z [ERROR] connection closed while initializing plugin",
+  ]) {
+    const result = evaluateIncidentFixture({
+      sources: [incidentSource("debug_log", `${content}\n`)],
+    })
+    assert.equal(result.ok, false)
+    assert.deepEqual(result.failure_codes, ["unexpected_debug_error"])
+  }
+})
+
+test("evaluateIncidentSignatures accepts one transient Desk initialization failure mirrored across evidence streams", () => {
+  const result = evaluateIncidentFixture({
+    sources: [
+      incidentSource("stderr", `${REAL_INITIALIZATION_FAILURE}\n`),
+      incidentSource(
+        "debug_log",
+        `2026-07-22T18:27:49.191Z [ERROR] ${REAL_INITIALIZATION_FAILURE}\n`,
+      ),
+    ],
+  })
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.failure_codes, [])
+})
+
+test("Unit 1h evaluates bounded evidence after structured validation before publishing success", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const order = []
+  const sources = [
+    incidentSource("jsonl", "{\"type\":\"live.fixture\"}\n", "copilot.jsonl"),
+    incidentSource("stderr", "", "copilot.stderr.log"),
+    incidentSource("debug_log", "2026-07-23T20:05:05.000Z [DEBUG] healthy\n", "copilot.debug.log"),
+  ]
+  const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+    pid: 9_900 + index,
+    onSpawn(child) {
+      closeChild(child)
+    },
+  }))
+  let evaluationInput
+  const harness = supervisionDependencies({
+    children,
+    collectArtifacts() {
+      order.push("collect")
+      return sources
+    },
+    evaluateIncidentSignatures(input) {
+      order.push("evaluate")
+      evaluationInput = input
+      return { failure_codes: [], ok: true }
+    },
+    validateStartupResult() {
+      order.push("validate")
+      return { failure_codes: [], ok: true }
+    },
+  })
+  const originalPublish = harness.dependencies.fsOps.publishSummary
+  harness.dependencies.fsOps.publishSummary = (summary, options) => {
+    order.push("publish")
+    originalPublish(summary, options)
+  }
+
+  const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(order, ["validate", "collect", "evaluate", "publish"])
+  assert.deepEqual(evaluationInput, {
+    sources,
+    startupSucceeded: true,
+  })
+  assert.deepEqual(harness.fileSystem.publishedSources, [[sources[0], sources[1]]])
+})
+
+test("Unit 1h retains bounded debug evidence when incident evaluation rejects startup", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const sources = [
+    incidentSource(
+      "debug_log",
+      "2026-07-23T20:05:05.000Z [ERROR] A new unclassified startup failure occurred\n",
+      "copilot.debug.log",
+    ),
+  ]
+  const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+    pid: 9_910 + index,
+    onSpawn(child) {
+      closeChild(child)
+    },
+  }))
+  const harness = supervisionDependencies({
+    children,
+    collectArtifacts: () => sources,
+    evaluateIncidentSignatures({ startupSucceeded }) {
+      assert.equal(startupSucceeded, true)
+      return { failure_codes: ["unexpected_debug_error"], ok: false }
+    },
+  })
+
+  const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
+
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.failure_codes, ["unexpected_debug_error"])
+  assert.deepEqual(harness.fileSystem.publishedSources, [sources])
+})
+
+test("Unit 1h fails closed when incident evaluation throws", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const sources = [
+    incidentSource("debug_log", "bounded debug evidence\n", "copilot.debug.log"),
+  ]
+  const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+    pid: 9_920 + index,
+    onSpawn(child) {
+      closeChild(child)
+    },
+  }))
+  const harness = supervisionDependencies({
+    children,
+    collectArtifacts: () => sources,
+    evaluateIncidentSignatures() {
+      throw new Error("incident evaluator failed")
+    },
+  })
+
+  const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
+
+  assert.equal(result.ok, false)
+  assert.deepEqual(result.failure_codes, ["incident_signature_evaluation_failed"])
+  assert.deepEqual(harness.fileSystem.publishedSources, [sources])
+})
+
+test("Unit 1h production collection scans healthy debug evidence without publishing it", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const plan = supervisionPlan()
+  const debugPath = path.join(plan.paths.logRoot, "copilot.debug.log")
+  const debugContent = "2026-07-23T20:05:05.000Z [DEBUG] healthy\n"
+  const sources = [
+    incidentSource("debug_log", debugContent, "copilot.debug.log"),
+  ]
+  const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+    pid: 9_930 + index,
+    onSpawn(child) {
+      closeChild(child)
+    },
+  }))
+  let evaluationInput
+  const harness = supervisionDependencies({
+    children,
+    debugContents: new Map([[debugPath, debugContent]]),
+    debugEntries: [{ kind: "file", path: debugPath, size: Buffer.byteLength(debugContent) }],
+    evaluateIncidentSignatures(input) {
+      evaluationInput = input
+      return { failure_codes: [], ok: true }
+    },
+  })
+
+  const result = await runSupervisedSmoke(plan, harness.dependencies)
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(evaluationInput, {
+    sources,
+    startupSucceeded: true,
+  })
+  assert.deepEqual(harness.fileSystem.readCalls, [{
+    maxBytes: SUPERVISION_LIMITS.debugBytes + 1,
+    target: debugPath,
+  }])
+  assert.deepEqual(harness.fileSystem.publishedSources, [[]])
+})
+
+test("Unit 1h rejects malformed or inconsistent incident evaluator results", async (t) => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const cases = [
+    ["null result", null],
+    ["missing fields", {}],
+    ["non-boolean ok", { failure_codes: [], ok: "true" }],
+    ["non-array failure codes", { failure_codes: null, ok: true }],
+    ["false ok without a failure code", { failure_codes: [], ok: false }],
+    ["true ok with a failure code", { failure_codes: ["unexpected_debug_error"], ok: true }],
+    ["non-string failure code", { failure_codes: [null], ok: true }],
+    ["empty failure code", { failure_codes: [""], ok: false }],
+  ]
+
+  for (const [name, evaluationResult] of cases) {
+    await t.test(name, async () => {
+      const sources = [
+        incidentSource("debug_log", "bounded debug evidence\n", "copilot.debug.log"),
+      ]
+      const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+        pid: 9_940 + index,
+        onSpawn(child) {
+          closeChild(child)
+        },
+      }))
+      const harness = supervisionDependencies({
+        children,
+        collectArtifacts: () => sources,
+        evaluateIncidentSignatures: () => evaluationResult,
+      })
+
+      const result = await runSupervisedSmoke(supervisionPlan(), harness.dependencies)
+
+      assert.equal(result.ok, false)
+      assert.deepEqual(result.failure_codes, ["incident_signature_evaluation_failed"])
+      assert.deepEqual(harness.fileSystem.publishedSources, [sources])
+    })
+  }
+})
+
+test("Unit 1h real writer omits healthy debug evidence after scanning it", async () => {
+  const smoke = loadProductionModule()
+  const runSupervisedSmoke = requireSupervisionApi(smoke)
+  const plan = supervisionPlan()
+  const debugPath = path.join(plan.paths.logRoot, "copilot.debug.log")
+  const debugContent = "2026-07-23T20:05:05.000Z [DEBUG] healthy\n"
+  const children = PROCESS_PHASES.map((phase, index) => fakeChild({
+    pid: 9_950 + index,
+    onSpawn(child) {
+      closeChild(child)
+    },
+  }))
+  const harness = supervisionDependencies({
+    children,
+    debugContents: new Map([[debugPath, debugContent]]),
+    debugEntries: [{ kind: "file", path: debugPath, size: Buffer.byteLength(debugContent) }],
+  })
+  const nativeFs = createFakeFs()
+  nativeFs.directories.add(plan.paths.safeRoot)
+  nativeFs.files.set(plan.paths.summaryPath, "{\"failure_codes\":[\"harness_incomplete\"],\"phase\":\"initializing\"}\n")
+  delete harness.dependencies.fsOps.publishSummary
+  Object.assign(harness.dependencies.fsOps, nativeFs.fsOps)
+
+  const result = await runSupervisedSmoke(plan, harness.dependencies)
+  const storedSummary = JSON.parse(nativeFs.files.get(plan.paths.summaryPath))
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(storedSummary, result)
+  assert.equal(
+    JSON.stringify(storedSummary.retained_files).includes("\"source\":\"debug_log\""),
+    false,
+  )
+  assert.equal(
+    JSON.stringify(storedSummary.omitted_files).includes("\"source\":\"debug_log\""),
+    false,
+  )
+  assert.equal(nativeFs.files.has(path.join(plan.paths.safeRoot, "copilot.debug.log")), false)
+})
+
+test("Unit 1i fixture filesystems reject missing rename and debug sources", () => {
+  const fake = createFakeFs()
+  assert.throws(
+    () => fake.fsOps.renameSync("/missing-source", "/destination"),
+    /ENOENT: \/missing-source/,
+  )
+
+  const supervision = supervisionFs()
+  assert.throws(
+    () => supervision.fsOps.readBoundedFile({
+      maxBytes: 1,
+      target: "/missing-debug.log",
+    }),
+    /missing debug fixture \/missing-debug\.log/,
+  )
+})
+
+test("Unit 1i rejects every malformed incident-source shape", () => {
+  const smoke = loadProductionModule()
+  const validSource = {
+    content: "",
+    fileName: "copilot.debug.log",
+    source: "debug_log",
+  }
+  assert.throws(
+    () => smoke.evaluateIncidentSignatures({ sources: null, startupSucceeded: false }),
+    /incident sources must be an array/,
+  )
+  for (const source of [
+    null,
+    "not-an-object",
+    { ...validSource, content: Buffer.from("") },
+    { ...validSource, fileName: 1 },
+    { ...validSource, source: null },
+  ]) {
+    assert.throws(
+      () => smoke.evaluateIncidentSignatures({ sources: [source], startupSucceeded: false }),
+      /incident source is invalid/,
+    )
+  }
+})
+
+test("Unit 1i fails closed on malformed validator and collector results", async () => {
+  const cases = [
+    {
+      expected: "validation_failed",
+      options: { validateStartupResult: () => null },
+    },
+    {
+      expected: "validation_failed",
+      options: { validateStartupResult: () => ({ failure_codes: [], ok: false }) },
+    },
+    {
+      expected: "artifact_collection_failed",
+      options: { collectArtifacts: () => ({}) },
+    },
+  ]
+  for (const { expected, options } of cases) {
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        closeChild(child, 0, null, {
+          stdout: index === PROCESS_PHASES.length - 1 ? "{}\n" : "",
+        })
+      },
+      pid: 70_000 + index,
+    }))
+    const harness = supervisionDependencies({ children, ...options })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes(expected), true)
+    assertTimersSettled(harness.timers)
+  }
+})
+
+test("Unit 1i exercises default CLI arguments, stderr, and exit-code handling", async () => {
+  const smoke = loadProductionModule()
+  const previousExitCode = process.exitCode
+  const originalWrite = process.stderr.write
+  let stderr = ""
+  process.stderr.write = (value) => {
+    stderr += String(value)
+    return true
+  }
+  try {
+    assert.equal(await smoke.startCli(), null)
+    const code = await smoke.startCli({ argv: [], isMain: true })
+    assert.equal(code, 1)
+    assert.equal(process.exitCode, 1)
+    assert.match(stderr, /--candidate-root is required/)
+  } finally {
+    process.stderr.write = originalWrite
+    process.exitCode = previousExitCode
+  }
+})
+
+test("Unit 1i runs the default CLI through real filesystem collection and publication", async () => {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "desk-startup-unit1i-"))
+  const candidateRoot = path.join(sandbox, "candidate")
+  const rawRoot = path.join(sandbox, "raw")
+  const safeRoot = path.join(sandbox, "safe")
+  const deskRoot = path.join(rawRoot, "desk")
+  const runtimeCacheRoot = path.join(rawRoot, "runtime-cache")
+  const logRoot = path.join(rawRoot, "copilot-logs")
+  fs.mkdirSync(path.join(candidateRoot, "plugins", "desk"), { recursive: true })
+  const input = validationInput(validationFixture({ deskRoot, runtimeCacheRoot }))
+  const originalSpawn = childProcess.spawn
+  const originalGithubToken = process.env.GITHUB_TOKEN
+  const originalGhToken = process.env.GH_TOKEN
+  const previousExitCode = process.exitCode
+  let spawnCount = 0
+  childProcess.spawn = () => {
+    const index = spawnCount
+    spawnCount += 1
+    const child = fakeChild({
+      onSpawn(spawnedChild) {
+        if (index === PROCESS_PHASES.length - 1) {
+          const nestedLogRoot = path.join(logRoot, "nested")
+          fs.mkdirSync(nestedLogRoot, { recursive: true })
+          const debugPath = path.join(nestedLogRoot, "copilot.debug.log")
+          fs.writeFileSync(debugPath, "[INFO] startup completed\n", { mode: 0o600 })
+          fs.symlinkSync(debugPath, path.join(logRoot, "ignored-debug-link.log"))
+        }
+        closeChild(spawnedChild, 0, null, {
+          stdout: index === PROCESS_PHASES.length - 1
+            ? input.jsonl
+            : `phase-${index}-complete\n`,
+        })
+      },
+      pid: 71_000 + index,
+    })
+    queueMicrotask(() => child.start())
+    return child
+  }
+  process.env.GITHUB_TOKEN = "unit1i-token"
+  process.env.GH_TOKEN = ""
+  restoreEnvironmentVariable("DESK_STARTUP_COVERAGE_PROBE", "fixture")
+  restoreEnvironmentVariable("DESK_STARTUP_COVERAGE_PROBE", undefined)
+  try {
+    const smoke = loadProductionModule()
+    const code = await smoke.startCli({
+      argv: [
+        "--candidate-root",
+        candidateRoot,
+        "--raw-root",
+        rawRoot,
+        "--safe-root",
+        safeRoot,
+      ],
+      isMain: true,
+    })
+    assert.equal(code, 0)
+    assert.equal(process.exitCode, 0)
+    assert.equal(spawnCount, PROCESS_PHASES.length)
+    const summary = JSON.parse(fs.readFileSync(path.join(safeRoot, "summary.json"), "utf8"))
+    assert.deepEqual(summary.failure_codes, [])
+    assert.equal(summary.ok, true)
+    assert.equal(summary.retained_files.some((file) => file.source === "debug_log"), false)
+    assert.equal(fs.existsSync(path.join(rawRoot, "copilot.jsonl")), true)
+    assert.equal(fs.lstatSync(path.join(logRoot, "ignored-debug-link.log")).isSymbolicLink(), true)
+
+    const failedRawRoot = path.join(sandbox, "raw-failure")
+    const failedSafeRoot = path.join(sandbox, "safe-failure")
+    childProcess.spawn = () => {
+      const child = fakeChild({ pid: 71_100 })
+      queueMicrotask(() => closeChild(child, 9))
+      return child
+    }
+    const failedCode = await smoke.startCli({
+      argv: [
+        "--candidate-root",
+        candidateRoot,
+        "--raw-root",
+        failedRawRoot,
+        "--safe-root",
+        failedSafeRoot,
+      ],
+      isMain: true,
+    })
+    assert.equal(failedCode, 1)
+    assert.equal(process.exitCode, 1)
+    const failedSummary = JSON.parse(
+      fs.readFileSync(path.join(failedSafeRoot, "summary.json"), "utf8"),
+    )
+    assert.deepEqual(failedSummary.failure_codes, ["git_init_exit_nonzero"])
+    assert.equal(failedSummary.ok, false)
+  } finally {
+    childProcess.spawn = originalSpawn
+    restoreEnvironmentVariable("GITHUB_TOKEN", originalGithubToken)
+    restoreEnvironmentVariable("GH_TOKEN", originalGhToken)
+    process.exitCode = previousExitCode
+    fs.rmSync(sandbox, { force: true, recursive: true })
+  }
+})
+
+test("Unit 1i rejects invalid and growing debug evidence", async (t) => {
+  await t.test("invalid debug entry size", async () => {
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        closeChild(child)
+      },
+      pid: 72_000 + index,
+    }))
+    const harness = supervisionDependencies({
+      children,
+      debugEntries: [{ kind: "file", path: "/fixture/debug.log", size: -1 }],
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes("copilot_live_debug_monitor_failed"), true)
+    assertTimersSettled(harness.timers)
+  })
+
+  await t.test("debug evidence grows after measurement", async () => {
+    const debugPath = "/fixture/growing.debug.log"
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        closeChild(child)
+      },
+      pid: 72_100 + index,
+    }))
+    const harness = supervisionDependencies({
+      children,
+      debugContents: new Map([[
+        debugPath,
+        Buffer.alloc(SUPERVISION_LIMITS.debugBytes + 1, "x"),
+      ]]),
+      debugEntries: [{ kind: "file", path: debugPath, size: 1 }],
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes("artifact_collection_failed"), true)
+    assertTimersSettled(harness.timers)
+  })
+})
+
+test("Unit 1i fails closed when debug polling or output setup fails", async (t) => {
+  await t.test("recursive debug measurement throws", async () => {
+    let measurements = 0
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        if (index < PROCESS_PHASES.length - 1) {
+          closeChild(child)
+        }
+      },
+      pid: 72_200 + index,
+    }))
+    const harness = supervisionDependencies({
+      children,
+      debugEntries() {
+        measurements += 1
+        if (measurements === 2) {
+          throw new Error("debug directory disappeared")
+        }
+        return []
+      },
+      kill() {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      },
+    })
+    const run = loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+    await harness.timers.fireNext(SUPERVISION_LIMITS.debugPollMs)
+    const result = await run
+    assert.equal(result.failure_codes.includes("copilot_live_debug_monitor_failed"), true)
+    assertTimersSettled(harness.timers)
+  })
+
+  await t.test("debug timer creation throws", async () => {
+    const baseTimers = manualTimers()
+    const timers = {
+      ...baseTimers,
+      setTimeout(callback, delayMs) {
+        if (delayMs === SUPERVISION_LIMITS.debugPollMs) {
+          throw new Error("timer unavailable")
+        }
+        return baseTimers.setTimeout(callback, delayMs)
+      },
+    }
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        if (index < PROCESS_PHASES.length - 1) {
+          closeChild(child)
+        }
+      },
+      pid: 72_300 + index,
+    }))
+    const harness = supervisionDependencies({
+      children,
+      kill() {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      },
+      timers,
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes("copilot_live_timer_failed"), true)
+    assertTimersSettled(timers)
+  })
+
+  await t.test("both output destinations throw during setup", async () => {
+    const child = fakeChild({
+      onSpawn(spawnedChild) {
+        closeChild(spawnedChild)
+      },
+      pid: 72_400,
+    })
+    const harness = supervisionDependencies({
+      children: [child],
+      kill() {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      },
+      openOutput() {
+        throw new Error("destination unavailable")
+      },
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes("git_init_stdout_destination_failed"), true)
+    assertTimersSettled(harness.timers)
+  })
+})
+
+test("Unit 1i covers debug-close races and final measurement failure", async (t) => {
+  await t.test("initial debug measurement observes a closed child", async () => {
+    let liveChild
+    let closed = false
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        if (index < PROCESS_PHASES.length - 1) {
+          closeChild(child)
+        }
+      },
+      pid: 72_500 + index,
+    }))
+    liveChild = children.at(-1)
+    const harness = supervisionDependencies({
+      children,
+      debugEntries() {
+        if (!closed) {
+          closed = true
+          closeChild(liveChild)
+        }
+        return []
+      },
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.ok, true)
+    assertTimersSettled(harness.timers)
+  })
+
+  await t.test("cleared debug callback observes resolved state", async () => {
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        if (index < PROCESS_PHASES.length - 1) {
+          closeChild(child)
+        }
+      },
+      pid: 72_600 + index,
+    }))
+    const liveChild = children.at(-1)
+    const harness = supervisionDependencies({ children })
+    const run = loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+    const debugTimer = harness.timers.entries.find(
+      (entry) => entry.delayMs === SUPERVISION_LIMITS.debugPollMs,
+    )
+    assert.ok(debugTimer)
+    closeChild(liveChild)
+    const result = await run
+    await debugTimer.callback()
+    assert.equal(result.ok, true)
+    assertTimersSettled(harness.timers)
+  })
+
+  await t.test("final debug measurement throws", async () => {
+    let measurements = 0
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        closeChild(child)
+      },
+      pid: 72_700 + index,
+    }))
+    const harness = supervisionDependencies({
+      children,
+      debugEntries() {
+        measurements += 1
+        if (measurements === 2) {
+          throw new Error("final debug read failed")
+        }
+        return []
+      },
+    })
+    const result = await loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    assert.equal(result.failure_codes.includes("copilot_live_debug_monitor_failed"), true)
+    assertTimersSettled(harness.timers)
+  })
+})
+
+test("Unit 1i fails closed for missing tokens, secret summaries, and writer cleanup errors", async (t) => {
+  async function runWriterCase({ evaluateIncidentSignatures, mutatePlan, writeFileSync }) {
+    const plan = supervisionPlan()
+    mutatePlan?.(plan)
+    const nativeFs = createFakeFs()
+    nativeFs.directories.add(plan.paths.safeRoot)
+    nativeFs.files.set(
+      plan.paths.summaryPath,
+      "{\"failure_codes\":[\"harness_incomplete\"],\"phase\":\"initializing\"}\n",
+    )
+    if (writeFileSync) {
+      nativeFs.fsOps.writeFileSync = writeFileSync
+    }
+    return loadProductionModule().runSupervisedSmoke(plan, {
+      collectArtifacts: () => [],
+      evaluateIncidentSignatures,
+      fsOps: nativeFs.fsOps,
+      limits: SUPERVISION_LIMITS,
+      runtime: { abi: PINNED_NODE_ABI, arch: "arm64", platform: "linux" },
+    })
+  }
+
+  await t.test("publication tokens are absent", async () => {
+    const result = await runWriterCase({
+      mutatePlan(plan) {
+        delete plan.commands.copilotLive.options.env.GITHUB_TOKEN
+      },
+    })
+    assert.equal(result.failure_codes.includes("summary_publication_failed"), true)
+  })
+
+  await t.test("summary metadata contains an active secret", async () => {
+    const result = await runWriterCase({
+      evaluateIncidentSignatures: () => ({
+        failure_codes: ["fixture-token"],
+        ok: false,
+      }),
+    })
+    assert.equal(result.failure_codes.includes("summary_publication_failed"), true)
+  })
+
+  await t.test("temporary publication and cleanup both throw", async () => {
+    const result = await runWriterCase({
+      writeFileSync() {
+        throw new Error("publication failed")
+      },
+    })
+    assert.equal(result.failure_codes.includes("summary_publication_failed"), true)
+  })
+})
+
+test("Unit 1i supervises disappearing process groups and verification timer failure", async (t) => {
+  async function runTimedCleanup(kill, timers = manualTimers()) {
+    const children = PROCESS_PHASES.map((_, index) => fakeChild({
+      onSpawn(child) {
+        if (index < PROCESS_PHASES.length - 1) {
+          closeChild(child)
+        }
+      },
+      pid: 73_000 + index,
+    }))
+    const harness = supervisionDependencies({ children, kill, timers })
+    const run = loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+    await timers.fireNext(SUPERVISION_LIMITS.childDeadlineMs)
+    await timers.fireNext(SUPERVISION_LIMITS.termGraceMs)
+    return { harness, result: await run, timers }
+  }
+
+  await t.test("process group disappears after TERM grace", async () => {
+    const { result, timers } = await runTimedCleanup((_, signal) => {
+      if (signal === 0) {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      }
+      return true
+    })
+    assert.equal(result.failure_codes.includes("copilot_live_timeout"), true)
+    assert.equal(result.processes.at(-1).cleanup_failed, false)
+    assertTimersSettled(timers)
+  })
+
+  await t.test("process group disappears during SIGKILL", async () => {
+    const { result, timers } = await runTimedCleanup((_, signal) => {
+      if (signal === "SIGKILL") {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      }
+      return true
+    })
+    assert.equal(result.failure_codes.includes("copilot_live_timeout"), true)
+    assert.equal(result.processes.at(-1).cleanup_failed, false)
+    assertTimersSettled(timers)
+  })
+
+  await t.test("verification timer creation throws", async () => {
+    const baseTimers = manualTimers()
+    let graceTimers = 0
+    const timers = {
+      ...baseTimers,
+      setTimeout(callback, delayMs) {
+        if (delayMs === SUPERVISION_LIMITS.killVerifyMs) {
+          graceTimers += 1
+          if (graceTimers === 2) {
+            throw new Error("verification timer unavailable")
+          }
+        }
+        return baseTimers.setTimeout(callback, delayMs)
+      },
+    }
+    const { result } = await runTimedCleanup(() => true, timers)
+    assert.equal(result.failure_codes.includes("copilot_live_cleanup_failed"), true)
+    assertTimersSettled(timers)
+  })
+})
+
+test("Unit 1i exercises the default process-kill wrapper after timeout", async () => {
+  const children = PROCESS_PHASES.map((_, index) => fakeChild({
+    onSpawn(child) {
+      if (index < PROCESS_PHASES.length - 1) {
+        closeChild(child)
+      }
+    },
+    pid: 73_100 + index,
+  }))
+  const liveChild = children.at(-1)
+  const harness = supervisionDependencies({ children })
+  delete harness.dependencies.kill
+  const originalKill = process.kill
+  process.kill = (_, signal) => {
+    if (signal === "SIGTERM") {
+      closeChild(liveChild, 0, "SIGTERM")
+    }
+    return true
+  }
+  try {
+    const run = loadProductionModule().runSupervisedSmoke(
+      supervisionPlan(),
+      harness.dependencies,
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+    await harness.timers.fireNext(SUPERVISION_LIMITS.childDeadlineMs)
+    const result = await run
+    assert.equal(result.failure_codes.includes("copilot_live_timeout"), true)
+    assert.equal(result.processes.at(-1).signal, "SIGTERM")
+    assertTimersSettled(harness.timers)
+  } finally {
+    process.kill = originalKill
+  }
+})
+
+test("Unit 1i handles simultaneous grace completion and child close", async () => {
+  const baseTimers = manualTimers()
+  const timers = {
+    ...baseTimers,
+    clearTimeout(handle) {
+      const entry = baseTimers.entries.find((candidate) => candidate.handle === handle)
+      if (
+        entry?.delayMs === SUPERVISION_LIMITS.termGraceMs
+        && !entry.fired
+      ) {
+        entry.fired = true
+        entry.callback()
+        throw new Error("timer clear failed")
+      }
+      baseTimers.clearTimeout(handle)
+    },
+  }
+  const children = PROCESS_PHASES.map((_, index) => fakeChild({
+    onSpawn(child) {
+      if (index < PROCESS_PHASES.length - 1) {
+        closeChild(child)
+      }
+    },
+    pid: 73_200 + index,
+  }))
+  const liveChild = children.at(-1)
+  const harness = supervisionDependencies({
+    children,
+    kill(_, signal) {
+      if (signal === 0) {
+        const error = new Error("process group disappeared")
+        error.code = "ESRCH"
+        throw error
+      }
+      return true
+    },
+    timers,
+  })
+  const run = loadProductionModule().runSupervisedSmoke(
+    supervisionPlan(),
+    harness.dependencies,
+  )
+  await new Promise((resolve) => setImmediate(resolve))
+  await timers.fireNext(SUPERVISION_LIMITS.childDeadlineMs)
+  closeChild(liveChild, 0, "SIGTERM")
+  const result = await run
+  assert.equal(result.failure_codes.includes("copilot_live_timer_clear_failed"), true)
+  assertTimersSettled(timers)
+})
+
+test("Unit 1i settles output sinks whose cleanup methods fail or are absent", async () => {
+  let outputIndex = 0
+  const child = fakeChild({ pid: 73_300 })
+  const harness = supervisionDependencies({
+    children: [child],
+    kill() {
+      const error = new Error("process group disappeared")
+      error.code = "ESRCH"
+      throw error
+    },
+    openOutput() {
+      const sink = new EventEmitter()
+      sink.end = () => {
+        throw new Error("end failed")
+      }
+      if (outputIndex === 0) {
+        sink.destroy = () => {
+          throw new Error("destroy failed")
+        }
+      }
+      outputIndex += 1
+      return sink
+    },
+  })
+  const run = loadProductionModule().runSupervisedSmoke(
+    supervisionPlan(),
+    harness.dependencies,
+  )
+  await new Promise((resolve) => setImmediate(resolve))
+  await harness.timers.fireNext(SUPERVISION_LIMITS.childDeadlineMs)
+  const result = await run
+  assert.equal(result.failure_codes.includes("git_init_timeout"), true)
+  assertTimersSettled(harness.timers)
+})
+
+test("Unit 1i rejects final clock failure and invalid final time", async (t) => {
+  for (const [name, finalValue, expected] of [
+    ["throwing final clock", new Error("clock unavailable"), "git_init_clock_failed"],
+    ["non-finite final clock", Number.NaN, "git_init_clock_invalid"],
+  ]) {
+    await t.test(name, async () => {
+      let readings = 0
+      const child = fakeChild({
+        onSpawn(spawnedChild) {
+          closeChild(spawnedChild)
+        },
+        pid: 73_400 + readings,
+      })
+      const harness = supervisionDependencies({ children: [child] })
+      harness.dependencies.clock = {
+        nowMs() {
+          readings += 1
+          if (readings === 1) {
+            return 1_000
+          }
+          if (finalValue instanceof Error) {
+            throw finalValue
+          }
+          return finalValue
+        },
+      }
+      const result = await loadProductionModule().runSupervisedSmoke(
+        supervisionPlan(),
+        harness.dependencies,
+      )
+      assert.equal(result.failure_codes.includes(expected), true)
+      assertTimersSettled(harness.timers)
+    })
+  }
 })
