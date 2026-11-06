@@ -41,6 +41,25 @@ const SKIP_DIRS = new Set([
 ])
 
 /**
+ * Shared-workspace transparency: under the `--person <alias>` write-prefix,
+ * docs live at `desks/<alias>/<rest…>`. Strip the two leading `desks/<alias>`
+ * segments so isIndexable/classify operate on the same path shapes they always
+ * have. A bare `desks/` with nothing after the alias is left untouched (no
+ * meaningful doc lives directly at `desks/<alias>`). Pure + idempotent —
+ * top-level (OFF-mode) paths pass through unchanged because they don't start
+ * with `desks/`.
+ *
+ * Exposed for tests.
+ */
+export function stripPersonPrefix(relPath) {
+  const segments = relPath.split(path.sep)
+  if (segments.length > 2 && segments[0] === "desks") {
+    return segments.slice(2).join(path.sep)
+  }
+  return relPath
+}
+
+/**
  * Walk `deskRoot` and return an array of indexable doc descriptors.
  *
  * @param {string} deskRoot — absolute path to desk workspace.
@@ -100,7 +119,9 @@ async function walk(deskRoot, dir, out) {
  * but is still semantically valuable for historical recall.
  */
 export function isIndexable(relPath) {
-  const segments = relPath.split(path.sep)
+  // Remap-transparency: classify the desk-relative remainder, ignoring any
+  // leading `desks/<alias>/` write-prefix.
+  const segments = stripPersonPrefix(relPath).split(path.sep)
   const base = segments[segments.length - 1]
   if (TASK_DOC_BASENAMES.has(base)) return true
 
@@ -141,7 +162,10 @@ export function isIndexable(relPath) {
  * @returns {{ kind: string, track: string|null, task_slug: string|null }}
  */
 export function classify(relPath) {
-  const segments = relPath.split(path.sep)
+  // Remap-transparency: attribute against the desk-relative remainder, so a
+  // doc at `desks/<alias>/<track>/<slug>/task.md` reports track=<track>, not
+  // "desks". OFF-mode top-level paths pass through unchanged.
+  const segments = stripPersonPrefix(relPath).split(path.sep)
   const base = segments[segments.length - 1]
 
   if (TASK_DOC_BASENAMES.has(base)) {

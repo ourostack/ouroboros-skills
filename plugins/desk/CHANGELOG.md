@@ -1,5 +1,15 @@
 # desk plugin — changelog
 
+## 1.7.0 — 2026-06-10
+
+**`--person <alias>` write-prefix (default-OFF, behavior-preserving) + session-start registry awareness.** The first piece of the shared-workspace capability: one git repo, multiple operators, per-person write-scoping — with zero change for existing single-desk operators.
+
+- **`--person <alias>` write-prefix on the desk MCP.** A new `personPrefix(deskRoot, person)` helper (`util/paths.js`) scopes a session's *writes* to `<root>/desks/<alias>/` while reads/search still span the whole repo. Threaded from `index.js` arg-parse (`--person <alias>`) through `callTool`/`startServer` to every write-path builder — `task_create`/`task_update`/`task_archive`, `track_create`/`track_update`, `friction_add` (both the track-local and the cross-cutting `_meta/friction.md` branches), and `lesson_add`. Returned `path` stays anchored at the real root, so it reads `desks/<alias>/…`. Alias validation rejects `..` and path separators; empty/whitespace is treated as null (OFF). **Default-OFF is byte-identical to today** — no `--person`, no `desks/` layer, the existing test suite stays green.
+- **Indexer read-transparency.** `discover.js` `classify`/`isIndexable` strip a leading `desks/<alias>/` prefix so a doc at `desks/ari/<track>/<slug>/task.md` attributes to the real `<track>` (not `desks`) and `desks/<alias>/_meta/{friction.md,tips/*.md}` are still recognized. The recursive-by-filename walker already found nested docs; this fixes their *classification*.
+- **`session-start` desk-registry awareness (prose).** Reads a committed `_meta/desks.md` registry when present — enumerates the desk-set, resolves "which desk am I" from the session's `--person` binding, and adds a crew-workspace banner to the status block. Documents the registry schema (`alias | path | repo | worker_variant | write_subtree`). Default-tolerant: no registry → single-desk, byte-identical to today.
+
+MCP bumped to `desk-mcp@1.3.0`.
+
 ## 1.6.1 — 2026-06-02
 
 **Two worker-discipline encodings.**

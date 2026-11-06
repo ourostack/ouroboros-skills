@@ -10,6 +10,7 @@ import {
   writeMarkdown,
   pathExists,
 } from "../util/fm.js"
+import { personPrefix } from "../util/paths.js"
 
 // Optional fields a caller may supply at create time.
 const OPTIONAL_TRACK_FIELDS = [
@@ -18,8 +19,10 @@ const OPTIONAL_TRACK_FIELDS = [
   "planning",
 ]
 
-function trackFile(deskRoot, slug) {
-  return path.join(deskRoot, slug, "track.md")
+// `base` = effective write root (personPrefix(deskRoot, person)); relPath
+// stays anchored at the real deskRoot so the returned path shows desks/<alias>/.
+function trackFile(base, slug) {
+  return path.join(base, slug, "track.md")
 }
 
 function relPath(deskRoot, absPath) {
@@ -44,7 +47,7 @@ function relPath(deskRoot, absPath) {
  *
  * Returns: { status: "created", path }
  */
-export async function track_create({ deskRoot, input }) {
+export async function track_create({ deskRoot, input, person = null }) {
   const { slug, title } = input ?? {}
   if (!slug || typeof slug !== "string") {
     throw new Error("track_create: `slug` is required (string)")
@@ -53,7 +56,7 @@ export async function track_create({ deskRoot, input }) {
     throw new Error("track_create: `title` is required (string)")
   }
 
-  const filePath = trackFile(deskRoot, slug)
+  const filePath = trackFile(personPrefix(deskRoot, person), slug)
   if (await pathExists(filePath)) {
     throw new Error(
       `track_create: track already exists at ${relPath(deskRoot, filePath)}`,
@@ -94,13 +97,13 @@ export async function track_create({ deskRoot, input }) {
  *
  * Returns: { status: "updated", path }
  */
-export async function track_update({ deskRoot, input }) {
+export async function track_update({ deskRoot, input, person = null }) {
   const { slug, frontmatter, body_append } = input ?? {}
   if (!slug) {
     throw new Error("track_update: `slug` is required")
   }
 
-  const filePath = trackFile(deskRoot, slug)
+  const filePath = trackFile(personPrefix(deskRoot, person), slug)
   if (!(await pathExists(filePath))) {
     throw new Error(
       `track_update: track does not exist at ${relPath(deskRoot, filePath)}`,

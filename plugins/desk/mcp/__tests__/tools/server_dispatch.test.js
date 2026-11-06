@@ -61,3 +61,60 @@ test("server.callTool rejects unknown tool names", async () => {
   assert.ok(res.isError)
   assert.match(res.content[0].text, /unknown tool/)
 })
+
+// Unit 1.2c: the unknown-tool + error branches must still behave with a
+// `person` present on the dispatch call (the new threaded field).
+
+test("server.callTool rejects unknown tool names even with person set", async () => {
+  const root = await mkTempDeskRoot()
+  const res = await callTool({
+    deskRoot: root,
+    name: "this_does_not_exist",
+    input: {},
+    person: "ari",
+  })
+  assert.ok(res.isError)
+  assert.match(res.content[0].text, /unknown tool/)
+})
+
+test("server.callTool surfaces tool errors as isError with person set", async () => {
+  const root = await mkTempDeskRoot()
+  const res = await callTool({
+    deskRoot: root,
+    name: "task_update",
+    input: { track: "nope", slug: "nada", frontmatter: { status: "x" } },
+    person: "ari",
+  })
+  assert.ok(res.isError)
+  const body = JSON.parse(res.content[0].text)
+  assert.equal(body.status, "error")
+  assert.match(body.message, /does not exist/)
+})
+
+test("server.callTool routes a person-scoped write end-to-end (path shows desks/<alias>/)", async () => {
+  const root = await mkTempDeskRoot()
+  const res = await callTool({
+    deskRoot: root,
+    name: "task_create",
+    input: { track: "t", slug: "s", title: "T" },
+    person: "ari",
+  })
+  assert.ok(!res.isError)
+  const body = JSON.parse(res.content[0].text)
+  assert.equal(body.status, "created")
+  assert.equal(body.path, path.join("desks", "ari", "t", "s", "task.md"))
+})
+
+test("server.callTool surfaces an invalid-alias throw as isError", async () => {
+  const root = await mkTempDeskRoot()
+  const res = await callTool({
+    deskRoot: root,
+    name: "task_create",
+    input: { track: "t", slug: "s", title: "T" },
+    person: "../evil",
+  })
+  assert.ok(res.isError)
+  const body = JSON.parse(res.content[0].text)
+  assert.equal(body.status, "error")
+  assert.match(body.message, /alias/i)
+})

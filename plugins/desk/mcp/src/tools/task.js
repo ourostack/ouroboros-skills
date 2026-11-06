@@ -13,6 +13,7 @@ import {
   writeMarkdown,
   pathExists,
 } from "../util/fm.js"
+import { personPrefix } from "../util/paths.js"
 
 const TERMINAL_STATUSES = new Set(["done", "cancelled"])
 
@@ -34,12 +35,15 @@ const OPTIONAL_RUNTIME_FIELDS = [
   "predecessor",
 ]
 
-function taskDir(deskRoot, track, slug) {
-  return path.join(deskRoot, track, slug)
+// Builders take `base` = the effective write root (personPrefix(deskRoot,
+// person)). `relPath` stays anchored at the real deskRoot so returned paths
+// show the `desks/<alias>/` prefix when --person is on.
+function taskDir(base, track, slug) {
+  return path.join(base, track, slug)
 }
 
-function taskFile(deskRoot, track, slug) {
-  return path.join(taskDir(deskRoot, track, slug), "task.md")
+function taskFile(base, track, slug) {
+  return path.join(taskDir(base, track, slug), "task.md")
 }
 
 function relPath(deskRoot, absPath) {
@@ -65,7 +69,7 @@ function relPath(deskRoot, absPath) {
  *
  * Returns: { status: "created", path: "<track>/<slug>/task.md" }
  */
-export async function task_create({ deskRoot, input }) {
+export async function task_create({ deskRoot, input, person = null }) {
   const { track, slug, title } = input ?? {}
   if (!track || typeof track !== "string") {
     throw new Error("task_create: `track` is required (string)")
@@ -77,7 +81,8 @@ export async function task_create({ deskRoot, input }) {
     throw new Error("task_create: `title` is required (string)")
   }
 
-  const filePath = taskFile(deskRoot, track, slug)
+  const base = personPrefix(deskRoot, person)
+  const filePath = taskFile(base, track, slug)
   if (await pathExists(filePath)) {
     throw new Error(
       `task_create: task already exists at ${relPath(deskRoot, filePath)}`,
@@ -120,13 +125,14 @@ export async function task_create({ deskRoot, input }) {
  *
  * Returns: { status: "updated", path }
  */
-export async function task_update({ deskRoot, input }) {
+export async function task_update({ deskRoot, input, person = null }) {
   const { track, slug, frontmatter, body_append } = input ?? {}
   if (!track || !slug) {
     throw new Error("task_update: `track` and `slug` are required")
   }
 
-  const filePath = taskFile(deskRoot, track, slug)
+  const base = personPrefix(deskRoot, person)
+  const filePath = taskFile(base, track, slug)
   if (!(await pathExists(filePath))) {
     throw new Error(
       `task_update: task does not exist at ${relPath(deskRoot, filePath)}`,
@@ -170,14 +176,15 @@ export async function task_update({ deskRoot, input }) {
  *
  * Returns: { status: "archived" | "already_archived", path }
  */
-export async function task_archive({ deskRoot, input }) {
+export async function task_archive({ deskRoot, input, person = null }) {
   const { track, slug } = input ?? {}
   if (!track || !slug) {
     throw new Error("task_archive: `track` and `slug` are required")
   }
 
-  const srcDir = taskDir(deskRoot, track, slug)
-  const archiveDir = path.join(deskRoot, track, "_archive", slug)
+  const base = personPrefix(deskRoot, person)
+  const srcDir = taskDir(base, track, slug)
+  const archiveDir = path.join(base, track, "_archive", slug)
   const archivedFile = path.join(archiveDir, "task.md")
 
   const srcExists = await pathExists(srcDir)
