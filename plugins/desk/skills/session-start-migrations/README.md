@@ -1,21 +1,23 @@
 # session-start-migrations — plugin-author quick reference
 
-This skill is a framework. The framework lives here in `desk`; the actual migrations live in each plugin's `migrations/` dir.
+a desk gets rearranged sometimes — a drawer renamed, a shelf moved, the lamp swapped to the other side. the machines that hold an operator's desk don't notice on their own; they keep reaching for the old name and quietly fail two layers downstream. this skill is the framework that tidies up at the start of each session, so the operator doesn't have to.
+
+the framework lives here in `desk`; the actual migrations live in each plugin's `migrations/` dir. one plugin, many migrations, all sorted into a single global order at session start.
 
 ## Adding a migration to your plugin
 
-Drop a file at `<your-plugin-root>/migrations/<NN>-<slug>.md`. Pick the next available `NN` across every active plugin (alphabetical sort by filename gives global ordering — coordinate by reading current migrations on `main` before picking a number). The slug is short kebab-case describing what the migration does (e.g. `workspace-to-ms-desk`, `plugin-rename-worker-to-ms-desk`).
+drop a file at `<your-plugin-root>/migrations/<NN>-<slug>.md`. pick the next available `NN` across every active plugin (alphabetical sort by filename gives global ordering — coordinate by reading current migrations on `main` before picking a number). the slug is short kebab-case describing what the migration does (e.g. `workspace-to-ms-desk`, `plugin-rename-worker-to-ms-desk`).
 
-The file has YAML frontmatter (`id`, `description`, `safety`, `needs_restart`) and four required body sections — each a level-2 heading followed by a fenced bash code block: `## Detect`, `## Safety check`, `## Migrate`, `## Announce`. The first three contain bash that exits 0/non-zero; the fourth is plain text shown to the operator on success. See `SKILL.md` in this directory for the full schema and driver semantics.
+the file has YAML frontmatter (`id`, `description`, `safety`, `needs_restart`) and four required body sections — each a level-2 heading followed by a fenced bash code block: `## Detect`, `## Safety check`, `## Migrate`, `## Announce`. the first three contain bash that exits 0/non-zero; the fourth is plain text shown to the operator on success. see `SKILL.md` in this directory for the full schema and driver semantics.
 
-**Two hard constraints worth saying upfront:**
+**two hard constraints worth saying upfront:**
 
-- **The `id` frontmatter must match the filename stem.** A file named `01-workspace-to-ms-desk.md` must declare `id: 01-workspace-to-ms-desk`. The driver uses `id` in announcements and logging; a mismatch corrupts the operator's view of which migration is running.
-- **Your `Detect` block must self-evidence from machine state.** Inspect what's on disk right now — `[ -d ~/old-dir ]`, `[ -L ~/some-symlink ] && readlink ~/some-symlink | grep -q old-target`, `grep -q 'old-value' ~/.config/some-file`. Do NOT rely on any external marker. See the worked example below.
+- **the `id` frontmatter must match the filename stem.** a file named `01-workspace-to-ms-desk.md` must declare `id: 01-workspace-to-ms-desk`. the driver uses `id` in announcements and logging; a mismatch corrupts the operator's view of which migration is running.
+- **your `Detect` block must self-evidence from machine state.** inspect what's on disk right now — `[ -d ~/old-dir ]`, `[ -L ~/some-symlink ] && readlink ~/some-symlink | grep -q old-target`, `grep -q 'old-value' ~/.config/some-file`. do NOT rely on any external marker. see the worked example below.
 
 ## Worked example — a path-rename migration
 
-This is `01-workspace-to-ms-desk.md` (in `desk/migrations/`, shipped alongside this framework):
+this is `01-workspace-to-ms-desk.md` (in `desk/migrations/`, shipped alongside this framework):
 
 ```markdown
 ---
@@ -64,7 +66,7 @@ I detected this machine still had `~/worker-workspace/` or `~/desk/` from the pr
 Please start a new session so my preamble loads against `~/ms-desk/`.
 ```
 
-Three things this example demonstrates:
+three things this example demonstrates:
 
 - **Detect is a pure predicate** — one bash conjunction, no side effects, returns 0 if-and-only-if migration is needed
 - **Safety check prints its reason on failure** — operator reads the message and knows exactly what to clean up
@@ -72,6 +74,6 @@ Three things this example demonstrates:
 
 ## Design choices worth knowing
 
-The framework deliberately has no central "I ran this" marker — each `Detect` block is responsible for inspecting actual machine state (a dir's existence, a symlink's target, a config file's value) and answering "does this machine need this migration?" That makes the system robust against restored backups, partial Time Machine snapshots, and any other path where a marker file could desync from reality. The cost is that every Detect block runs on every session start; the upside is that there's no marker file to maintain or migrate when the framework itself changes shape.
+the framework deliberately has no central "I ran this" marker — each `Detect` block is responsible for inspecting actual machine state (a dir's existence, a symlink's target, a config file's value) and answering "does this machine need this migration?" that makes the system robust against restored backups, partial Time Machine snapshots, and any other path where a marker file could desync from reality. the cost is that every Detect block runs on every session start; the upside is that there's no marker file to maintain or migrate when the framework itself changes shape.
 
-The framework lives in the `desk` substrate plugin, not in any overlay like `ms-desk`. Overlays can rename themselves (and historically have); a migration framework hosted inside the overlay being renamed has to rename itself mid-execution, which is fragile. Substrate-resident means the framework survives any overlay churn.
+the framework lives in the `desk` substrate plugin, not in any overlay like `ms-desk`. overlays can rename themselves (and historically have); a migration framework hosted inside the overlay being renamed has to rename itself mid-execution, which is fragile. substrate-resident means the framework survives any overlay churn.
