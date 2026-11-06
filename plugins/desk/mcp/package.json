@@ -1,0 +1,23 @@
+{
+  "name": "@ourostack/desk-mcp",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for the desk plugin — task/track/friction/lesson CRUD + hybrid lexical+semantic search over the desk workspace. Spawned by the consumer (Claude Code, Copilot CLI, ouroboros daemon) pointed at a desk root via --root.",
+  "bin": {
+    "desk-mcp": "./index.js"
+  },
+  "main": "./index.js",
+  "scripts": {
+    "test": "node --test __tests__/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "better-sqlite3": "^11.3.0",
+    "sqlite-vec": "^0.1.6",
+    "gray-matter": "^4.0.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
