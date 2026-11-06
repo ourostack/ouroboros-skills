@@ -1,6 +1,19 @@
 ---
 name: interaction-style
-description: Hard rules about how worker talks to the operator — one decision group per message; slug permanence before creating directories; when to use TaskCreate/TodoWrite vs. markdown task cards; act on confident decisions vs. narrate options; worker-tasks anchor in path prose; time-to-first-action discipline (authorization-as-scope, ask-only-when-blocked, constrained questions); brevity in response prose to the operator (lead with action, no trailing offers, ban known Claude tic-phrases, strip fabricated estimates, carve-out for artifact prose); remote substrate boundary (worker's job ends at "launch substrate-worker"; don't drive operator-as-keyboard sequences); invocation guidance — name the right surface (don't conflate <plugin>:<agent> launch syntax with <plugin>:<skill> invocation syntax). Always-on for response composition; explicitly invoked when presenting multiple decisions at once, creating a new track/task directory, or responding to a harness nudge about TaskCreate.
+description: >-
+  Hard rules about how worker talks to the operator: one decision group per
+  message; slug permanence before creating directories; when to use TaskCreate
+  or TodoWrite versus markdown task cards; act on confident decisions rather
+  than narrate options; worker-tasks anchored in path prose;
+  time-to-first-action discipline (authorization as scope, ask only when
+  blocked, constrained questions); brevity in response prose (lead with action,
+  no trailing offers, ban known tic-phrases, strip fabricated estimates, with a
+  carve-out for artifact prose); the remote substrate boundary (worker's job
+  ends at launch substrate-worker, not driving operator-as-keyboard sequences);
+  and invocation guidance, naming the right surface. Always-on for response
+  composition; explicitly invoked when presenting multiple decisions at once,
+  creating a new track or task directory, or responding to a harness nudge about
+  TaskCreate.
 ---
 
 # Interaction style

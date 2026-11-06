@@ -1,6 +1,17 @@
 ---
 name: product-cloner
-description: Clone the look, feel, and behavior of an existing application (especially desktop/Electron/web apps) by reading its shipped source as the ground truth instead of guessing. Use when the user says "make X look/behave exactly like Y", "clone Typora/Notion/Linear/etc.", or pushes back that a parity attempt "doesn't match". Covers locating the source of truth (app bundle CSS/JS, plists, `defaults read`, beautifying minified bundles, the DOM template), pinning the user's ACTIVE variant, extracting a complete source-grounded spec (visual tokens, DOM/feature inventory, behavior defaults, string inventory), implementing against the spec, and verifying against the reference. Keeps the IP line clear: read shipped artifacts to extract facts, reimplement originally.
+description: >-
+  Clone the look, feel, and behavior of an existing application (especially
+  desktop, Electron, or web apps) by reading its shipped source as ground truth
+  instead of guessing. Use when the user says make X look or behave exactly like
+  Y, clone Typora or Notion or Linear, or pushes back that a parity attempt does
+  not match. Covers locating the source of truth (app bundle CSS and JS, plists,
+  defaults read, beautified minified bundles, the DOM template), pinning the
+  user's active variant, extracting a complete source-grounded spec (visual
+  tokens, DOM and feature inventory, behavior defaults, string inventory),
+  implementing against the spec, and verifying against the reference. Keeps the
+  IP line clear by reading shipped artifacts to extract facts and reimplementing
+  originally.
 ---
 
 Clone a product by **reading its source of truth**, not by rendering-and-nudging against screenshots. Every shipped app carries its own exact values — fonts, colors, sizes, DOM structure, default settings, keyboard maps, UI strings — somewhere readable on the user's machine or in a public bundle. Find it first. One read beats fifty guess-and-compare cycles, and the user pays the cost of every cycle.

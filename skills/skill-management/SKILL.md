@@ -251,6 +251,39 @@ Every skill file must:
 - Not reference external files that are not part of the skill directory.
 - Use clear, imperative instructions (the audience is an AI agent, not a human developer).
 
+### Frontmatter limits (hard -- enforced in CI)
+
+Per the [Agent Skills spec](https://agentskills.io/specification), the frontmatter has hard limits. A skill that breaks them **fails to load** in the Copilot CLI and other Agent Skills runtimes:
+
+- `name`: at most 64 characters, lowercase `a-z0-9` and single hyphens, and must match the skill's directory name.
+- `description`: non-empty, **at most 1024 characters**. This is the limit that bites most often: only `name` + `description` are pre-loaded into the agent's context for every installed skill, so the runtime caps the description hard.
+
+`scripts/validate-skills.cjs` enforces both on every skill in CI (`validateSkillDescriptionLimits`). Run it locally before opening a PR.
+
+### Writing the description (all-signal, no noise)
+
+The description is a **router, not a summary**. Its only job is to help an agent pick this skill over ~100 others, so every token must earn its place by doing *discrimination*, not *explanation*. Include exactly three things:
+
+1. **What** it does -- one concrete clause, third person ("Sync-and-merge agent. Fetches origin/main, ..."). Never first or second person -- the description is injected into the system prompt, and mixed point-of-view hurts discovery.
+2. **When** to use it -- the real trigger phrases and contexts a user actually says.
+3. **When NOT** to use it, or which sibling skill to use instead -- the disambiguators. These earn their tokens precisely because skills overlap.
+
+Leave everything else to the body (the spec's *progressive disclosure*: the body loads only once the skill is chosen). Cut from the description: mechanism / how it works, rationale / motivation, exhaustive "covers A, B, C, D, E" feature lists, and anything that merely restates the body.
+
+The 1024 cap is a ceiling, not a target. Most good descriptions land well under it (`work-merger` ~250, `emu-github` ~450 characters). If yours is brushing 1024, it is explaining, not routing -- cut it down.
+
+**YAML-safe format.** Write the description as a `>-` folded block scalar, so colons, quotes, and punctuation cannot break the YAML:
+
+```yaml
+name: my-skill
+description: >-
+  One clause on what it does, third person. Use when the user says
+  trigger-phrase-a or trigger-phrase-b. Not for the adjacent case (use
+  other-skill instead).
+```
+
+Avoid raw angle-bracket tokens in the description (the spec disallows XML tags). Confirm the file parses before committing -- the CI check above is the backstop.
+
 ---
 
 ## 6. Improve: Propose Changes to Existing Skills
