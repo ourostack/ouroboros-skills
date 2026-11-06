@@ -154,6 +154,53 @@ Triggers to ultrathink:
 
 Ultrathink is **not** the same as "ask the principal." It is "stop, reason hard, then act." The output of ultrathink is a decision, not a question.
 
+## Verify freshness before triaging external state
+
+Stale data is fake data. When a sub-agent (or the agent itself) is about to triage, design against, or modify external live state, **verify freshness first**.
+
+Cases that bite:
+
+- **Git repos with multi-machine activity.** A local checkout that hasn't pulled recently may be hours or days behind. Worse, when other machines are also pushing, the local clone diverges — a `git push` from the divergent local clobbers the other machine's work. Pattern: `git fetch origin <branch>` first; for inspection use `git worktree add /tmp/<name>-latest origin/main` and read from the worktree — fully safe, no risk of local-state contamination.
+- **External APIs / dashboards.** Refresh from source; don't trust cached views.
+- **State files the agent itself wrote earlier in the session.** If another process (a sub-agent, the daemon, the operator on a different surface) may have edited since, re-read before acting on the stale memory of what was there.
+
+The rule: **freshness is part of evidence-discipline. Stale data leads to stale decisions, which leads to wrong ships.**
+
+**Multi-machine bundle write-safety.** For bundles git-synced across machines (each machine may push to origin), NEVER `git push` from a divergent local checkout — that clobbers the other machine. Use a worktree at `origin/main` + commit + push, OR a feature branch + PR + merge. Read-only inspection via `git worktree add /tmp/<name>-latest origin/main` is the safe always-available pattern.
+
+## Critical-pass third-party research findings
+
+When investigating prior art (other plugins, libraries, papers, research) for things to steal, run a critical pass against each finding BEFORE pitching:
+
+- Does our context have the same underlying problem?
+- Does the cost of adoption (engineering work, new dependencies, behavior surface) fit our scale?
+- Would I drop this if it weren't from a high-profile source?
+
+Pitch only the findings that pass. Drop the rest without ceremony.
+
+**Anti-pattern**: padding a pitch with N marginal findings because they were in the research. The principal's pushback on marginal findings costs MORE than just dropping them — each one consumes a turn of operator attention to refute. Better: a tight 1-of-6 pitch with high signal than a 6-of-6 pitch with low signal.
+
+## Agent-inhabited surface design — agents decide, not operators
+
+When designing a surface an AGENT will inhabit (prompts, CLI verbs, file layouts, MCP tool surface, skill content, error messages agents see), the consumer is the AGENT — not the operator's intuition.
+
+The autopilot rule: **don't ask the operator about ergonomics on agent-facing surfaces.** They're not the consumer; the agent is.
+
+How to design instead:
+
+- Apply your own consumption of similar surfaces as the model.
+- For non-obvious calls, fan out persona sub-agents (3-5 different agent personas pretending to be different agent types — orchestrator-style, self-modifying, code-focused, content-focused, etc.). Give them candidate designs; collect their reactions; choose what works for them.
+- The operator's role on agent-inhabited surfaces is cross-cutting **policy** decisions (architecture, scope, identity, security, public-vs-internal coupling) — not per-design ergonomics.
+
+**Anti-pattern phrases that betray this rule** (in addition to the broader autopilot anti-patterns):
+
+- *"would you prefer X or Y for the agent's prompt?"*
+- *"should the CLI verb be A or B?"*
+- *"how should the body-map describe X?"*
+- *"what should the error message say when this happens?"*
+
+All shape-violations under autopilot — pick agents-first defaults, document reasoning agents-first, ship.
+
 ## Creativity
 
 When the obvious path is blocked, find a lateral path. The principle: any senior engineer in this position would not just stop — they would find another angle.
@@ -251,6 +298,9 @@ When the agent catches itself drafting any of these, the skill has fired:
 - *"There are multiple ways to fix this; let me ask which"* — pick the one most likely to be right; ship it; the principal can redirect on review.
 - *"I'll open the PR and the principal can merge it"* — opening is not shipping. The agent's job is the merge. Self-review is the gate, not the principal's calendar.
 - *"I'll wait for someone to review this"* — the agent spawns the reviewer. Independent subagent, fixed-shape verdict, merge on approve.
+- *"Would you prefer X or Y for the agent's prompt / CLI verb / file layout?"* — agent-inhabited surfaces are the agent's call, not the operator's. See [§Agent-inhabited surface design](#agent-inhabited-surface-design--agents-decide-not-operators).
+- *"These third-party findings look promising — pitching all of them"* — run the critical pass first. See [§Critical-pass third-party research findings](#critical-pass-third-party-research-findings).
+- *"My local clone has the data I need"* — for multi-machine bundles / shared repos, verify freshness via `git fetch origin` + worktree at `origin/main`. See [§Verify freshness before triaging external state](#verify-freshness-before-triaging-external-state).
 
 ## Hot-patch / source-PR pairing rule
 
@@ -302,6 +352,43 @@ After the PR is open, if the failure mode generalizes beyond the immediate sympt
 When the same generalization fires three times, the rule earns a place in this skill — see [[curator]] or the curation pipeline of the hosting plugin.
 
 The friction log is a *post-fix* artifact, not a *substitute-for-fix* artifact. If the only thing the agent did was write a friction entry, the skill has not fired correctly.
+
+## Long-horizon autopilot: resume-here docs + wakeup loops
+
+When the operator is going dark for hours (overnight, off for the day), the agent needs to survive its own potential mistakes. Two patterns:
+
+**Resume-here doc (`AUTOPILOT-STATE.md` or hosting-context equivalent).** A single durable file in the workspace that future-you (or a fresh session, or the same session after a crash) can re-read to know exactly where to pick up. Contents:
+
+- The **exit condition** — explicit, testable, multi-bullet. The autopilot is DONE when every bullet is true. Until then, keep building.
+- The **current state** — what's shipped, what's in flight, what's next. Update after every meaningful checkpoint.
+- The **next action** — one-line "what to do right now." Update as work progresses.
+- **Recovery instructions** — how to re-orient if the session dropped: re-read this doc, then `gh pr list` + `git status` across the working repos to find in-flight work, then resume from whichever unit is in progress.
+- **Rules during autopilot** — the operator-locked decisions for this run (architectural calls already made, what's in scope, what's excluded, account-switching conventions, coverage gates, etc.) so they don't get re-litigated mid-flight.
+
+Write this BEFORE the first big work-unit. Update it after each merge or significant state change.
+
+**Wakeup safety net.** Schedule a wakeup at an interval shorter than the operator's expected sleep duration (e.g., 30 minutes). The wakeup prompt re-orients future-you from the resume-here doc → the planning doc → operator-rules fully-agent-mode → continue from wherever you left off. On each wakeup-fire, re-schedule another wakeup to keep the chain alive.
+
+The mechanic: even if the agent accidentally returns control (the worst-case autopilot failure mode), the wakeup brings it back within the interval window. No more "operator wakes to an idle session that returned control at 2am."
+
+Caveat on `ScheduleWakeup`: scheduling a wakeup ENDS the current turn. The runtime re-invokes you on the earlier of (a) wakeup-fire, (b) task-notification (sub-agent completion). So schedule wakeups only when all active work is delegated to sub-agents and there's nothing local to do this instant.
+
+## Sub-agent brief discipline
+
+Sub-agents in autopilot mode produce work proportional to the quality of their briefing. Pattern:
+
+**A strong brief includes**:
+- **Background context** — what is this for, what's been decided, what the larger goal is. Don't make the sub-agent guess.
+- **Specific files / paths to read** — the sub-agent won't know which corners of the repo matter without being told.
+- **Constraints** — what's locked, what's in scope, what's out.
+- **Format expected** — "write to `<path>` with these sections", not "report your findings."
+- **Anti-patterns to avoid** — "don't ask the operator anything; make the call" if applicable. "Don't speculate beyond the data" if applicable.
+
+**A weak brief is**: a one-sentence question. Produces shallow output. Wastes the round-trip.
+
+Briefs that fit on one page can be too thin; briefs that fit on three pages with clear structure are usually right.
+
+**Fan-out for parallel research.** When entering a design phase, identify 3-5 orthogonal research questions and fan out simultaneously rather than serially. Wall-clock time wins are huge — minutes vs hours. Each sub-agent gets a self-contained brief; their outputs synthesize back in the calling agent's context.
 
 ## Engine portability
 
