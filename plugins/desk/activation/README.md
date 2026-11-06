@@ -69,7 +69,7 @@ Synthetic shape:
 }
 ```
 
-Use this ladder when deciding plugin dependencies: depend on `desk` when you only need the substrate, depend on `ms-desk` when you need the Microsoft-flavored worker layer, and depend on the relevant area overlay when the work needs that narrower context.
+Use this ladder when deciding plugin dependencies: depend on `desk` when you only need the substrate, depend on an org overlay when you need a vendor-flavored worker layer, and depend on the relevant area overlay when the work needs that narrower context.
 
 ## Evidence States
 

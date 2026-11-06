@@ -150,8 +150,8 @@ test -f "$DESK/_meta/desks.md" && cat "$DESK/_meta/desks.md"
 
 when present, it tells the agent two things:
 
-1. **the desk-set** — every desk this workspace knows about (the operator's own, plus any peers' desks in a shared crew repo). surface the count in the Step 5 status block ("crew workspace: N desks — ari, bob, …").
-2. **"which desk am I"** — resolve the session's home desk by matching the operator's **identity** (not a re-derived handle) against the registry rows. derive the identity once (cheap, deterministic — for MS crews, the EMU `login`), find the row whose `identity` column equals it, and **that row's `alias` is the home desk** — its `write_subtree` is where this session's writes land (`desks/<alias>/`), and that alias is what the desk MCP's `--person` should be set to. **Match on identity, not on a handle re-derived from the identity** — the chosen handle (`ari`) need not be a transform of the identity (`arimendelow_microsoft`), so re-deriving a handle each session can disagree with the registry and silently bind to the wrong desk. if no `--person` is set (OFF mode), the agent writes at the workspace root as today, and the registry is read-only context.
+1. **the desk-set** — every desk this workspace knows about (the operator's own, plus any peers' desks in a shared crew repo). surface the count in the Step 5 status block ("crew workspace: N desks — alex, bob, …").
+2. **"which desk am I"** — resolve the session's home desk by matching the operator's **identity** (not a re-derived handle) against the registry rows. derive the identity once (cheap, deterministic — for org-backed crews, the SSO account `login`), find the row whose `identity` column equals it, and **that row's `alias` is the home desk** — its `write_subtree` is where this session's writes land (`desks/<alias>/`), and that alias is what the desk MCP's `--person` should be set to. **Match on identity, not on a handle re-derived from the identity** — the chosen handle (`alex`) need not be a transform of the identity (`agarcia_corp`), so re-deriving a handle each session can disagree with the registry and silently bind to the wrong desk. if no `--person` is set (OFF mode), the agent writes at the workspace root as today, and the registry is read-only context.
 
 ### `_meta/desks.md` schema
 
@@ -162,15 +162,15 @@ one table, one row per desk. keep it human-readable — a non-agent teammate mus
 
 | alias | identity | path | repo | worker_variant | write_subtree |
 |-------|----------|------|------|----------------|---------------|
-| ari   | arimendelow_microsoft | desks/ari | teams-microsoft/smb-workflows | workflows | desks/ari |
-| bob   | bsmith_microsoft      | desks/bob | teams-microsoft/smb-workflows | workflows | desks/bob |
+| alex  | agarcia_corp  | desks/alex | example-org/crew-workspace | crew | desks/alex |
+| bob   | bsmith   | desks/bob  | example-org/crew-workspace | crew | desks/bob |
 ```
 
-- **alias** — the operator's short **chosen handle** (`ari`, `bob`). It is NOT necessarily a mechanical transform of the identity — it's whatever short name the operator picked for their desk. The registry is the **source of truth** for the identity→alias binding; the match (below) happens here, not by re-deriving a handle from the identity string each session.
-- **identity** — the stable account identity the desk belongs to (for MS crews, the EMU `login`, e.g. `arimendelow_microsoft`). The "which desk am I" step keys off this column: derive the session's identity, find the row whose `identity` equals it, use that row's `alias`. This is what lets a chosen handle (`ari`) diverge from its identity (`arimendelow_microsoft`) without binding the wrong desk. A consumer may pick a *default* handle for a brand-new identity (e.g. by transforming the login) to seed the first row — but once the row exists, the recorded `alias` wins. Optional for a single-OFF-mode desk; effectively required for a shared crew repo where chosen handles diverge from identities.
+- **alias** — the operator's short **chosen handle** (`alex`, `bob`). It is NOT necessarily a mechanical transform of the identity — it's whatever short name the operator picked for their desk. The registry is the **source of truth** for the identity→alias binding; the match (below) happens here, not by re-deriving a handle from the identity string each session.
+- **identity** — the stable account identity the desk belongs to (for org-backed crews, the SSO account `login`, e.g. `agarcia_corp`). The "which desk am I" step keys off this column: derive the session's identity, find the row whose `identity` equals it, use that row's `alias`. This is what lets a chosen handle (`alex`) diverge from its identity (`agarcia_corp`) without binding the wrong desk. A consumer may pick a *default* handle for a brand-new identity (e.g. by transforming the login) to seed the first row — but once the row exists, the recorded `alias` wins. Optional for a single-OFF-mode desk; effectively required for a shared crew repo where chosen handles diverge from identities.
 - **path** — the desk's subtree within this workspace repo (`desks/<alias>`), OR an absolute/`~`-tilde path for a desk that lives in a *different* repo (a multi-desk operator whose personal desk is a separate clone).
 - **repo** — the git repo the desk lives in (so a personal `worker` can route "that lives in the crew repo" and read the right clone).
-- **worker_variant** — which worker overlay is bound to this desk (`worker` for a plain personal desk, `workflows` / a crew variant for a shared crew desk).
+- **worker_variant** — which worker overlay is bound to this desk (`worker` for a plain personal desk, `crew` / a crew variant for a shared crew desk).
 - **write_subtree** — the path prefix this desk's agent scopes its writes to. equals `path` for an in-repo person desk; for a single-desk OFF-mode workspace there is no registry, so this column never describes the workspace root.
 
 a workspace with a single OFF-mode desk simply has **no `_meta/desks.md`** — its absence *is* the "single-desk, behave as today" signal. don't synthesize a registry; don't warn about its absence.

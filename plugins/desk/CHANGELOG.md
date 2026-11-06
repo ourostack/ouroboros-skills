@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.8 — 2026-07-09
+
+**De-identify the public session-start registry example + dependency-ladder docs.** The `session-start` skill's `_meta/desks.md` example table and the README / activation dependency-ladder prose carried real internal identifiers in a public generic plugin -- a specific operator's account login, a private crew repo path, and vendor-specific framing ("Microsoft-flavored", "EMU", "MS crews"). Replaced with neutral placeholders (`alex` / `agarcia_corp`, `example-org/crew-workspace`, "org-backed crews / SSO login / org-flavored overlay"). Behavior-neutral -- the registry is read by session-start prose, not code. Also scrubbed a stray operator home-path from a committed `worker/tasks/` planning doc, and de-leaked the same operator identity from the historical 1.7.2 entry below. (The desk MCP test fixtures keep naming a concrete overlay as the reference example; that is deliberate fixture usage, not user-facing content.)
+
 ## 1.7.7 — 2026-07-09
 
 **Codex implicit marketplace drift is now visible to the cache audit.** The Codex cache audit now checks the host's implicit `~/.agents/plugins/marketplace.json` when present, in addition to the repo marketplace and installed `~/.codex/plugins/cache` manifests. This catches the failure mode where a machine keeps installing Desk from an old `~/plugins` snapshot even though the repo source and cache-version checks look healthy. `desk:codex-onboarding` now prefers canonical repo-backed local marketplace paths for development installs, warns against durable unsupervised `~/plugins` snapshots, and tells agents to run the stricter audit before treating a repair as complete.
@@ -30,7 +34,7 @@
 
 ## 1.7.2 — 2026-06-10
 
-**Registry `identity` column — "which desk am I" matches identity, not a re-derived handle.** Fixes a shared-workspace foot-gun in the 1.7.0 `_meta/desks.md` schema: it described the `alias` as "derived from identity," which invites a consumer to *re-derive* a handle from the operator's identity each session (e.g. EMU login minus `_microsoft`). But a chosen short handle need not be a transform of the identity (`arimendelow_microsoft`'s desk is `ari`, not `arimendelow`), so re-deriving silently binds a returning teammate to the **wrong desk** (a new empty `desks/<derived>/` instead of their real `desks/<chosen>/`). The schema now carries an explicit **`identity`** column and the "which desk am I" step matches on it — the registry is the source of truth for the identity→alias binding; a re-derived handle is only a *default* used to seed a brand-new row. Prose-only (the registry is read by session-start prose, not MCP code — no code surface); default-tolerant (single-OFF-mode desk needs no registry).
+**Registry `identity` column — "which desk am I" matches identity, not a re-derived handle.** Fixes a shared-workspace foot-gun in the 1.7.0 `_meta/desks.md` schema: it described the `alias` as "derived from identity," which invites a consumer to *re-derive* a handle from the operator's identity each session (e.g. an SSO login minus an org suffix). But a chosen short handle need not be a transform of the identity (`agarcia_corp`'s desk is `alex`, not `agarcia`), so re-deriving silently binds a returning teammate to the **wrong desk** (a new empty `desks/<derived>/` instead of their real `desks/<chosen>/`). The schema now carries an explicit **`identity`** column and the "which desk am I" step matches on it — the registry is the source of truth for the identity→alias binding; a re-derived handle is only a *default* used to seed a brand-new row. Prose-only (the registry is read by session-start prose, not MCP code — no code surface); default-tolerant (single-OFF-mode desk needs no registry).
 
 ## 1.7.1 — 2026-06-10
 
