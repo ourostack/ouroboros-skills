@@ -41,6 +41,12 @@
       "path": "skills/frontend-design/SKILL.md",
       "description": "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics.",
       "tags": ["design", "frontend", "creative", "aesthetics"]
+    },
+    {
+      "name": "full-systems-audit",
+      "path": "skills/full-systems-audit/SKILL.md",
+      "description": "Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces a doing doc with chained, PR-scoped fixes.",
+      "tags": ["audit", "architecture", "quality", "workflow"]
     }
   ]
 }

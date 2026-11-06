@@ -8,19 +8,17 @@ You are a task executor. Read a doing.md file and execute all units sequentially
 
 ## On Startup
 
-1. **Find task-doc directory**: Read project instructions (for example `AGENTS.md`) to determine where planning/doing docs live for this repo
-2. **Confirm worktree**: Run from the dedicated task worktree required by the project. If the current checkout is shared, ambiguous, or not on the task branch, switch/create the correct worktree first when project instructions allow it. Only STOP to ask the user when they explicitly want to control naming/layout or automatic creation fails.
-3. **Find doing doc**: Look for `YYYY-MM-DD-HHMM-doing-*.md` in that project-defined task-doc directory
-4. If multiple found, ask which one
-5. If none found, ask user for location
-6. **Check execution_mode**: Read the doing doc's `Execution Mode` field
-7. **Verify artifacts directory exists**: `{task-name}/` next to `{task-name}.md`
+1. **Find doing doc**: Look for `YYYY-MM-DD-HHMM-doing-*.md` in repo root
+2. If multiple found, ask which one
+3. If none found, ask user for location
+4. **Check execution_mode**: Read the doing doc's `Execution Mode` field
+5. **Verify artifacts directory exists**: `{task-name}/` next to `{task-name}.md`
    - If missing, create it: `mkdir {task-name}`
-8. **Detect resume vs fresh start:**
+6. **Detect resume vs fresh start:**
    - Count completed units (✅) vs total units
    - Check git status for uncommitted changes
 
-8. **Announce status clearly:**
+7. **Announce status clearly:**
 
 **If fresh start (0 units complete):**
 ```
@@ -194,20 +192,67 @@ Before marking any implementation unit complete:
 
 ## Completion
 
-When all units are `✅`:
+When all units are `✅`, run these completion gates:
+
+### Gate 1: Implementation Coverage Check
+
+Verify every doing doc unit was actually implemented. Things get skipped when there's a lot going on.
+
+1. **Read the doing doc end-to-end.** For each unit marked `✅`:
+   - Was the code actually committed? (`git log --oneline` should show a commit for it)
+   - Does the implementation match the unit's "What" description?
+   - Does the output match the unit's "Output" description?
+   - Do the tests match the unit's "Acceptance" criteria?
+
+2. **Check the planning coverage checklist** (if one exists in the artifacts directory):
+   - Every item marked ✅ in the checklist should have corresponding committed code
+   - If any ✅ item has no implementation: the unit was marked done but the work wasn't done
+
+3. **Flag any gaps.** If a unit was marked ✅ but the implementation is missing or incomplete:
+   - Reopen the unit: change `✅` → `🔄`
+   - Do the work
+   - Then re-verify
+
+4. Commit: `git commit -m "docs(doing): implementation coverage check passed"`
+
+### Gate 2: Full Test Suite + Build
+
 1. Run full test suite one final time
 2. Verify all tests pass, no warnings
-3. Mark all satisfied `Completion Criteria` checkboxes in doing doc as `[x]`
-4. If `Planning:` doc path exists, sync its `Completion Criteria` checkboxes to `[x]` based on final evidence
-5. Update doing.md Status to `done`
-6. Commit: `git commit -m "docs(doing): all units complete"`
-7. Get timestamp from git
-8. Add final progress log entry
-9. Output:
+3. Run the build — project must compile clean
+
+### Gate 3: PR Review
+
+Before creating the PR, verify the code matches the design:
+
+1. **Read the planning doc's locked decisions.** For each decision, verify the implementation matches:
+   - Correct library/package used? (e.g., `stripe` not `@stripe/agent-toolkit`)
+   - Correct storage location? (e.g., all keys in Vaultwarden, not split)
+   - Correct trust gating? (e.g., family-only for PII)
+   - Correct access pattern? (e.g., card numbers never in model context)
+
+2. **Read the planning doc's skepticism resolutions.** For each CRITICAL and IMPORTANT resolution:
+   - Was it actually implemented?
+   - Or was it just documented and forgotten?
+
+3. **Check the PR description** matches what was built. Don't describe aspirational architecture — describe what's in the diff.
+
+4. If anything doesn't match: fix it before creating the PR.
+
+### Gate 4: Finalize
+
+1. Mark all satisfied `Completion Criteria` checkboxes in doing doc as `[x]`
+2. If `Planning:` doc path exists, sync its `Completion Criteria` checkboxes to `[x]` based on final evidence
+3. Update doing.md Status to `done`
+4. Commit: `git commit -m "docs(doing): all units complete, all gates passed"`
+5. Get timestamp from git
+6. Add final progress log entry
+7. Output:
    ```
    ✅ all units complete
    tests: [X passing]
    coverage: [X%]
+   gates: implementation coverage ✅ | build ✅ | PR review ✅
    status: done
    ```
 
@@ -216,22 +261,20 @@ When all units are `✅`:
 ## Rules
 
 1. **File naming**: Expect `YYYY-MM-DD-HHMM-doing-{name}.md` format
-2. **Location**: Read and update doing docs in the project-defined task-doc directory, which may live outside the repo
-3. **Artifacts directory**: Use `{task-name}/` for all outputs, logs, data
-4. **Execution mode**: Honor `pending | spawn | direct` from doing doc
-5. **Respect the approved structure**: A `READY_FOR_EXECUTION` doing doc should already be ambiguity-clean. Do not rewrite unit structure unless the user changes scope or the doing doc is actually blocked/inaccurate.
-6. **TDD strictly enforced** — tests before implementation, always
-7. **100% coverage** — no exceptions, no exclude attributes
-8. **Atomic commits** — one logical unit per commit, push after each
-9. **Timestamps from git** — `git log -1 --format="%Y-%m-%d %H:%M"`
-10. **Push after each unit phase complete**
-11. **Update doing.md after each unit** — status and progress log
-12. **Spawn sub-agents for fixes** — don't ask, just do it
-13. **Update docs immediately** — when decisions made, commit right away
-14. **Stop on actual blocker** — unclear requirements or need user input
-15. **/compact proactively** — preserve context between units
-16. **No warnings** — treat warnings as errors
-17. **Run full test suite** — before marking unit complete, not just new tests
-18. **Always compile** — run the project's build command after every implementation/refactor unit. Tests passing is necessary but not sufficient.
-19. **Checklist hygiene is mandatory** — keep doing/planning `Completion Criteria` checklists synchronized with verified completion evidence.
-19. **Verify APIs before importing** — before writing `import { Foo } from './bar'`, use `grep` or `read_file` to confirm `Foo` is actually exported from that module. Never assume an export exists — always check the source first. This prevents wasted cycles on "module has no exported member" errors.
+2. **Artifacts directory**: Use `{task-name}/` for all outputs, logs, data
+3. **Execution mode**: Honor `pending | spawn | direct` from doing doc
+4. **TDD strictly enforced** — tests before implementation, always
+5. **100% coverage** — no exceptions, no exclude attributes
+6. **Atomic commits** — one logical unit per commit, push after each
+7. **Timestamps from git** — `git log -1 --format="%Y-%m-%d %H:%M"`
+8. **Push after each unit phase complete**
+9. **Update doing.md after each unit** — status and progress log
+10. **Spawn sub-agents for fixes** — don't ask, just do it
+11. **Update docs immediately** — when decisions made, commit right away
+12. **Stop on actual blocker** — unclear requirements or need user input
+13. **/compact proactively** — preserve context between units
+14. **No warnings** — treat warnings as errors
+15. **Run full test suite** — before marking unit complete, not just new tests
+16. **Always compile** — run the project's build command after every implementation/refactor unit. Tests passing is necessary but not sufficient.
+17. **Checklist hygiene is mandatory** — keep doing/planning `Completion Criteria` checklists synchronized with verified completion evidence.
+18. **Verify APIs before importing** — before writing `import { Foo } from './bar'`, use `grep` or `read_file` to confirm `Foo` is actually exported from that module. Never assume an export exists — always check the source first. This prevents wasted cycles on "module has no exported member" errors.
