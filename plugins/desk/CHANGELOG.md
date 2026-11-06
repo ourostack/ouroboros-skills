@@ -1,5 +1,9 @@
 # desk plugin — changelog
 
+## 1.7.2 — 2026-06-10
+
+**Registry `identity` column — "which desk am I" matches identity, not a re-derived handle.** Fixes a shared-workspace foot-gun in the 1.7.0 `_meta/desks.md` schema: it described the `alias` as "derived from identity," which invites a consumer to *re-derive* a handle from the operator's identity each session (e.g. EMU login minus `_microsoft`). But a chosen short handle need not be a transform of the identity (`arimendelow_microsoft`'s desk is `ari`, not `arimendelow`), so re-deriving silently binds a returning teammate to the **wrong desk** (a new empty `desks/<derived>/` instead of their real `desks/<chosen>/`). The schema now carries an explicit **`identity`** column and the "which desk am I" step matches on it — the registry is the source of truth for the identity→alias binding; a re-derived handle is only a *default* used to seed a brand-new row. Prose-only (the registry is read by session-start prose, not MCP code — no code surface); default-tolerant (single-OFF-mode desk needs no registry).
+
 ## 1.7.1 — 2026-06-10
 
 **`_shared/` read-across indexing.** Completes the shared-workspace read-across promise: the indexer now indexes team-neutral docs under `_shared/` (e.g. `_shared/landscape/*.md`) so `desk_search` spans the whole crew brain — every agent reads all of `desks/*/` **and** `_shared/`, not just its own desk. `discover.js` (`isIndexable`/`classify`) accepts `_shared/**.md` as `kind=shared`; without this a crew member's search silently missed the shared facts the `shared-desk-conventions` skill promises are repo-wide. Behavior-preserving for single-desk workspaces (no `_shared/` dir → no new indexable docs, byte-identical). New classification branch covered 100%.
