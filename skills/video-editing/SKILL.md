@@ -425,6 +425,53 @@ Lower music when VO plays, bring it back during silent/demo sections:
 - For pre-mixed audio outside Remotion: detect speech from amplitude envelope or word-level timestamps mapped to final timeline positions.
 - **Every time you move, add, split, or remove a VO block, rebuild ALL voRanges.** Stale ranges = music ducked at wrong times.
 
+### Pre-mixed audio workflow (non-Remotion)
+
+When adding audio to an existing video (e.g., rebranding an FCP/Premiere project), build a single pre-mixed audio file and mux it into the video with ffmpeg. This avoids complex NLE timeline manipulation.
+
+**Process:**
+1. **Get the silent video** — have the editor export video with no audio.
+2. **Build the visual breakdown** — extract 1fps frames, log what's on screen second by second. Verify sync-critical transitions at 10fps.
+3. **Generate VO per-sentence** — one WAV file per sentence. Long single-file TTS generations produce clicking artifacts. Individual files also give precise placement control. Use the bundled `generate-vo.py`.
+4. **Transcribe VO** — whisper-cpp with `--output-json-full` for word-level timestamps. Use these ONLY for finding word positions within a file (e.g., aligning a specific word to a visual transition). NEVER use whisper segment boundaries as sentence boundaries — they split on arbitrary line lengths, not punctuation.
+5. **Map VO sentences to video** — for each sentence, READ THE ACTUAL FRAME at the candidate placement time. Do not guess from a breakdown or trust an agent's assessment. Read it yourself, confirm the visual matches the narration, then commit the placement. This is the step you will be tempted to skip. Do not skip it.
+6. **Build the VO track** — place each VO sentence file at its video position in a silent buffer matching the video duration. Verify no overlaps programmatically. Print every placement with start, end, and gap to next.
+7. **Build the music track** — extend if needed with bespoke splice (preserve intro + natural fadeout). Music must cover the ENTIRE video. The natural fadeout must END at the video's end, not begin there. Verify by checking amplitude in the last 5s.
+8. **Duck the music** — use amplitude detection on the placed VO track (RMS in 10ms windows > threshold). Do NOT map whisper timestamps through placement offsets — that's indirect and error-prone. Just detect where the audio is loud. Duck only during speech, not during silence between sentences.
+9. **Run the MANDATORY VERIFICATION GATE** (see section below) before proceeding.
+10. **Mix and mux** — combine VO + ducked music, then mux into the video:
+
+```bash
+ffmpeg -y -i silent-video.mp4 -i premix-vo-music.wav \
+  -c:v copy -c:a aac -b:a 320k \
+  -map 0:v:0 -map 1:a:0 output.mp4
+```
+
+**Freeze frames for VO overflow:** If VO is longer than the available visual (e.g., closing text slide needs to hold while VO finishes), use ffmpeg to freeze a frame:
+
+```bash
+# Split video at freeze point, hold frame, then append remainder
+ffmpeg -y -i input.mp4 -t {freeze_start} -c copy part1.mp4
+ffmpeg -y -i input.mp4 -ss {freeze_start} -frames:v 1 freeze.png
+ffmpeg -y -loop 1 -i freeze.png -t {freeze_duration} -c:v libx264 -pix_fmt yuv420p -r 60 freeze.mp4
+ffmpeg -y -i input.mp4 -ss {resume_point} -c copy part3.mp4
+# Concatenate parts
+```
+
+### MANDATORY VERIFICATION GATE — do not skip this
+
+Before muxing audio into video, you MUST complete this checklist. Do not ship without it.
+
+**1. Read every placement frame.** For each VO sentence, read the actual video frame at that placement time. Confirm the visual matches the narration. Do this yourself — do not delegate to an agent and trust "MATCH." If any placement is wrong, fix it before proceeding. This is not optional.
+
+**2. Check for overlaps programmatically.** Print every placement's start, end, and gap to next. If any gap is negative, fix it. If any gap is under 0.3s, flag it.
+
+**3. Verify music reaches end of video.** Play the last 5s of the pre-mix. Confirm music is audible and fading naturally, not cutting off abruptly. If the music track is shorter than the video, you MUST extend it with a bespoke splice that preserves the natural fadeout — and the fadeout must END at the video's end, not BEGIN there.
+
+**4. Verify ducking is speech-accurate.** Listen to a VO section: music should duck only while words are being spoken, not during pauses between sentences. If ducking pumps weirdly during silence, you're ducking to file boundaries instead of speech. Use amplitude detection on the placed VO track, not timestamp mapping.
+
+**5. Verify closing sequence.** Read the last 20s of frames. Confirm: VO finishes before any non-narrated end card (logo, etc.). Music fades naturally through to the end. No abrupt silence.
+
 ### Demo footage rules
 
 1. **Full-screen, no chrome** — `objectFit: "contain"` on dark background
