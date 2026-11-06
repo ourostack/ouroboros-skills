@@ -16,6 +16,7 @@ const expectedSkillNames = [
   "inch-worm",
   "stay-in-turn",
   "visual-qa-dogfood",
+  "watchdog-mode",
   "work-doer",
   "work-ideator",
   "work-merger",
