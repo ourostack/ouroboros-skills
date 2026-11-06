@@ -7,6 +7,7 @@
 // (desk_search, desk_recall, desk_similar, desk_timeline, desk_thread)
 // still return a `not_implemented` stub until Units 4-6.
 
+import { existsSync } from "node:fs"
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
@@ -23,6 +24,8 @@ import {
 import { track_create, track_update } from "./tools/track.js"
 import { friction_add } from "./tools/friction.js"
 import { lesson_add } from "./tools/lesson.js"
+import { closeDb, indexDbPath, openDb } from "./db/init.js"
+import { isIndexFresh, rebuildIndex } from "./indexer/index.js"
 
 export { TOOL_NAMES, TOOL_DESCRIPTIONS }
 
@@ -85,11 +88,41 @@ export async function callTool({ deskRoot, name, input }) {
   }
 }
 
+/**
+ * Bring the on-disk index up to date for `deskRoot`. Called once at server
+ * boot. If the DB file doesn't exist, builds from scratch. If it exists and
+ * is fresh (no file mtime newer than last_indexed_at), no-ops. Else does an
+ * incremental refresh.
+ */
+export async function ensureIndex(deskRoot) {
+  const dbPath = indexDbPath(deskRoot)
+  const dbExisted = existsSync(dbPath)
+  const db = openDb(deskRoot)
+  try {
+    if (dbExisted) {
+      const fresh = await isIndexFresh(deskRoot, db)
+      if (fresh) return { built: false, reason: "fresh" }
+    }
+    await rebuildIndex(deskRoot, { db })
+    return { built: true, reason: dbExisted ? "stale" : "missing" }
+  } finally {
+    closeDb(db)
+  }
+}
+
 export async function startServer({ deskRoot }) {
+  // Build (or refresh) the index synchronously before accepting traffic, so
+  // search tools — once Units 5/6 wire them up — see a consistent view.
+  try {
+    await ensureIndex(deskRoot)
+  } catch (err) {
+    console.error("[desk-mcp] ensureIndex failed:", err.message)
+  }
+
   const server = new Server(
     {
       name: "desk-mcp",
-      version: "0.4.0",
+      version: "0.5.0",
     },
     {
       capabilities: { tools: {} },
