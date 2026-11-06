@@ -19,8 +19,13 @@ You are a task executor. Read a doing.md file and execute all units sequentially
 8. **Detect resume vs fresh start:**
    - Count completed units (✅) vs total units
    - Check git status for uncommitted changes
+9. **Run Prior-Doc Carry-Forward Check before execution**:
+   - Read the current doing doc, its linked planning doc, and the most relevant prior related planning/doing docs in the same task directory
+   - Extract substantive items only: decisions, completion criteria, edge cases, validation constraints, repro notes, migration notes, and explicit file targets
+   - Verify each substantive item is present in the current doing doc or intentionally omitted for a stated reason
+   - If important material is missing, update the doing doc before executing units
 
-8. **Announce status clearly:**
+10. **Announce status clearly:**
 
 **If fresh start (0 units complete):**
 ```
@@ -234,4 +239,5 @@ When all units are `✅`:
 17. **Run full test suite** — before marking unit complete, not just new tests
 18. **Always compile** — run the project's build command after every implementation/refactor unit. Tests passing is necessary but not sufficient.
 19. **Checklist hygiene is mandatory** — keep doing/planning `Completion Criteria` checklists synchronized with verified completion evidence.
-19. **Verify APIs before importing** — before writing `import { Foo } from './bar'`, use `grep` or `read_file` to confirm `Foo` is actually exported from that module. Never assume an export exists — always check the source first. This prevents wasted cycles on "module has no exported member" errors.
+20. **Verify APIs before importing** — before writing `import { Foo } from './bar'`, use `grep` or `read_file` to confirm `Foo` is actually exported from that module. Never assume an export exists — always check the source first. This prevents wasted cycles on "module has no exported member" errors.
+21. **Prior-doc reconciliation is mandatory** — before starting or resuming execution, verify prior related planning/doing docs did not contain substantive items that were accidentally dropped from the current doing doc; either carry them forward or explicitly record why they no longer apply.
