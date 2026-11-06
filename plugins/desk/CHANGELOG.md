@@ -2,7 +2,11 @@
 
 ## 1.7.5 — 2026-07-08
 
-**New `doc-review-rigor` skill.** Adds the generic doc-substance evaluation method to the desk plugin -- extract every reviewable claim from a document, classify each (blocking / should-fix / nit / open question), and surface them without ever auto-posting. Extracted from a crew-specific skill during a plugin-layering cleanup so the surface-agnostic method lives at the generic `desk` layer and overlays compose it with their own grounding. Catch-up bump: the skill itself landed one release earlier without moving the version surfaces; this aligns every desk manifest, the activation lock, and the marketplace entry. Also carries the coupled `work-suite` dependency-lock bump to 1.5.1 (below).
+**New `doc-review-rigor` skill.** Adds the generic doc-substance evaluation method to the desk plugin -- extract every reviewable claim from a document, classify each (blocking / should-fix / nit / open question), and surface them without ever auto-posting. Extracted from a crew-specific skill during a plugin-layering cleanup so the surface-agnostic method lives at the generic `desk` layer and overlays compose it with their own grounding.
+
+**`content-routing` now gates a new skill's layer.** The `content-routing` skill gained a skill-placement section (the engine/skin test + the canonical-library/bundle mechanism) so it can answer "which layer does this belong in?" when a skill is first written. This shipped in the same plugin-layering cleanup and is documented here for completeness.
+
+**Version-surface catch-up.** Both changes above landed without moving the version surfaces (CI stays green while every surface agrees at the old version, so the omission is invisible to CI). This release aligns every desk manifest, the activation lock, the regenerated copilot bundle, the codex activation fixtures, and the marketplace entry -- and carries the coupled `work-suite` dependency-lock bump to 1.5.1 (below).
 
 ## 1.7.4 — 2026-06-29
 
