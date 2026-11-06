@@ -29,6 +29,14 @@ Operator says any of:
 
 If the operator asks about an MCP that's **already in the agent's frontmatter defaults**, they don't need to add it; surface that fact and stop.
 
+## Startup-safety classification — persistent means boot-critical
+
+Every MCP in agent frontmatter or auto-discovered workspace config is a startup dependency. Some hosts initialize the entire set before delivering the first user prompt and retry failed servers aggressively. A persistent entry that is unavailable can therefore prevent prompt readiness or flood the session before the agent can explain the problem.
+
+Persist an MCP only when its initialization path is available in every environment where the agent is expected to launch. A service that depends on a conditional network, machine-local daemon, optional credential, device class, or other environmental prerequisite belongs behind explicit launch-time enablement unless its launcher can initialize a truthful local diagnostic surface while the downstream is unavailable. That degraded surface may explain the prerequisite and block unavailable tools; it must not turn authentication, authorization, or protocol failures into success-shaped responses.
+
+This applies equally to plugin defaults and operator workspace config: both auto-load before the session is usable. "It works on this machine now" is insufficient. Before persisting an entry, identify the least-capable supported launch environment and prove prompt readiness there; otherwise keep the MCP one-off.
+
 ## Procedure
 
 ### 1. Confirm the `~/<runtime>.toml` link is in place
@@ -125,13 +133,25 @@ cd "$DESK" && <runtime> config list
 
 Expected: the new entry appears under its section alongside existing entries. If the listing errors out (e.g. `Invalid builtin MCP '<alias>': missing "type" field`), re-read Step 3 / `<runtime> mcp <name> --help`, fix, re-verify.
 
-**Launch-time check** (catches the `trailing_var_arg` trap and other proxy-startup failures the config-list path won't surface):
+**Launch-time prompt-readiness check** (catches the `trailing_var_arg` trap and other startup failures the config-list path won't surface):
 
 ```bash
-<runtime> launch -a <plugin>:<agent> --print "ack" 2>&1 | grep -iE "failed to launch|ack" | head
+output_file="$(mktemp)"
+if <runtime> launch -a <plugin>:<agent> --print "ack" >"$output_file" 2>&1; then
+  launch_status=0
+else
+  launch_status=$?
+fi
+cat "$output_file"
+ack_count="$(grep -icE '^[[:space:]]*ack[[:space:]]*$' "$output_file" || true)"
+failure_count="$(grep -icE 'fail(ed|ure|ing)?|error|authenticat|authori[sz]|forbidden|access denied|permission denied|protocol mismatch|HTTP[[:space:]]+(401|403)|respawn|retry' "$output_file" || true)"
+rm -f "$output_file"
+test "$launch_status" -eq 0 &&
+  test "$ack_count" -eq 1 &&
+  test "$failure_count" -eq 0
 ```
 
-Expected: a line containing `ack` with **no** `Failed to launch proxy for MCP '<your-alias>'` warning. If you see that warning, the most common cause is putting an npx-distributed MCP under `[mcps.builtins.<alias>] type = "npx"` with package args; move it to `[mcps.servers.<alias>] type = "stdio"`.
+Expected: exactly one successful `ack`, no startup-failure, authentication/authorization, protocol-mismatch, respawn, or retry lines, and a zero exit status. Inspect the full captured output; do not pipe the live launch through `head`, because a retry loop can appear after the first success-shaped line. Run this check from the least-capable environment the agent is expected to support. If the MCP cannot initialize there, remove the persistent entry and use explicit launch-time enablement instead. If the failure is the `trailing_var_arg` trap, move the npx-distributed MCP from `[mcps.builtins.<alias>] type = "npx"` to `[mcps.servers.<alias>] type = "stdio"`.
 
 ### 6. Commit + push to workspace
 
@@ -154,6 +174,8 @@ Added [<alias>] to $DESK/<runtime>.toml. Next launch will load it.
 - **Never edit the plugin's `agents/<agent>.md` frontmatter to add operator MCPs.** That block is for plugin-default MCPs that ship to every operator. Operator-specific MCPs go in workspace `<runtime>.toml`.
 - **Never use the `--mcp-config` flag as a long-term solution.** Workspace `<runtime>.toml` + link is the convention.
 - **Never use `[mcps.builtins.<alias>] type = "npx"` for external npm-distributed MCPs.** Use `[mcps.servers.<alias>] type = "stdio"`.
+- **Treat every persistent MCP as boot-critical.** Conditional dependencies stay behind explicit launch-time enablement unless they can initialize a truthful local diagnostic surface everywhere the agent must boot.
+- **Never hide authentication, authorization, or protocol failures behind success-shaped fallbacks.** Prompt readiness does not justify lying about downstream availability.
 - **Always include the date + reason comment.** No exceptions.
 - **Run both verification checks before committing.**
 
