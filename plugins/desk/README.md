@@ -53,6 +53,25 @@ For semantic search, keep Ollama reachable with `nomic-embed-text` pulled. The M
 
 See `desk:codex-onboarding` for the repair checklist and verification steps.
 
+## Invocation — the default `worker` agent
+
+The plugin ships a substrate-default agent named `worker` — a long-running engineering agent that uses the desk (tracks, tasks, friction, lessons) to keep its work coherent across sessions. It's standalone-functional; you don't need to author a consumer overlay to start working.
+
+```bash
+# Claude Code (via plugin loader / marketplace)
+claude --agent desk:worker
+
+# Copilot CLI
+copilot --agent worker
+
+# Codex — after installing the plugin, copy the subagent template once:
+cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
+# then in a Codex session:
+codex /agent worker
+```
+
+Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
+
 ## what desk gives an agent
 
 a furnished room, ready to settle into. the layout, the lifecycle, the small ceremonies for tending it.
@@ -99,7 +118,7 @@ The agent does textual substitution when interpreting skill instructions or runn
 
 the substrate stays general. the overlay handles everything situational.
 
-- **agent identity** — that's the consumer agent's job (the wrapper agent declares persona, MCP frontmatter, etc.)
+- **org-specific agent identity** — `worker` is the substrate default; consumer overlays (corporate-engineering, autonomous-agent, personal-coding) can ship their own agent with extended skills, invariants, and tooling on top.
 - **doing-phase mechanics** — those live in `work-suite` (work-doer, work-merger, etc.)
 - **organization-specific concerns** — auth systems, work-item trackers, internal portals, etc. live in a consumer overlay (one of several possible overlays — others can be built the same way)
 

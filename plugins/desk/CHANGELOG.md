@@ -1,6 +1,33 @@
 # desk plugin — changelog
 
-## Unreleased
+## 1.3.0 — 2026-05-26
+
+**Default `worker` agent + cross-harness manifest completion.** The desk plugin is now standalone-functional — no overlay required. A new substrate-default engineering agent ships with the plugin, and the manifest set is complete for Claude Code + Copilot CLI + Codex.
+
+What this changes:
+
+- **New default agent: `desk:worker`** — a long-running engineering agent that uses the desk substrate. Owns work end-to-end (ideate → plan → implement → review → PR → merge) and keeps its tracks, tasks, friction, and lessons on the desk. Substrate-default; consumer overlays (corporate-engineering, autonomous-agent, personal-coding) layer their own agents on top.
+- **Three agent files for the three harnesses, same canonical body:**
+  - `agents/worker.md` — Claude Code (YAML frontmatter + body)
+  - `agents/worker.agent.md` — Copilot CLI (`target: github-copilot`, `user-invocable: true`)
+  - `agents/worker.toml` — Codex subagent template (operator copies to `~/.codex/agents/worker.toml` to register)
+- **Copilot CLI manifest added:** `plugin.json` at plugin root. Names `agents/`, `skills/`, `mcpServers` paths per the Copilot CLI plugin reference. Pairs with the existing `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`.
+- **Version sync across the three plugin manifests** — all three now declare 1.3.0 so consumers see one version regardless of which harness they install through.
+
+The agent's body uses the `$DESK` placeholder so any consumer agent can bind its own workspace path without forking the substrate. Cross-harness invocation:
+
+```bash
+# Claude Code (via plugin loader / marketplace)
+claude --agent desk:worker
+
+# Copilot CLI
+copilot --agent worker
+
+# Codex
+codex /agent worker   # after copying worker.toml to ~/.codex/agents/
+```
+
+## 1.2.2 — 2026-05-23
 
 - Add Codex plugin metadata and a local-marketplace entry for `desk`.
 - Add a Codex onboarding skill covering local install, `$DESK` binding, MCP registration, and the companion `work-suite` plugin.
