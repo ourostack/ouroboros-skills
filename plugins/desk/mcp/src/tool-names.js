@@ -22,13 +22,20 @@ export const TOOL_NAMES = [
 ]
 
 export const TOOL_DESCRIPTIONS = {
-  task_create: "Create a new task.md under <root>/<track>/<slug>/. Stub until Unit 3.",
-  task_update: "Update a task's frontmatter or body. Stub until Unit 3.",
-  task_archive: "Move a task to <root>/<track>/_archive/. Stub until Unit 3.",
-  track_create: "Create a new track.md under <root>/<slug>/. Stub until Unit 3.",
-  track_update: "Update a track's frontmatter. Stub until Unit 3.",
-  friction_add: "Append a friction note. Stub until Unit 3.",
-  lesson_add: "Append a lesson. Stub until Unit 3.",
+  task_create:
+    "Create a new task.md under <root>/<track>/<slug>/ with schema_version:1 frontmatter.",
+  task_update:
+    "Merge frontmatter or append to the body of an existing task.md; preserves schema_version + created.",
+  task_archive:
+    "Move <root>/<track>/<slug>/ to <root>/<track>/_archive/<slug>/, marking status=done if non-terminal. Idempotent.",
+  track_create:
+    "Create a new track.md under <root>/<slug>/ with schema_version:1 frontmatter.",
+  track_update:
+    "Merge frontmatter or append to the body of an existing track.md; preserves schema_version + created.",
+  friction_add:
+    "Append a friction entry — cross-cutting to <root>/_meta/friction.md, or track-local to <root>/<track>/_friction/<date>-<theme>.md.",
+  lesson_add:
+    "Write or append a lesson under <root>/_meta/tips/<topic>.md. Existing file gets an `## Update <date>` section.",
   desk_search:
     "Hybrid lexical+semantic search across desk. Stub until Unit 5.",
   desk_recall:
