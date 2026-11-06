@@ -5,7 +5,7 @@ description: Schema + body template for `track.md` — the per-track dashboard a
 
 # Track card format
 
-`track.md` sits at the root of a track directory. **It's a working dashboard, not just metadata** — it's the first thing a resuming operator reads, so make it useful.
+`track.md` is the label on the drawer. it sits at the root of a track directory and **is a working dashboard, not just metadata** — the first thing a resuming operator reads. make it useful.
 
 ## Frontmatter schema
 
@@ -33,14 +33,14 @@ planning: ./_planning/planning.md
 ---
 ```
 
-Consumer agents extending this with their own work-tracker schema
-(e.g., worker users with ADO Features) add their own frontmatter
+consumer agents extending this with their own work-tracker schema
+(e.g. worker users with ADO Features) add their own frontmatter
 block — see `worker:ms-card-fields` for the MS-specific `ado:` +
 `ado_defaults:` shape.
 
 ## Schema versioning
 
-`schema_version: 1` declares the current track-card schema. Same semantics as task.md: files missing the field are treated as `schema_version: 0` and continue to parse cleanly (v1 is a strict superset of v0); new tracks always write `schema_version: 1`; bump only on genuinely breaking changes.
+`schema_version: 1` declares the current track-card schema. same semantics as task.md: files missing the field are treated as `schema_version: 0` and continue to parse cleanly (v1 is a strict superset of v0); new tracks always write `schema_version: 1`; bump only on genuinely breaking changes.
 
 ## Body sections (recommended template)
 
@@ -67,9 +67,9 @@ One paragraph describing what this track covers.
 - **Planning docs preserved**: see `_planning/` (current) and `_planning/_history/` (superseded)
 ```
 
-Consumer agents may add a "Work-tracker structure" body section
-(e.g., the MS ADO Feature/Requirement/Task hierarchy) — that
+consumer agents may add a "Work-tracker structure" body section
+(e.g. the MS ADO Feature/Requirement/Task hierarchy) — that
 belongs in the consumer's extension skill, not here. worker users:
 see `worker:ms-card-fields`.
 
-Keep the body concise. When a resuming operator reads `track.md`, they should know what's in flight and what's next in under 30 seconds.
+keep the body concise. when a resuming operator slides the drawer open, they should know what's in flight and what's next in under 30 seconds.

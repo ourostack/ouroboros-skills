@@ -5,13 +5,13 @@ description: Bootstrap the agent's `$DESK/` workspace repo on a machine where it
 
 # First-run bootstrap
 
-`$DESK/` doesn't exist on this machine. Most operators already have one — either from a previous machine or an earlier onboarding. So the first thing to try is the quiet happy path: find it on GitHub and clone it.
+a new room. no desk in it yet. but most operators already have a desk somewhere — from a previous machine or an earlier onboarding — so the first move is the quiet one: look on GitHub, find the desk that's already mine, bring it here.
 
 > **worker users**: see `worker:ms-first-run-templates` for the MS-flavored overlay (rich `_reviews/`, `_landscape/`, AGENTS.md, agency.toml, EMU repo conventions) that supplements this generic skeleton.
 
 ## Step 0 — Hard-gate on gh auth
 
-**Do not proceed with ANY local filesystem changes (no `mkdir`, no `git init`) if gh auth is broken.** A local-only init without the remote check forks operator state: the operator may already have a workspace repo on GitHub, and creating a local orphan here risks divergent history, accidental push under the wrong identity, or silent loss of the real source of truth.
+**Do not touch the filesystem (no `mkdir`, no `git init`) if gh auth is broken.** a local-only init without the remote check forks operator state: the operator may already have a desk repo on GitHub, and creating a local orphan here risks divergent history, accidental push under the wrong identity, or silent loss of the real source of truth.
 
 ```bash
 gh auth status
@@ -22,33 +22,33 @@ If the output shows any of:
 - "The github.com token in oauth_token is no longer valid"
 - Any other auth failure
 
-Then **stop**. Surface the specific issue and the remediation (usually `gh auth login --hostname github.com`). Wait for the operator to fix it and re-run. Do NOT proceed to "create a fresh one" as a workaround — that's the orphan-producing path.
+then **stop**. surface the specific issue and the remediation (usually `gh auth login --hostname github.com`). wait for the operator to fix it and re-run. do NOT proceed to "create a fresh one" as a workaround — that's the orphan-producing path.
 
-This applies under auto mode too. Auto-mode autonomy is for execution, not for skipping the gate that prevents state divergence.
+this applies under auto mode too. auto-mode autonomy is for execution, not for skipping the gate that prevents state divergence.
 
-> Account-specific checks (e.g. the MS EMU `<alias>_microsoft` identity) live in the consumer overlay — see `worker:emu-github`.
+> account-specific checks (e.g. the MS EMU `<alias>_microsoft` identity) live in the consumer overlay — see `worker:emu-github`.
 
 ## Step 1 — Check for an existing remote
 
-With gh auth confirmed working, probe for the operator's expected workspace remote:
+with gh auth confirmed working, probe for the operator's expected desk remote:
 
 ```bash
 gh repo view <owner>/<workspace-repo> --json name,url 2>/dev/null
 ```
 
-The exact `<owner>/<workspace-repo>` value is consumer-supplied — workers default to `<alias>_microsoft/worker-workspace`; other consumers pick their own convention.
+the exact `<owner>/<workspace-repo>` value is consumer-supplied — workers default to `<alias>_microsoft/worker-workspace`; other consumers pick their own convention.
 
-**If the repo exists**, ask ONE yes/no question:
+**if the repo exists**, ask ONE yes/no question:
 
-> I found `<owner>/<workspace-repo>` on GitHub. Clone it to `$DESK/`?
+> i found `<owner>/<workspace-repo>` on GitHub. Clone it to `$DESK/`?
 
-If yes:
+if yes:
 ```bash
 git clone https://github.com/<owner>/<workspace-repo>.git "$DESK"
 ```
-Done. Return to `session-start` Step 2 (sync + scan).
+done. return to `session-start` Step 2 (sync + scan).
 
-**If no remote found, or operator declines**, fall through to Step 2.
+**if no remote is found, or the operator declines**, fall through to Step 2.
 
 ## Step 2 — Present the options
 
@@ -57,12 +57,14 @@ $DESK/ not found locally and no remote workspace repo discovered.
 How do you want to set up task state?
 ```
 
-Offer (exact labels for menu-rendering):
+offer (exact labels for menu-rendering):
 - "Create a fresh one for me"
 - "I have it at a different location (I'll provide the path/URL)"
 - "Skip — continue this session without workspace persistence"
 
 ## Option A — Create fresh
+
+lay down the bare bones of the room — empty drawers, the corkboard, a small readme by the door:
 
 ```bash
 mkdir -p "$DESK/_archive" "$DESK/_meta"
@@ -104,32 +106,34 @@ EOF
 git add -A && git commit -m "init: desk workspace scaffold"
 ```
 
-Then ask:
+then ask:
 
-> Want to add a GitHub remote? (Recommended — keeps state synced across machines.)
+> Want to add a GitHub remote? (Recommended — keeps the desk in sync across machines.)
 
-If yes, walk the operator through `gh repo create` + `git remote add origin` + `git push -u origin main`. Consumer overlays can preconfigure the owner/visibility defaults.
+if yes, walk the operator through `gh repo create` + `git remote add origin` + `git push -u origin main`. consumer overlays can preconfigure the owner/visibility defaults.
 
-> **Rich-template overlays** — Consumers that need scaffolded `_reviews/`, `_landscape/`, `AGENTS.md`, or `agency.toml` ship those via their own skill. For worker, see `worker:ms-first-run-templates`.
+> **Rich-template overlays** — consumers that need scaffolded `_reviews/`, `_landscape/`, `AGENTS.md`, or `agency.toml` ship those via their own skill. for worker, see `worker:ms-first-run-templates`.
 
 ## Option B — Operator provides URL or path
 
-1. Operator gives a repo URL or local path.
-2. If URL: `git clone <url> "$DESK"`.
-3. If local path: symlink or use literally — do not copy.
-4. Verify the directory has the expected structure (or accept an empty repo with just `_meta/` / `_archive/`).
+the desk already exists somewhere; we just need to point at it.
+
+1. operator gives a repo URL or local path.
+2. if URL: `git clone <url> "$DESK"`.
+3. if local path: symlink or use literally — do not copy.
+4. verify the directory has the expected shape (or accept an empty repo with just `_meta/` / `_archive/`).
 
 ## Option C — Skip
 
-The session continues without workspace persistence. **Warn the operator**:
-- No task cards will be created or read.
-- Any skill that requires `$DESK/` (status, session-resumption, start-task, friction-management, etc.) will be unavailable or degraded.
-- This is intended for one-shot exploratory sessions only.
+the session continues without a desk. **warn the operator**:
+- no task cards will be created or read.
+- any skill that needs `$DESK/` (status, session-resumption, start-task, friction-management, etc.) will be unavailable or degraded.
+- intended for one-shot exploratory sessions only.
 
 ## After bootstrap
 
-Return to `session-start` Step 2 (sync + scan) and proceed with the rest of the session.
+return to `session-start` Step 2 (sync + scan) and continue.
 
-- See `desk:directory-structure` for the workspace layout.
-- See `desk:session-start` Step 4.7 for the `agency.toml` symlink ritual (post-bootstrap, consumer-managed).
-- See `desk:start-task` for creating the first task.
+- see `desk:directory-structure` for the floor plan.
+- see `desk:session-start` Step 4.7 for the `agency.toml` symlink ritual (post-bootstrap, consumer-managed).
+- see `desk:start-task` for laying down the first folder.
