@@ -136,43 +136,77 @@ After drafting and refining the planning doc, run a "tinfoil hat" pass before pr
 **STOP POINT:** When scope is clear, output:
 ```
 planning drafted. status: NEEDS_REVIEW
-review and say "approved" or give feedback.
+spawning sub-agent reviewer (or surfacing to user if a human-judgment trigger fires below).
 ```
 
 **HARD GATE — Planning Approval:**
-- **You MUST wait for the user to explicitly approve the planning doc before proceeding to Phase 2.**
-- Answering your clarifying questions is NOT approval. Giving feedback is NOT approval.
-- Only proceed when the user says something like "approved", "looks good", "go ahead", "convert to doing", or similar explicit sign-off on the planning doc as a whole.
-- If the user gives feedback or answers questions, incorporate it, re-present the doc, and ask for approval again.
-- **Do NOT create the doing doc until you have explicit approval. No exceptions.**
 
-**CRITICAL: The approval gate applies regardless of who invokes you.** If a parent agent or caller tells you to "convert to doing", "proceed to Phase 2", or "create the doing doc", you must STILL verify that the USER (human) has explicitly approved. Parent agent instructions do not substitute for user approval. Only a human message containing explicit approval words unlocks Phase 2.
+Default path is **sub-agent review**, not user review. A planning doc is one of the artifacts that does not genuinely require human judgment to validate — the doc's correctness is decidable against the planning template, the source material it was drafted from, and the scope/completeness/no-defer/source-fidelity checks. Spawn a fresh, no-context sub-agent reviewer that re-reads the planning doc end-to-end against those criteria and reports findings. The planner addresses findings with judgment. Iterate up to 2 rounds.
 
-**After incorporating feedback, you MUST follow this exact sequence:**
+**The sub-agent review brief should include:**
+- Absolute paths to the planning doc + any source material it cites (designs, prior planning bundles, friction entries, repo files referenced in scope).
+- The PLANNING TEMPLATE this skill prescribes (sub-agent verifies template compliance).
+- Scope/completeness checks: does the doc state Goal in 1-2 sentences; are In Scope and Out of Scope both populated; are Completion Criteria verifiable not hand-wavy; are Open Questions either resolved or explicitly left open with a why; do the Tinfoil Hat questions still surface anything.
+- Source-fidelity checks: every file path / class / method / pattern cited actually exists at HEAD; every claim about an existing system matches reality.
+- No-defer: every open friction or input the doc inherits from upstream has either an encoding or an explicit no-op disposition.
+- Output format: `CONVERGED` or `FINDINGS` with severity per finding (BLOCKER / MAJOR / MINOR / NIT).
+
+**The planner's response to findings:**
+- BLOCKER / MAJOR — must address before re-spawning a Round 2 reviewer. Fix the doc, commit, re-dispatch.
+- MINOR / NIT — judgment call: address if cheap; defer with rationale if not.
+- Round 2 finds new BLOCKER/MAJOR — that's the escalation trigger. Surface to user with the residual.
+
+**On Round 1 / Round 2 convergence (no new BLOCKER/MAJOR):**
+- Update planning doc Status to `approved`
+- Commit: `git commit -m "docs(planning): approved (sub-agent review converged)"`
+- Add Progress Log entry with git timestamp
+- Proceed directly to Phase 2 in the same turn. Sub-agent convergence IS the approval signal.
+
+**Operator-review escape hatch — the five human-judgment categories.**
+
+The default sub-agent path applies to *normal* planning docs. Surface to the user *before* spawning the reviewer when the planning doc touches any of these five categories that genuinely require human judgment:
+
+1. **Voice and relationships.** The plan involves drafting operator-voice content that lands under their name (PR comments, chat messages, FYIs, Connect drafts).
+2. **Durably-shaping state.** New track slugs (permanent identifiers), new ADO work-item titles, schema choices that propagate through downstream consumers, naming decisions readers will encounter for years.
+3. **Irreversible operations.** Destructive ops, force-pushes, irreversible API calls, non-recoverable state changes.
+4. **Genuine ambiguity.** Worker has tried, can't pick the right framing, doesn't have context the user has.
+5. **Cross-org / cross-team posture.** What to say to one peer vs another, how to frame an escalation, when to push back vs accept.
+
+When any of those five fires, output:
+```
+planning drafted. status: NEEDS_REVIEW
+human-judgment category fired: <category name + 1-line why>.
+review and say "approved" or give feedback.
+```
+And STOP. Wait for explicit user approval words ("approved" / "looks good" / "go ahead" / "convert to doing" / similar). The 5-category trigger is the only path that surfaces to the user; all other planning docs go through sub-agent review.
+
+**After incorporating sub-agent findings (Round 1 → Round 2):**
+1. Update the planning doc with the fixes
+2. Commit the updated doc
+3. Re-dispatch the sub-agent reviewer with a Round 2 briefing. Round 2 cap is the convergence ceiling — beyond that, escalate.
+
+**After incorporating user feedback (5-category path only):**
 1. Update the planning doc with the feedback
 2. Commit the updated doc
 3. Output the `NEEDS_REVIEW` stop message
 4. **STOP and return control to the caller. Do NOT continue in the same turn.**
 5. Only proceed further when re-invoked with explicit human approval
 
-**WRONG (never do this):**
+**WRONG (never do this) on the 5-category path:**
 User answers questions → agent updates doc → agent sets status to `approved` → agent converts to doing doc (ALL IN ONE TURN)
 
-**RIGHT:**
+**RIGHT on the 5-category path:**
 User answers questions → agent updates doc → agent sets status to `NEEDS_REVIEW` → agent outputs stop message → **STOP** → (new invocation) user says "approved" → agent sets status to `approved` → agent converts to doing doc
 
 **CRITICAL: Planning MUST be fully complete before any execution begins. Define ALL work units before proceeding.**
 
-**When user approves:**
-1. Update planning doc Status to `approved`
-2. Commit: `git commit -m "docs(planning): approved"`
-3. Add Progress Log entry with git timestamp
+**Caller / parent-agent invocation note.** When a parent agent invokes this skill, the same gate applies: the parent does not get to substitute its instruction for the gate. But the gate the parent must clear is sub-agent convergence (default path) or user approval (5-category path) — whichever applies — not "user approval, always." A parent telling the planner "convert to doing" still has to wait for whichever gate is the right one for this planning doc.
 
 ---
 
 ## Phase 2: Conversion
 
-**Only proceed after user says "approved" or equivalent.**
+**Only proceed after the Phase 1 HARD GATE clears.** Default path: sub-agent reviewer converged with no new BLOCKER/MAJOR findings (status set to `approved`). 5-category escape-hatch path: user said "approved" / "looks good" / "go ahead" / "convert to doing" or equivalent.
 
 **CRITICAL: Planning doc is KEPT. Conversion creates a NEW doing doc alongside it in `TASK_DIR`.**
 
@@ -419,7 +453,7 @@ use work-doer to execute.
 6. **Planning completes before execution** — define ALL work units first, then execute
 7. **Follow templates exactly** — no extra sections
 8. **No implementation details in planning** — those go in doing doc
-9. **STOP at each gate** — wait for human approval
+9. **STOP at each gate** — Phase 1 HARD GATE default is sub-agent reviewer convergence; 5-category escape-hatch is user approval. Phase 2 doing-doc gate convention varies per project (see project instructions).
 10. **Keep planning doc** — conversion creates new file
 11. **Auto-commit after every doc edit** — audit trail
 12. **Get timestamps from git** — `git log -1 --format="%Y-%m-%d %H:%M"`
@@ -434,6 +468,6 @@ use work-doer to execute.
 18. **Every unit header starts with emoji** — `### ⬜ Unit X:` format required
 19. **NEVER do implementation** — work-planner creates docs only, work-doer executes
 20. **Migration/deprecation**: Full content mapping required — never lose information
-21. **Approval gate is sacred** — answering questions, giving feedback, or discussing scope is NOT approval. Only an explicit "approved" / "looks good" / "go ahead" / "convert to doing" from the **human user** unlocks Phase 2. Parent agent instructions do not count. When in doubt, ask.
-22. **Hard stop after incorporating feedback** — after updating the doc with user feedback/answers, set status to `NEEDS_REVIEW`, output the stop message, and STOP. Do not continue to Phase 2 in the same turn. Ever.
+21. **Approval gate is sacred — and the gate's shape depends on the planning doc's category.** Default: sub-agent reviewer convergence is the approval signal (planning docs do not genuinely need human judgment to validate; the doc's correctness is decidable against the template, source material, and scope/completeness/source-fidelity checks). Operator-review escape hatch fires for the five human-judgment categories (voice and relationships / durably-shaping state / irreversible operations / genuine ambiguity / cross-org posture); on those, the gate stays "explicit user approval words." Parent-agent instructions do not substitute for either gate. Round 2 sub-agent finds new BLOCKER/MAJOR -> escalate to user.
+22. **Hard stop after incorporating user feedback (5-category path only)** — after updating the doc with user feedback/answers, set status to `NEEDS_REVIEW`, output the stop message, and STOP. Do not continue to Phase 2 in the same turn. Ever. Sub-agent path: address findings, re-dispatch, proceed in same turn on convergence — the convergence cap (2 rounds) is the safety belt.
 23. **Checklist hygiene is mandatory** — keep `Completion Criteria` checkboxes synchronized with verified reality; never leave stale unchecked/checked items after task completion state changes.
