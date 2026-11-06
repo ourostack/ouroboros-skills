@@ -167,7 +167,7 @@ Default path is **sub-agent review**, not user review. A planning doc is one of 
 The default sub-agent path applies to *normal* planning docs. Surface to the user *before* spawning the reviewer when the planning doc touches any of these five categories that genuinely require human judgment:
 
 1. **Voice and relationships.** The plan involves drafting operator-voice content that lands under their name (PR comments, chat messages, FYIs, Connect drafts).
-2. **Durably-shaping state.** New track slugs (permanent identifiers), new ADO work-item titles, schema choices that propagate through downstream consumers, naming decisions readers will encounter for years.
+2. **Durably-shaping state.** New track slugs (permanent identifiers), new backlog work-item titles, schema choices that propagate through downstream consumers, naming decisions readers will encounter for years.
 3. **Irreversible operations.** Destructive ops, force-pushes, irreversible API calls, non-recoverable state changes.
 4. **Genuine ambiguity.** Worker has tried, can't pick the right framing, doesn't have context the user has.
 5. **Cross-org / cross-team posture.** What to say to one peer vs another, how to frame an escalation, when to push back vs accept.

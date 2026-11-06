@@ -1,7 +1,0 @@
-{
-  "name": "work-suite",
-  "version": "1.3.0",
-  "engines": ["claude", "copilot", "ouro"],
-  "category": "developer-tools",
-  "tags": ["workflow", "tdd", "planning", "automation"]
-}

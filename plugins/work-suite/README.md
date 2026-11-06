@@ -14,9 +14,6 @@ A portable plugin bundle of the four core workflow skills from `ouroboros-skills
 Pick the command for your engine:
 
 ```bash
-# Microsoft Agency
-agency plugin install github:ourostack/ouroboros-skills:plugins/work-suite
-
 # GitHub Copilot CLI
 copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
 
@@ -35,10 +32,9 @@ These SKILL.md files are **copies** of `ouroboros-skills/skills/work-{ideator,pl
 
 - Claude Code's loose skill path is `~/.claude/skills/` — Claude-only.
 - Copilot CLI has **no loose-skill path**; skills reach Copilot only via installed plugins.
-- Microsoft Agency installs are cached and cross-engine but require a plugin manifest.
 
-Shipping this bundle as a plugin is the only way to deliver the four skills to Copilot operators and to Agency's managed-install flow. Operators who only use Claude Code and are already on the `skill-management` flow can ignore this plugin entirely.
+Shipping this bundle as a plugin is the only way to deliver the four skills to Copilot operators. Operators who only use Claude Code and are already on the `skill-management` flow can ignore this plugin entirely.
 
 ## Vendor-neutral by design
 
-This plugin has no `agency.json` — it doesn't declare any Microsoft-specific features. The `.claude-plugin/plugin.json` manifest is the shared cross-vendor format (originated by Anthropic's Claude Code spec, accepted verbatim by Copilot CLI and Agency).
+The `.claude-plugin/plugin.json` manifest is the shared cross-vendor format (originated by Anthropic's Claude Code spec, accepted verbatim by Copilot CLI).
