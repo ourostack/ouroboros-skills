@@ -83,13 +83,38 @@ mkdir -p frames/clip1 frames/clip2
 ffmpeg -v error -i "clip1.mp4" -vf "fps=1,scale=1920:-1" -q:v 2 "frames/clip1/frame_%03d.jpg"
 ```
 
-**1fps is the right interval.** 2fps produces too many near-identical frames. 1 frame every 2 seconds misses transitions and typed text. For a 100-second clip, 100 frames is very manageable.
+**1fps is the right interval for the initial pass.** 2fps produces too many near-identical frames. 1 frame every 2 seconds misses transitions. For a 100-second clip, 100 frames is very manageable.
 
 **Do NOT re-encode source footage** to shrink it. Remotion decodes the source and does its own final encode — any intermediate re-encode is generation loss for no benefit.
 
+### Targeted high-precision extraction (sync points only)
+
+1fps gives 1-second precision — good for an overview but **too lossy for VO-to-footage sync**. At 60fps, 1 second = 60 frames of potential drift. But extracting every clip at 10fps or higher produces thousands of frames to review — overkill for static holds.
+
+**The balance: targeted extraction at sync points.** After the initial 1fps pass, identify the ~10-15 specific moments that compositions will reference (freeze points, VO placement landmarks, transitions). Then extract a 2-3 second window around each at 10fps:
+
+```bash
+# Extract 10fps for a 2-second window around a sync point (e.g., footage 0:07)
+ffmpeg -v error -i "clip2.mp4" -ss 6 -t 2 -vf "fps=10,scale=1920:-1" -q:v 2 "frames/clip2-sync-07/frame_%03d.jpg"
+```
+
+This gives 100ms precision exactly where it matters. ~12 windows x 20 frames = ~240 frames total — minimal cost, maximum value.
+
+**What needs sub-second precision:**
+- Freeze points — determines what frame the viewer stares at for 3 seconds
+- VO placement landmarks — when does the action the VO describes actually start?
+- Transition boundaries — when does a zoom/cut/animation begin and end?
+
+**What stays at 1-second precision:**
+- Static holds (nothing changes for 3-10 seconds)
+- Typing sequences (gradual, no hard sync point)
+- Loading states
+
+Update `breakdown.md` with sub-second timestamps for sync points: `0:06.8` not `0:07`.
+
 ### Building the breakdown
 
-Read every frame and produce a second-by-second log. Write it to `media/footage/breakdown.md`:
+Read every frame and produce a second-by-second log (refined at sync points). Write it to `media/footage/breakdown.md`:
 
 ```
 | Time | What's on screen |
@@ -171,26 +196,51 @@ Always work in milliseconds internally. Convert to frames only at the final step
 - Prefer ambient/loop-friendly tracks for demo videos (no strong arc).
 - One track can work across multiple videos — cut to each video's length.
 
-### Waveform analysis
+### Waveform analysis — same targeted approach as footage
 
-Analyze at 50ms resolution for the first 10-15s to find precise hits:
+Don't analyze the full track at maximum resolution. Use a two-pass approach matching the footage strategy:
+
+**Pass 1: 1-second RMS for the full track** — find structural sections (plateaus, drops, quiet sections, fadeout). This tells you where the energy lives.
 
 ```bash
-ffmpeg -v error -i track.m4a -ss 0 -t 15 -af "aresample=1000,asetnsamples=n=50" -f wav - | \
+# 1-second RMS for full track structure
+ffmpeg -v error -i track.m4a -af "aresample=1000,asetnsamples=n=1000" -f wav - | \
 python3 -c "
 import sys, struct, math
 data = sys.stdin.buffer.read()
 samples = data[44:]
-chunk_size = 100
+chunk_size = 2000
 for i in range(0, len(samples), chunk_size):
     chunk = samples[i:i+chunk_size]
     if len(chunk) < 4: break
     vals = struct.unpack(f'<{len(chunk)//2}h', chunk)
     rms = math.sqrt(sum(v**2 for v in vals) / len(vals)) if vals else 0
     db = 20 * math.log10(rms / 32768) if rms > 0 else -96
-    print(f'{(i // chunk_size) * 50}ms: {db:.1f}dB')
+    print(f'{(i // chunk_size)}s: {db:.1f}dB')
 "
 ```
+
+**Pass 2: 5ms peak analysis at sync points** — find dings, hits, and precise beat locations in the windows that matter (intro, transitions, any visual cut points).
+
+```bash
+# 5ms peak analysis for a 3-second window (e.g., looking for the title card ding)
+ffmpeg -v error -i track.m4a -ss 2.5 -t 3 -af "aresample=8000" -f wav - | \
+python3 -c "
+import sys, struct, math
+data = sys.stdin.buffer.read()
+samples = data[44:]
+window = 40  # 40 samples at 8kHz = 5ms
+for i in range(0, len(samples) - window*2, window*2):
+    chunk = samples[i:i+window*2]
+    vals = struct.unpack(f'<{window}h', chunk)
+    peak = max(abs(v) for v in vals)
+    peak_db = 20 * math.log10(peak / 32768) if peak > 0 else -96
+    t_ms = 2500 + (i // (window*2)) * 5
+    print(f'{t_ms}ms: {peak_db:.1f}dB')
+"
+```
+
+**Why peak, not RMS, for dings**: RMS averages energy over a window. A sharp percussive hit (bell, cymbal, ding) has a massive peak but low RMS because the energy is concentrated in milliseconds. RMS will miss it entirely. Always use peak analysis for finding hits.
 
 Then analyze at 1-second resolution for the full track to map structural sections. Write results to `media/music/analysis.md`.
 
