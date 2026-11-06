@@ -1,5 +1,13 @@
 # desk plugin — changelog
 
+## 1.2.1 — 2026-05-22
+
+First actual migration shipped via the framework: **`migrations/01-workspace-to-ms-desk.md`**. Auto-cutovers operator machines from `~/worker-workspace/` or `~/desk/` to the new canonical `~/ms-desk/`, repoints the `~/agency.toml` symlink, and updates the git remote URL. Hard-stops the session after the migration runs so the next session's preamble loads against `~/ms-desk/`.
+
+The migration is **idempotent and reversible**: `mv` is atomic + the new name is the only post-state. Safety check refuses if there's uncommitted work in the old workspace dir; never sweep-stages.
+
+This release is just the migration file — no code or driver changes from 1.2.0.
+
 ## 1.2.0 — 2026-05-22
 
 **`session-start-migrations` framework.** New skill that auto-heals stale machine state when a plugin's canonical names drift (workspace dir renamed, plugin clone moved, symlink target changed, etc.). Walks every enabled plugin's `migrations/<NN>-<slug>.md` dir at session start, runs each migration's Detect predicate, and (for the ones that fire) runs Safety check + Migrate + Announce, then hard-stops the session for restart.
