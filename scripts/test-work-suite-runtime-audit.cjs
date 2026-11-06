@@ -9,6 +9,7 @@ const { spawnSync } = require("node:child_process");
 
 const WORK_SUITE_SKILLS = [
   "autopilot",
+  "deep-research",
   "inch-worm",
   "stay-in-turn",
   "visual-qa-dogfood",
@@ -187,7 +188,7 @@ const activeMissing = run([
   "--repo-root",
   ".",
   "--active-skills",
-  "work-planner,work-doer,work-merger,stay-in-turn,inch-worm,visual-qa-dogfood",
+  "work-planner,work-doer,work-merger,stay-in-turn,inch-worm,visual-qa-dogfood,deep-research",
   "--strict-active",
   "--json",
 ]);

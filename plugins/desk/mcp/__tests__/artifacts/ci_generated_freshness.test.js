@@ -147,6 +147,7 @@ async function withValidateSkillsFixture({ hostStatus = 0, generatedStatus = 0 }
 
     for (const name of [
       "autopilot",
+      "deep-research",
       "inch-worm",
       "stay-in-turn",
       "visual-qa-dogfood",

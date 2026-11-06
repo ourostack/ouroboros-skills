@@ -12,6 +12,7 @@ const validator = require(path.join(repoRoot, "scripts", "validate-skills.cjs"))
 
 const expectedSkillNames = [
   "autopilot",
+  "deep-research",
   "inch-worm",
   "stay-in-turn",
   "visual-qa-dogfood",

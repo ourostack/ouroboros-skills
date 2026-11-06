@@ -8,6 +8,7 @@ const { spawnSync } = require("node:child_process");
 
 const WORK_SUITE_SKILLS = [
   "autopilot",
+  "deep-research",
   "inch-worm",
   "stay-in-turn",
   "visual-qa-dogfood",
