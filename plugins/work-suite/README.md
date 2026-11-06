@@ -15,10 +15,10 @@ Pick the command for your engine:
 
 ```bash
 # Microsoft Agency
-agency plugin install github:ouroborosbot/ouroboros-skills:plugins/work-suite
+agency plugin install github:ourostack/ouroboros-skills:plugins/work-suite
 
 # GitHub Copilot CLI
-copilot plugin install ouroborosbot/ouroboros-skills:plugins/work-suite
+copilot plugin install ourostack/ouroboros-skills:plugins/work-suite
 
 # Anthropic Claude Code (native)
 # Needs a marketplace manifest. Add one alongside this plugin, or consume via the

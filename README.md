@@ -33,7 +33,7 @@ Each skill lives in its own directory under `skills/` and contains a `SKILL.md` 
 The [`manifest.json`](manifest.json) file at the repo root is the machine-readable index. It lists every skill with its name, file path, description, and tags. Agents can fetch it at:
 
 ```
-https://raw.githubusercontent.com/ouroborosbot/ouroboros-skills/main/manifest.json
+https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
 ```
 
 ## Installing a Skill
