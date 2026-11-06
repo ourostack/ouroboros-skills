@@ -1,6 +1,6 @@
 {
   "name": "desk",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Generic task-tracking substrate for coding + non-coding agents. Provides the workspace conventions, lifecycle states, dispatch, friction registers, and engineering posture skills that turn an agent from one-off helper into a long-running, accountable, learning-over-time worker. Cross-context portable: same skills serve Microsoft worker (corp), ouroboros agents (slugger / ouroboros), and personal coding agents. Each consumer agent declares its workspace path via a $DESK placeholder binding in its preamble. Depends on work-suite for the doing-phase skills (ideator / planner / doer / merger).",
   "author": {
     "name": "ourostack",

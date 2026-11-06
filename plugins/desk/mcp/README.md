@@ -28,7 +28,7 @@ DESK=~/worker-workspace node ./index.js
 - `desk_timeline` — temporal queries
 - `desk_thread` — provenance walk via refs_graph
 
-In this scaffold (Unit 2), every tool returns `{"status": "not_implemented"}`. Real bodies land in Units 3, 4, 5, 6.
+All 12 tools are wired to real implementations as of Unit 6 — Unit 3 wired runtime CRUD, Unit 4 built the indexer, Unit 5 wired the four search tools, Unit 6 wired `desk_thread`.
 
 ## How consumers wire this up
 
@@ -66,4 +66,4 @@ Semantic ranking requires Ollama running locally with `nomic-embed-text` pulled.
 npm test
 ```
 
-Boots the server with a temp root and asserts the 12 tool names register. Unit 2 baseline. Per-tool tests land alongside their bodies in Units 3-6.
+Boots the server with a temp root and asserts the 12 tool names register, then exercises every tool's real body via the dispatcher and fixture-desks. 103 tests as of Unit 6.
