@@ -701,6 +701,73 @@ The check: would a reviewer who doesn't use worker plugin
 understand this comment without translation? If no, replace or
 drop the worker-isms.
 
+### No operator-internal tracking vocabulary
+
+Worker-internal jargon (above) is one face of the leak; the other
+is **operator-internal track-state vocabulary**. Track cards,
+planning docs, friction logs, and iteration histories give worker
+rich vocabulary for what's happening — but that vocabulary is
+operator-personal and means nothing to PR-comment readers who
+haven't seen the workspace.
+
+Categories of leak to watch for:
+
+- **Internal track slugs** — hyphenated codenames from the
+  operator's private workspace (`<area>-<concern>-<theme>` shapes).
+  These are operator-personal organizational labels; the recipient
+  has never read the track card.
+- **Phase / deliverable / surface taxonomies** — `Phase 3`,
+  `Deliverable 1`, `Surface 2`, `Phase 5 <feature> allowlist`.
+  Operator's planning numbering, opaque to anyone else.
+- **Iteration labels** — `iteration 5`, `the canary-regression
+  hotfix`, `the active hotfix`. Internal naming for in-flight
+  changes.
+- **Internal labels for related artifacts that have public
+  identifiers** — when a PR has an ADO / GitHub ID and title,
+  reference it by `!<id>` (same repo) or full URL (cross-repo).
+  Don't reference by track-card slug or operator-internal label.
+- **Named reviewer groups treated as common knowledge** — e.g.,
+  `the <area> approvers`, `the <project> crew`. Unless reviewers
+  on the target PR are already known to use that term, use
+  neutral collective phrasing (`us`, `the team`, or omit entirely
+  — let the natural review flow surface the right people).
+- **Code-flag descriptors reused as nouns out of code context**
+  — calling something `the hardened endpoint` / `the hardened
+  path` outside the immediate scope of the code reference where
+  the flag (e.g., `EnableFooHardening`) is defined. Inside that
+  code-review thread, the descriptor reads as a known noun;
+  outside it, the reader has no context for what makes that
+  endpoint "hardened."
+
+**Substitution rule.** Describe **what is happening** in terms
+the reader can decode without backstory; reference **public
+artifacts** by their canonical identifier (PR ID, work-item ID,
+commit SHA, file path + method, feature-flag string); use
+**collective phrasing** for groups.
+
+Worked example (a real operator-rewrite, anonymized). Same
+underlying claim, internal labels stripped:
+
+- **Before** — *"the Phase-3 catch-all cleanup (deliverable-1
+  of `<track-slug>`) can proceed independently from this PR."*
+- **After** — *"a separate cleanup that deprecates the legacy
+  catch-all is already in flight; this PR doesn't need to
+  entangle with it."*
+
+The claim ("the related cleanup can proceed independently") is
+held invariant; only the internal labels (`Phase-3`,
+`deliverable-1`, `<track-slug>`) are removed. The rewrite is
+NOT a license to change the substance of the comment — only to
+strip the operator-internal vocabulary that smuggled in
+alongside it.
+
+**Self-check before posting.** *Would a reader who has never
+seen my track cards, planning docs, or iteration history
+understand every sentence?* If no, rewrite the offending sentence
+in plain technical description. The internal labels feel
+"precise" because they're precise for the agent — but precision
+for the agent is not precision for the reader.
+
 ### The voice test
 
 Read the draft aloud as if the operator is saying it. If any

@@ -391,6 +391,16 @@ Apply `../operator-voice-comments/SKILL.md` rules to every comment
 in the locked backlog. That skill is the canonical rule set; this
 phase invokes it at the peer-review draft-time touchpoint.
 
+**Use the Skill tool to explicitly invoke `operator-voice-comments`
+at the start of Phase 6 — don't just apply its rules ambiently from
+context.** The explicit invocation creates a checkpoint that surfaces
+leaks (especially the "operator-internal tracking vocabulary"
+category — track-card slugs, phase numbers, deliverable / surface
+labels, named reviewer groups) that ambient rule-following can miss
+when worker has rich track-card context in mind. Ambient context
+makes the internal labels feel like the most precise way to say
+something; the explicit pass forces the reader's-eye check.
+
 Two specific passes in Phase 6:
 
 - **Voice-strip** per the `no-sycophantic-padding` and

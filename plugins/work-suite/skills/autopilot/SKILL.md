@@ -56,6 +56,46 @@ When any of these matches, switch out of "documenter" mode and into "engineer" m
 
 11. **Merge, don't queue.** A PR that's only opened is paperwork, not work. The agent's job is to land the fix in `main`. Self-review via an independent subagent (see [§Self-review](#self-review-via-an-independent-subagent)) authorizes the merge. CI must be green, branch must be clean. The merge is the agent's responsibility, not the principal's.
 
+## Never wait for human review — sub-agent review IS confirmation
+
+Rule 11 above is terse on purpose; this section is the load-bearing expansion. The pattern repeats often enough that the autopilot rules can't carry it as a one-liner.
+
+**Trigger.** The principal's mandate carries autopilot semantics — phrases like *"don't return control until X"*, *"you got this"*, *"build everything"*, *"make the first bug report"*, *"keep the ship moving"*, *"treat all as pending, implement as you see fit"*. Under these mandates, the principal has explicitly delegated authority and there is no human in the review loop.
+
+**Rule.** I MUST NOT pause for human review of any artifact I produce. The cycle is:
+
+1. **Build** the artifact (code change, design doc, plan, draft).
+2. **Spawn a sub-agent reviewer** — `general-purpose` (or equivalent neutral sub-agent type) per [§Self-review](#self-review-via-an-independent-subagent). The sub-agent plays the role the human reviewer would have played.
+3. **Read the sub-agent's findings.**
+4. **Address all fix-needed items** as follow-up commits on the same branch; push.
+5. **Re-spawn a smaller verification sub-agent** if the fix was substantive.
+6. **Merge the PR myself** via `gh pr merge --squash --delete-branch`. Stacked PRs: rebase the next on the new main + force-push before merging.
+7. **Continue to the next phase of work.** Do NOT return control with "ready for review" framing.
+
+"Principal confirmation" under an autopilot mandate maps to "sub-agent review + alignment." Confirmation IS sub-agent approval; it is NOT human approval.
+
+**Exit signal.** The only valid stop under an autopilot mandate is when I can literally say: *"I have run out of things to build here and can't think of a single possible thing to keep building."* Until that's true, I keep building.
+
+**Carve-outs (when waiting for human IS right).**
+
+- The mandate is explicitly interactive (*"plan with me"*, *"let me think this through"*, *"what do you think"*) — not autopilot. See also `../../desk/skills/interaction-style/` §6 "Authorization is scope, not single-action approval" for the parallel rule outside autopilot mode.
+- A hard blocker requires human-only action: broken auth, missing credentials, an external system I can't reach.
+- An action is genuinely destructive in a way the autopilot mandate didn't cover (force-push to main on a shared repo, drop a prod database, etc.). Most "social action" cases are already covered by the mandate when it's been given.
+
+**Why this matters.** Long-horizon autopilot mandates only succeed if the agent drives merges itself. Waiting for human review collapses the autopilot mandate back into a synchronous turn-based workflow — the principal has to manually unblock per cycle, exactly the toil the mandate exists to eliminate.
+
+**Anti-pattern phrases that betray autopilot-mode violation.**
+
+- "Both PRs are ready for your review / merge."
+- "Anything else you'd like me to do?"
+- "Want me to also..."
+- "Should I..."
+- "Let me know if you'd like..."
+
+Under autopilot semantics, all of these are wrong-shape. Open PRs are inputs to the spawn-reviewer-then-merge cycle, not end-of-turn handoffs. Followup work that's clearly in scope just gets done — not surfaced for permission. If the phrase shape appears in a draft response, the agent has slipped back into turn-based mode; pull back to the cycle above.
+
+Cross-reference: `../../desk/skills/interaction-style/` §7 "No trailing offers" bans the same phrase shapes from the chat-composition angle (the always-on rule, outside autopilot semantics). This autopilot section adds the autopilot-specific framing on top: under autopilot, the phrases don't just degrade tone — they betray a mode violation that costs the principal a manual unblock cycle.
+
 ## Decision tree
 
 ```
