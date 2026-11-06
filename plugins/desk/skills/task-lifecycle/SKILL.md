@@ -94,16 +94,16 @@ After the three artifact updates above:
 cd $DESK && git add <specific-files> && git commit -m "task(<slug>): <old> -> <new>" && git push origin main
 ```
 
-Auth and push convention is consumer-specific: worker users push under EMU (`<alias>_microsoft` — see `worker:emu-github`); ouroboros agents push under whatever account their bundle's git remote is configured for; personal agents per their setup.
+Auth and push convention is consumer-specific: corporate-worker overlays push under whatever enterprise-managed identity the org requires (the overlay's git-identity skill handles this); ouroboros agents push under whatever account their bundle's git remote is configured for; personal agents per their setup.
 
 ### 5. Downstream triggers
 
 - If transitioning to `done` or `cancelled` → invoke `archive-workflow`.
-- (Optional, worker context) If the transition is shiproom-relevant (`processing`, `validating`, `done`, `blocked`) → invoke `worker:ado-hygiene` to update the parent Feature's status tweet. Skip for non-coding / non-ADO contexts.
+- (Optional, overlay context) If the transition is shiproom-relevant (`processing`, `validating`, `done`, `blocked`) → invoke the consumer overlay's status-update skill to refresh the parent work-item's status note. Skip for non-coding / non-tracker contexts.
 
 ### Why three writes
 
-Commit messages are not a handoff format. A new session reading the task card must see: current state, active doing doc, open PRs, blockers — without shell-archaeology. Task-card-only updates fail the same way: without corresponding doing-doc + track-card refresh, downstream consumers (`status` skill, a resuming operator, `ado-hygiene`) see stale state. Update all three or update none.
+Commit messages are not a handoff format. A new session reading the task card must see: current state, active doing doc, open PRs, blockers — without shell-archaeology. Task-card-only updates fail the same way: without corresponding doing-doc + track-card refresh, downstream consumers (`status` skill, a resuming operator, any overlay's status-update skill) see stale state. Update all three or update none.
 
 ## Adopted tasks with completed planning
 

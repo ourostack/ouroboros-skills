@@ -15,7 +15,7 @@ The most common first-run scenario isn't greenfield — it's adoption. An operat
 - The goal is to continue execution, not re-plan.
 - Operator picked Option 3 in worker's first-run bootstrap.
 
-> **Worker users:** For the ADO-specific Feature/Requirement schema (Status Tweet, Area Path, Iteration Path, parent Feature) and the predecessor-split flow, see `worker:ms-card-fields` and `worker:ado-hygiene`. The generic shape below is tracker-agnostic.
+> **Overlay users:** consumer overlays often ship tracker-specific extensions (e.g. an enterprise work-item tracker's per-team status / area / iteration schema and predecessor-split flow). The generic shape below is tracker-agnostic.
 
 ## The six-step flow
 
@@ -58,7 +58,7 @@ Files in this directory are superseded or historical. Retained for provenance.
 
 ### Step 2: Snapshot the external-tracker state
 
-If the work is tracked in an external system (issue tracker, work-item DB, Jira, Linear, GitHub Issues, ADO, etc.), capture what the target item looks like **at adoption time** — before you make any changes. This becomes the "before" reference.
+If the work is tracked in an external system (issue tracker, work-item DB, Jira, Linear, GitHub Issues, an enterprise work-item tracker, etc.), capture what the target item looks like **at adoption time** — before you make any changes. This becomes the "before" reference.
 
 Create `<track>/_planning/tracker-snapshot-YYYY-MM-DD.md`. Capture, at minimum, the generic fields below; add tracker-specific fields as needed:
 
@@ -89,7 +89,7 @@ Create `<track>/_planning/tracker-snapshot-YYYY-MM-DD.md`. Capture, at minimum, 
 | ... | ... | ... | ... |
 ```
 
-This freezes "what we inherited" so we can diff against "what we changed." Worker users running on ADO should also capture Status Tweet, Area Path, Iteration Path, Assigned To, Target Date — see `worker:ms-card-fields`.
+This freezes "what we inherited" so we can diff against "what we changed." Consumer overlays may extend this snapshot with tracker-specific fields (e.g. status notes, area/iteration paths, assignee, target date for enterprise work-item trackers).
 
 ### Step 3: Snapshot code-repo state
 
@@ -159,11 +159,11 @@ If the target tracker item has a predecessor or is newly split, audit it before 
 
 After the triage completes, post a comment on the predecessor summarizing what was done ("N closed as Delivered, M reparented, K reframed, L deferred").
 
-> **Worker users:** the Predecessor Split / Backlog Triage flow lives in `worker:ado-hygiene` and codifies the ADO-specific state transitions, Reason values, and Status Tweet maintenance.
+> **Overlay users:** consumer overlays may codify the predecessor-split / backlog-triage flow specific to their work-item tracker (state transitions, reason values, status-comment maintenance).
 
 ## Track dashboard assembly
 
-Once steps 1-6 are done, assemble `<track>/track.md` as a working dashboard. The track card structure (frontmatter schema + body sections) lives in worker.md's "Track Card Format" reference.
+Once steps 1-6 are done, assemble `<track>/track.md` as a working dashboard. The track card structure (frontmatter schema + body sections) lives in the `track-card-format` skill.
 
 ## Adopted task cards
 
@@ -199,7 +199,7 @@ If the source bundle already used the iteration-centric layout, copy
 the iteration directory whole into `<repo>/` — do not flatten or
 re-layer. Add `adopted_at:` and `adopted_from:` to the doing-doc
 frontmatter to disambiguate "when was this written" (iteration-
-directory date) from "when did this enter worker-workspace" (frontmatter).
+directory date) from "when did this enter the desk workspace" (frontmatter).
 
 If the source bundle used a legacy flat layout (`YYYY-MM-DD-HHMM-doing-*.md`
 loose at `<repo>/` root), repackage into an iteration directory during

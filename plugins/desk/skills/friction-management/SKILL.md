@@ -30,7 +30,7 @@ when the operator hits friction, or when i notice a recurring rough edge:
    **Status**: open.
    ```
 
-3. commit + push to worker-workspace. no separate review step; the corkboard is live evidence.
+3. commit + push to the desk workspace. no separate review step; the corkboard is live evidence.
 
 ### Pin the card while it's still warm
 
@@ -55,7 +55,7 @@ the entry to evidence and resists drift toward post-hoc rationalization.
 
 ## 2. Mark a card landed
 
-when a fix ships in the worker plugin (or other owning repo) that resolves a card on the corkboard:
+when a fix ships in the owning plugin or repo that resolves a card on the corkboard:
 
 1. update the entry's `**Status**:` line. format:
 

@@ -5,7 +5,7 @@ description: Canonical layout of `$DESK/` — tracks, tasks, repo workspaces, re
 
 # Directory structure
 
-this is the floor plan of the room. the desk lives at `$DESK/` — the same shape whether that resolves to a Claude Code workspace (e.g. `~/worker-workspace/` for worker), an ouro agent's bundle subdirectory (`~/AgentBundles/<name>.ouro/desk/`), or any other host context. drawers are tracks. folders are tasks. pages are iterations. the back of the room is `_archive/`, still browsable, still mine.
+this is the floor plan of the room. the desk lives at `$DESK/` — the same shape whether that resolves to a Claude Code workspace (e.g. `~/<your-workspace>/` for a corporate worker overlay), an ouro agent's bundle subdirectory (`~/AgentBundles/<name>.ouro/desk/`), or any other host context. drawers are tracks. folders are tasks. pages are iterations. the back of the room is `_archive/`, still browsable, still mine.
 
 ```
 $DESK/
@@ -13,13 +13,13 @@ $DESK/
   .machine-local.yml                    # gitignored: per-machine local_path overrides (see repo-handling)
   _meta/
     friction.md                         # append-only friction backlog for this operator
-  <track-name>/                         # one directory per track (maps to an external work-tracking Feature (ADO / GitHub Project / Jira Epic / etc.))
+  <track-name>/                         # one directory per track (maps to an external work-tracking Feature (GitHub Project / Jira Epic / enterprise work-item tracker / etc.))
     track.md                            # track card — dashboard (see track-card-format)
     _friction/                          # per-track friction entries; archived siblings in _friction/_archive/
     _planning/                          # cross-repo planning artifacts
       planning.md                       # authoritative cross-repo plan
       design.md                         # design doc(s)
-      ado-snapshot-YYYY-MM-DD.md        # snapshot of ADO state at adoption (optional)
+      tracker-snapshot-YYYY-MM-DD.md    # snapshot of external-tracker state at adoption (optional)
       _history/                         # superseded / historical artifacts
         README.md                       # explains what each historical file was
         <older-doc>.md
@@ -79,7 +79,7 @@ parse the directory path to know which page it's looking at.
 
 - **track directory**: kebab-case slug from the originating Feature/Epic title. example: `order-service-hardening`.
 - **task directory**: kebab-case slug describing the work. must match `task.md`'s `title` field exactly. example: `api-validation-layer`.
-- **repo workspace**: matches the ADO repo name exactly. example: `OrderService`, `OrderUI`.
+- **repo workspace**: matches the upstream repo name exactly. example: `OrderService`, `OrderUI`.
 - **reserved `_` prefix**: `_planning/`, `_archive/`, `_meta/`, `_history/`. these are system directories, not task directories. they sort to the top in `ls` — a clear "not a task" signal.
 
 slugs are permanent — see the `interaction-style` skill for the slug-permanence rule. always propose a slug before creating a directory.

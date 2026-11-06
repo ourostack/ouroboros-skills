@@ -29,15 +29,15 @@ not a recommendation. the previous session committed to needing these
 hands; opening the envelope without them just wastes everyone's time.
 
 `required_mcps:` is a list of MCP keys matching aliased entries in
-the workspace's `$DESK/agency.toml` — either under
-`[mcps.builtins.<alias>]` (agency-proxied builtins) or
+the workspace's runtime MCP config — either under
+`[mcps.builtins.<alias>]` (runtime-proxied builtins) or
 `[mcps.servers.<alias>]` (external stdio MCPs). both namespaces are
 valid sources; the key just needs to be loaded at runtime. example
 frontmatter snippet:
 
 ```yaml
 required_mcps:
-  - ccs-kusto
+  - analytics-store
 ```
 
 **check**: for each entry in `required_mcps`, consult the runtime's
@@ -51,23 +51,22 @@ resumption prompt before proceeding to Step 3**. don't start the
 phase, don't begin tool work, don't silently continue. print:
 
 1. the list of required MCP keys that are missing.
-2. the likely root cause: `~/agency.toml` symlink absent, broken,
-   or pointing somewhere else; or the MCP isn't declared in
-   `$DESK/agency.toml`. reference session-start
-   Step 4.7's symlink check.
+2. the likely root cause: the runtime's workspace MCP config link
+   absent, broken, or pointing somewhere else; or the MCP isn't
+   declared in the workspace MCP config. reference session-start
+   Step 4.7's link check.
 3. a note that the agent will not proceed with this resumption
    until restarted with the required MCPs loaded.
 
 example stop message:
 
 ```
-Required MCPs not loaded for this iteration: [ccs-kusto]
+Required MCPs not loaded for this iteration: [analytics-store]
 
-Likely cause: ~/agency.toml symlink absent or broken. session-start
-will create it on the next launch if $DESK/agency.toml
-exists. Confirm the MCP is declared there, then restart:
-
-  agency claude -a worker:worker --dangerously-skip-permissions
+Likely cause: workspace MCP-config link absent or broken.
+session-start will create it on the next launch if the workspace
+MCP config exists. Confirm the MCP is declared there, then restart
+the agent.
 
 Resumption paused until the required MCPs are available.
 ```

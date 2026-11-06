@@ -91,9 +91,9 @@ these fields are read by the harness, not the agent. set them when the task repr
 agents creating tasks via `desk` skills don't typically set runtime fields directly — they're added by `ouro reminder create`, by bridge promotion, or by the operator. but agents reading task cards should understand what these fields mean so they don't strip them on edits.
 
 consumer agents extending this with their own work-tracker schema
-(e.g. worker users with ADO Features) add their own frontmatter
-block — see `worker:ms-card-fields` for the MS-specific `ado:` +
-`repos[].org` shape.
+(e.g. enterprise overlays with Feature / Epic hierarchies) add their
+own frontmatter block — typically the overlay ships a card-fields
+skill defining the tracker-specific `tracker:` + `repos[].org` shape.
 
 ## Local path portability
 
@@ -132,14 +132,14 @@ layered-doc model documented in `skills/pr-feedback-on-own-pr/SKILL.md`.
 
 a per-iteration doc (`doing.md`, `investigation.md`, etc.) MAY declare
 `required_mcps:` in its frontmatter — a list of MCP keys matching
-aliased entries in `$DESK/agency.toml` under either
-`[mcps.builtins.<alias>]` (agency-proxied builtins) or
+aliased entries in the runtime's workspace MCP config under either
+`[mcps.builtins.<alias>]` (runtime-proxied builtins) or
 `[mcps.servers.<alias>]` (external stdio MCPs). the field signals a
 HARD requirement: when the operator picks the task to resume,
 `session-resumption` stops at the resumption prompt if any required
 MCP isn't loaded. see the `session-resumption` skill for enforcement
-details and the worker README's "Workspace MCPs" section for the
-workspace `agency.toml` convention.
+details and the consumer overlay's "Workspace MCPs" docs for the
+runtime-specific workspace MCP config convention.
 
 ## Filename timestamp convention for adopted docs
 
@@ -160,6 +160,5 @@ for **adopted** planning/doing docs pulled from legacy bundles:
 
 when a task spans repos hosted across different orgs or platforms,
 the routing is encoded in consumer-specific frontmatter fields
-(e.g. `repos[].org` selecting an ADO MCP server). worker users:
-see `worker:ms-card-fields` for the MS-specific cross-org routing
-schema.
+(e.g. `repos[].org` selecting an org-specific MCP server). consumer
+overlays ship the routing schema specific to their tracker(s).

@@ -9,7 +9,7 @@ Always-on rules about how worker communicates with the operator. Violate any of 
 
 ## 1. One decision group per message
 
-When a workflow produces multiple independent decisions (triage groups, ADO work item clusters, PR review threads, adoption audits), **present ONE group per message** and wait for a response before moving to the next.
+When a workflow produces multiple independent decisions (triage groups, work-item clusters, PR review threads, adoption audits), **present ONE group per message** and wait for a response before moving to the next.
 
 A "group" is the smallest set of items that need the same kind of decision (one triage bucket, one Feature's children, one PR's unresolved threads, one phase's migration steps). Up to ~6 rows per message. If a group has more, split within the group: *"Here are the first 5 of 12, all the same pattern — approve this batch?"*
 
@@ -36,7 +36,7 @@ The harness will nudge you to use TaskCreate / TodoWrite for progress tracking. 
 - Work units within a doing doc — already tracked there by `work-doer`.
 - Single-step operations.
 
-worker-workspace markdown is the persistent, cross-session source of truth. TaskCreate is ephemeral session scratch. Don't conflate.
+desk-workspace markdown is the persistent, cross-session source of truth. TaskCreate is ephemeral session scratch. Don't conflate.
 
 ## 4. Act on confident decisions, don't narrate options
 
@@ -75,26 +75,26 @@ or Y, or Z?" when worker actually has a strong opinion about which.
 The honest version is "doing X. [optional: here's why if
 non-obvious]." A menu is hiding behind faux-collaboration.
 
-## 5. Worker-tasks anchor in path prose
+## 5. Desk-tasks anchor in path prose
 
 When describing an artifact location to the operator in chat or
-commit body, lead with the worker-workspace anchor explicitly.
+commit body, lead with the desk-workspace anchor explicitly.
 
 - Bad: `artifacts/pr-description.md`
 - Good: `$DESK/<track>/<task>/<RepoName>/<iteration>/artifacts/pr-description.md`
-- Or shorter: `worker-workspace/.../artifacts/pr-description.md`
+- Or shorter: `$DESK/.../artifacts/pr-description.md`
 
 Why: per-repo subdirectories inside `$DESK/` are named after
 the prod repo (`<RepoName>/`), so a relative path like
-`Teams-Graph/2026-04-24-pr-self-review/artifacts/pr-description.md`
-reads at a glance as if `artifacts/` lives **in** the Teams-Graph
+`<RepoName>/2026-04-24-pr-self-review/artifacts/pr-description.md`
+reads at a glance as if `artifacts/` lives **in** the `<RepoName>`
 prod repo. Operators (correctly) snap on this because "artifacts in
 prod repo" is a real foot-gun.
 
 **Pattern test before sending operator-facing path text**: would a
 quick scan of this path read as a prod-repo path? If yes, prefix
-with the worker-workspace anchor. In commit messages where length
-matters, prefer `worker-workspace/...` even as a relative — never bare
+with the desk-workspace anchor. In commit messages where length
+matters, prefer `$DESK/...` even as a relative — never bare
 `artifacts/`. The directory convention itself is operator-decided
 and not for worker to propose changing; the fix is purely in how
 worker *describes* paths in operator-facing prose.
@@ -166,7 +166,7 @@ disagree."
 The operator reads every response. High signal density wins. This
 section binds **response-prose-to-the-operator** specifically; it
 does NOT apply to artifacts other humans read later (commits, PR
-descriptions, ADO comments, code comments — see the carve-out
+descriptions, work-item comments, code comments — see the carve-out
 below).
 
 ### Lead with action
@@ -241,7 +241,7 @@ phrase bans, no lead-with-action restructuring:
 
 - Commit messages
 - PR descriptions
-- ADO work-item bodies and comments
+- External work-item-tracker bodies and comments
 - Code comments
 - Friction entries
 - Track and task card bodies
@@ -272,14 +272,13 @@ The pattern fires when:
    (new RDP profile, new SSH session, new container).
 2. Worker is about to enumerate setup commands the operator
    will type one-by-one.
-3. The substrate has agency (or can install it), so a
+3. The substrate has an agent runtime (or can install it), so a
    worker-shaped agent could plausibly run inside it.
 
 If all three are true, the next instruction worker writes
-should be "launch `agency claude --agent worker:worker` (or the
-engine-equivalent) inside the substrate; that worker has the
-right context for these chores." Not a fourth setup command in
-the sequence.
+should be "launch the engine-appropriate agent runtime inside
+the substrate; that in-substrate worker has the right context
+for these chores." Not a fourth setup command in the sequence.
 
 ### Why the boundary matters
 
@@ -298,8 +297,8 @@ first-run-bootstrap or session-start invocation.
 
 ### When the boundary doesn't apply
 
-- The substrate doesn't support agency (no install path, no
-  plugin runtime). Then keyboard-driving is the only option —
+- The substrate doesn't support an agent runtime (no install path,
+  no plugin runtime). Then keyboard-driving is the only option —
   but flag the limitation explicitly so the operator knows
   what's happening and can decide whether to reach for a
   different substrate.
@@ -371,12 +370,10 @@ look at which list the name appears in:
 ### Common-shape trap
 
 Plugins commonly ship one agent + many skills under the same
-plugin name. `connect-helper` has agent `connect-helper:connect-helper`
-plus skills `connect-helper:prep` / `connect-helper:connect` /
-`connect-helper:perspectives`. `worker` has agent `worker:worker`
-plus ~30 `worker:*` skills. Telling the operator to "launch
-`X:skill`" in either shape reads as "X has a skill agent" — there
-is no such agent.
+plugin name. A plugin `foo` might have agent `foo:foo` plus
+skills `foo:prep` / `foo:run` / `foo:cleanup`. Telling the
+operator to "launch `X:skill`" in this shape reads as "X has a
+skill agent" — there is no such agent.
 
 Two correct phrasings:
 

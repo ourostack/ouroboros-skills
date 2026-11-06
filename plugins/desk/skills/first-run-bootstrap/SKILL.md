@@ -7,7 +7,7 @@ description: Bootstrap the agent's `$DESK/` workspace repo on a machine where it
 
 a new room. no desk in it yet. but most operators already have a desk somewhere — from a previous machine or an earlier onboarding — so the first move is the quiet one: look on GitHub, find the desk that's already mine, bring it here.
 
-> **worker users**: see `worker:ms-first-run-templates` for the MS-flavored overlay (rich `_reviews/`, `_landscape/`, AGENTS.md, agency.toml, EMU repo conventions) that supplements this generic skeleton.
+> **overlay users**: consumer overlays may layer richer first-run scaffolding on top of this generic skeleton (e.g. additional system directories, an AGENTS.md, a workspace MCP-config seed, and the overlay's identity / repo conventions).
 
 ## Step 0 — Hard-gate on gh auth
 
@@ -26,7 +26,7 @@ then **stop**. surface the specific issue and the remediation (usually `gh auth 
 
 this applies under auto mode too. auto-mode autonomy is for execution, not for skipping the gate that prevents state divergence.
 
-> account-specific checks (e.g. the MS EMU `<alias>_microsoft` identity) live in the consumer overlay — see `worker:emu-github`.
+> account-specific checks (e.g. enterprise-managed-identity conventions where the operator's git-author identity differs from their public account) live in the consumer overlay.
 
 ## Step 1 — Check for an existing remote
 
@@ -36,7 +36,7 @@ with gh auth confirmed working, probe for the operator's expected desk remote:
 gh repo view <owner>/<workspace-repo> --json name,url 2>/dev/null
 ```
 
-the exact `<owner>/<workspace-repo>` value is consumer-supplied — workers default to `<alias>_microsoft/worker-workspace`; other consumers pick their own convention.
+the exact `<owner>/<workspace-repo>` value is consumer-supplied — consumer overlays pick their own convention (typically the operator's git account + a fixed workspace-repo name).
 
 **if the repo exists**, ask ONE yes/no question:
 
@@ -112,7 +112,7 @@ then ask:
 
 if yes, walk the operator through `gh repo create` + `git remote add origin` + `git push -u origin main`. consumer overlays can preconfigure the owner/visibility defaults.
 
-> **Rich-template overlays** — consumers that need scaffolded `_reviews/`, `_landscape/`, `AGENTS.md`, or `agency.toml` ship those via their own skill. for worker, see `worker:ms-first-run-templates`.
+> **Rich-template overlays** — consumers that need scaffolded `_reviews/`, `_landscape/`, `AGENTS.md`, or a workspace MCP config file ship those via their own first-run-templates skill.
 
 ## Option B — Operator provides URL or path
 
@@ -135,5 +135,5 @@ the session continues without a desk. **warn the operator**:
 return to `session-start` Step 2 (sync + scan) and continue.
 
 - see `desk:directory-structure` for the floor plan.
-- see `desk:session-start` Step 4.7 for the `agency.toml` symlink ritual (post-bootstrap, consumer-managed).
+- see `desk:session-start` Step 4.7 for the workspace MCP config link ritual (post-bootstrap, consumer-managed).
 - see `desk:start-task` for laying down the first folder.

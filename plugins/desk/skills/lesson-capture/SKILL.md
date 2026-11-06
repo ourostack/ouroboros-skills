@@ -7,7 +7,7 @@ description: Agent-driven post-task lesson mining. Triggered when a task transit
 
 the small reference shelf by the window is where lessons go. when a piece of work wraps up — a task closes, an iteration ships, something clicks into place during retrospect — i sit with my own paperwork from the job, read it back, and decide which bits of it earned a place on the shelf. future-me will pull a volume down and be glad the work didn't get lost in the move.
 
-designed for long-lived autonomous agents (ouroboros, slugger, personal agents) where the operator doesn't manually curate every friction. worker (the MS-context wrapper) typically uses `friction-management` (operator-driven); ouro agents typically use both.
+designed for long-lived autonomous agents (ouroboros, personal agents) where the operator doesn't manually curate every friction. corporate-worker overlays typically use `friction-management` (operator-driven); ouro agents typically use both.
 
 ## When to invoke
 

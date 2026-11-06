@@ -36,7 +36,7 @@ If any check fails, debug at the one-shot level before going infinite.
 
 **Trigger phrase.** "There's a warning/error line in the output that names a different variable, a different flag, a different command, or a specific HRESULT."
 
-**What to do.** Translate the literal message FIRST. If it says `X is set but ignored, use Y` → set Y. If it returns `HRESULT 0x80070005` → look up the HRESULT before forming hypotheses. If `az group show` returns 404 → confirm the resource group exists in the current subscription before assuming auth is broken. The cheapest discriminator is always the explicit signal the tool already gave you.
+**What to do.** Translate the literal message FIRST. If it says `X is set but ignored, use Y` → set Y. If it returns `HRESULT 0x80070005` → look up the HRESULT before forming hypotheses. If a cloud CLI returns 404 for a named resource → confirm the resource exists in the current subscription before assuming auth is broken. The cheapest discriminator is always the explicit signal the tool already gave you.
 
 **Anti-pattern.** Spending 30 minutes (or 1 hour) on a hypothesis tree — eligibility windows, token binding, stale cache, plugin SDK bug — when the output's first warning line literally said "use VARIABLE_X, not VARIABLE_Y" or "this resource group doesn't exist in this subscription." Theorizing past a message that names the fix is the most expensive bug shape worker repeatedly walks into.
 

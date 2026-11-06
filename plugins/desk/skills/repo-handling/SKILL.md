@@ -7,7 +7,7 @@ description: Find or set up local clones for code repos referenced by a task car
 
 When a task references a code repo, the agent needs to know where the code lives locally. Operators routinely move between machines with different layouts (`~/code/` on Mac, `Q:\src\` on Windows, `/repos/` on a Linux dev box) — task cards committed on one machine shouldn't block resume on another. This skill handles the cross-machine reality gracefully.
 
-> **worker users**: see `worker:ms-repo-discovery` for ADO MCP fallback, cross-org MCP routing, and ADO REST PR fan-out. This skill stays generic.
+> **overlay users**: consumer overlays often ship a richer repo-discovery skill — non-GitHub MCP fallback for the org's work-item tracker, cross-org MCP routing, and per-tracker REST PR fan-out. This skill stays generic.
 
 ## When to invoke
 
@@ -62,7 +62,7 @@ If the committed task card's `local_path` is an absolute path (`C:\src\...`, `Q:
 
 **When you encounter one during a session**:
 1. Surface it to the operator: "`task.md` has `local_path: <absolute-path>` — that's specific to one machine and breaks cross-machine portability. Want me to move it to `.machine-local.yml` on this machine and revert `task.md` to tilde form?"
-2. On yes: write the absolute path to `.machine-local.yml` for this repo, update `task.md` back to `~/code/<repo-name>` tilde form, commit both changes in worker-workspace with a message like `fix(portability): revert task.md local_path to tilde form; absolute path kept in .machine-local.yml for this machine`.
+2. On yes: write the absolute path to `.machine-local.yml` for this repo, update `task.md` back to `~/code/<repo-name>` tilde form, commit both changes in the desk workspace with a message like `fix(portability): revert task.md local_path to tilde form; absolute path kept in .machine-local.yml for this machine`.
 3. Push.
 
 The rule: **committed `local_path` is always tilde form. Absolute paths go in `.machine-local.yml`.** No exceptions.
@@ -110,7 +110,7 @@ Probe candidates in this order, stopping at the first match:
    - `~/dev/<repo-name>`
    - `~/<repo-name>`
 
-For each candidate, verify it's a git repo whose origin matches the expected ADO repo (same remote check as section 2).
+For each candidate, verify it's a git repo whose origin matches the expected upstream repo (same remote check as section 2).
 
 ### On success
 
@@ -134,7 +134,7 @@ Two options:
 Which one?
 ```
 
-(worker users have a third option — work via ADO MCP only — see `worker:ms-repo-discovery`.)
+(overlay users may have a third option — work via the org's tracker MCP only — when the consumer overlay provides remote-tracker fallback.)
 
 ### Option 1: User provides path
 
@@ -160,7 +160,7 @@ Which one?
 Some repos are too large to clone practically (for example, repos in the 10s of GB).
 
 For repos you know are large (or when `git clone` takes more than a few minutes):
-- **Warn the operator before cloning** and consider whether a remote-only workflow is viable (worker users: see `worker:ms-repo-discovery` for ADO MCP fallback).
+- **Warn the operator before cloning** and consider whether a remote-only workflow is viable (overlay users may have a remote-tracker MCP fallback via their consumer overlay).
   ```
   <repo-name> is a very large repo (~NNGB). Cloning will take a long time and significant disk space.
   ```
@@ -193,8 +193,8 @@ user. For GitHub repos:
 gh pr list --repo <org>/<repo-name> --author @me --state open --json number,title,url,isDraft
 ```
 
-(worker users: ADO repos use a REST endpoint instead — see
-`worker:ms-repo-discovery`.)
+(overlay users: non-GitHub work-item trackers use their own REST
+endpoints instead — consumer overlays extend this fan-out.)
 
 Cache the returned PR metadata on the task-scan output for downstream
 consumers (status skill, session-start skill-routing prompts). Do NOT

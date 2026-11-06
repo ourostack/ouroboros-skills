@@ -5,7 +5,7 @@ description: Keep the code repos the agent touches synced and never leave state 
 
 # Git hygiene
 
-> **worker users**: see `worker:ms-git-extensions` for the worker-workspace state-sync workflow, EMU account context, and the `$DESK/`-specific anti-patterns. This skill stays generic.
+> **overlay users**: consumer overlays may add their own state-sync workflow for the `$DESK/` repo, identity context (e.g. enterprise-managed git accounts), and overlay-specific anti-patterns. This skill stays generic.
 
 The agent's pushes must reach the remote intact and on the right branch. This skill covers source-as-evidence reads, the pre-push CI-parity gate, merge-conflict EOL/BOM rules, force-push safe-conditions, and the post-commit verify gate.
 
@@ -321,10 +321,10 @@ If the agent changed a file, it's committed and pushed **before the session ends
 
 At session start, if git status in any repo shows unexpected uncommitted changes, surface them to the operator before doing anything else — they may represent orphaned work from a previous session.
 
-(worker users: see `worker:ms-git-extensions` for the
-state-repo-specific anti-pattern — never branch/PR on a state
-repo even when push-to-main is denied; the denial is a permission
-config problem, not a workflow problem.)
+(overlay users: consumer overlays often ship a state-repo-specific
+anti-pattern note — never branch/PR on a state repo even when
+push-to-main is denied; the denial is a permission config problem,
+not a workflow problem.)
 
 ## Pre-commit scans (authorship, diff-scope)
 
@@ -487,8 +487,8 @@ re-approval.
 
 If the trigger for considering force-push is a **parallel-PR
 conflict on a coordinated file** (e.g., version-file conflicts on
-`agency.json` / `plugin.json` after another PR in the same batch
-merged first), the right shape is usually merge + regular push, not
+a runtime manifest or `plugin.json` after another PR in the same
+batch merged first), the right shape is usually merge + regular push, not
 rebase + force-push. See `work-orchestration` →
 "Parallel-batch dispatch discipline" → "Version-file conflicts on
 parallel PRs — merge, don't rebase" before applying the safe-

@@ -9,7 +9,7 @@ plugins evolve faster than operator machines do. when a plugin renames its canon
 
 this skill is the auto-heal lane. every plugin can drop `migrations/<NN>-<slug>.md` files into its plugin root. at session start, this skill walks every enabled plugin's `migrations/` dir, runs each migration's `Detect` block, and — for the ones whose Detect fires — runs `Safety check` + `Migrate` + `Announce`, then hard-stops the session for restart so the new preamble loads against canonical paths. small ceremony, run every time, silent on the happy path.
 
-**lives in `desk` (substrate), not in any overlay plugin.** if this framework lived in an overlay (e.g. `ms-desk`), the overlay's own rename migration would have to rename the framework out from under itself mid-execution. substrate-resident means the framework outlives any overlay's identity churn.
+**lives in `desk` (substrate), not in any overlay plugin.** if this framework lived in an overlay, the overlay's own rename migration would have to rename the framework out from under itself mid-execution. substrate-resident means the framework outlives any overlay's identity churn.
 
 **self-evidencing predicates, no marker file.** a migration's `Detect` block answers "is this machine still in the pre-migration state?" by inspecting the actual state — `[ -d ~/old-dir ]`, `[ -L ~/some-symlink ] && readlink ~/some-symlink | grep -q old-target`, etc. there's no "I've already run" cookie that can desync from reality on a restored backup, a partially-restored Time Machine snapshot, or a borrowed home dir. if the predicate says "needed," it's needed; if it says "not needed," it's truly already done.
 
@@ -23,15 +23,15 @@ this skill is the auto-heal lane. every plugin can drop `migrations/<NN>-<slug>.
 Every migration file lives at `<plugin-root>/migrations/<NN>-<slug>.md`. `NN` is a 2-digit sequence within that plugin; the slug is a short kebab-case description. Examples:
 
 ```
-plugins/desk/migrations/01-workspace-to-ms-desk.md
-plugins/ms-desk/migrations/02-plugin-rename-worker-to-ms-desk.md
+plugins/<overlay-a>/migrations/01-rename-workspace-dir.md
+plugins/<overlay-b>/migrations/02-move-plugin-clone.md
 ```
 
 ### Frontmatter (YAML)
 
 ```yaml
 ---
-id: 01-workspace-to-ms-desk
+id: 01-rename-workspace-dir
 description: one-liner of what this migration does + when it was added
 safety: safe              # only "safe" is implemented today; future values: confirm, manual
 needs_restart: true       # after running, halt the session and ask operator to restart
@@ -85,10 +85,10 @@ splitting these out means the driver can run Detect cheaply against every migrat
      - `~/.claude-plugin/plugins/` — older Claude Code convention; check if present
      - `~/.copilot/plugins/` — Copilot CLI's user-level plugin install dir
      - `~/.ouro-cli/plugins/` — ouro daemon's per-machine plugin install dir (relevant when this skill runs in an ouro-agent context)
-     - `~/code/<plugin-id>/` and `~/code/<plugin-id>.ouro/` — local dev clones the operator symlinks into a plugin engine (Microsoft engineers frequently develop plugins out of `~/code/`)
-     - any plugin root surfaced by `agency plugin list --json` if `agency` is on PATH (parse the JSON; the `path` field gives the install dir per plugin)
+     - `~/code/<plugin-id>/` and `~/code/<plugin-id>.ouro/` — local dev clones the operator symlinks into a plugin engine (a common pattern for plugin authors developing out of `~/code/`)
+     - any plugin root surfaced by a consumer engine's plugin-list command if that engine is on PATH (each engine has its own listing command; parse its output for plugin install dirs)
    - for each plugin root, the rule is: if a `migrations/` subdir exists, every `*.md` file inside it is a candidate migration. dedupe by absolute path in case the same plugin is found under multiple roots (e.g. installed system-wide AND symlinked from `~/code/`).
-   - across plugins, sort the full migration list alphabetically by filename. with the `<NN>-<slug>.md` convention, this gives global ordering by `NN` regardless of which plugin owns each file. (implementation note: sort by the leaf filename, not the full path, so a migration named `02-plugin-rename.md` in plugin B sorts after `01-workspace-to-ms-desk.md` in plugin A.)
+   - across plugins, sort the full migration list alphabetically by filename. with the `<NN>-<slug>.md` convention, this gives global ordering by `NN` regardless of which plugin owns each file. (implementation note: sort by the leaf filename, not the full path, so a migration named `02-plugin-rename.md` in plugin B sorts after `01-rename-workspace-dir.md` in plugin A.)
 
 2. **for each migration in id-order across all plugins:**
    - parse the frontmatter and the four body code blocks.
@@ -112,7 +112,7 @@ future implementations of `confirm` and `manual` extend this skill; today's cont
 
 alphabetical sort across all plugins' migration filenames. plugins coordinate by choosing each new migration's `NN` to lexically reflect intended global order. there's no central registry; the convention is the coordination.
 
-for example, if `desk` ships `01-workspace-to-ms-desk.md` and the overlay plugin then ships `02-plugin-rename-worker-to-ms-desk.md`, sorting by filename gives `01`-then-`02` — even though they live in different plugin roots. subsequent migrations pick `03`, `04`, etc. by convention.
+for example, if overlay A ships `01-rename-workspace-dir.md` and overlay B then ships `02-move-plugin-clone.md`, sorting by filename gives `01`-then-`02` — even though they live in different plugin roots. subsequent migrations pick `03`, `04`, etc. by convention.
 
 the 2-digit NN handles realistic plugin-lifetime migration counts (up to 99 per migration cohort). if a plugin needs 100+ migrations someday, it switches to a 3-digit prefix and the alphabetical sort still works (because `100-foo` sorts after `099-bar` lexically as well as numerically — as long as everyone agrees on the digit width going forward).
 
