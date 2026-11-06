@@ -484,14 +484,25 @@ const doc2b = { at: clip3Start + ms(24000), dur: doc2bDur };              // sta
 
 ### VO-music mix balance
 
-VO must always sit clearly above the music. Err on the side of VO too loud.
+There's no formula — mix balance is found by ear. But you can't hear, so use these defaults and let the user iterate.
 
+**Starting defaults:**
 - **VO volume: 3.5** (Remotion `volume` prop)
 - **Music full: 0.10** (when no VO playing)
 - **Music ducked: 0.02** (when VO active)
-- **Duck ramp: 10 frames** (~333ms transition)
+- **Duck ramp: 20 frames @60fps / 10 frames @30fps** (~333ms transition)
 
-If user says VO is hard to hear, bump VO volume first. Music should feel like atmosphere, not competition.
+**The tuning process:**
+1. Start with the defaults above. They're biased toward VO-loud, which is correct for narrated demos.
+2. Have the user preview in studio and listen to a VO-over-footage section.
+3. The user will say one of:
+   - "VO is hard to hear" → bump VO volume (3.5 → 4.0 → 4.5). This is cheaper than lowering music because it doesn't affect the non-VO sections.
+   - "Music is too loud during VO" → lower MUSIC_DUCKED (0.02 → 0.01).
+   - "Music is too quiet during footage" → raise MUSIC_FULL (0.10 → 0.15). But be careful — this also affects the moments right before/after VO where the duck ramp transitions.
+   - "Sounds good" → done.
+4. VO volume and music levels are in different components (Audio `volume` prop vs MusicTrack constants), so they can be tuned independently.
+
+**Rule of thumb:** VO should be the clear foreground. If you can't tell whether the VO or music is louder, the music is too loud. The viewer should never strain to hear the narrator.
 
 ### Mapping VO to visuals
 
