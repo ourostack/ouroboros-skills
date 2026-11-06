@@ -9,7 +9,7 @@
     {
       "name": "autopilot",
       "path": "skills/autopilot/SKILL.md",
-      "description": "Long-running agent loop discipline for multi-track, multi-PR mandates. Activates on operator phrases like 'autopilot', 'you got this', 'treat all as pending', or 'keep the ship moving'. Twelve durable rules (R1-R12) + ten recognized patterns. Between messages you are ALWAYS spawning new work, scheduled to scan-and-spawn shortly, or reporting a true blocker — never 'waiting silently'.",
+      "description": "Operate as an engineer, not a journal-keeper. The explicit purpose of this skill is to remove human judgment from the inner loop — the agent ultrathinks, decides, and ships. Fires when the agent catches itself drafting action items, framing tractable failures as 'known quirks', overriding wrong defaults via flag, hot-patching without a source PR, or stopping a broken thing instead of investigating it. Eleven core rules + a decision tree + only two narrow exceptions (human-only credential, unrecoverable destructive op against shared production). 'Shipped' means merged; opening a PR is paperwork, not work.",
       "tags": ["meta", "workflow", "execution", "long-horizon"]
     },
     {

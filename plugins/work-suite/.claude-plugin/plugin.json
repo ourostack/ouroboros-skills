@@ -1,6 +1,6 @@
 {
   "name": "work-suite",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "The four-phase workflow primitive used by orchestrator agents: work-ideator (explore), work-planner (scope), work-doer (execute with TDD), work-merger (PR + merge) — plus autopilot (long-horizon loop discipline) and inch-worm (open-ended improvement loop). Vendor-neutral, engine-agnostic plugin bundle that mirrors the canonical skills under ouroboros-skills/skills/.",
   "author": {
     "name": "ouroborosbot",
