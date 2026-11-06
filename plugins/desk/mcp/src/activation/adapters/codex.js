@@ -1,9 +1,14 @@
+import { readFileSync } from "node:fs"
+import * as path from "node:path"
+import { fileURLToPath } from "node:url"
 import {
   applyActivationArtifacts,
   deactivateActivationArtifacts,
 } from "../artifact-ledger.js"
 import { resolveActivationChain } from "../validate.js"
 
+const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+const deskPluginRoot = path.resolve(moduleDir, "..", "..", "..", "..")
 const CODEX_CAPABILITIES = new Set(["Read", "Write", "Interactive"])
 const CODEX_ACTIVATION_LEDGER_PATH = ".codex/desk-activation-ledger.json"
 const OWNED_BLOCK_BEGIN_PATTERN = /^# BEGIN desk activation: [^\r\n]* owner=desk-activation\r?$/gm
@@ -627,10 +632,21 @@ function renderActivationConfig(input, selectedActivation) {
   }, null, 2)}\n`
 }
 
+function renderDeskFoundation(manifest) {
+  const target = manifest.provides.activation_targets.find((entry) => entry.id === "desk:worker")
+  const source = target?.startup?.foundation
+  if (typeof source !== "string" || source.length === 0) {
+    throw new Error("desk:worker startup foundation source is missing")
+  }
+  const skill = readFileSync(path.join(deskPluginRoot, source), "utf8")
+  return skill.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/u, "").trim()
+}
+
 function renderInstructionsBlock(input, modeConfig, selectedActivation) {
   if (!modeConfig.instructionsPath) {
     return ""
   }
+  const deskFoundation = renderDeskFoundation(input.manifest)
   const identity = selectedActivation.identity
   const activationChain = selectedActivation.chain.map((entry) => `\`${entry.id}\``).join(" -> ")
   const overlayAddenda = selectedActivation.chain
@@ -646,6 +662,8 @@ ${overlayAddenda.join("\n")}
 
   return `# BEGIN desk activation: ${input.manifest.id}@${input.manifest.version} mode=${input.mode} owner=desk-activation
 You are the ${identity} ${modeConfig.workerContext}.
+
+${deskFoundation}
 
 Run the \`desk:session-start\` skill before other work. Treat \`$DESK\` as \`${input.deskRoot}\`. Keep durable tracks, tasks, friction, and lessons there. ${DESK_MCP_HEALTH_GUARD} Apply the \`plain-language\` skill to every human-readable response and artifact while preserving evidence, uncertainty, safety, schemas, and exact source content. Apply \`ponytail\` to coding and \`ponytail-review\` to over-engineering review; never use it to truncate requested research, status truth, explanations, or terminal delivery. Never hard-wrap authored prose: keep each paragraph, list item, blockquote, message, task card paragraph, commit body paragraph, and PR body paragraph on one physical line; use newlines only for real structure or source-preserved semantic breaks. Before finishing, inspect authored/changed prose and join column-wrap continuations without rewriting third-party or historical source. Use Work Suite skills (\`work-ideator\`, \`work-planner\`, \`work-doer\`, \`work-merger\`) for substantial engineering work.${overlaySection}
 # END desk activation

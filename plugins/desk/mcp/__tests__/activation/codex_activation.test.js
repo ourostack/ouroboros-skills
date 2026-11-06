@@ -45,6 +45,21 @@ function loadFixture(mode, fileName) {
   return readFileSync(path.join(fixturesRoot, mode, fileName), "utf8")
 }
 
+function countOccurrences(value, phrase) {
+  return value.split(phrase).length - 1
+}
+
+function deskFoundationBody() {
+  return readFileSync(
+    path.join(repoRoot, "plugins", "desk", "skills", "using-desk", "SKILL.md"),
+    "utf8",
+  ).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/u, "").trim()
+}
+
+function withoutDeskFoundation(value) {
+  return value.replace(`${deskFoundationBody()}\n\n`, "")
+}
+
 function withTempHost(fn) {
   const root = mkdtempSync(path.join(tmpdir(), "desk-codex-activation-"))
   try {
@@ -247,7 +262,10 @@ test("global personal activation materializes worker and Desk as the default", a
   ])
   assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
   assert.equal(result.generatedActivationConfig, loadFixture("global-personal", "generated-activation-config.json"))
-  assert.equal(result.generatedInstructions, loadFixture("global-personal", "generated-instructions.md"))
+  assert.equal(
+    withoutDeskFoundation(result.generatedInstructions),
+    loadFixture("global-personal", "generated-instructions.md"),
+  )
   assertNoManualSetup(result.generatedConfig)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\]/)
   assert.match(result.generatedConfig, /\[plugins\."desk@ourostack"\.mcp_servers\.desk\]/)
@@ -256,6 +274,27 @@ test("global personal activation materializes worker and Desk as the default", a
   assert.match(result.generatedInstructions, /desk worker by default/)
   assert.match(result.generatedInstructions, /Run the `desk:session-start` skill/)
   assertDeskMcpHealthGuard(result.generatedInstructions)
+})
+
+test("Codex activation injects the full Desk foundation once in automatic modes", async () => {
+  const { materializeCodexActivation } = await loadCodexAdapter()
+
+  for (const mode of ["global-personal", "project-local"]) {
+    const startup = materializeCodexActivation(activationInput(mode)).generatedInstructions
+    assert.equal(countOccurrences(startup, deskFoundationBody()), 1, `${mode}: canonical foundation`)
+    for (const phrase of [
+      "The human supplies intent",
+      "The agent owns execution",
+      "must not be silently confused",
+    ]) {
+      assert.equal(countOccurrences(startup, phrase), 1, `${mode}: ${phrase}`)
+    }
+  }
+
+  assert.equal(
+    materializeCodexActivation(activationInput("manual-only")).generatedInstructions,
+    "",
+  )
 })
 
 test("global personal activation can select a downstream Desk overlay worker", async () => {
@@ -461,7 +500,10 @@ test("project-local opt-out materializes project config without mutating global 
   assert.equal(result.generatedArtifacts[2].path, "AGENTS.md")
   assert.equal(result.generatedConfig, loadFixture("project-local", "generated-config.toml"))
   assert.equal(result.generatedActivationConfig, loadFixture("project-local", "generated-activation-config.json"))
-  assert.equal(result.generatedInstructions, loadFixture("project-local", "generated-instructions.md"))
+  assert.equal(
+    withoutDeskFoundation(result.generatedInstructions),
+    loadFixture("project-local", "generated-instructions.md"),
+  )
   assertNoManualSetup(result.generatedConfig)
   assert.match(result.generatedConfig, /\[mcp_servers\.desk\]/)
   assert.match(result.generatedConfig, /args = \["plugins\/desk\/mcp\/index\.js", "--activation-config", "\.codex\/desk\.activation\.json"\]/)
@@ -554,7 +596,10 @@ You are not the desk worker by default.
   assert.doesNotMatch(result.generatedConfig, /desk@1\.6\.0/)
   assert.doesNotMatch(result.generatedInstructions, /desk@1\.6\.0/)
   assert.equal(result.generatedConfig, loadFixture("global-personal", "generated-config.toml"))
-  assert.equal(result.generatedInstructions, loadFixture("global-personal", "generated-instructions.md"))
+  assert.equal(
+    withoutDeskFoundation(result.generatedInstructions),
+    loadFixture("global-personal", "generated-instructions.md"),
+  )
 })
 
 test("Codex activation fails closed for malformed owned activation blocks", async () => {
@@ -757,7 +802,10 @@ test("Codex activation applies generated artifacts through the ownership ledger"
 
     assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("project-local", "generated-config.toml"))
     assert.equal(readHostFile(root, ".codex/desk.activation.json"), loadFixture("project-local", "generated-activation-config.json"))
-    assert.equal(readHostFile(root, "AGENTS.md"), loadFixture("project-local", "generated-instructions.md"))
+    assert.equal(
+      withoutDeskFoundation(readHostFile(root, "AGENTS.md")),
+      loadFixture("project-local", "generated-instructions.md"),
+    )
     assert.equal(result.activation.mode, "project-local")
     assert.equal(result.ledger.activation.host, "codex")
     assert.equal(result.ledger.activation.generated_by, "codex-adapter")
@@ -804,7 +852,10 @@ test("Codex global activation applies tilde artifacts under the host root ledger
 
     assert.equal(readHostFile(root, ".codex/config.toml"), loadFixture("global-personal", "generated-config.toml"))
     assert.equal(readHostFile(root, ".codex/desk.activation.json"), loadFixture("global-personal", "generated-activation-config.json"))
-    assert.equal(readHostFile(root, ".codex/AGENTS.md"), loadFixture("global-personal", "generated-instructions.md"))
+    assert.equal(
+      withoutDeskFoundation(readHostFile(root, ".codex/AGENTS.md")),
+      loadFixture("global-personal", "generated-instructions.md"),
+    )
     assert.deepEqual(
       result.ledger.artifacts.map((artifact) => artifact.path),
       [".codex/config.toml", ".codex/desk.activation.json", ".codex/AGENTS.md"],

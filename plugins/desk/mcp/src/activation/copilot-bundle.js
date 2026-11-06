@@ -111,6 +111,9 @@ export function validateCopilotPackagingContract(input) {
   if (deskPlugin.mcpServers !== "./.mcp.copilot.json") {
     errors.push("Copilot root plugin metadata must expose ./.mcp.copilot.json")
   }
+  if (deskPlugin.hooks !== "./hooks/copilot-hooks.json") {
+    errors.push("Copilot root plugin metadata must expose ./hooks/copilot-hooks.json")
+  }
   if (deskPlugin.version !== activation.version) {
     errors.push(`Copilot root Desk version must match activation version ${activation.version}`)
   }

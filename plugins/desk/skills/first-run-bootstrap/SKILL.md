@@ -9,6 +9,24 @@ a new room. no desk in it yet. but most operators already have a desk somewhere 
 
 > **overlay users**: consumer overlays may layer richer first-run scaffolding on top of this generic skeleton (e.g. additional system directories, an AGENTS.md, a workspace MCP-config seed, and the overlay's identity / repo conventions).
 
+## Path 1 — start or upgrade a Desk
+
+This skill exposes the generic "start or upgrade a Desk" entrypoint. It has two entrances that converge on one readiness and first-job endpoint, and it should never fork the operator into a second workspace or replay onboarding during normal resumption.
+
+### Entrance A — new to Desk
+
+No existing Desk is present yet, so discover the remote, clone or create the workspace, activate V2, reach readiness, and start the first real job.
+
+### Entrance B — existing V1 Desk
+
+An existing V1 Desk already carries durable work in this workspace, so inventory the current workspace, preserve the same workspace, migrate declarations and retired capabilities, activate V2, and then resume or start the first real job.
+
+### Converged endpoint
+
+Both entrances end at one Desk, one active plugin chain, admitted MCPs, startup foundations present, and the operator ready to resume or start the first real job from the same durable workspace. Later healthy sessions resume through ordinary `session-start` flow instead of replaying either onboarding entrance.
+
+The public RFC stays optional and on-demand. Use it when the operator wants design context, but do not turn healthy startup or resumption into a requirement to revisit RFC material every session.
+
 ## Step 0 — Hard-gate on gh auth
 
 **Do not touch the filesystem (no `mkdir`, no `git init`) if gh auth is broken.** a local-only init without the remote check forks operator state: the operator may already have a desk repo on GitHub, and creating a local orphan here risks divergent history, accidental push under the wrong identity, or silent loss of the real source of truth.

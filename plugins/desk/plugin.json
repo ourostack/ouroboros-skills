@@ -18,6 +18,7 @@
   ],
   "agents": "./agents/",
   "skills": "./skills/",
+  "hooks": "./hooks/copilot-hooks.json",
   "mcpServers": "./.mcp.copilot.json",
   "activation": {
     "copilot": {

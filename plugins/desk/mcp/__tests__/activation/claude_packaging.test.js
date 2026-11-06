@@ -1,7 +1,13 @@
 import { test } from "node:test"
 import { strict as assert } from "node:assert"
-import { readFileSync } from "node:fs"
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs"
+import { tmpdir } from "node:os"
 import * as path from "node:path"
+import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { validateClaudePackagingContract } from "../../src/activation/claude-packaging.js"
 
@@ -36,6 +42,33 @@ function readText(...segments) {
 
 function loadJson(...segments) {
   return JSON.parse(readText(...segments))
+}
+
+function countOccurrences(value, phrase) {
+  return value.split(phrase).length - 1
+}
+
+function runSessionStartHook() {
+  const deskRoot = mkdtempSync(path.join(tmpdir(), "desk-claude-startup-"))
+  try {
+    const result = spawnSync(
+      "bash",
+      [path.join(repoRoot, "plugins", "desk", "hooks", "session-start.sh")],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: path.join(repoRoot, "plugins", "desk"),
+          DESK: deskRoot,
+        },
+      },
+    )
+    assert.equal(result.status, 0, result.stderr)
+    return JSON.parse(result.stdout).hookSpecificOutput.additionalContext
+  } finally {
+    rmSync(deskRoot, { recursive: true, force: true })
+  }
 }
 
 function parseSimpleFrontmatter(...segments) {
@@ -370,7 +403,7 @@ test("Claude hook and MCP configuration stay plugin-relative and non-manual", ()
   assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear")
   assert.equal(
     hooks.hooks.SessionStart[0].hooks[0].command,
-    "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+    "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh ${CLAUDE_PLUGIN_ROOT}/skills/using-desk/SKILL.md",
   )
   assert.deepEqual(mcp.mcpServers.desk, {
     type: "stdio",
@@ -385,6 +418,27 @@ test("Claude hook and MCP configuration stay plugin-relative and non-manual", ()
     },
   })
   assert.doesNotMatch(JSON.stringify(mcp), /\$\{pluginRoot\}/u)
+})
+
+test("Claude SessionStart injects the full Desk foundation once without scanning tasks", () => {
+  const hook = readText("plugins", "desk", "hooks", "session-start.sh")
+  const startup = runSessionStartHook()
+  const foundation = readText("plugins", "desk", "skills", "using-desk", "SKILL.md").trimEnd()
+
+  assert.equal(countOccurrences(startup, foundation), 1)
+  for (const phrase of [
+    "The human supplies intent",
+    "The agent owns execution",
+    "must not be silently confused",
+  ]) {
+    assert.equal(countOccurrences(startup, phrase), 1)
+  }
+  assert.match(startup, /desk:session-start.*authoritative workspace scan/isu)
+  // A hook-side partial scan duplicates desk:session-start, adds boot work, and can disagree with synchronized workspace state.
+  assert.doesNotMatch(
+    hook,
+    /find\s+.*task\.md|(^|[;&|]\s*|\$\()\s*(git|gh|curl)\s/mu,
+  )
 })
 
 test("Claude-facing manifests stay version-aligned with activation and marketplace metadata", () => {

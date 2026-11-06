@@ -29,6 +29,8 @@ copilot --agent worker
 
 The root package carries generated flattened Work Suite metadata for Copilot-compatible hosts, so no separate Work Suite install is part of the healthy path.
 
+The root plugin also registers a Desk-owned `sessionStart` hook. Copilot executes that hook with the installed plugin root, and the hook reads `skills/using-desk/SKILL.md` at runtime to emit the canonical foundation as `additionalContext`; `worker.agent.md` does not carry a copied foundation body.
+
 ### Codex CLI / Codex App
 
 Codex plugins ship skills, MCP servers, apps, and hooks. Desk's healthy Codex path is activation-owned: the adapter enables Desk and Work Suite together, writes the Desk activation config, owns the Desk MCP bridge, and materializes a delimited worker-default instruction block. The default mode is `global-personal`, so every fresh Codex session starts with worker+Desk behavior.

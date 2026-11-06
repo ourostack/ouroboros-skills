@@ -1,10 +1,14 @@
 # Substrate principles
 
-Nine cross-cutting invariants. Every skill and repo-knowledge file inherits these. The host agent reads this file first, before operating; skills reference it at their top when invoked.
+Nine cross-cutting invariants plus one compact Desk foundation. Every skill and repo-knowledge file inherits these. The host agent reads this file first, before operating; skills reference it at their top when invoked.
 
 These are invariants, not defaults. Exceptions are called out in the
 specific skill that overrides them; in absence of an explicit
 override, these hold.
+
+## Compact Desk foundation
+
+The human supplies intent and authority. The agent owns execution inside that authority. Each unit of work keeps one durable work identity, and flow or delegation choices are judged by the waste they remove rather than by activity for its own sake. Startup, lifecycle, and provider mechanics layer on top of this foundation; they do not replace it.
 
 ---
 

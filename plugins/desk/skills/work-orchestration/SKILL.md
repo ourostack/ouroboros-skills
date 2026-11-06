@@ -25,7 +25,11 @@ The cross-repo plan owns an explicit DAG. `repos[]` order is never dependency or
 
 Before mutation, reject a dependency cycle or unknown dependency. A failed predecessor blocks its dependents while independent ready nodes continue.
 
+Before any fan-out, the root identifies dependencies, write sets, exclusive resources, the integration fold, the evidence each child must return, and the final synthesis it will own. If those stay implicit, the work is not ready to split.
+
 Each repository gets its own branch and merge cycle. Independent parallel branches use separate worktrees and explicit `git -C <worktree>` commands. Shared and version files serialize or merge; never force-push through a coordinated-file conflict.
+
+If material resequencing becomes necessary, record the observed waste pattern, the recommendation, and the consequence of not resequencing before changing the plan.
 
 An explicit producer state named `needs-human-approval` is a `hard exception`; do not replace required human approval with agent review. Use `needs reviewer gate` only when the producer explicitly permits machine review.
 

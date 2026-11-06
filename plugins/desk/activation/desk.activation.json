@@ -72,6 +72,10 @@
           "claude": "agents/worker.md",
           "codex": "agents/worker.toml",
           "copilot": "agents/worker.agent.md"
+        },
+        "startup": {
+          "foundation": "skills/using-desk/SKILL.md",
+          "authoritative_scan": "skills/session-start/SKILL.md"
         }
       }
     ],

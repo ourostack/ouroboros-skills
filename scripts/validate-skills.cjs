@@ -343,6 +343,14 @@ function runDeskFreshnessChecks(options = {}) {
   } = options;
   validateDeskMcpPackageScripts(options);
 
+  const usingDeskFoundationResult = spawnSync(process.execPath, ["scripts/test-using-desk-foundation.cjs"], {
+    cwd: repoRoot,
+    stdio: childStdio,
+  });
+  if ((usingDeskFoundationResult.status ?? 1) !== 0) {
+    throw new Error("using-desk foundation contract tests failed");
+  }
+
   const hostManifestResult = spawnSync(process.execPath, ["scripts/test-desk-host-manifests.cjs"], {
     cwd: repoRoot,
     stdio: childStdio,

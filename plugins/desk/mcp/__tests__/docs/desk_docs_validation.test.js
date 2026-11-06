@@ -215,6 +215,9 @@ test("run and startCli expose success, failure, and no-op CLI paths", () => {
         paths: ["plugins/desk/README.md"],
       }],
       readFile: (file) => {
+        if (file === "plugins/desk/docs/agentic-engineering-v2-rfc.md") {
+          return "# Agentic Engineering V2\n\n## Start or upgrade a Desk\n\n## Migrate a Crew workspace\n"
+        }
         if (file === "plugins/desk/mcp/README.md") return mcpReadmeBody()
         if (file === "plugins/desk/skills/cdp-headed-browser/SKILL.md") return "Target.createTarget({ url, background: true })"
         return file.endsWith(".yml") ? workflowBody : goodBody

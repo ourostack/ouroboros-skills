@@ -18,6 +18,8 @@ desk substrate -> desk:worker -> ms-desk:worker -> area overlay
 
 `desk:worker` is the standalone default supplied by Desk. A consumer overlay such as `ms-desk` declares Desk as a dependency, inherits `desk:worker`, and contributes its own identity/instructions. A narrower area overlay depends on `ms-desk` and inherits `ms-desk:worker`. The selected activation is profile/project state: standalone Desk selects `desk:worker`; a personal global profile can select `ms-desk:worker` or an area overlay without copying Desk setup.
 
+For the design rationale behind the V2 foundation, startup composition, and migration boundaries, see the canonical public RFC: [`docs/agentic-engineering-v2-rfc.md`](./docs/agentic-engineering-v2-rfc.md).
+
 ## Activation
 
 ### Under Copilot CLI
@@ -111,6 +113,8 @@ claude --agent desk:worker
 # Copilot CLI
 copilot --agent worker
 ```
+
+Copilot startup uses the root plugin's Desk-owned `sessionStart` hook to read `skills/using-desk/SKILL.md` at runtime and emit it as `additionalContext`. The agent file keeps the worker identity and operating context without copying the foundation body.
 
 **Codex.** The activation adapter makes `worker` the global personal default by materializing owned Codex config and `AGENTS.md` blocks. Use `manual-only` when Desk should stay available as a plugin/MCP substrate without default worker behavior, or `project-local` when a specific repo should own its Desk binding.
 

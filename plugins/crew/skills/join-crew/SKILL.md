@@ -11,6 +11,22 @@ default alias policy, and any private tooling details.
 
 Read `desk:first-run-bootstrap` and `crew:shared-desk-conventions` first.
 
+## Path 2 — migrate the Crew workspace, then activate members
+
+This skill exposes the generic Crew onboarding entrypoint. Path 2 starts with repository migration, then branches into existing-member activation or new-member join only after the migrated repository is ready.
+
+### Phase 1 — repository migration
+
+Migrate the repository before any member activation. Preserve every member-specific subtree under `desks/`, preserve `_shared/landscape/` and `_shared/decisions/`, preserve Git history and origin, preserve the committed registry, preserve Crew read-across/write-own, and preserve shared-path serialization through the conflict-safe shared-path write protocol. Refuse any step that would create a duplicate or parallel Crew repository; there is no parallel migration workspace and no parallel replacement repo.
+
+### Phase 2 — existing member activation
+
+Once the migrated repository is ready, an existing member resolves identity to the committed alias and activates against that same migrated repo.
+
+### Phase 3 — new member join
+
+Once the migrated repository is ready, a new member follows the normal join flow, copies the committed template, verifies every path, and only then adds the new registry row.
+
 ## Inputs from the overlay
 
 Before starting, obtain:
