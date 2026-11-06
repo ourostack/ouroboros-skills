@@ -101,6 +101,12 @@
       "path": "skills/word-docs/SKILL.md",
       "description": "Convert markdown drafts into shareable Word documents using a bundled helper script.",
       "tags": ["documents", "word", "docx", "formatting"]
+    },
+    {
+      "name": "product-cloner",
+      "path": "skills/product-cloner/SKILL.md",
+      "description": "Clone the look, feel, and behavior of an existing app by reading its shipped source as ground truth instead of guessing. Locate the source (app bundle CSS/JS, plists, defaults read, beautified minified bundles, the DOM template), pin the user's ACTIVE variant, extract a complete source-grounded spec (visual tokens, DOM/feature inventory, behavior defaults, string inventory), implement against it, and verify against the reference. Use for 'make X look/behave exactly like Y' or when a parity attempt 'doesn't match'.",
+      "tags": ["clone", "parity", "reverse-engineering", "design", "spec"]
     }
   ]
 }
