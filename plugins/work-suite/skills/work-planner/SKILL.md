@@ -238,7 +238,6 @@ Planner's response to findings (every pass):
 - Create adjacent artifacts directory in `TASK_DIR`: `YYYY-MM-DD-HHMM-doing-{short-desc}/` for any files, outputs, or working data
 - Use DOING TEMPLATE — **follow exactly**, including emoji status on every unit header (`### ⬜ Unit X:`)
 - Fill from planning doc
-- Decide execution_mode: `pending` (needs approval), `spawn` (spawn sub-agent per unit), or `direct` (run directly)
 - Commit: `git commit -m "docs(doing): create doing-{short-desc}.md"`
 
 ### Pass 2 — Granularity (fresh sub-agent dispatched)
@@ -402,16 +401,9 @@ And STOP. Wait for explicit user approval words. Resume the pass chain after app
 # Doing: [TITLE]
 
 **Status**: drafting | READY_FOR_EXECUTION | in-progress | done
-**Execution Mode**: pending | spawn | direct
 **Created**: [git timestamp from initial commit]
 **Planning**: ./YYYY-MM-DD-HHMM-planning-{short-desc}.md
 **Artifacts**: ./YYYY-MM-DD-HHMM-doing-{short-desc}/
-
-## Execution Mode
-
-- **pending**: Awaiting user approval before each unit starts (interactive)
-- **spawn**: Spawn sub-agent for each unit (parallel/autonomous)
-- **direct**: Execute units sequentially in current session (default)
 
 ## Objective
 [from planning Goal]

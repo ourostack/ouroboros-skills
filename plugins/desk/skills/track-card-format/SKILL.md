@@ -11,6 +11,7 @@ description: Schema + body template for `track.md` — the per-track dashboard a
 
 ```yaml
 ---
+schema_version: 1
 title: "<track title>"
 status: active | closed
 
@@ -36,6 +37,10 @@ Consumer agents extending this with their own work-tracker schema
 (e.g., worker users with ADO Features) add their own frontmatter
 block — see `worker:ms-card-fields` for the MS-specific `ado:` +
 `ado_defaults:` shape.
+
+## Schema versioning
+
+`schema_version: 1` declares the current track-card schema. Same semantics as task.md: files missing the field are treated as `schema_version: 0` and continue to parse cleanly (v1 is a strict superset of v0); new tracks always write `schema_version: 1`; bump only on genuinely breaking changes.
 
 ## Body sections (recommended template)
 

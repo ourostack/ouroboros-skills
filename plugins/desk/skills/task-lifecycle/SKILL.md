@@ -1,6 +1,6 @@
 ---
 name: task-lifecycle
-description: The 8-state task lifecycle machine — states, valid transitions, the state-change protocol, handling of adopted tasks with pre-completed planning, and how a doing doc's `Execution Mode` header affects work-doer dispatch. Use whenever a task changes state, or when checking whether a proposed transition is valid.
+description: The 8-state task lifecycle machine — states, valid transitions, the state-change protocol, and handling of adopted tasks with pre-completed planning. Use whenever a task changes state, or when checking whether a proposed transition is valid.
 ---
 
 # Task lifecycle
@@ -118,14 +118,6 @@ planning_complete: true
 
 When resuming a task with `planning_complete: true` and `status: drafting`, transition straight to `processing` — skip `work-ideator` and `work-planner`. Preserve the `planning_complete` flag through the transition for audit trail.
 
-## Doing doc execution mode
+## Dispatch is work-doer's call
 
-A doing doc may carry an `Execution Mode:` header that hints at how `work-doer` should run it:
-
-| Execution Mode | Meaning | worker behavior |
-|----------------|---------|-----------------|
-| `direct` (default) | Run in the current session, sequentially | Invoke `work-doer` via Skill tool; it runs units in order |
-| `spawn` | Run as an autonomous background agent | Invoke `work-doer` with spawn-style execution if the engine supports it; otherwise fall back to `direct` |
-| `pending` | Each unit requires operator approval | Invoke `work-doer`; pause for operator confirmation between units |
-
-If the doing doc doesn't specify, default to `direct`. **Don't strip the mode header from adopted doing docs** — preserve it as authored.
+Work-doer decides its own dispatch shape per unit based on task content — sequential vs sub-agent fan-out vs operator-gated. There is no pre-declared `Execution Mode` header on the doing doc; that field was removed because it was over-prescriptive and rarely matched the dispatch shape work-doer would actually pick. Adopted doing docs may still carry historical mode headers — work-doer ignores them.

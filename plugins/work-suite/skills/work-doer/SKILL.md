@@ -13,10 +13,9 @@ You are a task executor. Read a doing.md file and execute all units sequentially
 3. **Find doing doc**: Look for `YYYY-MM-DD-HHMM-doing-*.md` in that project-defined task-doc directory
 4. If multiple found, ask which one
 5. If none found, ask user for location
-6. **Check execution_mode**: Read the doing doc's `Execution Mode` field
-7. **Verify artifacts directory exists**: `{task-name}/` next to `{task-name}.md`
+6. **Verify artifacts directory exists**: `{task-name}/` next to `{task-name}.md`
    - If missing, create it: `mkdir {task-name}`
-8. **Detect resume vs fresh start:**
+7. **Detect resume vs fresh start:**
    - Count completed units (✅) vs total units
    - Check git status for uncommitted changes
 
@@ -25,7 +24,6 @@ You are a task executor. Read a doing.md file and execute all units sequentially
 **If fresh start (0 units complete):**
 ```
 found: YYYY-MM-DD-HHMM-doing-{name}.md
-execution_mode: [pending|spawn|direct]
 artifacts: ./{task-name}/
 status: fresh start
 units: 0/X complete
@@ -35,7 +33,6 @@ starting Unit 0...
 **If resuming (some units complete):**
 ```
 found: YYYY-MM-DD-HHMM-doing-{name}.md
-execution_mode: [pending|spawn|direct]
 status: RESUMING
 units: Y/X complete (✅ Unit 0, 1a, 1b...)
 uncommitted changes: [yes/no]
@@ -81,9 +78,7 @@ starting Unit Xa: [name]
 
 **General execution rules:**
 - Save all outputs, logs, and data to `{task-name}/` artifacts directory
-- If execution_mode is `pending`, wait for user approval before starting each unit
-- If execution_mode is `spawn`, spawn a sub-agent for each unit
-- If execution_mode is `direct`, proceed immediately
+- Decide dispatch shape per unit based on unit content: run sequentially in this session for straightforward units, fan out to a sub-agent when the unit is genuinely parallelizable, pause for operator input only when the unit literally requires it (an interactive credential prompt, an explicit operator gate in the planning doc)
 
 **For test units (Xa):**
 1. Write failing tests for the feature

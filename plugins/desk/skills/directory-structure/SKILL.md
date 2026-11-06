@@ -5,7 +5,7 @@ description: Canonical layout of `$DESK/` — tracks, tasks, repo workspaces, re
 
 # Directory structure
 
-worker's task state lives in `$DESK/` with this layout:
+An agent's task state lives in `$DESK/` with this layout. The same layout applies whether `$DESK` resolves to a Claude Code workspace (e.g., `~/worker-workspace/` for worker), an ouro agent's bundle subdirectory (`~/AgentBundles/<name>.ouro/desk/`), or any other host context:
 
 ```
 $DESK/
