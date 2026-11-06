@@ -300,3 +300,47 @@ on validator-pass; only residuals reach the operator.
 ## Engine-agnostic dispatch note
 
 All four `work-*` are skills. Invoke uniformly via the Skill tool — the same way under Claude and Copilot. There's no subagent/Agent-tool dispatch path; that was an older (Claude-only) pattern that doesn't port.
+
+## Skip rules by change size (folded in from AIDLC 2026-05-18)
+
+Not every task warrants the full Phase 1 → 2 → 3 → 4 sequence. For small changes, intermediate phases can be skipped without sacrificing quality. AIDLC's `feature-orchestration` skill gave the table below; desk adopts it as orchestration guidance.
+
+| Change size | Run | Skip |
+|-------------|-----|------|
+| **Trivial** (≤3 files, mechanical) | Phase 3 (implement) → Phase 4 (PR + merge) | Phase 1 (ideate); Phase 2 (plan) |
+| **Minor** (≤10 files, single-domain) | Phase 2 (plan) → Phase 3 → Phase 4 | Phase 1 (ideate) — skip ideation if scope is clear |
+| **Major** (>10 files, cross-cutting, novel) | All four phases | Nothing |
+
+**Worker behavior:** when starting a task, estimate change size from the task description / planning notes. Pick the right entry point. Don't auto-skip without considering whether the size estimate is reliable — when in doubt, default up (Minor → Major), not down.
+
+**Anti-pattern:** running ideation + planning for a trivial 3-file change (waste); OR skipping planning for a major change because "I can see what to do" (90% of regret PRs come from this).
+
+## Vertical-slice implementation (folded in from AIDLC 2026-05-18)
+
+When `work-doer` executes Phase 3 (implementation) on a multi-file change, decompose into **vertical slices** rather than horizontal layers. Each slice goes end-to-end through the architecture stack: Entity → Service/Repository → Controller/Surface → DI/Wiring → Build + Verify → Commit. Build verification after each slice — fail-fast at the first broken slice rather than discovering issues at the end.
+
+**Why vertical:** a horizontal layer-by-layer approach (all entities first, then all services, then all controllers) defers integration to the end. Bugs in the entity layer surface only when the controller calls into it three slices later. Vertical slicing forces each layer integration to validate immediately.
+
+**Slice ordering:** dependency-ordered. If slice B depends on slice A, A ships first. Operator can override ordering when there's a domain reason (e.g., highest-risk slice first to fail fast).
+
+**Anti-pattern:** "I'll write all the entities first, then come back for services" — horizontal layering. Use vertical slicing.
+
+## Stage-by-stage progress reporting during long phases (folded in from AIDLC 2026-05-18)
+
+For phases that run more than a few minutes — pipeline polls, multi-slice implementation, multi-file refactor — emit stage-by-stage progress as work happens. AIDLC's `deploy-orchestrator` agent uses this pattern; sister to worker's existing `pr-feedback-on-own-pr` Phase 8 build-watcher.
+
+**Format:**
+```
+⏳ Stage X (e.g. build) in progress...
+✅ Stage X completed
+⏳ Stage Y in progress...
+```
+
+Each stage transition is a separate emit (not a single batch dump at the end). Operator sees the work moving even when the agent is silent on the chat surface for minutes at a time.
+
+**When to emit:**
+- Any phase with multiple discrete stages (build → test → deploy)
+- Any polling loop longer than ~2 min
+- Any vertical-slice implementation where each slice takes meaningful time
+
+**Anti-pattern:** silent multi-minute pauses with no chat surface activity. Operator wonders if anything's happening. Even one line of progress per stage breaks the silence.
