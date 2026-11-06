@@ -196,35 +196,13 @@ Always work in milliseconds internally. Convert to frames only at the final step
 - Prefer ambient/loop-friendly tracks for demo videos (no strong arc).
 - One track can work across multiple videos — cut to each video's length.
 
-### Waveform analysis — same targeted approach as footage
+### Waveform analysis — full track at millisecond resolution
 
-Don't analyze the full track at maximum resolution. Use a two-pass approach matching the footage strategy:
-
-**Pass 1: 1-second RMS for the full track** — find structural sections (plateaus, drops, quiet sections, fadeout). This tells you where the energy lives.
+Unlike footage (where each frame must be visually reviewed), music analysis is just math on audio samples. Analyze the **entire track at 5ms peak resolution** in one pass — it takes seconds, not minutes. No need for the targeted windowing approach used for footage.
 
 ```bash
-# 1-second RMS for full track structure
-ffmpeg -v error -i track.m4a -af "aresample=1000,asetnsamples=n=1000" -f wav - | \
-python3 -c "
-import sys, struct, math
-data = sys.stdin.buffer.read()
-samples = data[44:]
-chunk_size = 2000
-for i in range(0, len(samples), chunk_size):
-    chunk = samples[i:i+chunk_size]
-    if len(chunk) < 4: break
-    vals = struct.unpack(f'<{len(chunk)//2}h', chunk)
-    rms = math.sqrt(sum(v**2 for v in vals) / len(vals)) if vals else 0
-    db = 20 * math.log10(rms / 32768) if rms > 0 else -96
-    print(f'{(i // chunk_size)}s: {db:.1f}dB')
-"
-```
-
-**Pass 2: 5ms peak analysis at sync points** — find dings, hits, and precise beat locations in the windows that matter (intro, transitions, any visual cut points).
-
-```bash
-# 5ms peak analysis for a 3-second window (e.g., looking for the title card ding)
-ffmpeg -v error -i track.m4a -ss 2.5 -t 3 -af "aresample=8000" -f wav - | \
+# 5ms peak analysis for the FULL track — cheap, do it all
+ffmpeg -v error -i track.m4a -af "aresample=8000" -f wav - | \
 python3 -c "
 import sys, struct, math
 data = sys.stdin.buffer.read()
@@ -234,13 +212,19 @@ for i in range(0, len(samples) - window*2, window*2):
     chunk = samples[i:i+window*2]
     vals = struct.unpack(f'<{window}h', chunk)
     peak = max(abs(v) for v in vals)
+    rms = math.sqrt(sum(v**2 for v in vals) / len(vals)) if vals else 0
     peak_db = 20 * math.log10(peak / 32768) if peak > 0 else -96
-    t_ms = 2500 + (i // (window*2)) * 5
-    print(f'{t_ms}ms: {peak_db:.1f}dB')
+    rms_db = 20 * math.log10(rms / 32768) if rms > 0 else -96
+    t_ms = (i // (window*2)) * 5
+    print(f'{t_ms}ms: peak={peak_db:.1f}dB rms={rms_db:.1f}dB')
 "
 ```
 
+Store the full analysis in `media/music/analysis.md`. You'll reference it for every beat-sync decision.
+
 **Why peak, not RMS, for dings**: RMS averages energy over a window. A sharp percussive hit (bell, cymbal, ding) has a massive peak but low RMS because the energy is concentrated in milliseconds. RMS will miss it entirely. Always use peak analysis for finding hits.
+
+**Cost comparison**: Music analysis = seconds of compute, no review. Footage analysis = each frame must be read as an image. This is why footage uses targeted extraction at sync points, but music can be analyzed wall-to-wall.
 
 Then analyze at 1-second resolution for the full track to map structural sections. Write results to `media/music/analysis.md`.
 
