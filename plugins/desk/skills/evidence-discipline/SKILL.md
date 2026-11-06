@@ -1,15 +1,15 @@
 ---
 name: evidence-discipline
-description: Invoke ONLY when worker is about to act on assumed-but-unverified evidence in one of eight concrete scenarios — registering a supervised auto-restart wrapper around a workload (smoke-before-infinity), reading tool output that contains an explicit warning/error line that names the fix (messages-over-models), emitting an outcome message in a script or chat reply when the determinate result is already in hand (state-outcomes-definitively), giving OR composing/relaying a numeric duration/cost/scope estimate (fixtures-or-refusal), writing new orchestration around an existing system (discover-before-invent), evaluating a plan that copies auth state between users or machines (sniff-before-transferring-auth), declaring a "durable across event N" mechanism confirmed (test-it-twice), or cleaning up child processes by name pattern (process-tree-not-process-name). Triggered by phrases like "I'll register the scheduled task / systemd unit / CronJob now", "let me theorize about why this is failing", "if push succeeded" / "this should now be ready" / "this may have worked", "this should take roughly N minutes", any composition/relay containing numeric estimates (inheritance does not excuse a missing fixture), "I'll write a wrapper around the X CLI", "copy the token cache to user Y", "the reboot worked, shipping it", "kill all the <name1> / <name2> processes". Do NOT invoke for routine implementation work, code review, or design questions where no irreversible action against assumed evidence is imminent.
+description: Invoke ONLY when worker is about to act on assumed-but-unverified evidence in one of nine concrete scenarios — registering a supervised auto-restart wrapper around a workload (smoke-before-infinity), reading tool output that contains an explicit warning/error line that names the fix (messages-over-models), emitting an outcome message in a script or chat reply when the determinate result is already in hand (state-outcomes-definitively), giving OR composing/relaying a numeric duration/cost/scope estimate (fixtures-or-refusal), writing new orchestration around an existing system (discover-before-invent), evaluating a plan that copies auth state between users or machines (sniff-before-transferring-auth), declaring a "durable across event N" mechanism confirmed (test-it-twice), cleaning up child processes by name pattern (process-tree-not-process-name), or claiming a past PR/commit/feature established a particular precedent without grepping HEAD for actual current state (verify-precedent-against-HEAD). Triggered by phrases like "I'll register the scheduled task / systemd unit / CronJob now", "let me theorize about why this is failing", "if push succeeded" / "this should now be ready" / "this may have worked", "this should take roughly N minutes", any composition/relay containing numeric estimates (inheritance does not excuse a missing fixture), "I'll write a wrapper around the X CLI", "copy the token cache to user Y", "the reboot worked, shipping it", "kill all the <name1> / <name2> processes", "this extends PR #X's pattern" / "per PR #Y we already migrated Z" / "the convention established by feature W". Do NOT invoke for routine implementation work, code review, or design questions where no irreversible action against assumed evidence is imminent.
 ---
 
 # Evidence discipline
 
 This skill inherits all invariants in `../../principles.md`. Read them first if they are not already in context.
 
-Invoke this skill when worker is about to act on evidence it has assumed but not verified, in one of eight recurring scenarios. Each scenario has its own trigger; match the scenario to the rule below. The umbrella is "respect signals other than your assumptions — read what's actually there before acting, and write what you know when you're the one emitting the message."
+Invoke this skill when worker is about to act on evidence it has assumed but not verified, in one of nine recurring scenarios. Each scenario has its own trigger; match the scenario to the rule below. The umbrella is "respect signals other than your assumptions — read what's actually there before acting, and write what you know when you're the one emitting the message."
 
-The eight rules are siblings, not steps. Each is short, has a clear trigger, and applies independently.
+The nine rules are siblings, not steps. Each is short, has a clear trigger, and applies independently.
 
 ## Smoke before infinity
 
@@ -140,6 +140,25 @@ macOS Keychain has analogous per-user encryption (the cipher is in a SQLite stor
 **Generalizable.** The principle applies beyond process kills — anywhere "all the X-shaped things" might catch X-shaped things you didn't spawn: file deletion by glob, registry-key deletion by prefix, network-rule cleanup by tag. Lineage > label.
 
 **Cross-link.** Sibling to "messages over models" + "discover before invent" — same family ("respect signals other than your assumptions"). Process name is a label, not a signal of ownership.
+
+## Verify precedent against HEAD
+
+**One-sentence statement.** Before claiming a past PR / commit / feature / RFC established a particular precedent, grep HEAD for the precedent's actual current state — what was *proposed* in the cited reference and what's *in HEAD now* often diverge (reverted partially, narrowed during review, superseded by a later change), and acting on the original claim builds the next layer of work on a wrong premise.
+
+**Trigger phrase.** Worker is about to author a task prompt, planning doc, design discussion, or directly invoke a subagent with content that contains a sentence like "this extends PR #1234's pattern" / "per PR #5678 we already migrated X to Y" / "the convention established by feature Z is..." — any claim that grounds the current work in a previously-shipped artifact.
+
+**What to do.**
+
+1. **Identify the load-bearing precedent claim** in the prompt / doc / framing.
+2. **Verify against HEAD.** Cheap methods, in order:
+   - `git show <ref> -- <file>` for "what did that PR actually change in this file?"
+   - `git log --all --grep "<feature>" --format="%h %s"` for "what subsequent changes touched this?"
+   - Plain `grep` against current source files for the precedent's claimed effect (the env var supposedly set, the field supposedly added, the API supposedly migrated).
+3. **If HEAD matches the claim**, proceed. If it doesn't, fix the framing before invoking — either narrow the claim ("PR #1234 *proposed* X but HEAD shows Y"), pick a different precedent, or drop the precedent-grounding entirely.
+
+**Anti-pattern.** A task prompt cites "PR #640 was the sidecar LocalSystem migration precedent" → subagents fan out to extend that pattern → one subagent catches that the cited PR actually kept `LogonType=Interactive` (the LocalSystem migration was never landed). Without that catch, multiple downstream changes would have been built on a fabricated convention. The fix is single-author: the prompt-author (operator or worker) checks HEAD before invoking, not after.
+
+**Cross-link.** Sibling to "messages over models" and "discover before invent" — same family (respect what's actually there, not what you remember / assume). The precedent is a kind of system-state-claim; HEAD is the canonical truth, not the PR title.
 
 ## Test coverage — the 7 categories
 
