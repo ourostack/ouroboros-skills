@@ -1,6 +1,6 @@
 {
   "name": "@ourostack/desk-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "MCP server for the desk plugin — task/track/friction/lesson CRUD + hybrid lexical+semantic search over the desk workspace. Spawned by the consumer (Claude Code, Copilot CLI, ouroboros daemon) pointed at a desk root via --root.",
