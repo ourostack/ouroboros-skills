@@ -1,4 +1,4 @@
-// Single source of truth for the 12 MCP tools desk-mcp exposes.
+// Single source of truth for the 13 MCP tools desk-mcp exposes.
 //
 // Imported by both server.js (registers them) and the tests (asserts the
 // list is canonical). Kept in a no-deps file so tests can import without
@@ -19,6 +19,8 @@ export const TOOL_NAMES = [
   "desk_similar",
   "desk_timeline",
   "desk_thread",
+  // Index management
+  "desk_reindex",
 ]
 
 export const TOOL_DESCRIPTIONS = {
@@ -46,4 +48,6 @@ export const TOOL_DESCRIPTIONS = {
     "Temporal query — filter docs by updated_at window, optionally combined with FTS+semantic. Without `query`: chronological listing. With `query`: hybrid ranking inside the window, ordered by updated_at DESC.",
   desk_thread:
     "Provenance walk via refs_graph: BFS along planning/doing/feedback/iteration edges from a starting doc. Returns an ordered chain {path, kind, ref_kind, hop_distance, why_connected, updated_at}. Inputs: start_path (required), depth (optional, default 4), direction (optional: forward|backward|both, default both). Errors with not_indexed when start_path isn't in the index.",
+  desk_reindex:
+    "Rebuild the desk-index sqlite db. Without args, behaves like ensureIndex (mtime-based incremental). With force:true, drops the db and rebuilds from scratch. Returns counts + timing.",
 }
