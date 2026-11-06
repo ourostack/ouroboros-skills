@@ -1,5 +1,13 @@
 # desk plugin — changelog
 
+## 1.7.12 — 2026-07-20
+
+**Peer PR review now has an entrypoint-first teaching mode.** When the operator is unfamiliar with the
+repo and wants to learn while reviewing, the walkthrough follows the runtime request from the external
+boundary through dispatch, scenario/tool construction, and downstream workflows before applying the
+diff. Findings remain private until the operator reaches the code and forms judgment; approved comments
+may then post during the walkthrough.
+
 ## 1.7.11 — 2026-07-20
 
 **Authorization now includes an ownership axis.** Explicit action
