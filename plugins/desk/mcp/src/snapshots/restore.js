@@ -4,6 +4,7 @@ import * as path from "node:path"
 import * as zlib from "node:zlib"
 import { indexDbPath } from "../db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
+import { withArtifactRead } from "../artifacts/publication.js"
 import { validateSnapshotArtifact } from "./manifest.js"
 
 export async function discoverSnapshotArtifacts({
@@ -15,6 +16,7 @@ export async function discoverSnapshotArtifacts({
   expectedArtifactSourceScopeHash,
   expectedDocumentTreeHash,
   expectedDiscoveryGrammarVersion,
+  publicationCoordination = true,
 } = {}) {
   const root = requiredPath(pluginRoot, "pluginRoot")
   const snapshotsRoot = path.join(root, "artifacts", "snapshots")
@@ -25,14 +27,20 @@ export async function discoverSnapshotArtifacts({
     if (!specDirent.isDirectory()) continue
     const embeddingSpecId = specDirent.name
     const snapshotDir = path.join(snapshotsRoot, embeddingSpecId)
+    const availableSnapshots = publicationCoordination
+      ? await withArtifactRead({
+        directory: snapshotDir,
+        read: () => snapshotFiles(snapshotDir),
+      })
+      : await snapshotFiles(snapshotDir)
     if (embeddingSpecId !== expectedSpec.id) {
-      for (const snapshotPath of await snapshotFiles(snapshotDir)) {
+      for (const snapshotPath of availableSnapshots) {
         ignored.push(ignoredCandidate(snapshotPath, "inactive_embedding_spec"))
       }
       continue
     }
 
-    for (const snapshotPath of await snapshotFiles(snapshotDir)) {
+    for (const snapshotPath of availableSnapshots) {
       try {
         const validation = await validateSnapshotArtifact({
           pluginRoot: root,
@@ -48,6 +56,7 @@ export async function discoverSnapshotArtifacts({
             expectedDocumentTreeHash,
           ),
           expectedDiscoveryGrammarVersion,
+          publicationCoordination,
         })
         compatible.push({
           ...validation,
@@ -77,14 +86,49 @@ export function selectNewestCompatibleSnapshot(discovered) {
 export async function restoreSnapshotToState({
   pluginRoot,
   deskRoot,
+  expectedSpec = ACTIVE_EMBEDDING_SPEC,
+  expectedArtifactSourceScopeHash,
+  expectedDocumentTreeHash,
+  artifactRead = withArtifactRead,
   ...context
 } = {}) {
   requiredPath(deskRoot, "deskRoot")
-  const discovered = await discoverSnapshotArtifacts({ pluginRoot, ...context })
-  const selected = selectNewestCompatibleSnapshot(discovered)
-  if (!selected) {
+  const root = requiredPath(pluginRoot, "pluginRoot")
+  const snapshotDir = path.join(
+    root,
+    "artifacts",
+    "snapshots",
+    expectedSpec.id,
+  )
+  const resolvedExpectedArtifactSourceScopeHash = await resolveExpectedHash(
+    expectedArtifactSourceScopeHash,
+  )
+  const resolvedExpectedDocumentTreeHash = await resolveExpectedHash(
+    expectedDocumentTreeHash,
+  )
+  const generation = await artifactRead({
+    directory: snapshotDir,
+    read: async () => {
+      const discovered = await discoverSnapshotArtifacts({
+        pluginRoot: root,
+        expectedSpec,
+        expectedArtifactSourceScopeHash:
+          resolvedExpectedArtifactSourceScopeHash,
+        expectedDocumentTreeHash: resolvedExpectedDocumentTreeHash,
+        ...context,
+        publicationCoordination: false,
+      })
+      const selected = selectNewestCompatibleSnapshot(discovered)
+      if (!selected) return null
+      const compressed = await fs.readFile(selected.snapshotPath)
+      assertSnapshotGeneration(compressed, selected)
+      return { compressed, selected }
+    },
+  })
+  if (!generation) {
     return { restored: false, reason: "no_compatible_snapshot" }
   }
+  const { compressed, selected } = generation
 
   const stateDbPath = indexDbPath(deskRoot)
   const stateMetaPath = `${stateDbPath}.snapshot.json`
@@ -104,7 +148,6 @@ export async function restoreSnapshotToState({
     }
   }
 
-  const compressed = await fs.readFile(selected.snapshotPath)
   const decompressed = decompressSnapshotBytes(compressed)
   if (!decompressed.bytes) {
     return {
@@ -232,4 +275,14 @@ function normalizePath(value) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex")
+}
+
+function assertSnapshotGeneration(bytes, selected) {
+  if (`sha256:${sha256(bytes)}` !== selected.manifest.artifact.sha256) {
+    throw new Error("snapshot generation changed during restore")
+  }
+}
+
+export const __snapshotRestoreInternalsForTests = {
+  assertSnapshotGeneration,
 }

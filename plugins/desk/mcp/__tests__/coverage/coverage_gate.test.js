@@ -559,6 +559,7 @@ test("coverage runner invokes node coverage with include filters and child no-op
 
   assert.equal(result.status, 0)
   assert.equal(captured.cmd, process.execPath)
+  assert.ok(captured.args.includes("--test-concurrency=4"))
   assert.ok(captured.args.includes("--experimental-test-coverage"))
   assert.ok(captured.args.includes("--test-coverage-lines=0"))
   assert.ok(captured.args.includes("--test-coverage-branches=0"))

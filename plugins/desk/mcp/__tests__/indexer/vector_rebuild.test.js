@@ -95,7 +95,7 @@ async function writePack({ deskRoot, pluginRoot, packId, rows }) {
   await fs.writeFile(
     manifestPath,
     `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       pack_id: packId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,

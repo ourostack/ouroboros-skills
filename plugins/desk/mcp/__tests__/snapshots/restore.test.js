@@ -10,6 +10,10 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { zstdCompressSync } from "node:zlib"
 
 import manifestContracts from "../../src/artifacts/manifest-contracts.cjs"
+import {
+  publishArtifactSet,
+  withArtifactRead,
+} from "../../src/artifacts/publication.js"
 import { indexDbPath } from "../../src/db/init.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 
@@ -53,7 +57,7 @@ function validManifest({
   dimension = ACTIVE_EMBEDDING_SPEC.dimension,
 } = {}) {
   return {
-    schema_version: 1,
+    schema_version: 2,
     snapshot_id: snapshotId,
     embedding_spec_id: embeddingSpecId,
     dimension,
@@ -356,6 +360,132 @@ test("restoreSnapshotToState copies decompressed bytes into desk state without m
   assert.equal(result.state_db_path, indexDbPath(deskRoot))
   assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), newer.sqliteBytes)
   assert.deepEqual(await fingerprint(repoArtifactPaths), before)
+})
+
+test("recognized v1 snapshots remain restorable but force reconcile freshness", async () => {
+  const { discoverSnapshotArtifacts, restoreSnapshotToState } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-v1-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-v1-desk-")
+  const legacy = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "legacy-v1",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("legacy sqlite bytes", "utf8"),
+    manifest: {
+      schema_version: 1,
+      source_paths: ["legacy/source.js"],
+    },
+  })
+
+  const discovered = await discoverSnapshotArtifacts({
+    pluginRoot,
+    ...expectedContext(),
+  })
+  assert.equal(discovered.compatible.length, 1)
+  assert.equal(
+    discovered.compatible[0].freshness.artifact_source_scope,
+    "stale",
+  )
+  assert.equal(
+    discovered.compatible[0].manifest_compatibility,
+    "legacy-reconcile",
+  )
+
+  const restored = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    ...expectedContext(),
+  })
+  assert.equal(restored.restored, true)
+  assert.equal(restored.freshness.artifact_source_scope, "stale")
+  assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), legacy.sqliteBytes)
+})
+
+test("restoreSnapshotToState captures one generation while a valid same-id replacement waits for its read lock", async () => {
+  const {
+    __snapshotRestoreInternalsForTests,
+    discoverSnapshotArtifacts,
+    restoreSnapshotToState,
+    selectNewestCompatibleSnapshot,
+  } = await loadRestoreModule()
+  const pluginRoot = await tmpRoot("desk-snapshot-generation-a-plugin-")
+  const replacementRoot = await tmpRoot("desk-snapshot-generation-b-plugin-")
+  const deskRoot = await tmpRoot("desk-snapshot-generation-desk-")
+  const generationA = await writeSnapshot({
+    pluginRoot,
+    snapshotId: "same-id",
+    createdAt: "2026-06-15T00:00:00.000Z",
+    sqliteBytes: Buffer.from("generation A sqlite bytes", "utf8"),
+  })
+  const generationB = await writeSnapshot({
+    pluginRoot: replacementRoot,
+    snapshotId: "same-id",
+    createdAt: "2026-06-15T01:00:00.000Z",
+    sqliteBytes: Buffer.from("generation B sqlite bytes", "utf8"),
+  })
+  let replacementPublished = false
+  const artifactRead = async (options) => {
+    let publication
+    const captured = await withArtifactRead({
+      ...options,
+      read: async () => {
+        const generation = await options.read()
+        publication = publishArtifactSet({
+          files: [
+            {
+              name: "primary",
+              path: generationA.snapshotPath,
+              bytes: await fs.readFile(generationB.snapshotPath),
+            },
+            {
+              name: "manifest",
+              path: generationA.manifestPath,
+              bytes: await fs.readFile(generationB.manifestPath),
+            },
+            {
+              name: "checksum",
+              path: generationA.checksumPath,
+              bytes: await fs.readFile(generationB.checksumPath),
+            },
+          ],
+          validateStaged: async () => {},
+        })
+        return generation
+      },
+    })
+    await publication
+    replacementPublished = true
+    return captured
+  }
+
+  const restored = await restoreSnapshotToState({
+    pluginRoot,
+    deskRoot,
+    artifactRead,
+    ...expectedContext(),
+  })
+  const current = selectNewestCompatibleSnapshot(await discoverSnapshotArtifacts({
+    pluginRoot,
+    ...expectedContext(),
+  }))
+  const stateMetadata = JSON.parse(
+    await fs.readFile(`${indexDbPath(deskRoot)}.snapshot.json`, "utf8"),
+  )
+
+  assert.equal(replacementPublished, true)
+  assert.equal(restored.restored, true)
+  assert.equal(restored.snapshot_id, "same-id")
+  assert.deepEqual(await fs.readFile(indexDbPath(deskRoot)), generationA.sqliteBytes)
+  assert.equal(stateMetadata.artifact_sha256, generationA.manifest.artifact.sha256)
+  assert.equal(current.manifest.artifact.sha256, generationB.manifest.artifact.sha256)
+  assert.deepEqual(await fs.readFile(generationA.snapshotPath), generationB.artifactBytes)
+  assert.throws(
+    () => __snapshotRestoreInternalsForTests.assertSnapshotGeneration(
+      generationB.artifactBytes,
+      { manifest: generationA.manifest },
+    ),
+    /snapshot generation changed during restore/u,
+  )
 })
 
 test("restoreSnapshotToState repairs corrupt metadata and missing state DB markers", async () => {

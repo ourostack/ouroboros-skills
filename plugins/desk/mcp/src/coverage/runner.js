@@ -131,6 +131,7 @@ export function runNodeCoverage({
 }) {
   const args = [
     "--test",
+    "--test-concurrency=4",
     "--experimental-test-coverage",
     "--test-coverage-lines=0",
     "--test-coverage-branches=0",

@@ -6,7 +6,10 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
-import { publishArtifactSet } from "../artifacts/publication.js"
+import {
+  publishArtifactSet,
+  withArtifactRead,
+} from "../artifacts/publication.js"
 import {
   assertArtifactDoesNotRepresentTombstones,
   assertArtifactInputsDoNotContainTombstones,
@@ -15,7 +18,10 @@ import { assertArtifactInputsAllowed } from "../indexer/exclusions.js"
 import { ACTIVE_EMBEDDING_SPEC } from "../indexer/spec.js"
 import { representedDocumentTreeHash } from "../indexer/document-tree.js"
 
-const { validateArtifactManifest } = manifestContracts
+const {
+  artifactManifestCompatibility,
+  validateArtifactManifest,
+} = manifestContracts
 
 export function deriveSnapshotPaths({
   pluginRoot,
@@ -77,7 +83,6 @@ export async function writeSnapshotArtifact({
   const manifest = parseManifestBytes(manifestBytes)
   await publishArtifactSet({
     ...publication,
-    artifactId: snapshotId,
     signal,
     files: [
       { name: "primary", path: paths.snapshotPath, bytes: snapshotBytes },
@@ -98,6 +103,7 @@ export async function writeSnapshotArtifact({
         expectedDocumentTreeHash: manifest.document_tree_hash,
         expectedDiscoveryGrammarVersion: manifest.discovery_grammar_version,
         expectedDocuments: sourceDocs,
+        publicationCoordination: false,
       })
     },
   })
@@ -117,6 +123,7 @@ export async function validateSnapshotArtifact({
   expectedDocumentTreeHash,
   expectedDiscoveryGrammarVersion,
   expectedDocuments,
+  publicationCoordination = true,
 } = {}) {
   const label =
     typeof snapshotPath === "string" && snapshotPath.trim() !== ""
@@ -127,6 +134,26 @@ export async function validateSnapshotArtifact({
   }
   if (!snapshotPath.endsWith(".sqlite.zst")) {
     throw new Error(`${label} snapshot path must end with .sqlite.zst`)
+  }
+  if (publicationCoordination) {
+    return withArtifactRead({
+      directory: path.dirname(snapshotPath),
+      read: () => validateSnapshotArtifact({
+        pluginRoot,
+        snapshotPath,
+        manifestPath,
+        checksumPath,
+        expectedSpec,
+        expectedDbSchema,
+        expectedSqliteVec,
+        expectedRuntime,
+        expectedArtifactSourceScopeHash,
+        expectedDocumentTreeHash,
+        expectedDiscoveryGrammarVersion,
+        expectedDocuments,
+        publicationCoordination: false,
+      }),
+    })
   }
   const resolvedManifestPath = manifestPath ?? sidecarPath(snapshotPath, ".manifest.json")
   const resolvedChecksumPath = checksumPath ?? sidecarPath(snapshotPath, ".sha256")
@@ -196,8 +223,10 @@ export function validateSnapshotManifest({
 
   const representedHash =
     representedDocumentTreeHash(manifest.represented_documents)
+  const manifestCompatibility = artifactManifestCompatibility(manifest)
   const freshness = {
     artifact_source_scope:
+      manifestCompatibility === "current" &&
       manifest.artifact_source_scope_hash === expectedArtifactSourceScopeHash
         ? "fresh"
         : "stale",
@@ -221,6 +250,7 @@ export function validateSnapshotManifest({
     embedding_spec_id: manifest.embedding_spec_id,
     included_pack_ids: [...manifest.included_pack_ids],
     manifest,
+    manifest_compatibility: manifestCompatibility,
     freshness,
   }
 }

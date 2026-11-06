@@ -9,10 +9,20 @@ import { ACTIVE_EMBEDDING_SPEC } from "../../src/indexer/spec.js"
 
 const {
   ARTIFACT_SOURCE_PATHS,
+  artifactManifestCompatibility,
   validateArtifactManifest,
 } = manifestContracts
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const artifactRoot = path.join(repoRoot, "plugins", "desk", "artifacts")
+const fixtureRoot = path.join(
+  repoRoot,
+  "plugins",
+  "desk",
+  "mcp",
+  "__tests__",
+  "fixtures",
+  "artifacts",
+)
 
 async function productionManifest(artifactType) {
   const directory = artifactType === "vector-pack"
@@ -153,4 +163,135 @@ test("manifest contract rejects private and unsafe scalar values", async () => {
       /null bytes|private \.state|unsafe paths/u,
     )
   }
+})
+
+test("historical baseline v1 manifests remain valid but are classified for reconcile", async () => {
+  assert.equal(typeof artifactManifestCompatibility, "function")
+  for (const [artifactType, fixtureName] of [
+    ["vector-pack", "v1-vector-manifest-878aea9.json"],
+    ["snapshot", "v1-snapshot-manifest-878aea9.json"],
+  ]) {
+    const manifest = JSON.parse(await readFile(
+      path.join(fixtureRoot, fixtureName),
+      "utf8",
+    ))
+    const validated = validateArtifactManifest({
+      artifactType,
+      manifest,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedSourcePaths: ARTIFACT_SOURCE_PATHS,
+    })
+    assert.equal(validated, manifest)
+    assert.equal(
+      artifactManifestCompatibility(validated),
+      "legacy-reconcile",
+    )
+  }
+})
+
+test("schema v2 requires the exact current source contract while v1 accepts safe source paths", async () => {
+  const historical = JSON.parse(await readFile(
+    path.join(fixtureRoot, "v1-vector-manifest-878aea9.json"),
+    "utf8",
+  ))
+  const currentV2 = {
+    ...historical,
+    schema_version: 2,
+    source_paths: ARTIFACT_SOURCE_PATHS,
+  }
+  assert.doesNotThrow(() => validate("vector-pack", currentV2))
+  assert.equal(artifactManifestCompatibility(currentV2), "current")
+  assert.throws(
+    () => validate("vector-pack", {
+      ...currentV2,
+      source_paths: historical.source_paths,
+    }),
+    /canonical source list/u,
+  )
+  assert.doesNotThrow(
+    () => validate("vector-pack", {
+      ...historical,
+      source_paths: ["legacy/source.js"],
+    }),
+  )
+  assert.throws(
+    () => validate("vector-pack", {
+      ...historical,
+      source_paths: [],
+    }),
+    /source_paths must be non-empty/u,
+  )
+  assert.throws(
+    () => validate("vector-pack", {
+      ...historical,
+      source_paths: ["legacy/source.js", "legacy/source.js"],
+    }),
+    /source_paths must be unique/u,
+  )
+  assert.throws(
+    () => validate("vector-pack", {
+      ...historical,
+      source_paths: [
+        ...historical.source_paths.slice(0, -1),
+        "private/.state/source.js",
+      ],
+    }),
+    /private|\.state/u,
+  )
+  for (const schema_version of [0, 3, "2"]) {
+    assert.throws(
+      () => validate("vector-pack", { ...currentV2, schema_version }),
+      /schema_version/u,
+    )
+  }
+})
+
+test("vector packs and snapshots require the exact current represented document set", async () => {
+  const vector = {
+    ...await productionManifest("vector-pack"),
+    schema_version: 2,
+    source_paths: ARTIFACT_SOURCE_PATHS,
+  }
+  const snapshot = {
+    ...await productionManifest("snapshot"),
+    schema_version: 2,
+    source_paths: ARTIFACT_SOURCE_PATHS,
+  }
+  const [represented] = vector.represented_documents
+  const currentDocuments = [
+    represented,
+    {
+      path: "tasks/current-extra/task.md",
+      hash: `sha256:${"4".repeat(64)}`,
+    },
+  ]
+  assert.throws(
+    () => validate("vector-pack", vector, {
+      expectedDocuments: currentDocuments,
+    }),
+    /must match expected documents/u,
+  )
+  assert.throws(
+    () => validate("snapshot", snapshot, {
+      expectedDocuments: currentDocuments,
+    }),
+    /must match expected documents/u,
+  )
+  assert.throws(
+    () => validate("vector-pack", {
+      ...vector,
+      represented_documents: [{
+        ...represented,
+        hash: `sha256:${"0".repeat(64)}`,
+      }],
+    }, {
+      expectedDocuments: currentDocuments,
+    }),
+    /must match expected documents/u,
+  )
+})
+
+test("new production manifests use schema v2", async () => {
+  assert.equal((await productionManifest("vector-pack")).schema_version, 2)
+  assert.equal((await productionManifest("snapshot")).schema_version, 2)
 })

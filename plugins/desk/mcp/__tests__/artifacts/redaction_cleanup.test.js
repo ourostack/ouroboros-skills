@@ -127,7 +127,7 @@ async function writeVectorValidationFixture({
   await fs.writeFile(
     manifestPath,
     `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       pack_id: packId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -173,7 +173,7 @@ async function writeSnapshotValidationFixture({
   await fs.writeFile(
     manifestPath,
     `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       snapshot_id: snapshotId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -245,7 +245,7 @@ function writerPayload(artifactType, artifactId, sourceDocs) {
     hash,
   }))
   const common = {
-    schema_version: 1,
+    schema_version: 2,
     embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
     dimension: ACTIVE_EMBEDDING_SPEC.dimension,
     artifact_source_scope_hash: SNAPSHOT_SOURCE_SCOPE_HASH,

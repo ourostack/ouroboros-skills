@@ -73,6 +73,22 @@ test("generated document-tree hashing covers equal canonical sort keys", () => {
   )
 })
 
+test("generated verifier emits the success summary without artifact contents", () => {
+  const stdout = []
+  generatedArtifacts.__generatedArtifactVerifierInternalsForTests.writeVerificationSummary({
+    errors: [],
+    labels: "published artifact directories",
+    io: {
+      stdout: { write: (text) => stdout.push(text) },
+      stderr: { write: () => assert.fail("success summary must not write stderr") },
+    },
+  })
+  assert.equal(
+    stdout.join(""),
+    "Desk generated artifacts verified for published artifact directories\n",
+  )
+})
+
 function validApproval(artifactType) {
   return {
     scope: "repo",
@@ -411,8 +427,119 @@ test("production document freshness compares manifests to the published current 
     })
 
     assert.equal(result.ok, false)
-    assert.match(result.errors.join("\n"), /production vector pack unit-pack\.jsonl document_tree_hash must match production-artifacts\.md/u)
     assert.match(result.errors.join("\n"), /production snapshot unit-snapshot\.sqlite\.zst document_tree_hash must match production-artifacts\.md/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production vector packs accept a current represented-document subset while snapshots require the full tree", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-partial-pack-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [
+      { path: "tasks/dependency-activation/task.md", hash: sha256("current-one") },
+      { path: "tasks/another/task.md", hash: sha256("current-two") },
+    ]
+    const representedSubset = [currentDocs[0]]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(tempDir, path.join("desk", currentDocs[0].path), "current-one")
+    writeFile(tempDir, path.join("desk", currentDocs[1].path), "current-two")
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sourceHash,
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const packTemplate = JSON.parse(readFileSync(path.join(
+      pluginRoot,
+      "artifacts",
+      "vector-packs",
+      expectation.embeddingSpecId,
+      "repo-public-bootstrap-2026-06-15.manifest.json",
+    ), "utf8"))
+    const snapshotTemplate = JSON.parse(readFileSync(path.join(
+      pluginRoot,
+      "artifacts",
+      "snapshots",
+      expectation.embeddingSpecId,
+      "repo-public-bootstrap-2026-06-15.manifest.json",
+    ), "utf8"))
+    writePrimaryWithSidecars({
+      dir: expectation.vectorPackDir,
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest: {
+        ...packTemplate,
+        schema_version: 2,
+        pack_id: "unit-pack",
+        row_count: 0,
+        rows_sha256: sha256("artifact bytes\n").slice("sha256:".length),
+        artifact_source_scope_hash: sourceHash,
+        document_tree_hash: docTree(representedSubset),
+        represented_documents: representedSubset,
+        source_paths: expectation.modules.artifactSourcePaths,
+      },
+    })
+    writePrimaryWithSidecars({
+      dir: expectation.snapshotDir,
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest: {
+        ...snapshotTemplate,
+        schema_version: 2,
+        snapshot_id: "unit-snapshot",
+        artifact_source_scope_hash: sourceHash,
+        document_tree_hash: docTree(currentDocs),
+        represented_documents: currentDocs,
+        artifact: {
+          ...snapshotTemplate.artifact,
+          file: "unit-snapshot.sqlite.zst",
+          sha256: sha256("artifact bytes\n"),
+        },
+        source_paths: expectation.modules.artifactSourcePaths,
+      },
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: trackedArtifactSpawn(),
+    })
+    assert.equal(result.ok, true, result.errors.join("\n"))
+
+    const staleManifestPath = path.join(
+      expectation.vectorPackDir,
+      "unit-pack.manifest.json",
+    )
+    const staleManifest = JSON.parse(readFileSync(staleManifestPath, "utf8"))
+    staleManifest.represented_documents[0].hash = sha256("stale")
+    writeJson(expectation.vectorPackDir, "unit-pack.manifest.json", staleManifest)
+    const stale = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: trackedArtifactSpawn(),
+    })
+    assert.equal(stale.ok, false)
+    assert.match(
+      stale.errors.join("\n"),
+      /represented document tasks\/dependency-activation\/task\.md hash must match current repo document/u,
+    )
+
+    staleManifest.represented_documents = representedSubset
+    staleManifest.document_tree_hash = docTree([currentDocs[1]])
+    writeJson(expectation.vectorPackDir, "unit-pack.manifest.json", staleManifest)
+    const mismatched = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: trackedArtifactSpawn(),
+    })
+    assert.equal(mismatched.ok, false)
+    assert.match(
+      mismatched.errors.join("\n"),
+      /document_tree_hash must match represented documents/u,
+    )
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }
@@ -867,6 +994,97 @@ test("production notes reject duplicate canonical current hash placeholders", as
     assert.equal(result.ok, false)
     assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_artifact_source_scope_hash/u)
     assert.match(result.errors.join("\n"), /production-artifacts\.md must record exactly one current_document_tree_hash/u)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("production notes reject a stale canonical source-scope anchor without disclosing hashes", async () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "desk-production-stale-source-anchor-"))
+  try {
+    const sourceHash = artifactSourceScopeHash()
+    const currentDocs = [{
+      path: "tasks/dependency-activation/task.md",
+      hash: sha256("current"),
+    }]
+    const expectation = await tempExpectation({
+      tempDir,
+      modules: {
+        validateArtifacts: async () => greenValidation(),
+      },
+    })
+    writeFile(
+      tempDir,
+      path.join("desk", "tasks", "dependency-activation", "task.md"),
+      "current",
+    )
+    writeProductionNotes(expectation.notesPath, {
+      artifactSourceScopeHash: sha256("stale source anchor"),
+      documentTreeHash: docTree(currentDocs),
+    })
+    writeProductionPolicy(expectation.pluginRoot, validPublicationPolicy())
+    const packTemplate = JSON.parse(readFileSync(path.join(
+      pluginRoot,
+      "artifacts",
+      "vector-packs",
+      expectation.embeddingSpecId,
+      "repo-public-bootstrap-2026-06-15.manifest.json",
+    ), "utf8"))
+    const snapshotTemplate = JSON.parse(readFileSync(path.join(
+      pluginRoot,
+      "artifacts",
+      "snapshots",
+      expectation.embeddingSpecId,
+      "repo-public-bootstrap-2026-06-15.manifest.json",
+    ), "utf8"))
+    writePrimaryWithSidecars({
+      dir: expectation.vectorPackDir,
+      id: "unit-pack",
+      primarySuffix: ".jsonl",
+      manifest: {
+        ...packTemplate,
+        schema_version: 2,
+        pack_id: "unit-pack",
+        row_count: 0,
+        rows_sha256: sha256("artifact bytes\n").slice("sha256:".length),
+        artifact_source_scope_hash: sourceHash,
+        document_tree_hash: docTree(currentDocs),
+        represented_documents: currentDocs,
+        source_paths: expectation.modules.artifactSourcePaths,
+      },
+    })
+    writePrimaryWithSidecars({
+      dir: expectation.snapshotDir,
+      id: "unit-snapshot",
+      primarySuffix: ".sqlite.zst",
+      manifest: {
+        ...snapshotTemplate,
+        schema_version: 2,
+        snapshot_id: "unit-snapshot",
+        artifact_source_scope_hash: sourceHash,
+        document_tree_hash: docTree(currentDocs),
+        represented_documents: currentDocs,
+        artifact: {
+          ...snapshotTemplate.artifact,
+          file: "unit-snapshot.sqlite.zst",
+          sha256: sha256("artifact bytes\n"),
+        },
+        source_paths: expectation.modules.artifactSourcePaths,
+      },
+    })
+
+    const result = await generatedArtifacts.verifyProductionSharedArtifacts({
+      expectation,
+      spawn: trackedArtifactSpawn(),
+    })
+    const diagnostics = result.errors.join("\n")
+
+    assert.equal(result.ok, false)
+    assert.match(
+      diagnostics,
+      /production-artifacts\.md current_artifact_source_scope_hash must match current source scope/u,
+    )
+    assert.doesNotMatch(diagnostics, /sha256:[a-f0-9]{64}/u)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }

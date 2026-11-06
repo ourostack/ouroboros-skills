@@ -331,6 +331,19 @@ function performanceBudgetConfig(overrides = {}) {
   }
 }
 
+function writeLoadedBuildBudgetConfig(root) {
+  return writeFile(
+    root,
+    "artifact-build-test-budgets.json",
+    `${JSON.stringify(performanceBudgetConfig({
+      rebuild: {
+        vector_pack_rebuild_ms: 5000,
+        snapshot_build_ms: 5000,
+      },
+    }))}\n`,
+  )
+}
+
 function writeBudgetConfig(file, overrides = {}) {
   writeFileSync(
     file,
@@ -554,11 +567,17 @@ test("artifact build scripts publish allowed artifacts only under canonical dirs
   try {
     writeApprovedPolicy(pluginRoot)
     await seedIndexedDesk({ deskRoot })
+    const budgetConfig = writeLoadedBuildBudgetConfig(pluginRoot)
 
     const vectorTarget = ARTIFACT_SCRIPT_TARGETS[0]
     const vectorRun = runNpmScript(
       vectorTarget.scriptName,
-      artifactArgs({ target: vectorTarget, deskRoot, pluginRoot }),
+      artifactArgs({
+        target: vectorTarget,
+        deskRoot,
+        pluginRoot,
+        budgetConfig,
+      }),
     )
     assertScriptSucceeded(vectorRun)
     assert.deepEqual(
@@ -574,7 +593,12 @@ test("artifact build scripts publish allowed artifacts only under canonical dirs
     const snapshotRun = runNpmScript(
       snapshotTarget.scriptName,
       [
-        ...artifactArgs({ target: snapshotTarget, deskRoot, pluginRoot }),
+        ...artifactArgs({
+          target: snapshotTarget,
+          deskRoot,
+          pluginRoot,
+          budgetConfig,
+        }),
         "--included-pack-id",
         vectorTarget.id,
       ],
@@ -610,6 +634,7 @@ test("artifact build scripts can stamp a source provenance commit", async () => 
   try {
     writeApprovedPolicy(pluginRoot)
     await seedIndexedDesk({ deskRoot })
+    const budgetConfig = writeLoadedBuildBudgetConfig(pluginRoot)
 
     const packId = "source-provenance-pack"
     assert.equal(
@@ -624,6 +649,8 @@ test("artifact build scripts can stamp a source provenance commit", async () => 
           "--from-local-db",
           "--provenance-commit",
           provenanceCommit,
+          "--budget-config",
+          budgetConfig,
         ],
         io: captureIo().io,
       }),
@@ -645,6 +672,8 @@ test("artifact build scripts can stamp a source provenance commit", async () => 
           "--from-local-db",
           "--provenance-commit",
           provenanceCommit,
+          "--budget-config",
+          budgetConfig,
         ],
         io: captureIo().io,
       }),
@@ -668,6 +697,8 @@ test("artifact build scripts can stamp a source provenance commit", async () => 
 
     assert.equal(packManifest.provenance.commit, provenanceCommit)
     assert.equal(snapshotManifest.provenance.commit, provenanceCommit)
+    assert.equal(packManifest.schema_version, 2)
+    assert.equal(snapshotManifest.schema_version, 2)
     assert.equal(packManifest.discovery_grammar_version, 2)
     assert.equal(snapshotManifest.discovery_grammar_version, 2)
     assert.ok(packManifest.source_paths.includes("plugins/desk/mcp/src/indexer/discover.js"))
@@ -676,6 +707,10 @@ test("artifact build scripts can stamp a source provenance commit", async () => 
     assert.ok(snapshotManifest.source_paths.includes("plugins/desk/mcp/src/indexer/document-tree.js"))
     assert.ok(packManifest.source_paths.includes("plugins/desk/mcp/src/indexer/exclusions.js"))
     assert.ok(snapshotManifest.source_paths.includes("plugins/desk/mcp/src/indexer/exclusions.js"))
+    assert.ok(packManifest.source_paths.includes("plugins/desk/mcp/src/indexer/spec.js"))
+    assert.ok(snapshotManifest.source_paths.includes("plugins/desk/mcp/src/indexer/spec.js"))
+    assert.ok(packManifest.source_paths.includes("plugins/desk/mcp/src/db/init.js"))
+    assert.ok(snapshotManifest.source_paths.includes("plugins/desk/mcp/src/db/init.js"))
   } finally {
     rmSync(deskRoot, { recursive: true, force: true })
     rmSync(pluginRoot, { recursive: true, force: true })

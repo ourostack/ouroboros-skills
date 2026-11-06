@@ -6,6 +6,7 @@ import { createHash } from "node:crypto"
 import { createRequire } from "node:module"
 import {
   appendFile,
+  cp,
   copyFile,
   mkdir,
   mkdtemp,
@@ -31,12 +32,6 @@ const packageLock = require("../../package-lock.json")
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)))
 const pluginRoot = path.join(repoRoot, "plugins", "desk")
 const productionDocPath = "tasks/dependency-activation/task.md"
-const productionSnapshotRoot = path.join(
-  pluginRoot,
-  "artifacts",
-  "snapshots",
-  ACTIVE_EMBEDDING_SPEC.id,
-)
 const expectedRuntime = {
   platform: "portable",
   arch: "portable",
@@ -59,6 +54,16 @@ async function copyProductionDeskDoc(deskRoot) {
   await copyFile(path.join(repoRoot, "desk", productionDocPath), target)
 }
 
+async function copyProductionArtifacts(tempRoot) {
+  const fixturePluginRoot = path.join(tempRoot, "plugin")
+  await cp(
+    path.join(pluginRoot, "artifacts"),
+    path.join(fixturePluginRoot, "artifacts"),
+    { recursive: true },
+  )
+  return fixturePluginRoot
+}
+
 async function writeDeskDoc(deskRoot, relativePath, body) {
   const target = path.join(deskRoot, relativePath)
   await mkdir(path.dirname(target), { recursive: true })
@@ -69,10 +74,10 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`
 }
 
-async function findCompatibleProductionSnapshot() {
+async function findCompatibleProductionSnapshot(snapshotRoot) {
   let dirents
   try {
-    dirents = await readdir(productionSnapshotRoot, { withFileTypes: true })
+    dirents = await readdir(snapshotRoot, { withFileTypes: true })
   } catch (error) {
     if (error?.code === "ENOENT") return null
     throw error
@@ -80,7 +85,7 @@ async function findCompatibleProductionSnapshot() {
   const manifests = []
   for (const dirent of dirents) {
     if (!dirent.isFile() || !dirent.name.endsWith(".manifest.json")) continue
-    const manifestPath = path.join(productionSnapshotRoot, dirent.name)
+    const manifestPath = path.join(snapshotRoot, dirent.name)
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
     if (
       manifest.embedding_spec_id === ACTIVE_EMBEDDING_SPEC.id &&
@@ -113,8 +118,14 @@ test("cold start restores the committed production snapshot without rebuild or e
   const tempRoot = await tmpRoot("desk-dependency-flow-snapshot-")
   try {
     const deskRoot = path.join(tempRoot, "desk")
+    const fixturePluginRoot = await copyProductionArtifacts(tempRoot)
     await copyProductionDeskDoc(deskRoot)
-    const productionSnapshot = await findCompatibleProductionSnapshot()
+    const productionSnapshot = await findCompatibleProductionSnapshot(path.join(
+      fixturePluginRoot,
+      "artifacts",
+      "snapshots",
+      ACTIVE_EMBEDDING_SPEC.id,
+    ))
     assert.notEqual(
       productionSnapshot,
       null,
@@ -135,6 +146,7 @@ test("cold start restores the committed production snapshot without rebuild or e
 
     const result = await ensureIndex(deskRoot, {
       startup: true,
+      snapshots: { pluginRoot: fixturePluginRoot },
       embed: {
         fetch: async () => {
           throw new Error("cold-start production snapshot restore must not call live embeddings")
@@ -177,6 +189,7 @@ test("cold start restores the committed production snapshot without rebuild or e
 
     const repeated = await ensureIndex(deskRoot, {
       startup: true,
+      snapshots: { pluginRoot: fixturePluginRoot },
       embed: {
         fetch: async () => {
           throw new Error("repeated production snapshot startup must not call live embeddings")
@@ -196,12 +209,14 @@ test("cold rebuild imports committed production vector packs without embeddings"
   const tempRoot = await tmpRoot("desk-dependency-flow-vector-pack-")
   try {
     const deskRoot = path.join(tempRoot, "desk")
+    const fixturePluginRoot = await copyProductionArtifacts(tempRoot)
     await copyProductionDeskDoc(deskRoot)
     let embeddingCalls = 0
 
     const result = await ensureIndex(deskRoot, {
       startup: true,
       snapshots: false,
+      vectorPacks: { pluginRoot: fixturePluginRoot },
       embed: {
         fetch: async () => {
           embeddingCalls += 1
@@ -239,6 +254,7 @@ test("cold rebuild rejects packs whose represented document changed and live-gen
   const tempRoot = await tmpRoot("desk-dependency-flow-missing-vector-")
   try {
     const deskRoot = path.join(tempRoot, "desk")
+    const fixturePluginRoot = await copyProductionArtifacts(tempRoot)
     await copyProductionDeskDoc(deskRoot)
     const missingChunk = [
       "## Unit 24a3 Missing Vector",
@@ -251,6 +267,7 @@ test("cold rebuild rejects packs whose represented document changed and live-gen
     const result = await ensureIndex(deskRoot, {
       startup: true,
       snapshots: false,
+      vectorPacks: { pluginRoot: fixturePluginRoot },
       embed: {
         endpoint: "http://127.0.0.1:9/api/embeddings",
         model: "unit-24a3-production-missing-vector",
@@ -319,6 +336,7 @@ test("cold rebuild preserves active archive scope and refs graph with production
   const tempRoot = await tmpRoot("desk-dependency-flow-scope-refs-")
   try {
     const deskRoot = path.join(tempRoot, "desk")
+    const fixturePluginRoot = await copyProductionArtifacts(tempRoot)
     await copyProductionDeskDoc(deskRoot)
     await writeDeskDoc(
       deskRoot,
@@ -355,6 +373,7 @@ test("cold rebuild preserves active archive scope and refs graph with production
     const result = await ensureIndex(deskRoot, {
       startup: true,
       snapshots: false,
+      vectorPacks: { pluginRoot: fixturePluginRoot },
       embed,
     })
 

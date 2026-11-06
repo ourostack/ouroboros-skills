@@ -106,7 +106,7 @@ async function writePack({
   const jsonl = `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`
   const packSha = sha256(jsonl)
   const packManifest = {
-    schema_version: 1,
+    schema_version: 2,
     pack_id: packId,
     embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
     dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -822,8 +822,8 @@ test("vector pack validation rejects malformed manifests before import", async (
   const manifestCases = [
     {
       name: "bad-schema-version",
-      manifest: { schema_version: 2 },
-      pattern: /schema_version must be 1/u,
+      manifest: { schema_version: 3 },
+      pattern: /schema_version must be 1 or 2/u,
     },
     {
       name: "bad-pack-id",
@@ -1081,6 +1081,184 @@ test("vector pack import skips stale source, document tree, and grammar artifact
     assert.equal(imported.packs_imported, 0)
     assert.equal(imported.rows_imported, 0)
     assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import rejects omitted and tombstoned document rows hidden behind a current subset manifest", async () => {
+  const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const represented = insertChunk(db, {
+      docPath: "trackA/task-a/task.md",
+      text: "represented current document",
+    })
+    const omitted = insertChunk(db, {
+      docPath: "trackA/task-b/task.md",
+      text: "omitted tombstoned document",
+    })
+    const representedDocuments = [{
+      path: "trackA/task-a/task.md",
+      hash: `sha256:${sha256(represented.chunk.text)}`,
+    }]
+    const omittedDocument = {
+      path: "trackA/task-b/task.md",
+      hash: `sha256:${sha256(omitted.chunk.text)}`,
+    }
+    const paths = await writePack({
+      pluginRoot,
+      packId: "omitted-tombstoned-row",
+      rows: [rowFor(omitted.identity, 11)],
+      manifest: {
+        document_tree_hash: representedDocumentsHash(representedDocuments),
+        represented_documents: representedDocuments,
+      },
+    })
+    const tombstoneDir = path.join(pluginRoot, "artifacts", "tombstones")
+    await fs.mkdir(tombstoneDir, { recursive: true })
+    await fs.writeFile(path.join(tombstoneDir, "tombstones.jsonl"), `${JSON.stringify({
+      schema_version: 1,
+      document_path: omittedDocument.path,
+      document_hash: omittedDocument.hash,
+      reason: "redacted",
+      redacted_at: "2026-08-24T00:00:00.000Z",
+      effective_from: "2026-08-24T00:00:00.000Z",
+      artifact_rotation_id: "rotation-omitted-b",
+      actor: "unit-test-reviewer",
+    })}\n`, "utf8")
+    const expectedDocuments = [...representedDocuments, omittedDocument]
+
+    const validated = await validateVectorPackFile({
+      pluginRoot,
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedDocuments,
+    })
+    assert.deepEqual(validated.freshness, {
+      document_tree: "stale",
+    })
+
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedDocuments,
+    })
+    assert.equal(imported.packs_considered, 1)
+    assert.equal(imported.packs_imported, 0)
+    assert.equal(imported.rows_imported, 0)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM chunk_vecs").get().count, 0)
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("vector pack import preserves current exact represented-document packs", async () => {
+  const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const chunk = insertChunk(db, {
+      docPath: "trackA/task-exact/task.md",
+      text: "exact current document",
+    })
+    const expectedDocuments = [{
+      path: "trackA/task-exact/task.md",
+      hash: `sha256:${sha256(chunk.chunk.text)}`,
+    }]
+    const paths = await writePack({
+      pluginRoot,
+      packId: "exact-current-pack",
+      rows: [rowFor(chunk.identity, 12)],
+      manifest: {
+        document_tree_hash: representedDocumentsHash(expectedDocuments),
+        represented_documents: expectedDocuments,
+      },
+    })
+
+    const validated = await validateVectorPackFile({
+      pluginRoot,
+      packPath: paths.packPath,
+      manifestPath: paths.manifestPath,
+      checksumPath: paths.checksumPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedDocuments,
+    })
+    assert.deepEqual(validated.freshness, {
+      document_tree: "fresh",
+    })
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedDocuments,
+    })
+    assert.equal(imported.packs_imported, 1)
+    assert.equal(imported.rows_imported, 1)
+    assertStoredVector(db, chunk.chunkId, vector(12))
+  } finally {
+    closeDb(db)
+  }
+})
+
+test("recognized v1 vector packs are stale for fast path but remain importable for reconcile", async () => {
+  const { importVectorPacks, validateVectorPackFile } = await loadVectorPackModule()
+  const root = await tmpRoot()
+  const pluginRoot = path.join(root, "plugins", "desk")
+  const deskRoot = path.join(root, "desk")
+  const db = openDb(deskRoot)
+  try {
+    const current = insertChunk(db, {
+      docPath: "trackA/task-1/task.md",
+      text: "legacy reconcile chunk",
+    })
+    const representedDocuments = [{
+      path: "trackA/task-1/task.md",
+      hash: `sha256:${"1".repeat(64)}`,
+    }]
+    const paths = await writePack({
+      pluginRoot,
+      packId: "legacy-reconcile",
+      rows: [rowFor(current.identity, 5)],
+      manifest: {
+        schema_version: 1,
+        source_paths: ["legacy/source.js"],
+        artifact_source_scope_hash: SOURCE_SCOPE_HASH,
+        document_tree_hash: representedDocumentsHash(representedDocuments),
+        represented_documents: representedDocuments,
+      },
+    })
+
+    const validated = await validateVectorPackFile({
+      pluginRoot,
+      packPath: paths.packPath,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedArtifactSourceScopeHash: SOURCE_SCOPE_HASH,
+      expectedDocuments: representedDocuments,
+      expectedDiscoveryGrammarVersion: DISCOVERY_GRAMMAR_VERSION,
+    })
+    assert.equal(validated.freshness.artifact_source_scope, "stale")
+    assert.equal(validated.freshness.document_tree, "fresh")
+    assert.equal(validated.manifest_compatibility, "legacy-reconcile")
+
+    const imported = await importVectorPacks({
+      db,
+      pluginRoot,
+      expectedSpec: ACTIVE_EMBEDDING_SPEC,
+      expectedArtifactSourceScopeHash: SOURCE_SCOPE_HASH,
+      expectedDocuments: representedDocuments,
+      expectedDiscoveryGrammarVersion: DISCOVERY_GRAMMAR_VERSION,
+    })
+    assert.equal(imported.packs_imported, 1)
+    assert.equal(imported.rows_imported, 1)
   } finally {
     closeDb(db)
   }

@@ -53,7 +53,7 @@ function documentTreeHash(docs) {
 
 function validManifest({ artifactSha, snapshotId = SNAPSHOT_ID } = {}) {
   return {
-    schema_version: 1,
+    schema_version: 2,
     snapshot_id: snapshotId,
     embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
     dimension: ACTIVE_EMBEDDING_SPEC.dimension,

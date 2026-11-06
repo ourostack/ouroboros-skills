@@ -3,7 +3,6 @@
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
-import { isEntrypoint } from "../index.js"
 import { runArtifactValidateCli } from "../src/artifacts/artifact-scripts.js"
 import { verifyRuntimeSupportMatrix } from "../src/runtime/runtime-deps.js"
 
@@ -26,6 +25,9 @@ export async function validateArtifactsCli({
   return support.ok ? artifactExitCode : 1
 }
 
-if (isEntrypoint({ argv: process.argv, moduleUrl: import.meta.url })) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   process.exitCode = await validateArtifactsCli()
 }

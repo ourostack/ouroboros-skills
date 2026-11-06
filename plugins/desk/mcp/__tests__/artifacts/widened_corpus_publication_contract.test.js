@@ -92,6 +92,7 @@ const MANIFEST_VALUE_LEAK_PROBES = Object.freeze([
 const {
   ARTIFACT_SOURCE_PATHS: WIDENED_SOURCE_SCOPE_PATHS,
 } = manifestContracts
+const ARTIFACT_TEST_NOW = () => Date.parse("2026-08-24T00:00:00.000Z")
 const PUBLICATION_GUIDANCE_DOCS = Object.freeze([
   "plugins/desk/README.md",
   "plugins/desk/mcp/README.md",
@@ -825,6 +826,7 @@ test("widened local index eligibility never bypasses snapshot or vector-pack app
         pluginRoot: deniedPluginRoot,
         mcpRoot,
         packId: "synthetic-denied-pack",
+        now: ARTIFACT_TEST_NOW,
       }),
       (error) => (
         error.code === "artifact_publication_not_approved" &&
@@ -838,6 +840,7 @@ test("widened local index eligibility never bypasses snapshot or vector-pack app
         pluginRoot: deniedPluginRoot,
         mcpRoot,
         snapshotId: "synthetic-denied-snapshot",
+        now: ARTIFACT_TEST_NOW,
       }),
       (error) => (
         error.code === "artifact_publication_not_approved" &&
@@ -897,6 +900,7 @@ test("tombstones and deletions cannot reappear through packs, snapshots, restore
       pluginRoot: targetPluginRoot,
       mcpRoot,
       packId: historicalPackId,
+      now: ARTIFACT_TEST_NOW,
     })
     const historicalPack = artifactPaths(targetPluginRoot, "vector-pack", historicalPackId)
     const historicalPackRows = parseVectorPackRows(await readFile(historicalPack.primary))
@@ -948,6 +952,7 @@ test("tombstones and deletions cannot reappear through packs, snapshots, restore
       pluginRoot: targetPluginRoot,
       mcpRoot,
       snapshotId: cacheSnapshotId,
+      now: ARTIFACT_TEST_NOW,
     })
     await unlink(path.join(deskRoot, "references", "cache-only.md"))
     await ensureIndex(deskRoot, {
@@ -991,6 +996,7 @@ test("tombstones and deletions cannot reappear through packs, snapshots, restore
       pluginRoot: targetPluginRoot,
       mcpRoot,
       packId: currentPackId,
+      now: ARTIFACT_TEST_NOW,
     })
     await buildSnapshotFromLocalDb({
       deskRoot,
@@ -998,6 +1004,7 @@ test("tombstones and deletions cannot reappear through packs, snapshots, restore
       mcpRoot,
       snapshotId: currentSnapshotId,
       includedPackIds: [currentPackId],
+      now: ARTIFACT_TEST_NOW,
     })
 
     const expectedPaths = ALLOWED_PATHS.filter((docPath) => ![
@@ -1082,13 +1089,12 @@ test("artifact source-scope hashing invalidates deterministically when restored-
   const discoverPath = path.join(scratchMcpRoot, "src", "indexer", "discover.js")
   const helpersPath = path.join(scratchMcpRoot, "src", "server-helpers.js")
   try {
-    await mkdir(path.join(scratchMcpRoot, "src", "artifacts"), {
-      recursive: true,
-    })
-    await cp(
-      path.join(mcpRoot, "src", "artifacts", "manifest-contracts.cjs"),
-      path.join(scratchMcpRoot, "src", "artifacts", "manifest-contracts.cjs"),
-    )
+    for (const repoPath of WIDENED_SOURCE_SCOPE_PATHS) {
+      const relativePath = repoPath.replace(/^plugins\/desk\/mcp\//u, "")
+      const targetPath = path.join(scratchMcpRoot, relativePath)
+      await mkdir(path.dirname(targetPath), { recursive: true })
+      await cp(path.join(mcpRoot, relativePath), targetPath)
+    }
     await writeText(scratchMcpRoot, "src/indexer/discover.js", "discover-v1\n")
     await writeText(scratchMcpRoot, "src/server-helpers.js", "restore-v1\n")
     const baseline = generatedArtifacts.artifactSourceScopeHash(scratchMcpRoot)
@@ -1126,12 +1132,14 @@ test("new vector-pack and snapshot manifests carry the complete widened source s
       pluginRoot: targetPluginRoot,
       mcpRoot,
       packId: "synthetic-source-scope-pack",
+      now: ARTIFACT_TEST_NOW,
     })
     await buildSnapshotFromLocalDb({
       deskRoot,
       pluginRoot: targetPluginRoot,
       mcpRoot,
       snapshotId: "synthetic-source-scope-snapshot",
+      now: ARTIFACT_TEST_NOW,
     })
 
     const [packManifest, snapshotManifest] = await Promise.all([

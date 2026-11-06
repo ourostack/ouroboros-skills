@@ -47,10 +47,11 @@ async function loadRuntimeDeps(mcpRoot = defaultMcpRoot) {
 
 async function loadProductionArtifactModules(mcpRoot = defaultMcpRoot) {
   const manifestContracts = loadManifestContracts(mcpRoot);
-  const [spec, artifactScripts, policy] = await Promise.all([
+  const [spec, artifactScripts, policy, publication] = await Promise.all([
     import(pathToFileURL(path.join(mcpRoot, "src", "indexer", "spec.js")).href),
     import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "artifact-scripts.js")).href),
     import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "policy.js")).href),
+    import(pathToFileURL(path.join(mcpRoot, "src", "artifacts", "publication.js")).href),
   ]);
   return {
     activeEmbeddingSpec: spec.ACTIVE_EMBEDDING_SPEC,
@@ -59,6 +60,7 @@ async function loadProductionArtifactModules(mcpRoot = defaultMcpRoot) {
     loadPublicationPolicy: policy.loadPublicationPolicy,
     validateArtifactManifest: manifestContracts.validateArtifactManifest,
     validateArtifacts: artifactScripts.validateArtifacts,
+    withArtifactRead: publication.withArtifactRead,
   };
 }
 
@@ -420,7 +422,27 @@ async function verifyProductionSharedArtifacts({
   expectation,
   existsSync = fs.existsSync,
   spawn = spawnSync,
+  publicationCoordination = true,
 } = {}) {
+  if (
+    publicationCoordination &&
+    typeof expectation.modules.withArtifactRead === "function"
+  ) {
+    return expectation.modules.withArtifactRead({
+      directory: expectation.vectorPackDir,
+      artifactId: "production-vector-pack-directory",
+      read: () => expectation.modules.withArtifactRead({
+        directory: expectation.snapshotDir,
+        artifactId: "production-snapshot-directory",
+        read: () => verifyProductionSharedArtifacts({
+          expectation,
+          existsSync,
+          spawn,
+          publicationCoordination: false,
+        }),
+      }),
+    });
+  }
   const errors = [];
   const vectorPackFiles = primaryArtifactFiles({
     dir: expectation.vectorPackDir,
@@ -460,6 +482,7 @@ async function verifyProductionSharedArtifacts({
       deskRoot: expectation.deskRoot,
       pluginRoot: expectation.pluginRoot,
       mcpRoot: expectation.mcpRoot,
+      publicationCoordination: false,
     });
   } catch (error) {
     errors.push(`production shared artifact validation failed: ${formatErrorMessage(error)}`);
@@ -748,6 +771,7 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
     const manifest = readJsonIfPresent(manifestPath, errors, "production vector pack manifest");
     if (manifest === undefined) continue;
     verifyFreshnessFields({
+      artifactType: "vector-pack",
       errors,
       label: `production vector pack ${path.basename(packPath)}`,
       manifest,
@@ -761,6 +785,7 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
       manifest,
     });
     verifyCurrentRepresentedDocuments({
+      artifactType: "vector-pack",
       errors,
       expectation,
       label: `production vector pack ${path.basename(packPath)}`,
@@ -773,6 +798,7 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
     const manifest = readJsonIfPresent(manifestPath, errors, "production snapshot manifest");
     if (manifest === undefined) continue;
     verifyFreshnessFields({
+      artifactType: "snapshot",
       errors,
       label: `production snapshot ${path.basename(snapshotPath)}`,
       manifest,
@@ -786,6 +812,7 @@ function verifyFreshnessManifests({ errors, expectation, expectedHashes, vectorP
       manifest,
     });
     verifyCurrentRepresentedDocuments({
+      artifactType: "snapshot",
       errors,
       expectation,
       label: `production snapshot ${path.basename(snapshotPath)}`,
@@ -814,11 +841,18 @@ function verifyProductionManifestContract({
   }
 }
 
-function verifyFreshnessFields({ errors, label, manifest, expectedHashes }) {
+function verifyFreshnessFields({
+  artifactType,
+  errors,
+  label,
+  manifest,
+  expectedHashes,
+}) {
   if (manifest.artifact_source_scope_hash !== expectedHashes.artifactSourceScopeHash) {
     errors.push(`${label} artifact_source_scope_hash must match current source scope`);
   }
   if (
+    artifactType === "snapshot" &&
     expectedHashes.documentTreeHash &&
     manifest.document_tree_hash !== expectedHashes.documentTreeHash
   ) {
@@ -826,7 +860,14 @@ function verifyFreshnessFields({ errors, label, manifest, expectedHashes }) {
   }
 }
 
-function verifyCurrentRepresentedDocuments({ errors, expectation, label, manifest, expectedHashes }) {
+function verifyCurrentRepresentedDocuments({
+  artifactType,
+  errors,
+  expectation,
+  label,
+  manifest,
+  expectedHashes,
+}) {
   if (!Array.isArray(manifest.represented_documents) || manifest.represented_documents.length === 0) {
     errors.push(`${label} represented_documents must be a non-empty array`);
     return;
@@ -857,7 +898,13 @@ function verifyCurrentRepresentedDocuments({ errors, expectation, label, manifes
   }
   if (expectedHashes.documentTreeHash && currentDocs.length > 0) {
     const currentTreeHash = documentTreeHash(currentDocs);
-    if (currentTreeHash !== expectedHashes.documentTreeHash) {
+    if (currentTreeHash !== manifest.document_tree_hash) {
+      errors.push(`${label} document_tree_hash must match represented documents`);
+    }
+    if (
+      artifactType === "snapshot" &&
+      currentTreeHash !== expectedHashes.documentTreeHash
+    ) {
       errors.push(`${label} current repo document tree must match production-artifacts.md ${productionCurrentDocumentHashField}`);
     }
   }
@@ -887,6 +934,17 @@ function normalizedRelativeDocPath(value) {
     return undefined;
   }
   return normalized;
+}
+
+function writeVerificationSummary({ errors, labels, io }) {
+  if (errors.length > 0) {
+    io.stderr.write(`Desk generated artifact verification failed for ${labels}\n`);
+    for (const error of errors) {
+      io.stderr.write(`- ${error}\n`);
+    }
+  } else {
+    io.stdout.write(`Desk generated artifacts verified for ${labels}\n`);
+  }
 }
 
 function artifactSourceScopeHash(mcpRoot) {
@@ -959,14 +1017,7 @@ async function verifyGeneratedArtifacts(options = {}) {
     productionSharedExpectation.relativeSnapshotDir,
   ].join(", ");
 
-  if (errors.length > 0) {
-    io.stderr.write(`Desk generated artifact verification failed for ${labels}\n`);
-    for (const error of errors) {
-      io.stderr.write(`- ${error}\n`);
-    }
-  } else {
-    io.stdout.write(`Desk generated artifacts verified for ${labels}\n`);
-  }
+  writeVerificationSummary({ errors, labels, io });
 
   return {
     ok: errors.length === 0,
@@ -1022,6 +1073,7 @@ module.exports = {
     readTrackedFileBytes,
     validatePublishedArchiveShape,
     verifyProductionArtifactChecksum,
+    writeVerificationSummary,
   },
   defaultMcpRoot,
   defaultPublishedRuntimePackTargets,

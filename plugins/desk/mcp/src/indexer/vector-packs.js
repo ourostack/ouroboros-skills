@@ -8,7 +8,10 @@ import {
   assertArtifactPublicationAllowed,
   policyForArtifactWrite,
 } from "../artifacts/policy.js"
-import { publishArtifactSet } from "../artifacts/publication.js"
+import {
+  publishArtifactSet,
+  withArtifactRead,
+} from "../artifacts/publication.js"
 import {
   assertArtifactDoesNotRepresentTombstones,
   assertArtifactInputsDoNotContainTombstones,
@@ -22,7 +25,10 @@ import {
 import { ACTIVE_EMBEDDING_SPEC } from "./spec.js"
 
 const VECTOR_ENCODING = "float32-json"
-const { validateArtifactManifest } = manifestContracts
+const {
+  artifactManifestCompatibility,
+  validateArtifactManifest,
+} = manifestContracts
 const ROW_FIELDS = new Set([
   "chunk_key",
   "text_hash",
@@ -93,7 +99,6 @@ export async function writeVectorPackArtifact({
   const manifest = parseManifestBytes(manifestBytes)
   await publishArtifactSet({
     ...publication,
-    artifactId: packId,
     signal,
     files: [
       { name: "primary", path: paths.packPath, bytes: packBytes },
@@ -114,6 +119,7 @@ export async function writeVectorPackArtifact({
         expectedDiscoveryGrammarVersion:
           manifest.discovery_grammar_version,
         signal,
+        publicationCoordination: false,
       })
     },
   })
@@ -131,12 +137,33 @@ export async function validateVectorPackFile({
   expectedDocuments,
   expectedDiscoveryGrammarVersion,
   signal,
+  publicationCoordination = true,
 } = {}) {
-  throwIfAborted(signal)
   const label = path.basename(packPath ?? "vector-pack")
   if (typeof packPath !== "string" || packPath.trim() === "") {
     throw new Error(`${label} pack path is required`)
   }
+  throwIfAborted(signal)
+  if (publicationCoordination) {
+    return withArtifactRead({
+      directory: path.dirname(packPath),
+      signal,
+      read: () => validateVectorPackFile({
+        pluginRoot,
+        packPath,
+        manifestPath,
+        checksumPath,
+        expectedSpec,
+        expectedArtifactSourceScopeHash,
+        expectedDocumentTreeHash,
+        expectedDocuments,
+        expectedDiscoveryGrammarVersion,
+        signal,
+        publicationCoordination: false,
+      }),
+    })
+  }
+  throwIfAborted(signal)
   const resolvedManifestPath = manifestPath ?? sidecarPath(packPath, ".manifest.json")
   const resolvedChecksumPath = checksumPath ?? sidecarPath(packPath, ".sha256")
   const manifest = await readRequiredJson(resolvedManifestPath, `${label} manifest`, signal)
@@ -176,10 +203,12 @@ export async function validateVectorPackFile({
     embedding_spec_id: manifest.embedding_spec_id,
     rows,
     manifest,
+    manifest_compatibility: artifactManifestCompatibility(manifest),
   }
   const freshness = {}
   if (expectedArtifactSourceScopeHash !== undefined) {
     freshness.artifact_source_scope =
+      result.manifest_compatibility === "current" &&
       manifest.artifact_source_scope_hash === expectedArtifactSourceScopeHash
         ? "fresh"
         : "stale"
@@ -225,9 +254,27 @@ export async function importVectorPacks({
   expectedDocuments,
   expectedDiscoveryGrammarVersion,
   signal,
+  publicationCoordination = true,
 } = {}) {
   throwIfAborted(signal)
   const packDir = path.join(pluginRoot, "artifacts", "vector-packs", expectedSpec.id)
+  if (publicationCoordination) {
+    return withArtifactRead({
+      directory: packDir,
+      signal,
+      read: () => importVectorPacks({
+        db,
+        pluginRoot,
+        expectedSpec,
+        expectedArtifactSourceScopeHash,
+        expectedDocumentTreeHash,
+        expectedDocuments,
+        expectedDiscoveryGrammarVersion,
+        signal,
+        publicationCoordination: false,
+      }),
+    })
+  }
   const summary = {
     packs_considered: 0,
     packs_imported: 0,
@@ -292,9 +339,21 @@ export async function importVectorPacks({
       expectedDocuments,
       expectedDiscoveryGrammarVersion,
       signal,
+      publicationCoordination: false,
     })
     throwIfAborted(signal)
-    if (Object.values(pack.freshness ?? {}).includes("stale")) continue
+    const staleFreshness = Object.entries(pack.freshness ?? {})
+      .filter(([, status]) => status === "stale")
+      .map(([name]) => name)
+    if (
+      staleFreshness.some((name) => name !== "artifact_source_scope") ||
+      (
+        staleFreshness.includes("artifact_source_scope") &&
+        pack.manifest_compatibility !== "legacy-reconcile"
+      )
+    ) {
+      continue
+    }
     summary.packs_imported += 1
 
     const txn = db.transaction((rows) => {
@@ -363,6 +422,7 @@ function representedDocumentsAreCurrent(
     canonicalFilesystemDocumentPath(doc.path),
     canonicalDocumentHash(doc.hash),
   ]))
+  if (representedDocuments.length !== expectedByPath.size) return false
   return representedDocuments.every((doc) => {
     const documentPath = canonicalFilesystemDocumentPath(doc.path)
     return expectedByPath.get(documentPath) === canonicalDocumentHash(doc.hash)

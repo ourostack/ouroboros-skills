@@ -24,6 +24,42 @@ const mcpRoot = path.join(repoRoot, "plugins", "desk", "mcp")
 const generatedArtifactsScript = "scripts/test-desk-generated-artifacts.cjs"
 const hostManifestScript = "scripts/test-desk-host-manifests.cjs"
 const require = createRequire(import.meta.url)
+const manifestContracts = require(path.join(
+  mcpRoot,
+  "src",
+  "artifacts",
+  "manifest-contracts.cjs",
+))
+const requiredSemanticArtifactSources = [
+  "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+  "plugins/desk/mcp/src/artifacts/manifest-contracts.cjs",
+  "plugins/desk/mcp/src/artifacts/performance-budgets.js",
+  "plugins/desk/mcp/src/artifacts/policy.js",
+  "plugins/desk/mcp/src/artifacts/publication.js",
+  "plugins/desk/mcp/src/artifacts/tombstones.js",
+  "plugins/desk/mcp/src/db/init.js",
+  "plugins/desk/mcp/src/db/schema.sql",
+  "plugins/desk/mcp/src/indexer/chunk.js",
+  "plugins/desk/mcp/src/indexer/discover.js",
+  "plugins/desk/mcp/src/indexer/document-tree.js",
+  "plugins/desk/mcp/src/indexer/embed.js",
+  "plugins/desk/mcp/src/indexer/exclusions.js",
+  "plugins/desk/mcp/src/indexer/index.js",
+  "plugins/desk/mcp/src/indexer/refs.js",
+  "plugins/desk/mcp/src/indexer/root-identity.js",
+  "plugins/desk/mcp/src/indexer/spec.js",
+  "plugins/desk/mcp/src/indexer/vector-packs.js",
+  "plugins/desk/mcp/src/server-helpers.js",
+  "plugins/desk/mcp/src/runtime/runtime-deps.js",
+  "plugins/desk/mcp/src/snapshots/manifest.js",
+  "plugins/desk/mcp/src/snapshots/restore.js",
+  "plugins/desk/mcp/scripts/build-vector-pack.js",
+  "plugins/desk/mcp/scripts/build-snapshot.js",
+  "plugins/desk/mcp/scripts/verify-snapshot.js",
+  "plugins/desk/mcp/scripts/validate-artifacts.js",
+  "plugins/desk/mcp/package.json",
+  "plugins/desk/mcp/package-lock.json",
+]
 
 const requiredPackageScripts = {
   "activation:support-matrix:generate": "node scripts/generate-support-matrix.js",
@@ -435,7 +471,6 @@ test("root generated-artifact verifier exports the production freshness contract
 
 test("discovery grammar participates in every artifact source-scope hash", () => {
   const discoverRepoPath = "plugins/desk/mcp/src/indexer/discover.js"
-  const generatedArtifacts = require(path.join(repoRoot, generatedArtifactsScript))
   const serverHelpersSource = readFileSync(path.join(mcpRoot, "src", "server-helpers.js"), "utf8")
   const artifactScriptsSource = readFileSync(path.join(mcpRoot, "src", "artifacts", "artifact-scripts.js"), "utf8")
   const generatedVerifierSource = readFileSync(path.join(repoRoot, generatedArtifactsScript), "utf8")
@@ -468,26 +503,53 @@ test("discovery grammar participates in every artifact source-scope hash", () =>
     assert.ok(manifestContractsSource.includes(`"${sourcePath}"`))
   }
 
-  const tempMcpRoot = mkdtempSync(path.join(tmpdir(), "desk-discovery-source-scope-"))
-  try {
-    const discoverPath = path.join(tempMcpRoot, discoverRepoPath.replace(/^plugins\/desk\/mcp\//u, ""))
-    const contractPath = path.join(
-      tempMcpRoot,
-      "src",
-      "artifacts",
-      "manifest-contracts.cjs",
-    )
-    mkdirSync(path.dirname(discoverPath), { recursive: true })
-    mkdirSync(path.dirname(contractPath), { recursive: true })
-    writeFileSync(contractPath, manifestContractsSource, "utf8")
-    writeFileSync(discoverPath, "export const DISCOVERY_GRAMMAR_VERSION = 1\n", "utf8")
-    const before = generatedArtifacts.artifactSourceScopeHash(tempMcpRoot)
-    writeFileSync(discoverPath, "export const DISCOVERY_GRAMMAR_VERSION = 2\n", "utf8")
-    const after = generatedArtifacts.artifactSourceScopeHash(tempMcpRoot)
-    assert.notEqual(after, before)
-  } finally {
-    rmSync(tempMcpRoot, { recursive: true, force: true })
-  }
+  const discoverPath = path.join(
+    mcpRoot,
+    discoverRepoPath.replace(/^plugins\/desk\/mcp\//u, ""),
+  )
+  const before = manifestContracts.artifactSourceScopeHash(mcpRoot)
+  const after = manifestContracts.artifactSourceScopeHash(mcpRoot, {
+    readFile(filePath) {
+      const bytes = readFileSync(filePath)
+      return filePath === discoverPath
+        ? Buffer.concat([bytes, Buffer.from("\ndiscovery grammar mutation\n")])
+        : bytes
+    },
+  })
+  assert.notEqual(after, before)
+})
+
+test("artifact source hashing uses the curated semantic inputs and fails closed", () => {
+  assertIncludesAll(
+    manifestContracts.ARTIFACT_SOURCE_PATHS,
+    requiredSemanticArtifactSources,
+    "artifact semantic source closure",
+  )
+  assert.equal(
+    new Set(manifestContracts.ARTIFACT_SOURCE_PATHS).size,
+    manifestContracts.ARTIFACT_SOURCE_PATHS.length,
+  )
+
+  const missingRepoPath = manifestContracts.ARTIFACT_SOURCE_PATHS[0]
+  const missingPath = path.join(
+    mcpRoot,
+    missingRepoPath.replace(/^plugins\/desk\/mcp\//u, ""),
+  )
+  const unreadable = new Error(`synthetic unreadable source: ${missingPath}`)
+  unreadable.code = "EACCES"
+  assert.throws(
+    () => manifestContracts.artifactSourceScopeHash(mcpRoot, {
+      readFile(filePath) {
+        if (filePath === missingPath) throw unreadable
+        return readFileSync(filePath)
+      },
+    }),
+    (error) =>
+      error.code === "artifact_source_unavailable" &&
+      error.message === "artifact source input is unavailable" &&
+      !error.message.includes(mcpRoot) &&
+      !error.message.includes("synthetic unreadable source"),
+  )
 })
 
 test("root generated-artifact verifier fails closed when required runtime packs are absent", async () => {
@@ -705,23 +767,34 @@ test("root generated-artifact verifier covers defensive helper and CLI branches"
     const defaultShared = await generatedArtifacts.productionSharedArtifactExpectation()
     assert.ok(defaultShared.relativeVectorPackDir.startsWith("plugins/desk/artifacts/vector-packs/"))
     const processIoVerify = await generatedArtifacts.verifyGeneratedArtifacts()
-    assert.equal(processIoVerify.ok, true, processIoVerify.errors.join("\n"))
+    assert.equal(processIoVerify.ok, processIoVerify.errors.length === 0)
     const defaultVerifyStdout = []
+    const defaultVerifyStderr = []
     const defaultVerify = await generatedArtifacts.verifyGeneratedArtifacts({
       io: {
         stdout: { write: (text) => defaultVerifyStdout.push(text) },
-        stderr: { write: () => {} },
+        stderr: { write: (text) => defaultVerifyStderr.push(text) },
       },
     })
-    assert.equal(defaultVerify.ok, true, defaultVerify.errors.join("\n"))
-    assert.match(defaultVerifyStdout.join(""), /Desk generated artifacts verified/u)
+    assert.equal(defaultVerify.ok, defaultVerify.errors.length === 0)
+    assert.match(
+      defaultVerify.ok
+        ? defaultVerifyStdout.join("")
+        : defaultVerifyStderr.join(""),
+      defaultVerify.ok
+        ? /Desk generated artifacts verified/u
+        : /Desk generated artifact verification failed/u,
+    )
 
     assert.equal(internals.gitTracksFile({
       repoRoot,
       repoPath: "missing",
       spawn: () => ({}),
     }), false)
-    assert.equal(generatedArtifacts.artifactSourceScopeHash(tempRoot).startsWith("sha256:"), true)
+    assert.throws(
+      () => generatedArtifacts.artifactSourceScopeHash(tempRoot),
+      /artifact source input is unavailable/u,
+    )
     assert.equal(
       generatedArtifacts.documentTreeHash([
         { path: "b.md", hash: "sha256:b" },

@@ -1,12 +1,12 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "pack_id": "repo-public-bootstrap-2026-06-15",
   "embedding_spec_id": "nomic-embed-text-v1_5-desk-md-h2-paragraph-v1-unicode-whitespace-v1-768",
   "dimension": 768,
   "encoding": "float32-json",
   "row_count": 2,
   "rows_sha256": "d0c07f02e1acda61962e4f2232fa68d7f5cc9802510c29aebb604cabfca1dfda",
-  "artifact_source_scope_hash": "sha256:01e9293ff696bb2a78f2e9d11376e944fafddabca79222afc45035c5f8a25d17",
+  "artifact_source_scope_hash": "sha256:654866d01f843a16277549bc1a285baebbc0c754266b8e33d815470f55ee31e6",
   "document_tree_hash": "sha256:b8268841c4877dfe293de7c463eadf38339c741daa6416ffd5b1ec652087fba8",
   "discovery_grammar_version": 2,
   "represented_documents": [
@@ -15,28 +15,34 @@
       "hash": "sha256:3886140d5ca53b11e39d670572bce11535d9f980e4d168dbdcbbd72bc10edf59"
     }
   ],
-  "created_at": "2026-08-25T01:08:43.692Z",
+  "created_at": "2026-08-25T22:29:35.398Z",
   "provenance": {
     "builder": "plugins/desk/mcp/scripts/build-vector-pack.js",
     "source": "local-db",
-    "commit": "d44da4b27b22fabd12c46ec88f5a9b41d1bff68d"
+    "commit": "cc4a145f7372083a1db890b06652ef4b0eaca70a"
   },
   "source_paths": [
     "plugins/desk/mcp/src/artifacts/tombstones.js",
+    "plugins/desk/mcp/src/db/init.js",
     "plugins/desk/mcp/src/indexer/chunk.js",
     "plugins/desk/mcp/src/indexer/discover.js",
     "plugins/desk/mcp/src/indexer/document-tree.js",
+    "plugins/desk/mcp/src/indexer/embed.js",
     "plugins/desk/mcp/src/indexer/exclusions.js",
     "plugins/desk/mcp/src/indexer/index.js",
     "plugins/desk/mcp/src/indexer/refs.js",
+    "plugins/desk/mcp/src/indexer/spec.js",
     "plugins/desk/mcp/src/indexer/vector-packs.js",
     "plugins/desk/mcp/src/snapshots/manifest.js",
     "plugins/desk/mcp/src/snapshots/restore.js",
     "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+    "plugins/desk/mcp/src/artifacts/performance-budgets.js",
     "plugins/desk/mcp/src/artifacts/manifest-contracts.cjs",
     "plugins/desk/mcp/src/artifacts/policy.js",
     "plugins/desk/mcp/src/artifacts/publication.js",
     "plugins/desk/mcp/src/server-helpers.js",
+    "plugins/desk/mcp/src/indexer/root-identity.js",
+    "plugins/desk/mcp/src/runtime/runtime-deps.js",
     "plugins/desk/mcp/scripts/build-vector-pack.js",
     "plugins/desk/mcp/scripts/build-snapshot.js",
     "plugins/desk/mcp/scripts/verify-snapshot.js",

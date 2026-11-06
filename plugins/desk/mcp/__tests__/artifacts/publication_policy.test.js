@@ -122,7 +122,7 @@ function artifactPayload(artifactType, artifactId) {
     : Buffer.from("sqlite bytes", "utf8")
   const artifactHash = sha256(primaryBytes)
   const common = {
-    schema_version: 1,
+    schema_version: 2,
     embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
     dimension: ACTIVE_EMBEDDING_SPEC.dimension,
     artifact_source_scope_hash: `sha256:${"a".repeat(64)}`,
@@ -219,7 +219,7 @@ async function seedCommittedArtifactFixture(artifactsRoot) {
   await fs.writeFile(
     path.join(packDir, `${packId}.manifest.json`),
     `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       pack_id: packId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -251,7 +251,7 @@ async function seedCommittedArtifactFixture(artifactsRoot) {
   await fs.writeFile(
     path.join(snapshotDir, `${snapshotId}.manifest.json`),
     `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       snapshot_id: snapshotId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,

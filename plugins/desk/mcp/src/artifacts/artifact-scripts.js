@@ -12,6 +12,7 @@ import {
   filterTombstonedDocuments,
 } from "./tombstones.js"
 import manifestContracts from "./manifest-contracts.cjs"
+import { withArtifactRead } from "./publication.js"
 import {
   DISCOVERY_GRAMMAR_VERSION,
   discover,
@@ -147,7 +148,7 @@ export async function buildVectorPackFromLocalDb({
     const packSha = sha256Hex(packBytes)
     const context = snapshotCompatibilityContext({ mcpRoot, docs: sourceDocs })
     const manifest = {
-      schema_version: 1,
+      schema_version: 2,
       pack_id: packId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -245,7 +246,7 @@ export async function buildSnapshotFromLocalDb({
     const artifactSha = `sha256:${sha256Hex(snapshotBytes)}`
     const context = snapshotCompatibilityContext({ mcpRoot, docs: sourceDocs })
     const manifest = {
-      schema_version: 1,
+      schema_version: 2,
       snapshot_id: snapshotId,
       embedding_spec_id: ACTIVE_EMBEDDING_SPEC.id,
       dimension: ACTIVE_EMBEDDING_SPEC.dimension,
@@ -352,19 +353,25 @@ export async function verifySnapshotArtifact({
     }
   }
   const paths = deriveSnapshotPaths({ pluginRoot, snapshotId })
-  const manifest = await readJson(paths.manifestPath)
-  const context = snapshotCompatibilityContext({
-    mcpRoot,
-    docs: currentDocs ?? manifest.represented_documents ?? [],
-  })
-  const validation = await validateSnapshotArtifact({
-    pluginRoot,
-    snapshotPath: paths.snapshotPath,
-    manifestPath: paths.manifestPath,
-    checksumPath: paths.checksumPath,
-    expectedSpec: ACTIVE_EMBEDDING_SPEC,
-    expectedDbSchema: SNAPSHOT_DB_SCHEMA,
-    ...context,
+  const validation = await withArtifactRead({
+    directory: paths.snapshotDir,
+    read: async () => {
+      const manifest = await readJson(paths.manifestPath)
+      const context = snapshotCompatibilityContext({
+        mcpRoot,
+        docs: currentDocs ?? manifest.represented_documents ?? [],
+      })
+      return validateSnapshotArtifact({
+        pluginRoot,
+        snapshotPath: paths.snapshotPath,
+        manifestPath: paths.manifestPath,
+        checksumPath: paths.checksumPath,
+        expectedSpec: ACTIVE_EMBEDDING_SPEC,
+        expectedDbSchema: SNAPSHOT_DB_SCHEMA,
+        ...context,
+        publicationCoordination: false,
+      })
+    },
   })
   const elapsedMs = assertWithinBudget({
     startedAt,
@@ -387,6 +394,7 @@ export async function validateArtifacts({
   mcpRoot = DEFAULT_MCP_ROOT,
   budgetConfig,
   now = Date.now,
+  publicationCoordination = true,
 } = {}) {
   const budgets = await loadPerformanceBudgets({ configPath: budgetConfig, mcpRoot })
   const budgetMs = budgetValue(budgets, "artifacts", "validate_ms")
@@ -397,11 +405,13 @@ export async function validateArtifacts({
     pluginRoot,
     mcpRoot,
     currentDocs,
+    publicationCoordination,
   })
   const snapshots = await validateAllSnapshots({
     pluginRoot,
     mcpRoot,
     currentDocs,
+    publicationCoordination,
   })
   const elapsedMs = assertWithinBudget({
     startedAt,
@@ -453,8 +463,24 @@ function representedDocuments(db) {
   }))
 }
 
-async function validateAllVectorPacks({ pluginRoot, mcpRoot, currentDocs }) {
+async function validateAllVectorPacks({
+  pluginRoot,
+  mcpRoot,
+  currentDocs,
+  publicationCoordination = true,
+}) {
   const dir = path.join(pluginRoot, "artifacts", "vector-packs", ACTIVE_EMBEDDING_SPEC.id)
+  if (publicationCoordination) {
+    return withArtifactRead({
+      directory: dir,
+      read: () => validateAllVectorPacks({
+        pluginRoot,
+        mcpRoot,
+        currentDocs,
+        publicationCoordination: false,
+      }),
+    })
+  }
   const files = await filesWithSuffix(dir, ".jsonl")
   const out = []
   const context = snapshotCompatibilityContext({
@@ -465,9 +491,13 @@ async function validateAllVectorPacks({ pluginRoot, mcpRoot, currentDocs }) {
     const validation = await validateVectorPackFile({
       pluginRoot,
       packPath,
-      expectedArtifactSourceScopeHash: context.expectedArtifactSourceScopeHash,
+      expectedArtifactSourceScopeHash:
+        context.expectedArtifactSourceScopeHash,
       expectedDocumentTreeHash: context.expectedDocumentTreeHash,
-      expectedDiscoveryGrammarVersion: context.expectedDiscoveryGrammarVersion,
+      expectedDocuments: currentDocs,
+      expectedDiscoveryGrammarVersion:
+        context.expectedDiscoveryGrammarVersion,
+      publicationCoordination: false,
     })
     out.push({
       pack_id: validation.pack_id,
@@ -481,12 +511,31 @@ async function validateAllVectorPacks({ pluginRoot, mcpRoot, currentDocs }) {
   }
 }
 
-async function validateAllSnapshots({ pluginRoot, mcpRoot, currentDocs }) {
+async function validateAllSnapshots({
+  pluginRoot,
+  mcpRoot,
+  currentDocs,
+  publicationCoordination = true,
+}) {
   const dir = path.join(pluginRoot, "artifacts", "snapshots", ACTIVE_EMBEDDING_SPEC.id)
+  if (publicationCoordination) {
+    return withArtifactRead({
+      directory: dir,
+      read: () => validateAllSnapshots({
+        pluginRoot,
+        mcpRoot,
+        currentDocs,
+        publicationCoordination: false,
+      }),
+    })
+  }
   const files = await filesWithSuffix(dir, ".sqlite.zst")
   const out = []
   for (const snapshotPath of files) {
-    const manifestPath = snapshotPath.replace(/\.sqlite\.zst$/u, ".manifest.json")
+    const manifestPath = snapshotPath.replace(
+      /\.sqlite\.zst$/u,
+      ".manifest.json",
+    )
     const manifest = await readJson(manifestPath)
     const context = snapshotCompatibilityContext({
       mcpRoot,
@@ -498,6 +547,7 @@ async function validateAllSnapshots({ pluginRoot, mcpRoot, currentDocs }) {
       expectedSpec: ACTIVE_EMBEDDING_SPEC,
       expectedDbSchema: SNAPSHOT_DB_SCHEMA,
       ...context,
+      publicationCoordination: false,
     })
     out.push({
       snapshot_id: validation.snapshot_id,

@@ -6,20 +6,26 @@ const path = require("node:path")
 
 const ARTIFACT_SOURCE_PATHS = Object.freeze([
   "plugins/desk/mcp/src/artifacts/tombstones.js",
+  "plugins/desk/mcp/src/db/init.js",
   "plugins/desk/mcp/src/indexer/chunk.js",
   "plugins/desk/mcp/src/indexer/discover.js",
   "plugins/desk/mcp/src/indexer/document-tree.js",
+  "plugins/desk/mcp/src/indexer/embed.js",
   "plugins/desk/mcp/src/indexer/exclusions.js",
   "plugins/desk/mcp/src/indexer/index.js",
   "plugins/desk/mcp/src/indexer/refs.js",
+  "plugins/desk/mcp/src/indexer/spec.js",
   "plugins/desk/mcp/src/indexer/vector-packs.js",
   "plugins/desk/mcp/src/snapshots/manifest.js",
   "plugins/desk/mcp/src/snapshots/restore.js",
   "plugins/desk/mcp/src/artifacts/artifact-scripts.js",
+  "plugins/desk/mcp/src/artifacts/performance-budgets.js",
   "plugins/desk/mcp/src/artifacts/manifest-contracts.cjs",
   "plugins/desk/mcp/src/artifacts/policy.js",
   "plugins/desk/mcp/src/artifacts/publication.js",
   "plugins/desk/mcp/src/server-helpers.js",
+  "plugins/desk/mcp/src/indexer/root-identity.js",
+  "plugins/desk/mcp/src/runtime/runtime-deps.js",
   "plugins/desk/mcp/scripts/build-vector-pack.js",
   "plugins/desk/mcp/scripts/build-snapshot.js",
   "plugins/desk/mcp/scripts/verify-snapshot.js",
@@ -104,7 +110,10 @@ function validateArtifactManifest({
     throw new Error("artifact manifest type must be snapshot or vector-pack")
   }
   assertExactObject(manifest, fields, label)
-  assertEqual(manifest.schema_version, 1, `${label} schema_version must be 1`)
+  if (manifest.schema_version !== 1 && manifest.schema_version !== 2) {
+    throw new Error(`${label} schema_version must be 1 or 2`)
+  }
+  const isCurrentSchema = manifest.schema_version === 2
   assertPathSafeId(
     artifactType === "vector-pack" ? manifest.pack_id : manifest.snapshot_id,
     artifactType === "vector-pack" ? "pack_id" : "snapshot_id",
@@ -126,7 +135,7 @@ function validateArtifactManifest({
   }
   assertSha(manifest.artifact_source_scope_hash, `${label} artifact_source_scope_hash`)
   assertSha(manifest.document_tree_hash, `${label} document_tree_hash`)
-  if (expectedArtifactSourceScopeHash !== undefined) {
+  if (isCurrentSchema && expectedArtifactSourceScopeHash !== undefined) {
     assertEqual(
       manifest.artifact_source_scope_hash,
       expectedArtifactSourceScopeHash,
@@ -159,7 +168,12 @@ function validateArtifactManifest({
   })
   assertIsoTimestamp(manifest.created_at, `${label} created_at`)
   validateProvenance(manifest.provenance, artifactType, label)
-  validateSourcePaths(manifest.source_paths, expectedSourcePaths, label)
+  validateSourcePaths({
+    sourcePaths: manifest.source_paths,
+    expectedSourcePaths,
+    schemaVersion: manifest.schema_version,
+    label,
+  })
 
   if (artifactType === "vector-pack") {
     validateVectorPackManifest({
@@ -367,13 +381,13 @@ function validateRepresentedDocuments({
       }
       expectedByPath.set(documentPath, documentHash)
     }
-    if (
-      normalized.length !== expectedByPath.size ||
-      normalized.some((document) =>
-        expectedByPath.get(document.path) !== document.hash
+    const mismatch = normalized.some((document) =>
+      expectedByPath.get(document.path) !== document.hash
+    )
+    if (normalized.length !== expectedByPath.size || mismatch) {
+      throw new Error(
+        `${label} represented_documents must match expected documents`,
       )
-    ) {
-      throw new Error(`${label} represented_documents must match expected documents`)
     }
   }
 }
@@ -396,12 +410,17 @@ function validateProvenance(provenance, artifactType, label) {
   }
 }
 
-function validateSourcePaths(sourcePaths, expectedSourcePaths, label) {
+function validateSourcePaths({
+  sourcePaths,
+  expectedSourcePaths,
+  schemaVersion,
+  label,
+}) {
   if (!Array.isArray(sourcePaths)) {
     throw new Error(`${label} source_paths must be an array`)
   }
-  if (!Array.isArray(expectedSourcePaths) || expectedSourcePaths.length === 0) {
-    throw new Error(`${label} expected source paths must be provided`)
+  if (sourcePaths.length === 0) {
+    throw new Error(`${label} source_paths must be non-empty`)
   }
   const seen = new Set()
   for (let index = 0; index < sourcePaths.length; index += 1) {
@@ -414,8 +433,13 @@ function validateSourcePaths(sourcePaths, expectedSourcePaths, label) {
     }
     seen.add(sourcePath)
   }
-  if (stableStringify(sourcePaths) !== stableStringify(expectedSourcePaths)) {
-    throw new Error(`${label} source_paths must match the canonical source list`)
+  if (schemaVersion === 2) {
+    if (!Array.isArray(expectedSourcePaths) || expectedSourcePaths.length === 0) {
+      throw new Error(`${label} expected source paths must be provided`)
+    }
+    if (stableStringify(sourcePaths) !== stableStringify(expectedSourcePaths)) {
+      throw new Error(`${label} source_paths must match the canonical source list`)
+    }
   }
 }
 
@@ -489,6 +513,9 @@ function assertNormalizedRelativePath(value, label) {
   }
   const normalized = path.posix.normalize(value)
   const segments = value.split("/")
+  if (segments.includes(".state")) {
+    throw new Error(`${label} must not include private .state paths`)
+  }
   if (
     normalized !== value ||
     normalized === "." ||
@@ -496,7 +523,6 @@ function assertNormalizedRelativePath(value, label) {
       segment === "" ||
       segment === "." ||
       segment === ".." ||
-      segment === ".state" ||
       /^[a-z]:$/iu.test(segment)
     )
   ) {
@@ -570,18 +596,36 @@ function artifactSourceScopeHash(mcpRoot, {
   for (const repoPath of ARTIFACT_SOURCE_PATHS) {
     const relFromMcp = repoPath.replace(/^plugins\/desk\/mcp\//u, "")
     hash.update(`${repoPath}\0`)
-    try {
-      hash.update(readFile(path.join(mcpRoot, relFromMcp)))
-    } catch {
-      hash.update(Buffer.alloc(0))
-    }
+    hash.update(readArtifactSource(
+      path.join(mcpRoot, relFromMcp),
+      readFile,
+    ))
     hash.update("\0")
   }
   return `sha256:${hash.digest("hex")}`
 }
 
+function readArtifactSource(filePath, readFile) {
+  try {
+    return Buffer.from(readFile(filePath))
+  } catch {
+    const error = new Error("artifact source input is unavailable")
+    error.code = "artifact_source_unavailable"
+    throw error
+  }
+}
+
+function artifactManifestCompatibility(manifest) {
+  return manifest?.schema_version === 2
+    ? "current"
+    : manifest?.schema_version === 1
+      ? "legacy-reconcile"
+      : "unsupported"
+}
+
 module.exports = {
   ARTIFACT_SOURCE_PATHS,
+  artifactManifestCompatibility,
   artifactSourceScopeHash,
   validateArtifactManifest,
 }
