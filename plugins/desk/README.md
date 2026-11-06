@@ -63,14 +63,23 @@ claude --agent desk:worker
 
 # Copilot CLI
 copilot --agent worker
-
-# Codex — after installing the plugin, copy the subagent template once:
-cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
-# then in a Codex session:
-codex /agent worker
 ```
 
-Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
+**Codex — two paths**. Codex plugins cannot ship agents or AGENTS.md content directly per the plugin schema, so the agent layer is user-installed. Pick one or both:
+
+```bash
+# Path A — default behavior (recommended): make Codex itself behave like worker
+# every session by appending the canonical body to ~/.codex/AGENTS.md.
+awk '/^---$/{c++; next} c>=2' ~/plugins/desk/agents/worker.md >> ~/.codex/AGENTS.md
+
+# Path B — explicit subagent: invoke /agent worker on demand
+cp ~/plugins/desk/agents/worker.toml ~/.codex/agents/worker.toml
+# then in a Codex session: /agent worker
+```
+
+Paths A and B compose. See [`agents/README.md`](./agents/README.md) for the per-harness install reference, and `desk:codex-onboarding` for the full Codex install sequence including the agent layer.
+
+Three agent files (`agents/worker.md`, `agents/worker.agent.md`, `agents/worker.toml`) ship the same canonical body in each harness's expected format. If you want a context-specific overlay (corporate-engineering, autonomous-agent, personal-coding), author it as a sibling plugin that depends on `desk` and provides its own agent file; the substrate stays generic.
 
 ## what desk gives an agent
 
