@@ -1,5 +1,22 @@
 # desk plugin — changelog
 
+## 1.2.0 — 2026-05-22
+
+**`session-start-migrations` framework.** New skill that auto-heals stale machine state when a plugin's canonical names drift (workspace dir renamed, plugin clone moved, symlink target changed, etc.). Walks every enabled plugin's `migrations/<NN>-<slug>.md` dir at session start, runs each migration's Detect predicate, and (for the ones that fire) runs Safety check + Migrate + Announce, then hard-stops the session for restart.
+
+Why this lives in desk (substrate), not in any overlay: overlays sometimes rename themselves, and a migration framework hosted inside the plugin being renamed has to rename itself mid-execution. Substrate-resident means the framework survives any overlay churn.
+
+Design choices:
+
+- **Self-evidencing predicates, no marker file.** Each migration's Detect block inspects actual machine state (a dir's existence, a symlink's target). Robust against restored backups, partial Time Machine snapshots, and any other path where a marker file desyncs from reality. Cost: every Detect runs on every session start; on a machine with no pending migrations (the common case) this is a few cheap bash exits.
+- **Four sections (Detect / Safety check / Migrate / Announce)** map cleanly to one concern each. Detect is a pure predicate. Safety guards against partial state. Migrate does the work, idempotently. Announce is the operator-facing message.
+- **Cross-plugin ordering by alphabetical filename.** The `<NN>-<slug>.md` convention plus a 2-digit prefix gives global ordering across every plugin's migrations dir; plugins coordinate by picking the next available `NN` rather than via a central registry.
+- **`needs_restart: true` hard-stops the session** after the announcement. The operator restarts; the next session begins against canonical paths.
+
+Integration: `desk:session-start` now hands off to this skill in a new Step 0.5 — after Step 0's host-identity probe, before Step 1's prereq probe. The order matters: most later steps assume `$DESK/` resolves to the canonical workspace path, so migrations run first.
+
+This release ships the framework only; the first actual migration (`01-workspace-to-ms-desk.md`) lands in a follow-up PR.
+
 ## 1.1.0 — 2026-05-22
 
 **Archive is now searchable.** Reversed the v1.0 Unit 4 decision to skip `_archive/` at index time. Archive content was always meant to be preserved for future recall — making it unsearchable defeated the purpose.
