@@ -47,6 +47,12 @@
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
       "tags": ["books", "ebooks", "libgen", "e-reader"]
+    },
+    {
+      "name": "full-systems-audit",
+      "path": "skills/full-systems-audit/SKILL.md",
+      "description": "Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces a doing doc with chained, PR-scoped fixes.",
+      "tags": ["audit", "architecture", "refactoring", "code-quality"]
     }
   ]
 }
