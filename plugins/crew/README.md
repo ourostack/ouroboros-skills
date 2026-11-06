@@ -14,7 +14,7 @@ operator's workspace, `crew` is what turns one git repo into a shared workspace 
 - **perspective queries** -- answer "what would `<person>` think about X", "what's `<person>` working
   on", "what's actually agreed vs just a fact", read from the right home and attributed honestly.
 
-Vendor-neutral. Layers on top of `desk` + `work-suite`. An overlay (e.g. a Microsoft `ms-desk`) supplies
+Vendor-neutral. Layers on top of `desk` + `work-suite`. A corporate overlay supplies
 the identity skin (how a teammate's writes authenticate); this plugin is the substrate-neutral core.
 
 ## Skills
