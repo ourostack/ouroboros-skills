@@ -5,16 +5,16 @@ description: How worker maintains the operator's friction log — appending new 
 
 # Friction management
 
-The friction log at `$DESK/_meta/friction.md` (and per-track `<track>/_friction/friction.md` for track-local pain) is worker's primary improvement pipeline. Operators capture real-use pain; future sessions turn pain into skill/agent/plumbing fixes. The log is only useful if it's readable — if it grows into a wall of mostly-landed entries, operators can't find the open ones and the signal dies.
+the corkboard above the desk is where i pin the things that snagged. `$DESK/_meta/friction.md` is the operator-wide corkboard; each track has its own smaller one at `<track>/_friction/friction.md` for pain that belongs to just that drawer. operators pin cards when real use snags; future sessions take cards down and turn them into fixes. the corkboard only works if it stays readable — if it fills up with cards whose fixes already shipped, the still-open ones get lost behind them, and the whole thing goes quiet.
 
-This skill governs three operations: append, mark landed, archive.
+this skill governs three small motions: pin a new card, mark a card landed, and move the landed card off the corkboard in the same breath.
 
-## 1. Append (new friction)
+## 1. Pin a new card
 
-When the operator hits friction, or when worker notices a recurring rough edge:
+when the operator hits friction, or when i notice a recurring rough edge:
 
-1. Decide the scope: is this operator-specific (`_meta/friction.md`), or track-specific (`<track>/_friction/friction.md`)? Default to operator-level; use track-local only when the issue is tightly coupled to one track's work.
-2. Append a new entry at the END of the file using this format:
+1. decide the scope. is this operator-wide (`_meta/friction.md`), or does it belong to one drawer (`<track>/_friction/friction.md`)? default to operator-wide; use track-local only when the issue is tightly coupled to one track's work.
+2. append a new entry at the END of the file using this format:
 
    ```markdown
    ## YYYY-MM-DD — <short title>
@@ -30,55 +30,55 @@ When the operator hits friction, or when worker notices a recurring rough edge:
    **Status**: open.
    ```
 
-3. Commit + push to worker-workspace. No separate review step; the log is live evidence.
+3. commit + push to worker-workspace. no separate review step; the corkboard is live evidence.
 
-### Capture during the activity, not after
+### Pin the card while it's still warm
 
-**Capture friction during the activity that surfaced it, not after.**
-Mid-meeting / mid-debug / mid-review captures preserve the
+pin friction during the activity that surfaced it, not after.
+mid-meeting / mid-debug / mid-review captures preserve the
 surface-level detail (specific tool result, exact phrasing,
 immediate cost, the sequence of events that made the failure mode
-visible) that fades within hours. Post-hoc capture compresses
+visible) that fades within hours. post-hoc capture compresses
 nuance into "we hit X" without the Y and Z that made X hurt.
 
-The bias is toward writing the entry while the failure is still
-fresh, even if it interrupts the activity for thirty seconds. The
-alternative — "I'll write it up after the meeting" — produces
+the bias is toward writing the entry while the failure is still
+fresh, even if it interrupts the activity for thirty seconds. the
+alternative — "i'll write it up after the meeting" — produces
 shallower entries that miss the specific friction surface and end
 up under-leveraged when curator processes the backlog.
 
-A short live-capture entry is more useful than a long after-the-fact
-one. Capture the cost first ("burned a tool-result of context", "lost
+a short live-capture entry is more useful than a long after-the-fact
+one. capture the cost first ("burned a tool-result of context", "lost
 ten minutes", "operator caught at last possible moment"), then expand
-to root cause once the activity wraps. The cost-first frame anchors
+to root cause once the activity wraps. the cost-first frame anchors
 the entry to evidence and resists drift toward post-hoc rationalization.
 
-## 2. Mark landed
+## 2. Mark a card landed
 
-When a fix ships in the worker plugin (or other owning repo) that resolves a friction entry:
+when a fix ships in the worker plugin (or other owning repo) that resolves a card on the corkboard:
 
-1. Update the entry's `**Status**:` line. Format:
+1. update the entry's `**Status**:` line. format:
 
    ```markdown
    **Status**: landed in <repo> commit `<sha>` (PR #N) — <one-line summary of how the fix addresses the friction>.
    ```
 
-   If the fix is only partial, use `partial` and spell out what remains open.
+   if the fix is only partial, use `partial` and spell out what remains open.
 
-2. **In the SAME commit**, move the entry out of the live log. See section 3.
+2. **in the SAME commit**, take the card off the corkboard. see section 3.
 
-**Why same commit:** an entry marked `landed` but still in the live log is easy to miss — readers scan down the file and all they see is friction, landed or not. The canonical state of the friction log is "live = open." Mixing landed in with open degrades the whole log.
+**why same commit:** a card marked `landed` but still pinned is easy to miss — readers scan down the file and all they see is friction, landed or not. the canonical state of the corkboard is "pinned = still open." mixing landed in with open dulls the whole board.
 
-## 3. Archive — same motion as mark-landed
+## 3. Take the card down — same motion as mark-landed
 
-Move landed/partial entries to `_meta/_archive/friction-YYYY-MM-DD.md` (or `<track>/_friction/_archive/friction-YYYY-MM-DD.md` for track-local).
+move landed/partial entries into `_meta/_archive/friction-YYYY-MM-DD.md` (or `<track>/_friction/_archive/friction-YYYY-MM-DD.md` for track-local). landed cards aren't thrown away — they slide into the back of the room, still browsable, still mine.
 
 ### Archive file naming
 
-- **Per-date**: `friction-YYYY-MM-DD.md` — groups entries archived on the same date.
-- **Per-theme** (when a batch of related entries lands together): `friction-YYYY-MM-DD-<theme>.md` — e.g., `friction-2026-04-17-windows-prereqs.md`.
+- **per-date**: `friction-YYYY-MM-DD.md` — groups entries archived on the same date.
+- **per-theme** (when a batch of related entries lands together): `friction-YYYY-MM-DD-<theme>.md` — e.g., `friction-2026-04-17-windows-prereqs.md`.
 
-Use per-theme when 3+ entries land in one sweep with a shared story (e.g., "all the first-Windows-run friction"). Use per-date otherwise.
+use per-theme when 3+ entries land in one sweep with a shared story (e.g., "all the first-Windows-run friction"). use per-date otherwise.
 
 ### Archive file structure
 
@@ -98,11 +98,11 @@ Entries archived from `_meta/friction.md` on <YYYY-MM-DD>. Each is landed or par
 ---
 ```
 
-Entries keep their original bodies verbatim — no rewording when archiving. The archive is evidence, not a summary.
+entries keep their original bodies verbatim — no rewording when archiving. the archive is evidence, not a summary.
 
 ### The single-motion rule
 
-Archiving must happen in the SAME git commit as the `Status: landed` update. Commit message pattern:
+archiving must happen in the SAME git commit as the `Status: landed` update. commit message pattern:
 
 ```
 friction: archive landed — <comma-separated short titles> (<sha>s)
@@ -111,19 +111,19 @@ Entries moved from _meta/friction.md to _meta/_archive/friction-<date>[-<theme>]
 Status lines updated in the archived copy with the shipping commit sha.
 ```
 
-Splitting the mark-landed and archive steps leaves a window where `friction.md` has inconsistent state (some landed entries inline, others already archived). Always atomic.
+splitting the mark-landed and archive steps leaves a window where `friction.md` has inconsistent state (some landed entries still pinned, others already in the back). always atomic.
 
-## 4. When the live log grows past ~150 lines
+## 4. When the corkboard fills up past ~150 lines
 
-Even with open-only-in-live, an operator can accumulate open items faster than they fix them. If `_meta/friction.md` grows past ~150 lines, consider:
+even with open-only-on-the-board, an operator can accumulate open cards faster than they fix them. if `_meta/friction.md` grows past ~150 lines, consider:
 
-- **Group by theme** in the archive when you eventually land a batch.
-- **Add a brief summary at the top of `friction.md`** — e.g. "N open entries across [themes]" — so the shape is visible at a glance.
+- **group by theme** in the archive when you eventually land a batch.
+- **add a brief summary at the top of `friction.md`** — e.g. "N open entries across [themes]" — so the shape of the board is visible at a glance.
 
-Do NOT aggressively close entries just to shrink the log. Open means unresolved; the log is evidence, not a todo list.
+do NOT aggressively close entries just to shrink the log. open means unresolved; the corkboard is evidence, not a todo list.
 
 ## 5. Never delete, never rewrite
 
-- Don't delete entries, even landed ones. Archive them.
-- Don't edit an entry's original `What happened` / `Why it hurt` / `Proposed fix` after it's written. Those are the operator's in-the-moment capture; rewriting them loses the signal of what they actually experienced.
-- Only the `Status:` line changes after initial write. Everything else is append-only evidence.
+- don't delete entries, even landed ones. archive them.
+- don't edit an entry's original `What happened` / `Why it hurt` / `Proposed fix` after it's written. those are the operator's in-the-moment capture; rewriting them loses the signal of what they actually experienced.
+- only the `Status:` line changes after initial write. everything else is append-only evidence.
