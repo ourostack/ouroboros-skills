@@ -6,6 +6,12 @@ on:
     branches:
       - main
 
+# A newer push to a pull request cancels its older run. Runs not triggered by a pull request each
+# get their own group, so they are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     name: Validate skills
