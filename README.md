@@ -4,9 +4,15 @@
 </p>
 <!-- ourostack:brand:end -->
 
-# ouroboros-skills
+# Ouroboros skills
 
-Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable instruction sets (stored as `SKILL.md` files) that teach AI agents how to perform specific workflows -- from task planning and execution to video editing and repository management.
+**Skills that teach Ouro agents whole workflows, from planning a task to shipping it.**
+
+[ouroboros.bot/lab](https://ouroboros.bot/lab/) · [`manifest.json`](manifest.json) · [All skills](#available-skills) · [More from Ouro](https://github.com/ourostack)
+
+Start here: give your agent [`skills/skill-management/SKILL.md`](skills/skill-management/SKILL.md). With it, the agent can browse `manifest.json` and install the rest itself.
+
+Shared skill repository for the Ouroboros agent ecosystem. Skills are reusable instruction sets (stored as `SKILL.md` files) that teach agents how to perform specific workflows -- from task planning and execution to video editing and repository management.
 
 Any agent with the **skill-management** skill installed can browse, install, update, and contribute skills from this repo.
 
