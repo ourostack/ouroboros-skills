@@ -25,6 +25,12 @@ mkdir -p .ouro-check && (cd .ouro-check && npm init -y >/dev/null && npm pkg set
 node .ouro-check/check.ts https://example.com/ https://example.com/about/ --sizes 390x844,1440x900,3840x2160
 ```
 
+An app whose views have no address (an open chat, a call, a tab) is checked in them by listing the presses that reach each one under `states` in `ouro-check.json`, as Playwright selectors, then passing `--config ouro-check.json`. Each state is checked as a page of its own, named after the page and the state. A press that finds nothing shows up as the state's page not loading, so fix the selector first. List only presses that change what the page shows, and point the check at made-up data:
+
+```json
+{ "states": { "/?mock=1": { "a chat open": ["text=Launch planning"], "in the call": ["role=button[name=\"Join\"]"] } } }
+```
+
 It needs Node 22.18 or newer. Leave out `--sizes` to sweep every size from a 320px phone to a 3840px screen. `--themes light` narrows to one theme; `--no-measured` skips the timing rules and the walk. On a shared machine, run one check at a time: it runs one headless browser, never a visible one.
 
 ## Read the findings, not the pictures
