@@ -68,7 +68,7 @@ try {
 
   const fingerprint = spawnSync(
     process.execPath,
-    [cli, "fingerprint", "evals/investigation-boundaries.json"],
+    [cli, "fingerprint", "evals/core-meeting-capture.json"],
     { cwd: root, encoding: "utf8" },
   );
   assert.equal(fingerprint.status, 0, fingerprint.stderr);

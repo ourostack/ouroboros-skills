@@ -4,13 +4,26 @@
       "name": "core-meeting-capture",
       "path": "skills/core-meeting-capture/SKILL.md",
       "description": "Use when capturing, refreshing or publishing a meeting, transcript, chat, recording or meeting recap; when a capture README is only a receipt; or when slides, diagrams, whiteboards or demos mentioned in a meeting need visual evidence. Not for recording an ongoing livestream or generating illustrations.",
-      "tags": ["meetings", "recap", "capture", "transcript", "visual-evidence", "recording"]
+      "tags": [
+        "meetings",
+        "recap",
+        "capture",
+        "transcript",
+        "visual-evidence",
+        "recording"
+      ]
     },
     {
       "name": "draining-issues",
       "path": "skills/draining-issues/SKILL.md",
       "description": "Use when assigned to draining issues, an issue drain, a repository issue queue, or prompt requests, including resuming a drain or watching for new issues.",
-      "tags": ["workflow", "issues", "issue-drain", "prompt-requests", "delivery"]
+      "tags": [
+        "workflow",
+        "issues",
+        "issue-drain",
+        "prompt-requests",
+        "delivery"
+      ]
     },
     {
       "name": "anneal",
@@ -163,17 +176,6 @@
       ]
     },
     {
-      "name": "plain-language",
-      "path": "plugins/plain-language/skills/plain-language/SKILL.md",
-      "description": "Make human-readable replies, documents, reviews, status updates, and handoffs easy for their intended readers to find, understand, and use without weakening facts, uncertainty, safety, technical precision, schemas, quotations, or requested voice.",
-      "tags": [
-        "writing",
-        "communication",
-        "quality",
-        "agent-output"
-      ]
-    },
-    {
       "name": "seo-titles",
       "path": "skills/seo-titles/SKILL.md",
       "description": "Write HTML title tags that rank AND get clicked. Marketing message first, SEO element second.",
@@ -315,7 +317,12 @@
       "name": "ouro-check",
       "path": "skills/ouro-check/SKILL.md",
       "description": "Check whether a site, a built app or a page looks, reads and moves right (design, layout, pictures, accessibility, jank, HTTPS) at phone, laptop and 4K sizes in light and dark, from JSON findings instead of screenshots or recordings.",
-      "tags": ["design", "qa", "web", "ouro-ui"]
+      "tags": [
+        "design",
+        "qa",
+        "web",
+        "ouro-ui"
+      ]
     }
   ]
 }

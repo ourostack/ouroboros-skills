@@ -12,7 +12,7 @@ Declared source completeness is a maintainer-reviewed mapping that the script ca
 
 The pilot fingerprints each declared owner as a whole file; do not add section or anchor extraction unless whole-file review becomes insufficient.
 
-Run `node scripts/skill-evals.cjs validate`, `node scripts/skill-evals.cjs fingerprint evals/investigation-boundaries.json`, or `node scripts/skill-evals.cjs verify path/to/result.json`. The fingerprint command prints both hashes a receipt must carry; use its output instead of reserializing the contract.
+Run `node scripts/skill-evals.cjs validate`, `node scripts/skill-evals.cjs fingerprint evals/core-meeting-capture.json`, or `node scripts/skill-evals.cjs verify path/to/result.json`. The fingerprint command prints both hashes a receipt must carry; use its output instead of reserializing the contract.
 
 Add scenarios from observed regressions, not to inflate counts.
 
