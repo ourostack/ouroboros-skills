@@ -18,22 +18,6 @@ const requiredDeskMcpPackageScripts = {
   "artifact:snapshot:verify": "node scripts/verify-snapshot.js",
   "artifact:validate": "node scripts/validate-artifacts.js",
 };
-const workSuiteSkillNames = [
-  "autopilot",
-  "deep-research",
-  "inch-worm",
-  "stay-in-turn",
-  "visual-qa-dogfood",
-  "watchdog-mode",
-  "work-doer",
-  "work-ideator",
-  "work-merger",
-  "work-planner",
-];
-const canonicalPluginCopies = {
-  "work-suite": workSuiteSkillNames,
-};
-
 function repoPath(filePath, { repoRoot = process.cwd() } = {}) {
   return path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
 }
@@ -150,255 +134,6 @@ function validateManifest(options = {}) {
   console.log(`Validated ${manifest.skills.length} skills.`);
 }
 
-function validateCanonicalPluginCopies(options = {}) {
-  const copyMap = options.copyMap ?? canonicalPluginCopies;
-  let validatedCopies = 0;
-
-  for (const [plugin, skills] of Object.entries(copyMap)) {
-    const pluginRoot = path.join("plugins", plugin, "skills");
-    const pluginEntries = readDir(pluginRoot, options)
-      .filter((name) => stat(path.join(pluginRoot, name), options).isDirectory())
-      .sort();
-    const expectedEntries = [...skills].sort();
-    const missing = expectedEntries.filter((name) => !pluginEntries.includes(name));
-    const extra = pluginEntries.filter((name) => !expectedEntries.includes(name));
-    if (missing.length > 0 || extra.length > 0) {
-      throw new Error(`${plugin} skill set mismatch: missing=[${missing.join(", ")}] extra=[${extra.join(", ")}]`);
-    }
-
-    for (const skill of skills) {
-      const canonicalPath = path.join("skills", skill, "SKILL.md");
-      const pluginPath = path.join(pluginRoot, skill, "SKILL.md");
-      if (!exists(canonicalPath, options)) {
-        throw new Error(`${plugin} skill ${skill}: missing canonical ${canonicalPath}`);
-      }
-      if (!exists(pluginPath, options)) {
-        throw new Error(`${plugin} skill ${skill}: missing plugin copy ${pluginPath}`);
-      }
-      const canonical = readText(canonicalPath, options);
-      const pluginCopy = readText(pluginPath, options);
-      if (canonical !== pluginCopy) {
-        throw new Error(`${plugin} skill ${skill}: ${pluginPath} is out of sync with ${canonicalPath}`);
-      }
-      validatedCopies += 1;
-    }
-  }
-
-  console.log(`Validated ${validatedCopies} canonical plugin copies across ${Object.keys(copyMap).length} plugin(s).`);
-}
-
-function validatePluginMetadata(options = {}) {
-  const pluginsDir = "plugins";
-  const pluginNames = readDir(pluginsDir, options)
-    .filter((name) => stat(path.join(pluginsDir, name), options).isDirectory())
-    .sort();
-
-  for (const name of pluginNames) {
-    const claudePath = path.join(pluginsDir, name, ".claude-plugin", "plugin.json");
-    const codexPath = path.join(pluginsDir, name, ".codex-plugin", "plugin.json");
-    if (!exists(claudePath, options) || !exists(codexPath, options)) {
-      continue;
-    }
-    const claude = readJson(claudePath, options);
-    const codex = readJson(codexPath, options);
-    if (claude.name !== codex.name) {
-      throw new Error(`${name}: Claude plugin name ${claude.name} does not match Codex plugin name ${codex.name}`);
-    }
-    if (claude.version !== codex.version) {
-      throw new Error(`${name}: Claude plugin version ${claude.version} does not match Codex plugin version ${codex.version}`);
-    }
-    const defaultPrompts = codex.interface?.defaultPrompt ?? [];
-    if (!Array.isArray(defaultPrompts)) {
-      throw new Error(`${name}: Codex interface.defaultPrompt must be an array`);
-    }
-    if (defaultPrompts.length > maxCodexDefaultPromptCount) {
-      throw new Error(`${name}: Codex interface.defaultPrompt must contain at most ${maxCodexDefaultPromptCount} prompts`);
-    }
-    for (const [index, prompt] of defaultPrompts.entries()) {
-      if (typeof prompt !== "string") {
-        throw new Error(`${name}: Codex interface.defaultPrompt[${index}] must be a string`);
-      }
-      if (prompt.length > maxCodexDefaultPromptLength) {
-        throw new Error(`${name}: Codex interface.defaultPrompt[${index}] exceeds ${maxCodexDefaultPromptLength} characters`);
-      }
-    }
-    if (hasText(codex.skills)) {
-      const skillsDir = path.join(pluginsDir, name, codex.skills.replace(/^\.\//u, ""));
-      for (const skillName of readDir(skillsDir, options)) {
-        const skillPath = path.join(skillsDir, skillName, "SKILL.md");
-        if (!exists(skillPath, options)) {
-          continue;
-        }
-        const frontmatter = frontmatterBlock(readText(skillPath, options));
-        if (!frontmatter) {
-          throw new Error(`${name}/${skillName}: missing YAML frontmatter`);
-        }
-        let description;
-        try {
-          description = frontmatterScalar(frontmatter, "description");
-        } catch (error) {
-          throw new Error(`${name}/${skillName}: ${error.message}`);
-        }
-        if (!hasText(description)) {
-          throw new Error(`${name}/${skillName}: frontmatter description is required`);
-        }
-        if (description.length > maxCodexSkillDescriptionLength) {
-          throw new Error(`${name}/${skillName}: frontmatter description exceeds ${maxCodexSkillDescriptionLength} characters`);
-        }
-      }
-    }
-  }
-
-  const marketplacePath = path.join(".claude-plugin", "marketplace.json");
-  const marketplace = readJson(marketplacePath, options);
-  for (const plugin of marketplace.plugins ?? []) {
-    if (typeof plugin.source !== "string") {
-      continue;
-    }
-    const pluginPath = path.join(plugin.source, ".claude-plugin", "plugin.json");
-    if (!exists(pluginPath, options)) {
-      throw new Error(`${plugin.name}: marketplace source is missing ${pluginPath}`);
-    }
-    const manifest = readJson(pluginPath, options);
-    if (plugin.name !== manifest.name) {
-      throw new Error(`${plugin.name}: marketplace name does not match ${pluginPath} name ${manifest.name}`);
-    }
-    if (plugin.version !== manifest.version) {
-      throw new Error(`${plugin.name}: marketplace version ${plugin.version} does not match ${pluginPath} version ${manifest.version}`);
-    }
-  }
-
-  const codexPluginNames = pluginNames
-    .filter((name) => exists(path.join(pluginsDir, name, ".codex-plugin", "plugin.json"), options));
-  const codexMarketplacePath = path.join(".agents", "plugins", "marketplace.json");
-  if (codexPluginNames.length > 0) {
-    if (!exists(codexMarketplacePath, options)) {
-      throw new Error(`Codex marketplace is missing ${codexMarketplacePath}`);
-    }
-    const codexMarketplace = readJson(codexMarketplacePath, options);
-    if (!hasText(codexMarketplace.name)) {
-      throw new Error("Codex marketplace name is required for plugin cache namespace checks");
-    }
-    if (!Array.isArray(codexMarketplace.plugins)) {
-      throw new Error("Codex marketplace plugins must be an array");
-    }
-
-    const codexEntries = new Map();
-    for (const plugin of codexMarketplace.plugins) {
-      if (!hasText(plugin?.name)) {
-        continue;
-      }
-      if (codexEntries.has(plugin.name)) {
-        throw new Error(`${plugin.name}: duplicate Codex marketplace plugin entry`);
-      }
-      codexEntries.set(plugin.name, plugin);
-    }
-
-    for (const name of codexPluginNames) {
-      const plugin = codexEntries.get(name);
-      if (!plugin) {
-        throw new Error(`${name}: Codex marketplace missing plugin entry`);
-      }
-      if (!isObject(plugin.source) || !hasText(plugin.source.path)) {
-        throw new Error(`${name}: Codex marketplace source.path is required`);
-      }
-      if (plugin.source.source !== "local") {
-        throw new Error(`${name}: Codex marketplace source.source must be local`);
-      }
-      const pluginPath = path.join(plugin.source.path, ".codex-plugin", "plugin.json");
-      if (!exists(pluginPath, options)) {
-        throw new Error(`${name}: Codex marketplace source is missing ${pluginPath}`);
-      }
-      const manifest = readJson(pluginPath, options);
-      if (name !== manifest.name) {
-        throw new Error(`${name}: Codex marketplace name does not match ${pluginPath} name ${manifest.name}`);
-      }
-    }
-  }
-
-  console.log("Validated plugin metadata.");
-}
-
-function validateDeskMcpPackageScripts(options = {}) {
-  const packagePath = path.join("plugins", "desk", "mcp", "package.json");
-  const packageJson = readJson(packagePath, options);
-  for (const [scriptName, command] of Object.entries(requiredDeskMcpPackageScripts)) {
-    if (packageJson.scripts?.[scriptName] !== command) {
-      throw new Error(`desk MCP package script ${scriptName} must be ${command}`);
-    }
-    const targetPath = path.join("plugins", "desk", "mcp", command.replace(/^node\s+scripts\//u, "scripts/"));
-    if (!exists(targetPath, options)) {
-      throw new Error(`desk MCP package script ${scriptName} target is missing: ${targetPath}`);
-    }
-  }
-
-  console.log(`Validated ${Object.keys(requiredDeskMcpPackageScripts).length} desk MCP package scripts.`);
-}
-
-function runDeskFreshnessChecks(options = {}) {
-  const {
-    childStdio = "inherit",
-    repoRoot = process.cwd(),
-    spawnSync = defaultSpawnSync,
-  } = options;
-  validateDeskMcpPackageScripts(options);
-
-  const hostManifestResult = spawnSync(process.execPath, ["scripts/test-desk-host-manifests.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((hostManifestResult.status ?? 1) !== 0) {
-    throw new Error("desk host manifest freshness tests failed");
-  }
-
-  const generatedArtifactResult = spawnSync(process.execPath, ["scripts/test-desk-generated-artifacts.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((generatedArtifactResult.status ?? 1) !== 0) {
-    throw new Error("desk generated artifact freshness tests failed");
-  }
-
-  const codexCacheAuditResult = spawnSync(process.execPath, ["scripts/test-codex-plugin-cache-audit.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((codexCacheAuditResult.status ?? 1) !== 0) {
-    throw new Error("codex plugin cache audit tests failed");
-  }
-}
-
-function runRuntimeAudit(options = {}) {
-  const {
-    childStdio = "inherit",
-    repoRoot = process.cwd(),
-    spawnSync = defaultSpawnSync,
-  } = options;
-  const autopilotStateResult = spawnSync(process.execPath, ["scripts/test-autopilot-state-audit.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((autopilotStateResult.status ?? 1) !== 0) {
-    throw new Error("autopilot state audit tests failed");
-  }
-
-  const testResult = spawnSync(process.execPath, ["scripts/test-work-suite-runtime-audit.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((testResult.status ?? 1) !== 0) {
-    throw new Error("work-suite runtime visibility audit tests failed");
-  }
-
-  const result = spawnSync(process.execPath, ["scripts/audit-work-suite-runtime.cjs", "--repo-root", "."], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((result.status ?? 1) !== 0) {
-    throw new Error("work-suite runtime visibility contract audit failed");
-  }
-}
-
 function listSkillFiles(dir, options, out) {
   let entries;
   try {
@@ -464,11 +199,7 @@ function validateSkillDescriptionLimits(options = {}) {
 function validateAll(options = {}) {
   validateSkillDescriptionLimits(options);
   validateManifest(options);
-  validateCanonicalPluginCopies(options);
-  validatePluginMetadata(options);
   validateAppleDistributionKitSkill(options);
-  runDeskFreshnessChecks(options);
-  runRuntimeAudit(options);
 }
 
 function validateAppleDistributionKitSkill(options = {}) {
@@ -515,18 +246,12 @@ function startCli({
 }
 
 module.exports = {
-  canonicalPluginCopies,
   readJson,
   run,
-  runDeskFreshnessChecks,
-  runRuntimeAudit,
   startCli,
   validateAll,
   validateAppleDistributionKitSkill,
-  validateCanonicalPluginCopies,
-  validateDeskMcpPackageScripts,
   validateManifest,
-  validatePluginMetadata,
   validateSkillDescriptionLimits,
 };
 

@@ -103,43 +103,11 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
 | **product-cloner** | Clone an existing app's look, feel, and behavior from shipped source as ground truth. |
 
-## Work-Suite Autopilot Loop
+## What moved
 
-Work-suite autopilot includes an exit preflight: before an agent reports done, it must verify terminal merge/deploy/install/smoke state, refresh durable state, write down the continuation scan, and start any ready or reviewer-gated next item. This keeps "what's next?" from becoming a manual operator loop.
+Plugins are how we share agent capabilities now. This repository's plugin copies are gone:
 
-For skill or plugin changes, "done" also requires runtime refresh and dogfooding: sync the consuming skill/plugin copy, prove the installed copy contains the new contract, and run the next real task under that contract. If the current host will not refresh its active skill menu until a new session, the agent should read the installed file directly, record that fact, and keep working from the source-of-truth copy.
+- **Desk, Crew and Plain Language** moved to [`ourostack/desk`](https://github.com/ourostack/desk), which ships them as plugins: `github:ourostack/desk:plugins/desk`, `…:plugins/crew` and `…:plugins/plain-language`. The copies here had fallen behind (Desk 3.2.2 here, against 3.2.84 there).
+- **Work Suite** (`work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot` and the rest) and its pinned **Ponytail** upstream are retired. Desk retired them in favour of Superpowers' process skills ([Desk's small removals](https://github.com/ourostack/desk/blob/main/docs/roadmap/small-removals.md)), and we ship small increments on `main` instead of planning and doing milestones.
 
-### Runtime Visibility Audit
-
-Use `scripts/audit-work-suite-runtime.cjs` to prove the work-suite contract across source, installed roots, and the active host menu snapshot:
-
-```bash
-node scripts/audit-work-suite-runtime.cjs --repo-root .
-node scripts/audit-work-suite-runtime.cjs --repo-root . \
-  --skill-root ~/.agents/skills \
-  --skill-root ~/.codex/skills \
-  --active-skills autopilot,deep-research,inch-worm,stay-in-turn,visual-qa-dogfood,watchdog-mode,work-doer,work-ideator,work-merger,work-planner \
-  --strict-active
-```
-
-The audit always hard-fails source-of-truth problems: missing manifest entries, missing canonical skill files, or plugin copies that drift from `skills/`. Installed roots and active-menu visibility are reported separately because a host session can lag behind disk installs. With `--strict-installed`, installed roots must also have `_registry.json` provenance whose shared work-suite skill commits match the latest source commits; run from a real git checkout so commit provenance can be proven. Under autopilot, a missing active-menu skill is still actionable evidence: re-read the installed `SKILL.md` directly, record the mismatch in durable state, and refresh or restart the host before relying on menu discovery.
-
-### Upstream Source Steward
-
-Run the read-only steward to compare every selected public source against `upstream-sources.lock.json`:
-
-```bash
-node scripts/check-upstream-sources.cjs
-```
-
-The report records repository identity, license, candidate ref and SHA, forward ancestry, selected-file hashes, an aggregate payload digest, changed paths, and one classification per source. `current` and `candidate-no-selected-payload-change` exit successfully. A selected instruction or executable change exits with `needs-human-approval`; repository, auth, network, rate-limit, missing evidence, license, or ancestry failures exit as `blocked`. The command never updates the lock or vendored files.
-
-### Autopilot State Audit
-
-Use `scripts/audit-autopilot-state.cjs` before a final response under autopilot. It checks the durable `AUTOPILOT-STATE.md` proof and fails if the continuation scan still has `ready` or `needs reviewer gate` work:
-
-```bash
-node scripts/audit-autopilot-state.cjs --state-file /path/to/AUTOPILOT-STATE.md
-```
-
-The required table columns are `candidate`, `classification`, `evidence`, and `disposition`. Valid classifications are `ready`, `needs reviewer gate`, `hard exception`, `deferred by scope`, and `none`. Use `none` only as a single sentinel row when the scan found no candidates at all; terminal final-state audits fail while any listed candidate is `ready` or `needs reviewer gate`.
+New work goes to the plugin that owns it, not here. The skills still listed above are moving into plugins next.
