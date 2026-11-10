@@ -20,7 +20,7 @@ Anywhere else, such as a site you don't own, fetch its files from the newest rel
 
 ```sh
 TAG=$(curl -fsSI https://github.com/ourostack/ouro-ui/releases/latest | sed -n 's#^location: .*/tag/\(v[^[:space:]]*\).*#\1#Ip')
-mkdir -p .ouro-check && (cd .ouro-check && npm init -y >/dev/null && npm pkg set type=module && npm i -D playwright axe-core && npx playwright install chromium \
+mkdir -p .ouro-check && (cd .ouro-check && echo '{"private":true,"type":"module"}' > package.json && npm i -D playwright axe-core && npx playwright install chromium \
   && for f in check design-check fade-check in-page measure motion-check overlap-check serve size-check; do curl -fsSLo "$f.ts" "https://raw.githubusercontent.com/ourostack/ouro-ui/$TAG/registry/ouro/check/$f.ts"; done)
 node .ouro-check/check.ts https://example.com/ https://example.com/about/ --sizes 390x844,1440x900,3840x2160
 ```
