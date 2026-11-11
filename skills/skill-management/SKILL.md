@@ -19,9 +19,9 @@ This skill teaches agents how to discover, install, track, update, and contribut
 
 | Layout | Skills directory | Example installed skill path |
 |---------|-----------------|------------------------------|
-| Host-managed skills root | `<host-home>/skills/` | `<host-home>/skills/work-planner/SKILL.md` |
-| Agent-managed skills root | `~/.agents/skills/` | `~/.agents/skills/work-planner/SKILL.md` |
-| Ouroboros bundle | `~/AgentBundles/<agent>.ouro/skills/` | `~/AgentBundles/myagent.ouro/skills/work-planner/SKILL.md` |
+| Host-managed skills root | `<host-home>/skills/` | `<host-home>/skills/word-docs/SKILL.md` |
+| Agent-managed skills root | `~/.agents/skills/` | `~/.agents/skills/word-docs/SKILL.md` |
+| Ouroboros bundle | `~/AgentBundles/<agent>.ouro/skills/` | `~/AgentBundles/myagent.ouro/skills/word-docs/SKILL.md` |
 
 Detect which runtime you are in:
 1. Prefer the skills root exposed by the current host app.
@@ -71,7 +71,7 @@ Fetch a skill from the repo and install it into the local skills directory.
 
 ### Steps
 
-1. Find the skill in `manifest.json`. Set `<source-skill-dir>` to the directory containing its `path`; for example, `skills/work-planner` or `plugins/plain-language/skills/plain-language`.
+1. Find the skill in `manifest.json`. Set `<source-skill-dir>` to the directory containing its `path`; for example, `skills/word-docs`.
 2. Determine the skills directory for the current runtime (see table above), then create the destination if it does not exist:
    ```
    mkdir -p <skills-dir>/<skill-name>/
@@ -270,7 +270,7 @@ The description is a **router, not a summary**. Its only job is to help an agent
 
 Leave everything else to the body (the spec's *progressive disclosure*: the body loads only once the skill is chosen). Cut from the description: mechanism / how it works, rationale / motivation, exhaustive "covers A, B, C, D, E" feature lists, and anything that merely restates the body.
 
-The 1024 cap is a ceiling, not a target. Most good descriptions land well under it (`work-merger` ~250, `emu-github` ~450 characters). If yours is brushing 1024, it is explaining, not routing -- cut it down.
+The 1024 cap is a ceiling, not a target. Most good descriptions land well under it (`word-docs` ~250, `emu-github` ~450 characters). If yours is brushing 1024, it is explaining, not routing -- cut it down.
 
 **YAML-safe format.** Write the description as a `>-` folded block scalar, so colons, quotes, and punctuation cannot break the YAML:
 

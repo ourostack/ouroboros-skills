@@ -149,7 +149,7 @@ Before calling a native UI pass done, make a fresh-eyes taste pass against real 
 - Default imagery is a product decision. Prefer real media, appetizing bundled fallback assets for demo/search contexts, or an explicit no-photo state; do not show unsettling generic placeholders as if they were food.
 - Treat fixed chrome as a spatial contract. Bottom bars, toolbar capsules, and floating controls must reserve or mask space consistently so no row, card, button, or caption peeks underneath.
 - Validate compact and roomy layouts separately. iPhone, iPad, and macOS should share product language, but each needs platform-native navigation density, toolbar placement, window sizing, and escape routes.
-- If the app looks merely acceptable, keep going. Spawn critical reviewers or run another inch-worm pass until the remaining complaints are genuinely marginal rather than obvious to a user in five seconds.
+- If the app looks merely acceptable, keep going. Spawn critical reviewers or run another improvement pass until the remaining complaints are genuinely marginal rather than obvious to a user in five seconds.
 
 ## TestFlight Feedback And Visual Dogfood
 

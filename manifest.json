@@ -26,30 +26,6 @@
       ]
     },
     {
-      "name": "anneal",
-      "path": "skills/anneal/SKILL.md",
-      "description": "Drive a defined codebase scope to a rigorously-defined, defect-free FIXED POINT via gated, convergent, parallel multi-agent autopilot. Measures a scope against an objective rubric, backlogs every violation, plans the fixes as a dependency graph (PERT), executes them through the work-suite (ideator→planner→doer→adversarial-review→merger) in parallel with serialized merges, and re-measures — looping until the rubric is fully satisfied (the energy function reaches zero) or a safety cap trips. Use when the user wants a scope driven to \"perfect\" with no handwaving. NOT for opportunistic one-off fixes (use inch-worm) or a one-shot audit (use full-systems-audit) — anneal is the convergence ENGINE that uses both.",
-      "tags": [
-        "meta",
-        "workflow",
-        "quality",
-        "convergence",
-        "mutation-testing",
-        "long-horizon"
-      ]
-    },
-    {
-      "name": "autopilot",
-      "path": "skills/autopilot/SKILL.md",
-      "description": "Keep an explicitly delegated long-horizon task moving through audited durable state, terminal delivery, and the next ready item without returning routine control.",
-      "tags": [
-        "meta",
-        "workflow",
-        "execution",
-        "long-horizon"
-      ]
-    },
-    {
       "name": "book-fetch",
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
@@ -70,17 +46,6 @@
         "ios",
         "macos",
         "workflow"
-      ]
-    },
-    {
-      "name": "deep-research",
-      "path": "skills/deep-research/SKILL.md",
-      "description": "The research-shaped sibling of `autopilot`: drive a deep investigation to completion in one go, never handing control back mid-dive. Invoke when the principal says \"deep dive on X\", \"investigate X\", \"research X\", \"get to the bottom of X\", \"go to work on this\", or \"finish the investigation\" — any mandate to investigate a topic by reading real sources (code, docs, issues, telemetry) and producing grounded, captured findings. Also fires when the agent catches itself about to hand control back with a readable-but-unread thread, findings only in chat, or a \"want me to keep going? / loose ends:\" handoff — mode violations here. Terminal state is the sweater test: pull every thread until there's no more sweater AND every thread is routed to its durable home. Two narrow exceptions, as autopilot (a human-only credential/access wall; an irreversible destructive op); everything else is keep pulling. Do NOT invoke for a quick single lookup or an explicitly interactive \"let's think this through\" session.",
-      "tags": [
-        "meta",
-        "workflow",
-        "research",
-        "long-horizon"
       ]
     },
     {
@@ -115,27 +80,6 @@
         "frontend",
         "creative",
         "aesthetics"
-      ]
-    },
-    {
-      "name": "full-systems-audit",
-      "path": "skills/full-systems-audit/SKILL.md",
-      "description": "Perform a comprehensive codebase audit covering architecture, code quality, and modularization. Produces an audit report plus a routed backlog for work-planner, inch-worm, and companion skills.",
-      "tags": [
-        "audit",
-        "architecture",
-        "refactoring",
-        "code-quality"
-      ]
-    },
-    {
-      "name": "inch-worm",
-      "path": "skills/inch-worm/SKILL.md",
-      "description": "Open-ended codebase improvement loop. Start with one concrete seed issue, fix it, log side observations to a bundle task backlog, pick the next highest-value discovery, repeat, and close the backlog when done. Each fix is its own PR.",
-      "tags": [
-        "workflow",
-        "maintenance",
-        "iterative"
       ]
     },
     {
@@ -209,16 +153,6 @@
       ]
     },
     {
-      "name": "stay-in-turn",
-      "path": "skills/stay-in-turn/SKILL.md",
-      "description": "Keep long-running CI, deploy, merge, smoke, and batch work in the current turn by choosing the host's native notification path or a bounded foreground fallback.",
-      "tags": [
-        "meta",
-        "workflow",
-        "execution"
-      ]
-    },
-    {
       "name": "video-editing",
       "path": "skills/video-editing/SKILL.md",
       "description": "Build and edit videos using Remotion with kinetic typography, VO-synced timing, and motion design. Use this skill when the user asks to create, edit, or fix video content.",
@@ -226,29 +160,6 @@
         "video",
         "remotion",
         "creative"
-      ]
-    },
-    {
-      "name": "visual-qa-dogfood",
-      "path": "skills/visual-qa-dogfood/SKILL.md",
-      "description": "Run screenshot-backed dogfooding for UI, rendering, layout, typography, visual assets, native app surfaces, or user-reported visual weirdness. Forces agents to inspect representative visuals and maintain an absurdity ledger so metric-only checks cannot miss obviously broken UX.",
-      "tags": [
-        "workflow",
-        "qa",
-        "ui",
-        "visual",
-        "dogfood"
-      ]
-    },
-    {
-      "name": "watchdog-mode",
-      "path": "skills/watchdog-mode/SKILL.md",
-      "description": "Invoke when the operator activates a watchdog mandate -- phrases like \"keep an eye on X\", \"watchdog this\", \"monitor Y across silences\", \"keep watching\", \"let me know if anything smells off\". Watchdog mode is autonomous monitoring + repair across operator silences, with a strict scope of what worker takes action on vs. what worker surfaces. The skill encodes the cadence, the scope of acting-vs-surfacing, the carve-outs that keep watchdog from overreaching, and the exit signal.",
-      "tags": [
-        "workflow",
-        "monitoring",
-        "autopilot",
-        "long-horizon"
       ]
     },
     {
@@ -260,57 +171,6 @@
         "word",
         "docx",
         "formatting"
-      ]
-    },
-    {
-      "name": "work-doer",
-      "path": "skills/work-doer/SKILL.md",
-      "description": "Execute an authorized engineering task with strict TDD, complete changed-production coverage, and the smallest implementation that reaches a tested branch.",
-      "tags": [
-        "workflow",
-        "execution",
-        "ponytail"
-      ]
-    },
-    {
-      "name": "work-ideator",
-      "path": "skills/work-ideator/SKILL.md",
-      "description": "Explore an ambiguous engineering problem just far enough to expose the simplest viable shape. Use when the request has a real product, architecture, or scope fork; skip when the task is already clear.",
-      "tags": [
-        "workflow",
-        "ideation",
-        "planning"
-      ]
-    },
-    {
-      "name": "work-merger",
-      "path": "skills/work-merger/SKILL.md",
-      "description": "Drive an authorized finished branch through current-target sync, exact-head checks, verified remote outcome, release or install, smoke, cleanup, and continuation.",
-      "tags": [
-        "workflow",
-        "git",
-        "merge"
-      ]
-    },
-    {
-      "name": "work-planner",
-      "path": "skills/work-planner/SKILL.md",
-      "description": "Turn coordinated or risky engineering work into the smallest executable planning contract. Skip trivial work, reuse existing planning artifacts, and review in proportion to risk.",
-      "tags": [
-        "workflow",
-        "planning"
-      ]
-    },
-    {
-      "name": "workbench-operator",
-      "path": "skills/workbench-operator/SKILL.md",
-      "description": "Use Ouro Workbench as the native control room for terminal/TUI agents, including boss-agent check-ins, Workbench MCP tools, Desk mirroring, onboarding, and first-class Claude Code, Codex, Copilot CLI, and shell sessions.",
-      "tags": [
-        "workflow",
-        "workbench",
-        "desk",
-        "mcp",
-        "terminal-agents"
       ]
     },
     {
