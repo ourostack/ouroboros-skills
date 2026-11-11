@@ -1,19 +1,6 @@
 {
   "skills": [
     {
-      "name": "core-meeting-capture",
-      "path": "skills/core-meeting-capture/SKILL.md",
-      "description": "Use when capturing, refreshing or publishing a meeting, transcript, chat, recording or meeting recap; when a capture README is only a receipt; or when slides, diagrams, whiteboards or demos mentioned in a meeting need visual evidence. Not for recording an ongoing livestream or generating illustrations.",
-      "tags": [
-        "meetings",
-        "recap",
-        "capture",
-        "transcript",
-        "visual-evidence",
-        "recording"
-      ]
-    },
-    {
       "name": "book-fetch",
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
