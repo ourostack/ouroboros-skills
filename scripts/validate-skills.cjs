@@ -133,6 +133,20 @@ function validateManifest(options = {}) {
   console.log(`Validated ${manifest.skills.length} skills.`);
 }
 
+// The repository is itself a plugin: both host manifests point at ./skills/ and agree, so installing it loads the
+// same skills the manifest lists.
+function validatePluginManifests(options = {}) {
+  const copilot = readJson("plugin.json", options);
+  const claude = readJson(".claude-plugin/plugin.json", options);
+  for (const [file, manifest] of [["plugin.json", copilot], [".claude-plugin/plugin.json", claude]]) {
+    if (manifest.skills !== "./skills/") throw new Error(`${file}: skills must be "./skills/"`);
+  }
+  if (copilot.name !== claude.name || copilot.version !== claude.version) {
+    throw new Error("plugin.json and .claude-plugin/plugin.json must share name and version");
+  }
+  console.log(`Validated plugin manifests for ${copilot.name} ${copilot.version}.`);
+}
+
 function listSkillFiles(dir, options, out) {
   let entries;
   try {
@@ -198,6 +212,7 @@ function validateSkillDescriptionLimits(options = {}) {
 function validateAll(options = {}) {
   validateSkillDescriptionLimits(options);
   validateManifest(options);
+  validatePluginManifests(options);
 }
 
 
@@ -235,6 +250,7 @@ module.exports = {
   startCli,
   validateAll,
   validateManifest,
+  validatePluginManifests,
   validateSkillDescriptionLimits,
 };
 

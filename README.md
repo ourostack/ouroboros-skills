@@ -44,7 +44,13 @@ https://raw.githubusercontent.com/ourostack/ouroboros-skills/main/manifest.json
 
 ## Installing a Skill
 
-The **skill-management** skill (`skills/skill-management/SKILL.md`) is the bootstrap skill. Once an agent has it installed, it can self-serve all other skills. The workflow:
+**As a plugin (recommended).** The repository is itself a plugin (`plugin.json`, `.claude-plugin/plugin.json`), so one command loads every skill below and keeps it current:
+
+```sh
+agency plugin install github:ourostack/ouroboros-skills@main --cache-policy auto --cache-ttl 0
+```
+
+**One skill at a time, for Ouroboros bundles.** The **skill-management** skill (`skills/skill-management/SKILL.md`) is the bootstrap skill. Once an agent has it installed, it can self-serve all other skills. The workflow:
 
 1. Fetch `manifest.json` to discover available skills.
 2. Fetch the desired skill's `SKILL.md` via raw GitHub URL.
@@ -90,4 +96,4 @@ Plugins are how we share agent capabilities now. This repository's plugin copies
 
 `workbench-operator` is retired with Ouro Workbench, which is superseded. This repository's old `desk/` and `worker/` task folders are gone too; Git history keeps them.
 
-New work goes to the plugin that owns it, not here. The skills still listed above are moving into plugins next.
+New work goes to the plugin that owns it, not here. The skills still listed above have no product home, so this repository ships them as one plugin.
