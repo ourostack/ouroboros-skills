@@ -25,18 +25,6 @@ ouroboros-skills/
   skills/
     skill-management/        # Bootstrap skill for managing other skills
       SKILL.md
-    autopilot/               # Full-delivery execution doctrine
-      SKILL.md
-    work-ideator/            # Resolve material ambiguity only when needed
-      SKILL.md
-    work-planner/            # Risk-scaled planner for coordinated work
-      SKILL.md
-    work-doer/               # Smallest complete implementation with proportionate proof
-      SKILL.md
-    work-merger/             # PR through release/install, smoke, and cleanup
-      SKILL.md
-    inch-worm/               # Open-ended improvement loop
-      SKILL.md
     video-editing/           # Remotion-based video production
       SKILL.md
     word-docs/               # Markdown to Word doc conversion
@@ -81,18 +69,8 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 |-------|-------------|
 | **skill-management** | Browse, install, update, and contribute skills from this repo. |
 | **core-meeting-capture** | Source-backed substantive meeting recaps and transcript-guided visual evidence; provider access stays in thin adapters. |
-| **autopilot** | Keep authorized long-horizon work moving through terminal delivery and the continuation scan. |
-| **stay-in-turn** | Keep long-running work in the same turn with a native notification path or bounded foreground fallback. |
-| **work-ideator** | Resolve material ambiguity and choose the smallest viable shape; skip when the task is clear. |
-| **work-planner** | Plan coordinated or risky work; skip when the task description is sufficient. |
-| **work-doer** | Implement the smallest complete vertical change test-first, with complete coverage of changed production paths. |
-| **work-merger** | Drive a branch through PR, merge, release/install, smoke, cleanup, and continuation. |
 | **ouro-check** | Deterministic design, layout, accessibility, jank and HTTPS findings for any site, read as JSON instead of screenshots. |
-| **visual-qa-dogfood** | Screenshot-backed dogfooding for UI/rendering work so visual absurdity cannot hide behind passing metrics. |
-| **workbench-operator** | Use Ouro Workbench as the native control room for terminal/TUI agents, Desk mirrors, and boss-agent check-ins. |
-| **inch-worm** | Open-ended codebase improvement loop. Seed → fix → log side discoveries → pick next. Each fix is its own PR. |
 | **draining-issues** | An assigned issue queue: treat each prompt request as a useful outcome to deliver. |
-| **full-systems-audit** | End-to-end repo audit that produces an audit report plus a routed backlog for the rest of the skill ecosystem. |
 | **dragon-hunt** | Adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. |
 | **design** | Design and build production-grade frontend interfaces from scratch. |
 | **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality. |
@@ -108,6 +86,8 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 Plugins are how we share agent capabilities now. This repository's plugin copies are gone:
 
 - **Desk, Crew and Plain Language** moved to [`ourostack/desk`](https://github.com/ourostack/desk), which ships them as plugins: `github:ourostack/desk:plugins/desk`, `…:plugins/crew` and `…:plugins/plain-language`. The copies here had fallen behind (Desk 3.2.2 here, against 3.2.84 there).
-- **Work Suite** (`work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot` and the rest) and its pinned **Ponytail** upstream are retired. Desk retired them in favour of Superpowers' process skills ([Desk's small removals](https://github.com/ourostack/desk/blob/main/docs/roadmap/small-removals.md)), and we ship small increments on `main` instead of planning and doing milestones.
+- **Work Suite** (`work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot` and the rest), its pinned **Ponytail** upstream and its companions (`anneal`, `full-systems-audit`, `deep-research`, `inch-worm`, `stay-in-turn`, `watchdog-mode`, `visual-qa-dogfood`) are retired. Desk retired them in favour of Superpowers' process skills ([Desk's small removals](https://github.com/ourostack/desk/blob/main/docs/roadmap/small-removals.md)), and we ship small increments on `main` instead of planning and doing milestones.
+
+`workbench-operator` is retired with Ouro Workbench, which is superseded. This repository's old `desk/` and `worker/` task folders are gone too; Git history keeps them.
 
 New work goes to the plugin that owns it, not here. The skills still listed above are moving into plugins next.
