@@ -14,18 +14,6 @@
       ]
     },
     {
-      "name": "draining-issues",
-      "path": "skills/draining-issues/SKILL.md",
-      "description": "Use when assigned to draining issues, an issue drain, a repository issue queue, or prompt requests, including resuming a drain or watching for new issues.",
-      "tags": [
-        "workflow",
-        "issues",
-        "issue-drain",
-        "prompt-requests",
-        "delivery"
-      ]
-    },
-    {
       "name": "book-fetch",
       "path": "skills/book-fetch/SKILL.md",
       "description": "Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. Infrastructure-agnostic — discovers the user's setup at runtime.",
