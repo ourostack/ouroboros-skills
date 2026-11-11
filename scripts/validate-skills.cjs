@@ -3,7 +3,6 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawnSync: defaultSpawnSync } = require("node:child_process");
 
 const maxCodexSkillDescriptionLength = 1024;
 const maxCodexDefaultPromptCount = 3;
@@ -199,23 +198,8 @@ function validateSkillDescriptionLimits(options = {}) {
 function validateAll(options = {}) {
   validateSkillDescriptionLimits(options);
   validateManifest(options);
-  validateAppleDistributionKitSkill(options);
 }
 
-function validateAppleDistributionKitSkill(options = {}) {
-  const {
-    childStdio = "inherit",
-    repoRoot = process.cwd(),
-    spawnSync = defaultSpawnSync,
-  } = options;
-  const result = spawnSync(process.execPath, ["scripts/check-apple-distribution-kit-skill.cjs"], {
-    cwd: repoRoot,
-    stdio: childStdio,
-  });
-  if ((result.status ?? 1) !== 0) {
-    throw new Error("apple distribution kit skill guidance check failed");
-  }
-}
 
 function run({
   stderr = process.stderr,
@@ -250,7 +234,6 @@ module.exports = {
   run,
   startCli,
   validateAll,
-  validateAppleDistributionKitSkill,
   validateManifest,
   validateSkillDescriptionLimits,
 };

@@ -73,7 +73,6 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **dragon-hunt** | Adversarial end-to-end bug hunt across product, backend, auth, data, integrations, MCP/agent surfaces, and deployment assumptions. |
 | **design** | Design and build production-grade frontend interfaces from scratch. |
 | **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality. |
-| **build-native-apple-app** | Plan, build, audit, and ship native Apple apps for iOS, iPadOS, macOS, watchOS, tvOS, and visionOS. |
 | **seo-titles** | Write HTML title tags that rank and get clicked. |
 | **book-fetch** | Search for ebooks on libgen, download EPUBs, and optionally deliver them to an e-reader or Calibre library. |
 | **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
@@ -86,6 +85,7 @@ Plugins are how we share agent capabilities now. This repository's plugin copies
 
 - **Desk, Crew and Plain Language** moved to [`ourostack/desk`](https://github.com/ourostack/desk), which ships them as plugins: `github:ourostack/desk:plugins/desk`, `…:plugins/crew` and `…:plugins/plain-language`. The copies here had fallen behind (Desk 3.2.2 here, against 3.2.84 there).
 - **Work Suite** (`work-ideator`, `work-planner`, `work-doer`, `work-merger`, `autopilot` and the rest), its pinned **Ponytail** upstream and its companions (`anneal`, `full-systems-audit`, `deep-research`, `inch-worm`, `stay-in-turn`, `watchdog-mode`, `visual-qa-dogfood`) are retired. Desk retired them in favour of Superpowers' process skills ([Desk's small removals](https://github.com/ourostack/desk/blob/main/docs/roadmap/small-removals.md)), and we ship small increments on `main` instead of planning and doing milestones.
+- **`build-native-apple-app`, `mac-app-distribution` and `sign-apple-apps`** moved to [`ourostack/apple-distribution-kit`](https://github.com/ourostack/apple-distribution-kit/tree/main/plugins/apple-distribution), the kit they teach, as the `apple-distribution` plugin.
 - **`draining-issues`** lives in Desk ([`plugins/desk/skills/draining-issues`](https://github.com/ourostack/desk/tree/main/plugins/desk/skills/draining-issues)); the copy here was byte-identical.
 
 `workbench-operator` is retired with Ouro Workbench, which is superseded. This repository's old `desk/` and `worker/` task folders are gone too; Git history keeps them.
