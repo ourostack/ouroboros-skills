@@ -25,18 +25,6 @@
       ]
     },
     {
-      "name": "build-native-apple-app",
-      "path": "skills/build-native-apple-app/SKILL.md",
-      "description": "Use when planning, building, auditing, or shipping a native Apple app for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS. Applies to SwiftUI, UIKit, AppKit, Xcode projects, Swift packages, simulator/device validation, App Intents, Apple Intelligence, TestFlight/App Store readiness, and work that must justify native Apple platform leverage instead of a web or cross-platform shell.",
-      "tags": [
-        "native",
-        "apple",
-        "ios",
-        "macos",
-        "workflow"
-      ]
-    },
-    {
       "name": "design",
       "path": "skills/design/SKILL.md",
       "description": "Design and build production-grade frontend interfaces from scratch. Covers the full workflow from context gathering through visual direction, implementation, and polish.",
@@ -83,19 +71,6 @@
       ]
     },
     {
-      "name": "mac-app-distribution",
-      "path": "skills/mac-app-distribution/SKILL.md",
-      "description": "Plan, build, validate, and operate macOS app distribution across direct download, DMG, update manifests, hosted download pages, TestFlight, and Mac App Store submission.",
-      "tags": [
-        "native",
-        "apple",
-        "macos",
-        "distribution",
-        "release",
-        "app-store"
-      ]
-    },
-    {
       "name": "product-cloner",
       "path": "skills/product-cloner/SKILL.md",
       "description": "Clone the look, feel, and behavior of an existing application (especially desktop, Electron, or web apps) by reading its shipped source as ground truth instead of guessing. Use when the user says make X look or behave exactly like Y, clone Typora or Notion or Linear, or pushes back that a parity attempt does not match. Covers locating the source of truth (app bundle CSS and JS, plists, defaults read, beautified minified bundles, the DOM template), pinning the user's active variant, extracting a complete source-grounded spec (visual tokens, DOM and feature inventory, behavior defaults, string inventory), implementing against the spec, and verifying against the reference. Keeps the IP line clear by reading shipped artifacts to extract facts and reimplementing originally.",
@@ -115,19 +90,6 @@
         "seo",
         "copywriting",
         "marketing"
-      ]
-    },
-    {
-      "name": "sign-apple-apps",
-      "path": "skills/sign-apple-apps/SKILL.md",
-      "description": "Use when signing, notarizing or distributing native Apple apps; configuring certificates, provisioning profiles or notary credentials; inspecting or rotating Apple Developer authentication keys; configuring Sign in with Apple or Services IDs; renewing membership; resolving Gatekeeper failures; or submitting App Store/TestFlight releases.",
-      "tags": [
-        "native",
-        "apple",
-        "macos",
-        "signing",
-        "notarization",
-        "release"
       ]
     },
     {
