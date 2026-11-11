@@ -109,17 +109,6 @@
         "docx",
         "formatting"
       ]
-    },
-    {
-      "name": "ouro-check",
-      "path": "skills/ouro-check/SKILL.md",
-      "description": "Check whether a site, a built app or a page looks, reads and moves right (design, layout, pictures, accessibility, jank, HTTPS) at phone, laptop and 4K sizes in light and dark, from JSON findings instead of screenshots or recordings.",
-      "tags": [
-        "design",
-        "qa",
-        "web",
-        "ouro-ui"
-      ]
     }
   ]
 }
