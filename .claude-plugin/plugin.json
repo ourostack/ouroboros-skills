@@ -1,0 +1,18 @@
+{
+  "name": "ouroboros-skills",
+  "version": "0.1.0",
+  "description": "General agent skills from the Ouroboros stack that don't belong to a product repository: documents, design, media, research and the skill-management rubric.",
+  "author": {
+    "name": "ourostack",
+    "url": "https://github.com/ourostack/ouroboros-skills"
+  },
+  "skills": "./skills/",
+  "homepage": "https://github.com/ourostack/ouroboros-skills",
+  "repository": "https://github.com/ourostack/ouroboros-skills",
+  "keywords": [
+    "skills",
+    "documents",
+    "design",
+    "media"
+  ]
+}
