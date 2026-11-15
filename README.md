@@ -82,6 +82,7 @@ See the **Contribute** section in [`skills/skill-management/SKILL.md`](skills/sk
 | **video-editing** | Build and edit videos using Remotion with kinetic typography and VO-synced timing. |
 | **word-docs** | Convert markdown drafts into shareable Word documents using a bundled helper script. |
 | **product-cloner** | Clone an existing app's look, feel, and behavior from shipped source as ground truth. |
+| **cswap** | Keep several Claude Code accounts working unattended with claude-swap: auto-switch, account labels, re-login and a watchdog. |
 
 ## What moved
 
